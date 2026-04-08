@@ -1048,8 +1048,12 @@ void BraveContentBrowserClient::AppendExtraCommandLineSwitches(
       content::RenderProcessHost* process =
           content::RenderProcessHost::FromID(child_process_id);
       if (process && process->IsJitDisabled()) {
-        command_line->AppendSwitchASCII(blink::switches::kJavaScriptFlags,
-                                        "--wasm-jitless");
+        const std::string switch_name = blink::switches::kJavaScriptFlags;
+        const std::string existing_values =
+            command_line->GetSwitchValueASCII(switch_name);
+        command_line->RemoveSwitch(switch_name);
+        command_line->AppendSwitchASCII(
+                      switch_name, base::StrCat({existing_values, ",", "--wasm_jitless"}));
       }
     }
 #endif  // BUILDFLAG(BRAVE_V8_ENABLE_DRUMBRAKE)
