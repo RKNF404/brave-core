@@ -254,10 +254,15 @@ void BraveSettingsUI::AddResources(content::WebUIDataSource* html_source,
                           ai_chat::features::IsAIChatHistoryEnabled());
 #endif
 
+#if BUILDFLAG(IS_BRAVE_ORIGIN_BRANDED)
+  html_source->AddBoolean("isSurveyPanelistAllowed", false);
+#else
   html_source->AddBoolean("isSurveyPanelistAllowed",
                           base::FeatureList::IsEnabled(
                               ntp_background_images::features::
-                                  kBraveNTPBrandedWallpaperSurveyPanelist));
+                                  kBraveNTPBrandedWallpaperSurveyPanelist) &&
+                              !brave_origin::IsBraveOriginPurchased());
+#endif  // BUILDFLAG(IS_BRAVE_ORIGIN_BRANDED)
   html_source->AddBoolean(
       "isPlaylistAllowed",
       base::FeatureList::IsEnabled(playlist::features::kPlaylist) &&
@@ -294,6 +299,9 @@ void BraveSettingsUI::AddResources(content::WebUIDataSource* html_source,
            "/?intent=checkout&product=origin&mtm_campaign=browser-settings"}));
   html_source->AddBoolean("isTreeTabsFlagEnabled",
                           base::FeatureList::IsEnabled(tabs::kBraveTreeTab));
+  html_source->AddBoolean(
+      "isScrollableHorizontalTabStripEnabled",
+      base::FeatureList::IsEnabled(tabs::kBraveScrollableTabStrip));
   html_source->AddString("braveSearchEngineName",
                          TemplateURLPrepopulateData::brave_search.name);
   html_source->AddBoolean("isLocaleJapan", IsLocaleJapan(profile));

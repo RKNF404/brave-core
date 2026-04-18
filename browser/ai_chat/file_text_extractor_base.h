@@ -15,9 +15,10 @@
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
-#include "content/public/browser/web_contents_delegate.h"
+#include "brave/components/restricted_web_contents_delegate/restricted_web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
+#include "url/gurl.h"
 
 namespace content {
 class BrowserContext;
@@ -32,7 +33,7 @@ namespace ai_chat {
 //
 // Subclasses must implement OnDocumentReady() to perform their specific
 // text extraction logic and call Finish() when done.
-class FileTextExtractorBase : public content::WebContentsDelegate,
+class FileTextExtractorBase : public RestrictedWebContentsDelegate,
                               public content::WebContentsObserver {
  public:
   using ExtractTextCallback =
@@ -44,6 +45,21 @@ class FileTextExtractorBase : public content::WebContentsDelegate,
   FileTextExtractorBase(const FileTextExtractorBase&) = delete;
   FileTextExtractorBase& operator=(const FileTextExtractorBase&) = delete;
 
+  // Two entry points for text extraction:
+
+  // Use an existing file path directly (e.g. from file picker).
+  void ExtractText(content::BrowserContext* browser_context,
+                   const base::FilePath& file_path,
+                   ExtractTextCallback callback);
+
+  // Write bytes to a temp file first (e.g. from drag-and-drop).
+  // |extension| is the file extension for MIME type detection (without
+  // leading dot).
+  void ExtractText(content::BrowserContext* browser_context,
+                   std::vector<uint8_t> file_bytes,
+                   const base::FilePath::StringType& extension,
+                   ExtractTextCallback callback);
+
  protected:
   // Called when the document has loaded and is ready for text extraction.
   // Subclasses must implement this and call Finish() with the result.
@@ -52,6 +68,10 @@ class FileTextExtractorBase : public content::WebContentsDelegate,
   // Returns additional sandbox flags to remove beyond the base set
   // (Scripts, Origin, Navigation). Override to add more, e.g. kPlugins.
   virtual network::mojom::WebSandboxFlags AdditionalUnsandboxFlags() const;
+
+  // Returns the URL to load for the given file path. Default returns a
+  // file:// URL. Override to customize, e.g. view-source:file://.
+  virtual GURL GetLoadURL(const base::FilePath& file_path) const;
 
   // Starts loading a file in a hidden WebContents.
   void LoadInWebContents(content::BrowserContext* browser_context,
@@ -71,26 +91,6 @@ class FileTextExtractorBase : public content::WebContentsDelegate,
   ExtractTextCallback callback_;
 
  private:
-  // content::WebContentsDelegate:
-  bool ShouldSuppressDialogs(content::WebContents* source) override;
-  void CanDownload(const GURL& url,
-                   const std::string& request_method,
-                   base::OnceCallback<void(bool)> callback) override;
-  bool IsWebContentsCreationOverridden(
-      content::RenderFrameHost* opener,
-      content::SiteInstance* source_site_instance,
-      content::mojom::WindowContainerType window_container_type,
-      const GURL& opener_url,
-      const std::string& frame_name,
-      const GURL& target_url) override;
-  bool CanEnterFullscreenModeForTab(
-      content::RenderFrameHost* requesting_frame) override;
-  bool CanDragEnter(content::WebContents* source,
-                    const content::DropData& data,
-                    blink::DragOperationsMask operations_allowed) override;
-  void RequestKeyboardLock(content::WebContents* web_contents,
-                           bool esc_key_locked) override;
-
   // content::WebContentsObserver:
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;

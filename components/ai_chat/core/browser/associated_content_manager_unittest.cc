@@ -81,20 +81,17 @@ class AssociatedContentManagerUnitTest : public testing::Test {
         std::make_unique<NiceMock<MockEngineConsumer>>());
   }
 
-  void TearDown() override { ai_chat_service_.reset(); }
-
  protected:
   base::test::TaskEnvironment task_environment_;
-  AIChatFeedbackAPI feedback_api_;
-  std::unique_ptr<AIChatService> ai_chat_service_;
-  std::unique_ptr<ModelService> model_service_;
   sync_preferences::TestingPrefServiceSyncable prefs_;
   sync_preferences::TestingPrefServiceSyncable local_state_;
   std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_;
   network::TestURLLoaderFactory url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
+  AIChatFeedbackAPI feedback_api_;
+  std::unique_ptr<ModelService> model_service_;
+  std::unique_ptr<AIChatService> ai_chat_service_;
   mojom::ConversationPtr conversation_;
-
   std::unique_ptr<ConversationHandler> conversation_handler_;
 
  private:
@@ -323,17 +320,9 @@ TEST_F(AssociatedContentManagerUnitTest,
   ASSERT_EQ(1u, associated_content.size());
   EXPECT_FALSE(associated_content[0]->conversation_turn_uuid.has_value());
 
-#if DCHECK_IS_ON()
-  // This will only crash if DCHECK is on.
-  EXPECT_DEATH_IF_SUPPORTED(conversation_handler_->associated_content_manager()
-                                ->GetCachedContentsMap(),
-                            "");
-#else
-  // If DCHECK is off, the map should be empty.
   auto contents_map = conversation_handler_->associated_content_manager()
                           ->GetCachedContentsMap();
   EXPECT_TRUE(contents_map.empty());
-#endif
 }
 
 TEST_F(AssociatedContentManagerUnitTest, GetCachedContentsMap_MultipleContent) {

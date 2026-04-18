@@ -76,6 +76,7 @@ class RenderViewContextMenu : public RenderViewContextMenu_Chromium
   // ContainersMenuModelDelegate:
   void OnContainerSelected(
       const containers::mojom::ContainerPtr& container) override;
+  void OnNoContainerSelected() override;
   base::flat_set<std::string> GetCurrentContainerIds() override;
   Browser* GetBrowserToOpenSettings() override;
   float GetScaleFactor() override;
@@ -92,6 +93,8 @@ class RenderViewContextMenu : public RenderViewContextMenu_Chromium
   // RenderViewContextMenuBase:
   void InitMenu() override;
   void NotifyMenuShown() override;
+
+  void BuildEmailAliasesMenu();
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
   bool IsAIChatEnabled() const;

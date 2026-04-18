@@ -6,7 +6,7 @@
 #include "brave/browser/serp_metrics/serp_metrics_tab_helper.h"
 
 #include "base/check.h"
-#include "base/check_is_test.h"
+#include "base/check_deref.h"
 #include "base/feature_list.h"
 #include "brave/browser/serp_metrics/serp_metrics_service_factory.h"
 #include "brave/components/constants/pref_names.h"
@@ -41,34 +41,33 @@ bool ShouldRecordSearchEngine(SearchEngineType search_engine_type,
 
 }  // namespace
 
-SerpMetricsTabHelper::SerpMetricsTabHelper(content::WebContents* web_contents)
-    : content::WebContentsObserver(web_contents),
-      content::WebContentsUserData<SerpMetricsTabHelper>(*web_contents) {
-  CHECK(base::FeatureList::IsEnabled(serp_metrics::kSerpMetricsFeature));
-
-  SerpMetricsService* serp_metrics_service =
-      SerpMetricsServiceFactory::GetFor(web_contents->GetBrowserContext());
-  if (serp_metrics_service) {
-    serp_metrics_ = serp_metrics_service->Get();
-  } else {
-    // `SerpMetricsService` can be null in tests.
-    CHECK_IS_TEST();
-  }
-}
+SerpMetricsTabHelper::~SerpMetricsTabHelper() = default;
 
 // static
 void SerpMetricsTabHelper::MaybeCreateForWebContents(
     content::WebContents* web_contents) {
   CHECK(web_contents);
+  CHECK(base::FeatureList::IsEnabled(serp_metrics::kSerpMetricsFeature));
 
-  if (!web_contents->GetBrowserContext()->IsOffTheRecord()) {
-    CreateForWebContents(web_contents);
+  SerpMetricsService* serp_metrics_service =
+      SerpMetricsServiceFactory::GetFor(web_contents->GetBrowserContext());
+  if (!serp_metrics_service) {
+    // `SerpMetricsService` is null for off-the-record profiles and may be null
+    // in tests.
+    return;
   }
+
+  SerpMetrics* serp_metrics = serp_metrics_service->Get();
+  CreateForWebContents(web_contents, CHECK_DEREF(serp_metrics));
 }
 
-SerpMetricsTabHelper::~SerpMetricsTabHelper() = default;
-
 ///////////////////////////////////////////////////////////////////////////////
+
+SerpMetricsTabHelper::SerpMetricsTabHelper(content::WebContents* web_contents,
+                                           SerpMetrics& serp_metrics)
+    : content::WebContentsObserver(web_contents),
+      content::WebContentsUserData<SerpMetricsTabHelper>(*web_contents),
+      serp_metrics_(serp_metrics) {}
 
 bool SerpMetricsTabHelper::IsSameSerpAsLastRecorded(const GURL& url) const {
   return last_recorded_serp_url_ &&
@@ -92,12 +91,6 @@ void SerpMetricsTabHelper::MaybeClassifyAndRecordSearchEngineForUrl(
 
 void SerpMetricsTabHelper::RecordSearchEngine(
     SearchEngineType search_engine_type) {
-  if (!serp_metrics_) {
-    // `SerpMetrics` can be null in tests.
-    CHECK_IS_TEST();
-    return;
-  }
-
   switch (search_engine_type) {
     case SEARCH_ENGINE_BRAVE: {
       serp_metrics_->RecordSearch(SerpMetricType::kBrave);

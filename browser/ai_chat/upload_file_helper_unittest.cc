@@ -54,6 +54,16 @@ constexpr uint8_t kSamplePdf[] = {
     0x74, 0x78, 0x72, 0x65, 0x66, 0x0a, 0x31, 0x32, 0x38, 0x0a, 0x25, 0x25,
     0x45, 0x4f, 0x46, 0x0a};
 
+// Android returns just the basename as the UploadedFile filename since
+// ReadSelectedFile uses display_name there (info.path() is a content:// URI).
+std::string ExpectedFilename(const base::FilePath& path) {
+#if BUILDFLAG(IS_ANDROID)
+  return path.BaseName().AsUTF8Unsafe();
+#else
+  return path.AsUTF8Unsafe();
+#endif
+}
+
 class MockObserver : UploadFileHelper::Observer {
  public:
   explicit MockObserver(UploadFileHelper* helper) { obs_.Observe(helper); }
@@ -125,19 +135,13 @@ TEST_F(UploadFileHelperTest, AcceptedFileExtensions) {
   EXPECT_CALL(observer, OnFilesSelected).Times(0);
   EXPECT_FALSE(UploadFileSync());
   EXPECT_EQ(dialog_params_.type, ui::SelectFileDialog::SELECT_OPEN_MULTI_FILE);
+  // No extension filtering — all files are accepted, matching how Chromium's
+  // Browser::OpenFile works. The renderer handles MIME sniffing.
   ASSERT_TRUE(dialog_params_.file_types);
-  ASSERT_EQ(1u, dialog_params_.file_types->extensions.size());
-  EXPECT_TRUE(std::ranges::contains(dialog_params_.file_types->extensions[0],
-                                    FILE_PATH_LITERAL("png")));
-  EXPECT_TRUE(std::ranges::contains(dialog_params_.file_types->extensions[0],
-                                    FILE_PATH_LITERAL("jpeg")));
-  EXPECT_TRUE(std::ranges::contains(dialog_params_.file_types->extensions[0],
-                                    FILE_PATH_LITERAL("jpg")));
-  EXPECT_TRUE(std::ranges::contains(dialog_params_.file_types->extensions[0],
-                                    FILE_PATH_LITERAL("webp")));
-  EXPECT_TRUE(std::ranges::contains(dialog_params_.file_types->extensions[0],
-                                    FILE_PATH_LITERAL("pdf")));
+  EXPECT_TRUE(dialog_params_.file_types->extensions.empty());
 #if BUILDFLAG(IS_ANDROID)
+  // Android doesn't support view-source for text file extraction, so only
+  // image and PDF MIME types are accepted.
   EXPECT_THAT(dialog_params_.accept_types,
               testing::UnorderedElementsAre(u"image/png", u"image/jpeg",
                                             u"image/webp", u"application/pdf"));
@@ -184,7 +188,7 @@ TEST_F(UploadFileHelperTest, ImageRead) {
   testing::Mock::VerifyAndClearExpectations(&observer);
   ASSERT_TRUE(sample_result);
   ASSERT_EQ(1u, sample_result->size());
-  EXPECT_EQ((*sample_result)[0]->filename, path3.AsUTF8Unsafe());
+  EXPECT_EQ((*sample_result)[0]->filename, ExpectedFilename(path3));
   EXPECT_EQ((*sample_result)[0]->filesize, (*sample_result)[0]->data.size());
   EXPECT_EQ((*sample_result)[0]->type, mojom::UploadedFileType::kImage);
   auto encoded_bitmap = gfx::PNGCodec::Decode((*sample_result)[0]->data);
@@ -205,7 +209,7 @@ TEST_F(UploadFileHelperTest, ImageRead) {
   testing::Mock::VerifyAndClearExpectations(&observer);
   ASSERT_TRUE(large_result);
   ASSERT_EQ(1u, large_result->size());
-  EXPECT_EQ((*large_result)[0]->filename, path4.AsUTF8Unsafe());
+  EXPECT_EQ((*large_result)[0]->filename, ExpectedFilename(path4));
   EXPECT_EQ((*large_result)[0]->filesize, (*large_result)[0]->data.size());
   EXPECT_EQ((*large_result)[0]->type, mojom::UploadedFileType::kImage);
   EXPECT_LE((*large_result)[0]->filesize, large_png_bytes->size());
@@ -225,7 +229,7 @@ TEST_F(UploadFileHelperTest, ImageRead) {
   ASSERT_TRUE(result);
   ASSERT_EQ(2u, result->size());
 
-  EXPECT_EQ((*result)[0]->filename, path3.AsUTF8Unsafe());
+  EXPECT_EQ((*result)[0]->filename, ExpectedFilename(path3));
   EXPECT_EQ((*result)[0]->filesize, (*result)[0]->data.size());
   EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kImage);
   auto encoded_bitmap1 = gfx::PNGCodec::Decode((*result)[0]->data);
@@ -233,7 +237,7 @@ TEST_F(UploadFileHelperTest, ImageRead) {
   EXPECT_EQ(sample_bitmap.width(), encoded_bitmap1.width());
   EXPECT_EQ(sample_bitmap.height(), encoded_bitmap1.height());
 
-  EXPECT_EQ((*result)[1]->filename, path4.AsUTF8Unsafe());
+  EXPECT_EQ((*result)[1]->filename, ExpectedFilename(path4));
   EXPECT_EQ((*result)[1]->filesize, (*result)[1]->data.size());
   EXPECT_EQ((*result)[1]->type, mojom::UploadedFileType::kImage);
   auto encoded_bitmap2 = gfx::PNGCodec::Decode((*result)[1]->data);
@@ -259,7 +263,7 @@ TEST_F(UploadFileHelperTest, PdfFileHandling) {
 
   ASSERT_TRUE(result);
   ASSERT_EQ(1u, result->size());
-  EXPECT_EQ((*result)[0]->filename, pdf_path.AsUTF8Unsafe());
+  EXPECT_EQ((*result)[0]->filename, ExpectedFilename(pdf_path));
   EXPECT_EQ((*result)[0]->filesize, (*result)[0]->data.size());
   EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kPdf);
 
@@ -290,8 +294,13 @@ TEST_F(UploadFileHelperTest, PdfFileWithInvalidHeader) {
   auto result = UploadFileSync();
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  // Should fail since it has .pdf extension but doesn't look like a PDF
-  EXPECT_FALSE(result);
+  // Should return a stub entry (empty data, kText) so the frontend can
+  // detect the rejection and show an error.
+  ASSERT_TRUE(result);
+  ASSERT_EQ(1u, result->size());
+  EXPECT_TRUE((*result)[0]->data.empty());
+  EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kText);
+  EXPECT_FALSE((*result)[0]->extracted_text.has_value());
 }
 
 TEST_F(UploadFileHelperTest, PdfFileTooSmall) {
@@ -312,8 +321,117 @@ TEST_F(UploadFileHelperTest, PdfFileTooSmall) {
   auto result = UploadFileSync();
   testing::Mock::VerifyAndClearExpectations(&observer);
 
-  // Should fail since it has .pdf extension but is too small to be a valid PDF
-  EXPECT_FALSE(result);
+  // Should return a stub entry for the rejected file.
+  ASSERT_TRUE(result);
+  ASSERT_EQ(1u, result->size());
+  EXPECT_TRUE((*result)[0]->data.empty());
+  EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kText);
+  EXPECT_FALSE((*result)[0]->extracted_text.has_value());
+}
+
+TEST_F(UploadFileHelperTest, BinaryFileRejected) {
+  // Test that files with known binary MIME types are rejected
+  base::FilePath zip_path = temp_dir_.GetPath().AppendASCII("archive.zip");
+  ASSERT_TRUE(base::WriteFile(zip_path, "PK\x03\x04 fake zip content"));
+
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{zip_path}));
+
+  testing::NiceMock<MockObserver> observer(file_helper_.get());
+  EXPECT_CALL(observer, OnFilesSelected).Times(1);
+
+  auto result = UploadFileSync();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Should return a stub entry for the rejected zip file.
+  ASSERT_TRUE(result);
+  ASSERT_EQ(1u, result->size());
+  EXPECT_TRUE((*result)[0]->data.empty());
+  EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kText);
+  EXPECT_FALSE((*result)[0]->extracted_text.has_value());
+}
+
+TEST_F(UploadFileHelperTest, TextFileHandling) {
+  // Test text file with known extension
+  base::FilePath txt_path = temp_dir_.GetPath().AppendASCII("readme.txt");
+  ASSERT_TRUE(base::WriteFile(txt_path, "Hello, world!"));
+
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{txt_path}));
+
+  testing::NiceMock<MockObserver> observer(file_helper_.get());
+  EXPECT_CALL(observer, OnFilesSelected).Times(1);
+
+  auto result = UploadFileSync();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  ASSERT_TRUE(result);
+  ASSERT_EQ(1u, result->size());
+  EXPECT_EQ((*result)[0]->filename, ExpectedFilename(txt_path));
+  EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kText);
+  EXPECT_EQ((*result)[0]->data.size(), 13u);
+}
+
+TEST_F(UploadFileHelperTest, TextFileWithoutExtension) {
+  // Test file without extension — should be treated as text
+  base::FilePath no_ext_path = temp_dir_.GetPath().AppendASCII("textfile");
+  ASSERT_TRUE(base::WriteFile(no_ext_path, "some text content"));
+
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{no_ext_path}));
+
+  testing::NiceMock<MockObserver> observer(file_helper_.get());
+  EXPECT_CALL(observer, OnFilesSelected).Times(1);
+
+  auto result = UploadFileSync();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  ASSERT_TRUE(result);
+  ASSERT_EQ(1u, result->size());
+  EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kText);
+}
+
+TEST_F(UploadFileHelperTest, TextFileWithTrailingDot) {
+  // Test file ending with a dot — should be treated as text
+  base::FilePath dot_path = temp_dir_.GetPath().AppendASCII("file.");
+  ASSERT_TRUE(base::WriteFile(dot_path, "trailing dot content"));
+
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{dot_path}));
+
+  testing::NiceMock<MockObserver> observer(file_helper_.get());
+  EXPECT_CALL(observer, OnFilesSelected).Times(1);
+
+  auto result = UploadFileSync();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  ASSERT_TRUE(result);
+  ASSERT_EQ(1u, result->size());
+  EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kText);
+}
+
+TEST_F(UploadFileHelperTest, TextFileWithUnknownExtension) {
+  // Test file with extension not in Chromium's MIME registry
+  base::FilePath diff_path = temp_dir_.GetPath().AppendASCII("changes.diff");
+  ASSERT_TRUE(base::WriteFile(diff_path, "--- a/file\n+++ b/file\n"));
+
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{diff_path}));
+
+  testing::NiceMock<MockObserver> observer(file_helper_.get());
+  EXPECT_CALL(observer, OnFilesSelected).Times(1);
+
+  auto result = UploadFileSync();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  ASSERT_TRUE(result);
+  ASSERT_EQ(1u, result->size());
+  EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kText);
 }
 
 TEST_F(UploadFileHelperTest, MixedFileTypes) {
@@ -339,13 +457,51 @@ TEST_F(UploadFileHelperTest, MixedFileTypes) {
   ASSERT_TRUE(result);
   ASSERT_EQ(2u, result->size());
 
-  EXPECT_EQ((*result)[0]->filename, pdf_path.AsUTF8Unsafe());
+  EXPECT_EQ((*result)[0]->filename, ExpectedFilename(pdf_path));
   EXPECT_EQ((*result)[0]->type, mojom::UploadedFileType::kPdf);
   EXPECT_EQ((*result)[0]->data.size(), sizeof(kSamplePdf));
 
-  EXPECT_EQ((*result)[1]->filename, png_path.AsUTF8Unsafe());
+  EXPECT_EQ((*result)[1]->filename, ExpectedFilename(png_path));
   EXPECT_EQ((*result)[1]->type, mojom::UploadedFileType::kImage);
   EXPECT_GT((*result)[1]->data.size(), 0u);
+}
+
+TEST_F(UploadFileHelperTest, MixedWithUnsupportedFileDropsInvalid) {
+  data_decoder::test::InProcessDataDecoder data_decoder;
+  // Upload a valid image and text file alongside an unsupported zip file.
+  auto png_bytes = gfx::test::CreatePNGBytes(100);
+  base::FilePath png_path = temp_dir_.GetPath().AppendASCII("photo.png");
+  base::FilePath txt_path = temp_dir_.GetPath().AppendASCII("readme.txt");
+  base::FilePath zip_path = temp_dir_.GetPath().AppendASCII("archive.zip");
+  ASSERT_TRUE(base::WriteFile(png_path, base::span(*png_bytes)));
+  ASSERT_TRUE(base::WriteFile(txt_path, "hello world"));
+  ASSERT_TRUE(base::WriteFile(zip_path, "PK\x03\x04 fake zip"));
+
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{zip_path, png_path, txt_path}));
+
+  testing::NiceMock<MockObserver> observer(file_helper_.get());
+  EXPECT_CALL(observer, OnFilesSelected).Times(1);
+
+  auto result = UploadFileSync();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // All 3 files returned: image and text are valid, zip is a stub.
+  ASSERT_TRUE(result);
+  ASSERT_EQ(3u, result->size());
+  // Barrier callback order is nondeterministic, so check by type.
+  EXPECT_TRUE(std::ranges::any_of(*result, [](const auto& f) {
+    return f->type == mojom::UploadedFileType::kImage && !f->data.empty();
+  }));
+  // The text file and zip stub both have kText type. Distinguish by data.
+  EXPECT_TRUE(std::ranges::any_of(*result, [](const auto& f) {
+    return f->type == mojom::UploadedFileType::kText && !f->data.empty();
+  }));
+  // Zip stub: kText with empty data
+  EXPECT_TRUE(std::ranges::any_of(*result, [](const auto& f) {
+    return f->type == mojom::UploadedFileType::kText && f->data.empty();
+  }));
 }
 
 }  // namespace ai_chat

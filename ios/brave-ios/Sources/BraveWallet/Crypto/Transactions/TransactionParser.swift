@@ -1006,9 +1006,6 @@ enum TransactionParser {
               * (Double(fromValueFormatted) ?? 0)
           )
         ) ?? "$0.00"
-      let fromToken = (allTokens + userAssets).first(where: {
-        $0.coin == transaction.coin && $0.chainId == transaction.chainId
-      })
       return .init(
         transaction: transaction,
         namedFromAddress: namedFromAccount,
@@ -1018,7 +1015,7 @@ enum TransactionParser {
         network: txNetwork,
         details: .adaSend(
           .init(
-            fromToken: fromToken,
+            fromToken: txNetwork.nativeToken,
             fromValue: fromValue,
             fromAmount: fromValueFormatted,
             fromFiat: fromFiat,
@@ -1605,6 +1602,8 @@ extension BraveWallet.TransactionInfo {
       .solanaSwap:
       break
     case .ethFilForwarderTransfer:
+      break
+    case .cardanoSendLovelace, .cardanoSendToken:
       break
     @unknown default:
       break

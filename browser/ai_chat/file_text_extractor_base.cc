@@ -64,9 +64,32 @@ FileTextExtractorBase::~FileTextExtractorBase() {
   Cleanup();
 }
 
+void FileTextExtractorBase::ExtractText(
+    content::BrowserContext* browser_context,
+    const base::FilePath& file_path,
+    ExtractTextCallback callback) {
+  CHECK(!callback_) << "ExtractText called while extraction in progress";
+  callback_ = std::move(callback);
+  LoadInWebContents(browser_context, file_path);
+}
+
+void FileTextExtractorBase::ExtractText(
+    content::BrowserContext* browser_context,
+    std::vector<uint8_t> file_bytes,
+    const base::FilePath::StringType& extension,
+    ExtractTextCallback callback) {
+  CHECK(!callback_) << "ExtractText called while extraction in progress";
+  callback_ = std::move(callback);
+  WriteTempFileAndLoad(browser_context, std::move(file_bytes), extension);
+}
+
 network::mojom::WebSandboxFlags
 FileTextExtractorBase::AdditionalUnsandboxFlags() const {
   return network::mojom::WebSandboxFlags::kNone;
+}
+
+GURL FileTextExtractorBase::GetLoadURL(const base::FilePath& file_path) const {
+  return net::FilePathToFileURL(file_path);
 }
 
 void FileTextExtractorBase::LoadInWebContents(
@@ -89,8 +112,8 @@ void FileTextExtractorBase::LoadInWebContents(
                        base::BindOnce(&FileTextExtractorBase::OnTimeout,
                                       base::Unretained(this)));
 
-  const GURL file_url = net::FilePathToFileURL(file_path);
-  web_contents_->GetController().LoadURL(file_url, content::Referrer(),
+  const GURL load_url = GetLoadURL(file_path);
+  web_contents_->GetController().LoadURL(load_url, content::Referrer(),
                                          ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
                                          std::string());
 }
@@ -113,48 +136,6 @@ void FileTextExtractorBase::Finish(std::optional<std::string> result) {
   if (callback_) {
     std::move(callback_).Run(std::move(result));
   }
-}
-
-// content::WebContentsDelegate:
-
-bool FileTextExtractorBase::ShouldSuppressDialogs(
-    content::WebContents* source) {
-  return true;
-}
-
-void FileTextExtractorBase::CanDownload(
-    const GURL& url,
-    const std::string& request_method,
-    base::OnceCallback<void(bool)> callback) {
-  std::move(callback).Run(false);
-}
-
-bool FileTextExtractorBase::IsWebContentsCreationOverridden(
-    content::RenderFrameHost* opener,
-    content::SiteInstance* source_site_instance,
-    content::mojom::WindowContainerType window_container_type,
-    const GURL& opener_url,
-    const std::string& frame_name,
-    const GURL& target_url) {
-  return true;
-}
-
-bool FileTextExtractorBase::CanEnterFullscreenModeForTab(
-    content::RenderFrameHost* requesting_frame) {
-  return false;
-}
-
-bool FileTextExtractorBase::CanDragEnter(
-    content::WebContents* source,
-    const content::DropData& data,
-    blink::DragOperationsMask operations_allowed) {
-  return false;
-}
-
-void FileTextExtractorBase::RequestKeyboardLock(
-    content::WebContents* web_contents,
-    bool esc_key_locked) {
-  web_contents->GotResponseToKeyboardLockRequest(false);
 }
 
 // content::WebContentsObserver:

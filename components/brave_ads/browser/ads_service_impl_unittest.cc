@@ -62,8 +62,7 @@ class BraveAdsAdsServiceImplTest : public testing::Test {
     bat_ads_service_factory_ = bat_ads_service_factory.get();
 
     ads_service_ = std::make_unique<AdsServiceImpl>(
-        std::make_unique<test::FakeAdsServiceDelegate>(), &prefs_,
-        &local_state_,
+        std::make_unique<test::FakeAdsServiceDelegate>(), prefs_, local_state_,
         /*http_client=*/nullptr,
         std::make_unique<test::FakeVirtualPrefProviderDelegate>(),
         /*channel_name=*/"foo", profile_dir_.GetPath(),
@@ -280,6 +279,35 @@ TEST_F(BraveAdsAdsServiceImplTest,
 
   // Assert
   EXPECT_EQ(2U, bat_ads_service_factory_->launch_count());
+}
+
+TEST_F(BraveAdsAdsServiceImplTest,
+       DoesNotLaunchServiceWhenVariationsCountryChangesWhileAdsIsDisabled) {
+  // Arrange
+  prefs_.SetBoolean(prefs::kOptedInToSearchResultAds, false);
+  Startup();
+  ASSERT_EQ(0U, bat_ads_service_factory_->launch_count());
+
+  // Act
+  local_state_.SetString(variations::prefs::kVariationsCountry, "GB");
+
+  // Assert
+  EXPECT_EQ(0U, bat_ads_service_factory_->launch_count());
+}
+
+TEST_F(BraveAdsAdsServiceImplTest,
+       DoesNotRestartServiceWhenVariationsCountryChangesWhileRunning) {
+  // Arrange
+  prefs_.SetBoolean(prefs::kOptedInToSearchResultAds, true);
+  Startup();
+  ASSERT_EQ(1U, bat_ads_service_factory_->launch_count());
+
+  // Act
+  local_state_.SetString(variations::prefs::kVariationsCountry, "GB");
+
+  // Assert
+  EXPECT_EQ(1U, bat_ads_service_factory_->launch_count());
+  EXPECT_EQ(0U, bat_ads_service_factory_->shutdown_count());
 }
 
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)

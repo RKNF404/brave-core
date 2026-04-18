@@ -568,6 +568,14 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
                                     && !mBraveShieldsHandler.isShowing()) {
                                 checkForTooltip(tab);
                             }
+
+                            // Re-check PiP icon visibility now that the document
+                            // load is complete. The earlier check in
+                            // onDidFinishNavigationInPrimaryMainFrame may have
+                            // returned false because
+                            // IsDocumentOnLoadCompletedInPrimaryMainFrame was not
+                            // yet true at navigation commit time.
+                            showYouTubePipIcon(tab);
                         }
 
                         String countryCode = Locale.getDefault().getCountry();
@@ -1760,8 +1768,11 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
             return;
         }
 
+        Tab tab = getToolbarDataProvider().getTab();
+        Profile profile = tab != null ? Profile.fromWebContents(tab.getWebContents()) : null;
         mRewardsLayout.setVisibility(
                 width >= DeviceFormFactor.getNonMultiDisplayMinimumTabletWidthPx(getContext())
+                                && !BraveRewardsPolicy.isDisabledByPolicy(profile)
                         ? View.VISIBLE
                         : View.GONE);
         // Update the shields layout background to match the rewards layout visibility.

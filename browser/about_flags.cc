@@ -15,6 +15,7 @@
 #include "brave/components/brave_component_updater/browser/features.h"
 #include "brave/components/brave_education/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
+#include "brave/components/brave_origin/features.h"
 #include "brave/components/brave_rewards/core/buildflags/buildflags.h"
 #include "brave/components/brave_rewards/core/features.h"
 #include "brave/components/brave_shields/core/common/features.h"
@@ -89,6 +90,7 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "brave/browser/extensions/manifest_v2/features.h"
+#include "brave/browser/extensions/updater/features.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_EDUCATION)
@@ -182,18 +184,6 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
           "white background",                                              \
           kOsWin,                                                          \
           FEATURE_VALUE_TYPE(::features::kBraveWorkaroundNewWindowFlash),  \
-      }))
-
-#define BRAVE_REWARDS_GEMINI_FEATURE_ENTRIES                               \
-  IF_BUILDFLAG(                                                            \
-      ENABLE_GEMINI_WALLET,                                                \
-      EXPAND_FEATURE_ENTRIES({                                             \
-          "brave-rewards-gemini",                                          \
-          "Enable Gemini for Brave Rewards",                               \
-          "Enables support for Gemini as an external wallet provider for " \
-          "Brave",                                                         \
-          kOsDesktop,                                                      \
-          FEATURE_VALUE_TYPE(brave_rewards::features::kGeminiFeature),     \
       }))
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
@@ -708,6 +698,20 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
           "Enables Brave support for some manifest V2 extensions",             \
           kOsDesktop,                                                          \
           FEATURE_VALUE_TYPE(extensions_mv2::features::kExtensionsManifestV2), \
+      }))
+
+#define BRAVE_EXTENSION_AUTO_UPDATE_FEATURE_ENTRY                              \
+  IF_BUILDFLAG(                                                                \
+      ENABLE_EXTENSIONS,                                                       \
+      EXPAND_FEATURE_ENTRIES({                                                 \
+          "brave-user-extension-auto-update",                                  \
+          "Automatically Update Extensions",                                   \
+          "Automatically update user-installed Web extensions. When "          \
+          "disabled, extensions will not update in the background. Folks can " \
+          "still update them manually from the brave://extensions page.",      \
+          kOsWin | kOsLinux | kOsMac,                                          \
+          FEATURE_VALUE_TYPE(                                                  \
+              extensions::features::kBraveAutoUpdateExtensions),               \
       }))
 
 #if BUILDFLAG(ENABLE_BRAVE_EDUCATION)
@@ -1304,7 +1308,6 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
       })                                                                       \
   BRAVE_NATIVE_WALLET_FEATURE_ENTRIES                                          \
   BRAVE_NEWS_FEATURE_ENTRIES                                                   \
-  BRAVE_REWARDS_GEMINI_FEATURE_ENTRIES                                         \
   SPEEDREADER_FEATURE_ENTRIES                                                  \
   REQUEST_OTR_FEATURE_ENTRIES                                                  \
   BRAVE_MODULE_FILENAME_PATCH                                                  \
@@ -1328,12 +1331,20 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
   BRAVE_FORCE_CONTEXT_MENU_ON_SHIFT_RIGHT_CLICK_FEATURE_ENTRY                  \
   BRAVE_UPGRADE_WHEN_IDLE_FEATURE_ENTRY                                        \
   BRAVE_EXTENSIONS_MANIFEST_V2                                                 \
+  BRAVE_EXTENSION_AUTO_UPDATE_FEATURE_ENTRY                                    \
   BRAVE_WORKAROUND_NEW_WINDOW_FLASH                                            \
   BRAVE_WEBASSEMBLY_JITLESS_FEATURE_ENTRY                                      \
   BRAVE_EDUCATION_FEATURE_ENTRIES                                              \
   BRAVE_UPDATER_FEATURE_ENTRIES                                                \
   PSST_FEATURE_ENTRIES                                                         \
   BRAVE_FORCE_POPUP_TO_BE_OPENED_IN_NEW_TAB_FEATURE_ENTRY                      \
+  EXPAND_FEATURE_ENTRIES({                                                     \
+      "brave-origin",                                                          \
+      "Enable Brave Origin",                                                   \
+      "Enables Brave Origin features and settings.",                           \
+      kOsDesktop | kOsAndroid,                                                 \
+      FEATURE_VALUE_TYPE(brave_origin::features::kBraveOrigin),                \
+  })                                                                           \
   LAST_BRAVE_FEATURE_ENTRIES_ITEM  // Keep it as the last item.
 namespace flags_ui {
 namespace {
