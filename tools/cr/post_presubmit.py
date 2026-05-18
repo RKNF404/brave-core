@@ -13,6 +13,9 @@ Example:
 
 You can produce the JSON output for a presubmit run by using:
     npm run presubmit -- --base origin/master --json .presubmit_results.json
+
+Notice: Keep this script as *standalone*, with no deps to `tools/cr` code, so
+we can have no room for deps if downloaded and run on its own.
 """
 
 import argparse
@@ -22,10 +25,10 @@ import subprocess
 import json
 import sys
 import hashlib
-from typing import List, Dict, Any
+from typing import Any
 
 
-def post_comments(presubmit_entries: Dict[str, List[Dict[str, Any]]],
+def post_comments(presubmit_entries: dict[str, list[dict[str, Any]]],
                   pr_number: str) -> None:
     """
     Posts comments to a GitHub pull request based on presubmit results.
@@ -38,13 +41,18 @@ def post_comments(presubmit_entries: Dict[str, List[Dict[str, Any]]],
             The pull request number where the comments will be posted.
     """
     # Get a list of existing comments for this PR
-    existing_comments: List[str] = json.loads(
-        subprocess.check_output([
-            'gh', 'api', f'repos/brave/brave-core/issues/{pr_number}/comments',
-            '--paginate', '--jq', '[.[] | {id: .id, body: .body}]'
-        ],
-                                text=True,
-                                stderr=subprocess.PIPE))
+    comments_response = subprocess.check_output([
+        'gh', 'api', f'repos/brave/brave-core/issues/{pr_number}/comments',
+        '--paginate', '--jq', '[.[] | {id: .id, body: .body}]'
+    ],
+                                                text=True,
+                                                stderr=subprocess.PIPE)
+    logging.debug('Existing comments response: %s', comments_response)
+    existing_comments: list[dict[str, Any]] = []
+    for line in comments_response.splitlines():
+        if not line.strip():
+            continue
+        existing_comments.extend(json.loads(line))
 
     # Filtering out all comments that do not contain a presubmit hash as those
     # are not relevant to our comment management.
@@ -167,7 +175,8 @@ def main() -> int:
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
     presubmit_path = Path(args.input)
-    presubmit_entries: Dict[str, Any] = json.loads(presubmit_path.read_text())
+    presubmit_entries: dict[str, Any] = json.loads(
+        presubmit_path.read_bytes().decode('utf-8'))
     if not presubmit_entries:
         logging.info('No presubmit entries found.')
         return 0

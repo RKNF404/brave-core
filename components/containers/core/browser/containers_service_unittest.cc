@@ -9,77 +9,27 @@
 #include <string>
 #include <utility>
 
-#include "base/containers/flat_set.h"
-#include "base/functional/callback.h"
 #include "base/test/scoped_feature_list.h"
+#include "brave/components/containers/core/browser/containers_service_observer.h"
+#include "brave/components/containers/core/browser/containers_test_utils.h"
 #include "brave/components/containers/core/browser/prefs.h"
 #include "brave/components/containers/core/browser/prefs_registration.h"
+#include "brave/components/containers/core/browser/temporary_container.h"
 #include "brave/components/containers/core/browser/unknown_container.h"
 #include "brave/components/containers/core/common/features.h"
 #include "brave/components/containers/core/mojom/containers.mojom.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/color/color_provider_manager.h"
 
 namespace containers {
 
 namespace {
 
-using testing::_;
-
-mojom::ContainerPtr MakeContainer(std::string id,
-                                  std::string name,
-                                  mojom::Icon icon = mojom::Icon::kDefault,
-                                  SkColor color = SK_ColorBLUE) {
-  return mojom::Container::New(std::move(id), std::move(name), icon, color);
-}
-
-void ExpectContainer(const mojom::ContainerPtr& container,
-                     const std::string& id,
-                     const std::string& name,
-                     const mojom::Icon& icon = mojom::Icon::kDefault,
-                     const SkColor& color = SK_ColorBLUE) {
-  ASSERT_TRUE(container);
-  EXPECT_THAT(*container, testing::FieldsAre(id, name, icon, color));
-}
-
-class MockContainersServiceDelegate : public ContainersService::Delegate {
+class MockContainersServiceObserver : public ContainersServiceObserver {
  public:
-  MockContainersServiceDelegate() {
-    ON_CALL(*this, GetReferencedContainerIds(_))
-        .WillByDefault([this](OnReferencedContainerIdsReadyCallback callback) {
-          std::move(callback).Run(referenced_container_ids_);
-        });
-    ON_CALL(*this, DeleteContainerStorage(_, _))
-        .WillByDefault([this](const std::string& id,
-                              DeleteContainerStorageCallback callback) {
-          delete_requests_.push_back(id);
-          std::move(callback).Run(delete_result_);
-        });
-  }
-
-  MOCK_METHOD(void,
-              GetReferencedContainerIds,
-              (OnReferencedContainerIdsReadyCallback),
-              (override));
-  MOCK_METHOD(void,
-              DeleteContainerStorage,
-              (const std::string&, DeleteContainerStorageCallback),
-              (override));
-
-  void SetReferencedContainersIds(base::flat_set<std::string> ids) {
-    referenced_container_ids_ = std::move(ids);
-  }
-
-  void set_delete_result(bool delete_result) { delete_result_ = delete_result; }
-  const std::vector<std::string>& delete_requests() const {
-    return delete_requests_;
-  }
-
- private:
-  base::flat_set<std::string> referenced_container_ids_;
-  bool delete_result_ = true;
-  std::vector<std::string> delete_requests_;
+  MOCK_METHOD(void, OnContainersListChanged, (), (override));
 };
 
 }  // namespace
@@ -101,6 +51,7 @@ class ContainersServiceTest : public testing::Test {
     delegate_ = nullptr;
     service_->Shutdown();
     service_.reset();
+    ui::ColorProviderManager::ResetForTesting();
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -129,6 +80,40 @@ TEST_F(ContainersServiceTest, GetContainers) {
 
   auto containers_list = service_->GetContainers();
   ExpectContainer(containers_list[0], "container-id", "Work");
+}
+
+TEST_F(ContainersServiceTest, CreateAndPersistTemporaryContainer) {
+  auto container = service_->CreateAndPersistTemporaryContainer();
+  ASSERT_TRUE(container);
+  EXPECT_TRUE(IsTemporaryContainerId(container->id));
+  EXPECT_FALSE(container->name.empty());
+  EXPECT_GE(container->icon, mojom::Icon::kMinValue);
+  EXPECT_LE(container->icon, mojom::Icon::kMaxValue);
+  EXPECT_NE(SK_ColorTRANSPARENT, container->background_color);
+
+  auto persisted = GetLocallyUsedContainerFromPrefs(prefs_, container->id);
+  ASSERT_TRUE(persisted);
+  ExpectContainer(persisted, container->id, container->name, container->icon,
+                  container->background_color);
+}
+
+TEST_F(ContainersServiceTest,
+       Observer_OnContainersListChanged_WhenContainersListPrefChanges) {
+  testing::NiceMock<MockContainersServiceObserver> observer;
+  EXPECT_CALL(observer, OnContainersListChanged()).Times(1);
+
+  service_->AddObserver(&observer);
+
+  std::vector<mojom::ContainerPtr> containers;
+  containers.push_back(MakeContainer("container-id", "Work"));
+  SetContainersToPrefs(containers, prefs_);
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  EXPECT_CALL(observer, OnContainersListChanged()).Times(1);
+  SetContainersToPrefs({}, prefs_);
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  service_->RemoveObserver(&observer);
 }
 
 TEST_F(ContainersServiceTest, MarkContainerUsed_PersistsSnapshot) {

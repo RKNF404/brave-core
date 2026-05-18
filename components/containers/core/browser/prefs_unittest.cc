@@ -9,6 +9,7 @@
 
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
+#include "brave/components/containers/core/browser/default_containers_list.h"
 #include "brave/components/containers/core/browser/pref_names.h"
 #include "brave/components/containers/core/browser/prefs_registration.h"
 #include "brave/components/containers/core/common/features.h"
@@ -26,13 +27,50 @@ class ContainersPrefsTest : public testing::Test {
     RegisterProfilePrefs(prefs_.registry());
   }
 
+  static void ExpectDefaultContainer(const mojom::ContainerPtr& container,
+                                     const std::string& id,
+                                     const mojom::Icon icon) {
+    ASSERT_TRUE(container);
+    SCOPED_TRACE(container->id);
+    EXPECT_EQ(container->id, id);
+    EXPECT_EQ(container->icon, icon);
+    EXPECT_FALSE(container->name.empty());
+    EXPECT_NE(container->background_color, SK_ColorTRANSPARENT);
+  }
+
   base::test::ScopedFeatureList feature_list_;
   sync_preferences::TestingPrefServiceSyncable prefs_;
 };
 
-TEST_F(ContainersPrefsTest, GetEmptyContainerList) {
+TEST_F(ContainersPrefsTest, RegisterStoresDefaultContainers) {
   auto containers = GetContainersFromPrefs(prefs_);
-  EXPECT_TRUE(containers.empty());
+  ASSERT_EQ(containers.size(), 4u);
+
+  ExpectDefaultContainer(containers[0], kDefaultContainerIds[0],
+                         mojom::Icon::kPersonal);
+  ExpectDefaultContainer(containers[1], kDefaultContainerIds[1],
+                         mojom::Icon::kWork);
+  ExpectDefaultContainer(containers[2], kDefaultContainerIds[2],
+                         mojom::Icon::kSocial);
+  ExpectDefaultContainer(containers[3], kDefaultContainerIds[3],
+                         mojom::Icon::kSchool);
+}
+
+TEST_F(ContainersPrefsTest, ModifyDefaultContainers) {
+  auto containers = GetContainersFromPrefs(prefs_);
+  ASSERT_EQ(containers.size(), 4u);
+
+  containers.erase(containers.begin());
+  SetContainersToPrefs(containers, prefs_);
+
+  containers = GetContainersFromPrefs(prefs_);
+  ASSERT_EQ(containers.size(), 3u);
+  ExpectDefaultContainer(containers[0], kDefaultContainerIds[1],
+                         mojom::Icon::kWork);
+  ExpectDefaultContainer(containers[1], kDefaultContainerIds[2],
+                         mojom::Icon::kSocial);
+  ExpectDefaultContainer(containers[2], kDefaultContainerIds[3],
+                         mojom::Icon::kSchool);
 }
 
 TEST_F(ContainersPrefsTest, SetAndGetContainerList) {
@@ -158,6 +196,12 @@ TEST_F(ContainersPrefsTest, UpdateAndRemoveLocallyUsedContainer) {
   RemoveLocallyUsedContainerFromPrefs("used-id", prefs_);
   EXPECT_FALSE(GetLocallyUsedContainerFromPrefs(prefs_, "used-id"));
   EXPECT_TRUE(GetLocallyUsedContainersFromPrefs(prefs_).empty());
+}
+
+TEST_F(ContainersPrefsTest, ContainersEnabledDefaultsToTrue) {
+  EXPECT_TRUE(prefs_.GetBoolean(prefs::kContainersEnabled));
+  prefs_.SetBoolean(prefs::kContainersEnabled, false);
+  EXPECT_FALSE(prefs_.GetBoolean(prefs::kContainersEnabled));
 }
 
 }  // namespace containers

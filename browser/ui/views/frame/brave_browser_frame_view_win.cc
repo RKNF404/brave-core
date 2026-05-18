@@ -5,13 +5,15 @@
 
 #include "brave/browser/ui/views/frame/brave_browser_frame_view_win.h"
 
-#include "base/check.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
+#include "brave/browser/ui/views/frame/brave_win_caption_layout.h"
 #include "brave/browser/ui/views/frame/brave_window_frame_graphic.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "brave/browser/ui/views/toolbar/brave_toolbar_view.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/frame/browser_caption_button_container_win.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/win/titlebar_config.h"
@@ -116,7 +118,10 @@ int BraveBrowserFrameViewWin::NonClientHitTest(const gfx::Point& point) {
     }
   }
 
-  if (auto overridden_result = brave::NonClientHitTest(GetBrowserView(), point);
+  auto* browser = GetBrowserView()->browser();
+  if (auto overridden_result = browser->browser_window_features()
+                                   ->brave_non_client_hit_test_helper()
+                                   ->NonClientHitTest(GetBrowserView(), point);
       overridden_result != HTNOWHERE) {
     return overridden_result;
   }
@@ -141,6 +146,13 @@ bool BraveBrowserFrameViewWin::ShouldShowWindowTitle(TitlebarType type) const {
 }
 
 void BraveBrowserFrameViewWin::LayoutCaptionButtons() {
+  const bool web_app_titlebar_without_horizontal_tabs =
+      !GetBrowserView()->GetWebAppFrameToolbarPreferredSize().IsEmpty() &&
+      !GetBrowserView()->ShouldDrawTabStrip();
+  brave::ScopedWinCaptionLayoutUsesGeometryTabstripOverlap
+      scoped_geometry_tabstrip_overlap(
+          web_app_titlebar_without_horizontal_tabs);
+
   BrowserFrameViewWin::LayoutCaptionButtons();
 
   // This may look pretty weird because we're laying out
@@ -155,4 +167,16 @@ void BraveBrowserFrameViewWin::LayoutCaptionButtons() {
             ? 0
             : width() - caption_button_container_->width());
   }
+
+  // Skip vertical nudge for standalone PWAs: GetBrowserLayoutParams() uses
+  // caption.bottom() for web-app titlebar height; delta mismatches toolbar vs
+  // caption bounds (WebAppBrowserFrameViewWinTest.ContainerHeight).
+  if (!web_app_titlebar_without_horizontal_tabs) {
+    caption_button_container_->SetY(caption_button_container_->y() +
+                                    tabs::GetHorizontalTabControlsDelta());
+  }
+
+  // See the comment in BraveOpaqueBrowserFrameView::Layout().
+  static_cast<BraveToolbarView*>(GetBrowserView()->toolbar())
+      ->UpdateHorizontalPadding();
 }

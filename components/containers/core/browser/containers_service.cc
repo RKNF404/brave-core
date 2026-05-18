@@ -11,10 +11,13 @@
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/types/to_address.h"
+#include "brave/components/containers/core/browser/containers_service_observer.h"
 #include "brave/components/containers/core/browser/pref_names.h"
 #include "brave/components/containers/core/browser/prefs.h"
+#include "brave/components/containers/core/browser/temporary_container.h"
 #include "brave/components/containers/core/browser/unknown_container.h"
 #include "brave/components/containers/core/mojom/containers.mojom.h"
+#include "components/prefs/pref_service.h"
 
 namespace containers {
 
@@ -40,6 +43,14 @@ void ContainersService::Shutdown() {
   delegate_.reset();
 }
 
+void ContainersService::AddObserver(ContainersServiceObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void ContainersService::RemoveObserver(ContainersServiceObserver* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 void ContainersService::MarkContainerUsed(std::string_view container_id) {
   CHECK(!container_id.empty());
 
@@ -53,6 +64,12 @@ void ContainersService::MarkContainerUsed(std::string_view container_id) {
   }
 
   SetLocallyUsedContainerToPrefs(container, *prefs_);
+}
+
+mojom::ContainerPtr ContainersService::CreateAndPersistTemporaryContainer() {
+  auto container = CreateTemporaryContainer();
+  SetLocallyUsedContainerToPrefs(container, *prefs_);
+  return container;
 }
 
 mojom::ContainerPtr ContainersService::GetRuntimeContainerById(
@@ -70,12 +87,17 @@ std::vector<mojom::ContainerPtr> ContainersService::GetContainers() const {
   return GetContainersFromPrefs(*prefs_);
 }
 
+bool ContainersService::ShouldShowContainerControls() const {
+  return prefs_->GetBoolean(prefs::kContainersEnabled);
+}
+
 void ContainersService::ScheduleOrphanedContainersCleanupForTesting() {
   ScheduleOrphanedContainersCleanup();
 }
 
 void ContainersService::OnSyncedContainersChanged() {
   RefreshLocallyUsedContainersFromSyncedList();
+  observers_.Notify(&ContainersServiceObserver::OnContainersListChanged);
 }
 
 void ContainersService::RefreshLocallyUsedContainersFromSyncedList() {

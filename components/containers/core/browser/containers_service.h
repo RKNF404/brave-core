@@ -14,6 +14,8 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "brave/components/containers/core/browser/containers_service_observer.h"
 #include "brave/components/containers/core/mojom/containers.mojom-forward.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -53,9 +55,15 @@ class ContainersService : public KeyedService {
 
   void Shutdown() override;
 
+  void AddObserver(ContainersServiceObserver* observer);
+  void RemoveObserver(ContainersServiceObserver* observer);
+
   // Caches a used-container snapshot: synced metadata when the id exists in
   // the synced list, otherwise a placeholder from `CreateUnknownContainer`.
   void MarkContainerUsed(std::string_view container_id);
+
+  // Creates a temporary container and persists it locally.
+  mojom::ContainerPtr CreateAndPersistTemporaryContainer();
 
   // Returns the runtime container with the given `id`. Runtime containers are
   // containers that are currently in use by the user. This can be a synced
@@ -64,6 +72,9 @@ class ContainersService : public KeyedService {
 
   // Returns the list of user-editable containers.
   std::vector<mojom::ContainerPtr> GetContainers() const;
+
+  // Whether the Containers controls (menus, management UI) should be shown.
+  bool ShouldShowContainerControls() const;
 
   void ScheduleOrphanedContainersCleanupForTesting();
 
@@ -89,6 +100,7 @@ class ContainersService : public KeyedService {
   raw_ref<PrefService> prefs_;
   std::unique_ptr<Delegate> delegate_;
   PrefChangeRegistrar pref_change_registrar_;
+  base::ObserverList<ContainersServiceObserver> observers_;
   base::WeakPtrFactory<ContainersService> weak_factory_{this};
 };
 

@@ -56,6 +56,7 @@
 #include "brave/components/brave_wallet/common/bitcoin_utils.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
 #include "brave/components/brave_wallet/common/brave_wallet_constants.h"
+#include "brave/components/brave_wallet/common/buildflags/dev_buildflags.h"
 #include "brave/components/brave_wallet/common/cardano_address.h"
 #include "brave/components/brave_wallet/common/common_utils.h"
 #include "brave/components/brave_wallet/common/encoding_utils.h"
@@ -86,6 +87,14 @@ constexpr char kImportedAccountCoinTypeDeprecated[] = "coin_type";
 constexpr char kSelectedAccountDeprecated[] = "selected_account";
 constexpr char kPasswordEncryptorNonceDeprecated[] = "password_encryptor_nonce";
 constexpr char kPasswordEncryptorSaltDeprecated[] = "password_encryptor_salt";
+
+// 7 days. Matches settings UI limit.
+constexpr int kMaxAutolockMinutes = 10080;
+
+#if BUILDFLAG(ENABLE_BRAVE_WALLET_DEV_CMD_LINE_UNLOCK)
+// Allows auto unlocking wallet password with command line in dev builds.
+inline constexpr char kDevWalletPassword[] = "dev-wallet-password";
+#endif
 
 base::RepeatingCallback<std::array<uint8_t, kEncryptorNonceSize>()>*
     g_create_nonce_callback_for_testing = nullptr;
@@ -1042,6 +1051,7 @@ struct KeyringSeed {
   std::vector<uint8_t> eth_seed;
   std::vector<uint8_t> seed;
   std::vector<uint8_t> entropy;
+  std::array<uint8_t, bip39::kSeedSize> polkadot_seed = {};
 };
 
 std::optional<KeyringSeed> MakeSeedFromMnemonic(
@@ -1071,6 +1081,12 @@ std::optional<KeyringSeed> MakeSeedFromMnemonic(
 
   result.entropy = *entropy;
 
+  auto polkadot_seed = bip39::MnemonicToEntropyToSeed(mnemonic, "");
+  if (!polkadot_seed) {
+    return std::nullopt;
+  }
+  result.polkadot_seed = *polkadot_seed;
+
   return result;
 }
 
@@ -1093,7 +1109,10 @@ KeyringService::KeyringService(JsonRpcService* json_rpc_service,
 
   enabled_keyrings_ = GetEnabledKeyrings();
 
-  MaybeUnlockWithCommandLine();
+  // Delay unlock attempt until after initialization is done by caller.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&KeyringService::MaybeUnlockWithCommandLine,
+                                weak_ptr_factory_.GetWeakPtr()));
 }
 
 KeyringService::~KeyringService() {
@@ -1258,7 +1277,7 @@ void KeyringService::CreateKeyrings(const KeyringSeed& keyring_seed) {
   }
   if (IsKeyringEnabled(KeyringId::kPolkadotMainnet)) {
     auto polkadot_seed =
-        base::span(keyring_seed.seed).first<kPolkadotSeedSize>();
+        base::span(keyring_seed.polkadot_seed).first<kPolkadotSeedSize>();
     polkadot_mainnet_keyring_ = std::make_unique<PolkadotKeyring>(
         polkadot_seed, KeyringId::kPolkadotMainnet, is_address_allowed);
     polkadot_testnet_keyring_ = std::make_unique<PolkadotKeyring>(
@@ -2623,6 +2642,14 @@ void KeyringService::IsLocked(IsLockedCallback callback) {
 }
 
 void KeyringService::Reset(bool notify_observer) {
+  // TODO(https://github.com/brave/brave-browser/issues/55303): Wallet Reset
+  // should be always initiated by BraveWalletService.
+  // Now it is a temporary workaround to synchronously stop account discovery in
+  // parent wallet service just before keyrings are reset.
+  if (wallet_reset_cb_) {
+    wallet_reset_cb_.Run();
+  }
+
   ResetAllAccountInfosCache();
   StopAutoLockTimer();
   encryptor_.reset();
@@ -2640,11 +2667,18 @@ void KeyringService::StopAutoLockTimer() {
 }
 
 void KeyringService::ResetAutoLockTimer() {
+  // Autolock is disabled in most of the tests.
+  if (!is_autolock_enabled_.value_or(false)) {
+    CHECK_IS_TEST();
+    return;
+  }
+
   if (auto_lock_timer_->IsRunning()) {
     auto_lock_timer_->Reset();
   } else {
-    size_t auto_lock_minutes =
-        (size_t)profile_prefs_->GetInteger(kBraveWalletAutoLockMinutes);
+    int auto_lock_minutes =
+        std::clamp(profile_prefs_->GetInteger(kBraveWalletAutoLockMinutes), 1,
+                   kMaxAutolockMinutes);
     auto_lock_timer_->Start(FROM_HERE, base::Minutes(auto_lock_minutes), this,
                             &KeyringService::OnAutoLockFired);
   }
@@ -3663,15 +3697,23 @@ void KeyringService::MaybeFixAccountSelection() {
   }
 }
 
+void KeyringService::SetAutolockEnabled(bool enabled) {
+  CHECK(!is_autolock_enabled_.has_value());
+  is_autolock_enabled_ = enabled;
+}
+
 void KeyringService::MaybeUnlockWithCommandLine() {
-#if !defined(OFFICIAL_BUILD)
+#if BUILDFLAG(ENABLE_BRAVE_WALLET_DEV_CMD_LINE_UNLOCK)
+#if defined(OFFICIAL_BUILD)
+  NOTREACHED();
+#endif
   std::string dev_wallet_password =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kDevWalletPassword);
+          kDevWalletPassword);
   if (!dev_wallet_password.empty()) {
     Unlock(dev_wallet_password, base::DoNothing());
   }
-#endif  // !defined(OFFICIAL_BUILD)
+#endif  // BUILDFLAG(ENABLE_BRAVE_WALLET_DEV_CMD_LINE_UNLOCK)
 }
 
 void KeyringService::OnCreateWalletRegisterComponentUpdater(

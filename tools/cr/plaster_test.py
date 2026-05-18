@@ -7,28 +7,21 @@
 import unittest
 from pathlib import Path
 import hashlib
-import io
 import json
 import time
-from unittest.mock import patch
-import sys
 
 import plaster
 
-from test.fake_chromium_src import FakeChromiumSrc
+from test.fake_chromium_repo import FakeChromiumRepo
 
 
 class PlasterTest(unittest.TestCase):
 
     def setUp(self):
         """Set up a fake Chromium repository for testing."""
-        self.fake_chromium_src = FakeChromiumSrc()
+        self.fake_chromium_src = FakeChromiumRepo()
         self.fake_chromium_src.setup()
         self.addCleanup(self.fake_chromium_src.cleanup)
-
-        # Override PLASTER_FILES_PATH to use the rewrite path in the fake Brave
-        # repo
-        plaster.PLASTER_FILES_PATH = self.fake_chromium_src.brave / 'rewrite'
 
     def test_original_expected_toml_rules(self):
         """Test applying all .toml files in the test/ folder."""
@@ -111,9 +104,7 @@ class PlasterTest(unittest.TestCase):
         self.assertEqual(
             patchinfo_from_disk['patchChecksum'],
             hashlib.sha256(
-                self.fake_chromium_src.get_patchfile_path_for_source(
-                    self.fake_chromium_src.chromium,
-                    test_file_chromium).read_text().encode()).hexdigest())
+                patchinfo.patch.path.read_text().encode()).hexdigest())
         self.assertEqual(patchinfo_from_disk['appliesTo'][0]['path'],
                          str(test_file_chromium))
         self.assertEqual(
@@ -121,9 +112,9 @@ class PlasterTest(unittest.TestCase):
             hashlib.sha256(
                 (self.fake_chromium_src.chromium /
                  test_file_chromium).read_text().encode()).hexdigest())
-        self.assertEqual(
-            patchinfo_from_disk['plaster']['path'],
-            str(plaster_path.relative_to(self.fake_chromium_src.brave)))
+        # PatchInfo normalizes plaster path to be relative to brave root.
+        self.assertEqual(patchinfo_from_disk['plaster']['path'],
+                         str(patchinfo.plaster_file))
         self.assertEqual(
             patchinfo_from_disk['plaster']['checksum'],
             hashlib.sha256(plaster_path.read_text().encode()).hexdigest())
@@ -187,7 +178,7 @@ class PlasterTest(unittest.TestCase):
             # Apply the rewrite so files are up-to-date
             plaster_file = plaster.PlasterFile(rewrite_path)
             plaster_file.apply()
-        # Now check should succeed (no sys.exit(1))
+        # Now check should succeed without raising.
         class DummyArgs:
 
             def __init__(self):
@@ -195,10 +186,7 @@ class PlasterTest(unittest.TestCase):
                 self.verbose = False
 
         args = DummyArgs()
-        # Should not call sys.exit at all
-        with patch('sys.exit') as mock_exit:
-            plaster.check(args)
-            mock_exit.assert_not_called()
+        self.assertEqual(plaster.check(args), 0)
 
     def test_check_fails_when_toml_changed(self):
         """Test plaster check fails when there's a mismatch."""
@@ -237,9 +225,7 @@ class PlasterTest(unittest.TestCase):
                 self.verbose = False
 
         args = DummyArgs()
-        with patch('sys.exit') as mock_exit:
-            plaster.check(args)
-            mock_exit.assert_not_called()
+        self.assertEqual(plaster.check(args), 0)
         # Now change one toml file to cause a failure
         changed_path = rewrite_paths[1]
         changed_path.write_text('''
@@ -248,13 +234,10 @@ class PlasterTest(unittest.TestCase):
           re_pattern = 'foo2'
           replace = 'DIFFERENT'
         ''')
-        # Now check should fail and print the file on stderr
-        stderr = io.StringIO()
-        with patch('sys.stderr', stderr), patch('sys.exit') as mock_exit:
+        # Now check should raise PlasterFileNeedsRegen with the path included.
+        with self.assertRaises(plaster.PlasterFileNeedsRegen) as context:
             plaster.check(args)
-            mock_exit.assert_called_once_with(1)
-            output = stderr.getvalue()
-            self.assertIn(str(changed_path), output)
+        self.assertIn(str(changed_path), str(context.exception))
 
     def test_regex_flags_array_works(self):
         """Test that multiple flags in array are passed through correctly."""
@@ -363,7 +346,7 @@ class PlasterTest(unittest.TestCase):
         self.assertEqual(result, 'Content with CHROMIUM and Brave words.')
 
     def test_invalid_regex_fails(self):
-        """Test that invalid regex patterns output errors with sys.exit(1)."""
+        """Test that invalid regex patterns raise PlasterApplyError."""
         test_file_chromium = Path(
             'chrome/common/extensions/api/test_invalid_regex.idl')
 
@@ -397,14 +380,11 @@ class PlasterTest(unittest.TestCase):
                 ''')
 
                 plaster_file = plaster.PlasterFile(plaster_path)
-                stderr = io.StringIO()
-                with patch('sys.stderr',
-                           stderr), patch('sys.exit') as mock_exit:
+                with self.assertRaises(plaster.PlasterApplyError) as context:
                     plaster_file.apply()
-                    mock_exit.assert_called_once_with(1)
-                    output = stderr.getvalue()
-                    self.assertIn('Invalid regex:', output)
-                    self.assertIn(str(plaster_path), output)
+                message = str(context.exception)
+                self.assertIn('Invalid regex:', message)
+                self.assertIn(str(plaster_path), message)
 
     def test_pattern_validation_failures(self):
         """Test various pattern validation failures."""
@@ -580,7 +560,7 @@ class PlasterTest(unittest.TestCase):
         self.assertEqual(result2, 'Text with {braces} and (parentheses).')
 
     def test_count_mismatch_fails(self):
-        """Test that count mismatch causes sys.exit(1) with error output."""
+        """Test that count mismatch raises PlasterApplyError."""
         # Test case: more matches than expected
         test_file_chromium = Path(
             'chrome/common/extensions/api/test_file1.idl')
@@ -606,13 +586,11 @@ class PlasterTest(unittest.TestCase):
 
         # Should fail because there are 3 matches but count expects 2
         plaster_file = plaster.PlasterFile(plaster_path)
-        stderr = io.StringIO()
-        with patch('sys.stderr', stderr), patch('sys.exit') as mock_exit:
+        with self.assertRaises(plaster.PlasterApplyError) as context:
             plaster_file.apply()
-            mock_exit.assert_called_once_with(1)
-            output = stderr.getvalue()
-            self.assertIn('Unexpected number of matches (3 vs 2)', output)
-            self.assertIn(str(plaster_path), output)
+        message = str(context.exception)
+        self.assertIn('Unexpected number of matches (3 vs 2)', message)
+        self.assertIn(str(plaster_path), message)
 
     def test_default_count(self):
         """Test default count=1 behavior."""
@@ -666,13 +644,11 @@ class PlasterTest(unittest.TestCase):
 
         # Should fail because there are 2 matches but default expects 1
         plaster_file_incorrect = plaster.PlasterFile(plaster_path_incorrect)
-        stderr = io.StringIO()
-        with patch('sys.stderr', stderr), patch('sys.exit') as mock_exit:
+        with self.assertRaises(plaster.PlasterApplyError) as context:
             plaster_file_incorrect.apply()
-            mock_exit.assert_called_once_with(1)
-            output = stderr.getvalue()
-            self.assertIn('Unexpected number of matches (2 vs 1)', output)
-            self.assertIn(str(plaster_path_incorrect), output)
+        message = str(context.exception)
+        self.assertIn('Unexpected number of matches (2 vs 1)', message)
+        self.assertIn(str(plaster_path_incorrect), message)
 
     def test_count_zero_replaces_all(self):
         """

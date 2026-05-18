@@ -15,6 +15,11 @@
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
+namespace mojo {
+template <typename T>
+class PendingAssociatedReceiver;
+}  // namespace mojo
+
 namespace brave_ads::test {
 
 // Minimal in-process implementation of `bat_ads::mojom::BatAds`. Only
@@ -32,11 +37,11 @@ class FakeBatAds : public bat_ads::mojom::BatAds {
   ~FakeBatAds() override;
 
   void BindReceiver(mojo::PendingAssociatedReceiver<bat_ads::mojom::BatAds>
-                        bat_ads_mojom_pending_associated_receiver);
+                        bat_ads_pending_associated_receiver);
 
   // bat_ads::mojom::BatAds:
-  void AddBatAdsObserver(
-      mojo::PendingRemote<bat_ads::mojom::BatAdsObserver> observer) override {}
+  void AddBatAdsObserver(mojo::PendingRemote<bat_ads::mojom::BatAdsObserver>
+                         /*bat_ads_observer_pending_remote*/) override {}
   void SetSysInfo(brave_ads::mojom::SysInfoPtr /*mojom_sys_info*/) override {}
   void SetBuildChannel(
       brave_ads::mojom::BuildChannelInfoPtr /*mojom_build_channel*/) override {}
@@ -97,7 +102,8 @@ class FakeBatAds : public bat_ads::mojom::BatAds {
   base::RepeatingClosure initialize_callback_;
   bool simulate_initialization_failure_;
 
-  mojo::AssociatedReceiver<bat_ads::mojom::BatAds> receiver_{this};
+  mojo::AssociatedReceiver<bat_ads::mojom::BatAds> bat_ads_associated_receiver_{
+      this};
 };
 
 }  // namespace brave_ads::test

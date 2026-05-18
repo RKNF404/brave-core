@@ -20,15 +20,19 @@
 #include "brave/ios/browser/api/web_view/brave_web_view_internal.h"
 #include "brave/ios/browser/brave_ads/ads_media_reporting_javascript_feature.h"
 #include "brave/ios/browser/brave_search/brave_search_ad_results_javascript_feature.h"
+#include "brave/ios/browser/brave_search/brave_search_make_default_javascript_feature.h"
 #include "brave/ios/browser/ui/web_view/features.h"
 #include "brave/ios/browser/web/brave_web_main_parts.h"
 #include "brave/ios/browser/web/de_amp/de_amp_javascript_feature.h"
 #include "brave/ios/browser/web/document_fetch/document_fetch_javascript_feature.h"
 #include "brave/ios/browser/web/force_paste/force_paste_javascript_feature.h"
 #include "brave/ios/browser/web/logins/logins_javascript_feature.h"
+#include "brave/ios/browser/web/navigator/brave_navigator_javascript_feature.h"
 #include "brave/ios/browser/web/night_mode/night_mode_javascript_feature.h"
 #include "brave/ios/browser/web/page_metadata/page_metadata_javascript_feature.h"
 #include "brave/ios/browser/web/reader_mode/reader_mode_javascript_feature.h"
+#include "brave/ios/browser/youtube/youtube_quality_javascript_feature.h"
+#include "brave/ios/web/js_messaging/safe_builtins_javascript_feature.h"
 #include "components/autofill/ios/browser/autofill_java_script_feature.h"
 #include "components/autofill/ios/browser/suggestion_controller_java_script_feature.h"
 #include "components/autofill/ios/form_util/form_handlers_java_script_feature.h"
@@ -109,12 +113,14 @@ std::vector<web::JavaScriptFeature*> BraveWebClient::GetJavaScriptFeatures(
           GetInstance());
   if (base::FeatureList::IsEnabled(
           brave::features::kUseChromiumWebViewsAutofill)) {
-    features.push_back(
-        password_manager::PasswordManagerJavaScriptFeature::GetInstance());
+    // Order matters for these scripts, `PasswordManagerJavaScriptFeature` must
+    // be _after_ the autofill features for it to function correctly.
     features.push_back(autofill::AutofillJavaScriptFeature::GetInstance());
     features.push_back(autofill::FormHandlersJavaScriptFeature::GetInstance());
     features.push_back(
         autofill::SuggestionControllerJavaScriptFeature::GetInstance());
+    features.push_back(
+        password_manager::PasswordManagerJavaScriptFeature::GetInstance());
   }
   if (base::FeatureList::IsEnabled(
           brave::features::kUseProfileWebViewConfiguration)) {
@@ -124,12 +130,17 @@ std::vector<web::JavaScriptFeature*> BraveWebClient::GetJavaScriptFeatures(
         language::LanguageDetectionJavaScriptFeature::GetInstance());
     features.push_back(translate::TranslateJavaScriptFeature::GetInstance());
 
+    // The base safe builtins should be added before other Brave JS features
+    features.push_back(SafeBuiltinsJavaScriptFeature::GetInstance());
+
     // Add Brave iOS ported JavaScriptFeatures based on their original
     // counterpart in //brave-ios
     features.push_back(
         brave_ads::AdsMediaReportingJavaScriptFeature::GetInstance());
     features.push_back(AIChatDistillerJavaScriptFeature::GetInstance());
+    features.push_back(BraveNavigatorJavaScriptFeature::GetInstance());
     features.push_back(BraveSearchAdResultsJavaScriptFeature::GetInstance());
+    features.push_back(BraveSearchMakeDefaultJavaScriptFeature::GetInstance());
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
     features.push_back(BraveTalkLauncherJavaScriptFeature::GetInstance());
 #endif
@@ -139,6 +150,7 @@ std::vector<web::JavaScriptFeature*> BraveWebClient::GetJavaScriptFeatures(
     features.push_back(NightModeJavaScriptFeature::GetInstance());
     features.push_back(PageMetadataJavaScriptFeature::GetInstance());
     features.push_back(brave::ReaderModeJavaScriptFeature::GetInstance());
+    features.push_back(youtube::YouTubeQualityJavaScriptFeature::GetInstance());
     if (!base::FeatureList::IsEnabled(
             brave::features::kUseChromiumWebViewsAutofill)) {
       features.push_back(LoginsJavaScriptFeature::GetInstance());
@@ -266,4 +278,8 @@ void BraveWebClient::DidResetConfiguration(web::BrowserState* browser_state,
         [[ProfileBridgeImpl alloc] initWithProfile:profile];
     BraveWebView.didResetConfiguration(profile_bridge, config);
   }
+}
+
+bool BraveWebClient::IsSmoothScrollingSupported() const {
+  return true;
 }

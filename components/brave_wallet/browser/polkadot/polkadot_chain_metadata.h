@@ -30,6 +30,7 @@ class PolkadotChainMetadata {
 
   PolkadotChainMetadata& operator=(const PolkadotChainMetadata&);
   PolkadotChainMetadata& operator=(PolkadotChainMetadata&&) noexcept;
+  bool operator==(const PolkadotChainMetadata& other) const;
 
   // Fallibly parse runtime metadata bytes and extract the minimal
   // fields needed for transfer extrinsics.
@@ -45,7 +46,8 @@ class PolkadotChainMetadata {
       uint8_t transfer_keep_alive_call_index,
       uint8_t transfer_all_call_index,
       uint16_t ss58_prefix,
-      uint32_t spec_version);
+      uint32_t spec_version,
+      bool asset_tx_payment);
 
   // Build metadata from a known relay/parachain name returned by system_chain.
   // Returns std::nullopt for unknown names. The returned metadata has an
@@ -69,6 +71,10 @@ class PolkadotChainMetadata {
   // addresses.
   uint16_t GetSs58Prefix() const;
   uint32_t GetSpecVersion() const;
+
+  // Returns true if the runtime uses ChargeAssetTxPayment as a signed
+  // extension, meaning the signature payload must include an asset_id field.
+  bool UsesAssetTxPayment() const;
 
  private:
   explicit PolkadotChainMetadata(CxxPolkadotChainMetadata chain_metadata);

@@ -755,6 +755,10 @@ export const ZCashTestnetKeyringIds = [BraveWallet.KeyringId.kZCashTestnet]
 
 export const CardanoTestnetKeyringIds = [BraveWallet.KeyringId.kCardanoTestnet]
 
+export const PolkadotTestnetKeyringIds = [
+  BraveWallet.KeyringId.kPolkadotTestnet,
+]
+
 /**
  * Should match BraveWallet.CoinType defined with "as const" to allow for use
  * as a type-guard.
@@ -937,6 +941,7 @@ export enum AddressMessageInfoIds {
   zcashInvalidUnifiedAddressMissingTransparentPartError = 12,
   zcashInvalidUnifiedAddressMissingOrchardPartError = 13,
   zcashInvalidAddressNetworkMismatchError = 14,
+  polkadotInvalidPrefixError = 15,
 }
 
 export type AddressMessageInfo = {
@@ -1086,6 +1091,7 @@ export const SwapProviderNameMapping = {
   [BraveWallet.SwapProvider.kNearIntents]: 'NEAR Intents',
   [BraveWallet.SwapProvider.kCowSwap]: 'CoW Swap',
   [BraveWallet.SwapProvider.kJupiterLegacy]: 'Jupiter (Legacy)',
+  [BraveWallet.SwapProvider.kZeroExLegacy]: '0x (Legacy)',
 }
 
 export const SupportedSwapProviders = [

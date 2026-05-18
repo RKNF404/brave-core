@@ -84,17 +84,6 @@ class ChromiumTabState: TabState, TabStateImpl {
   }
 
   private func webViewTitleDidChange() {
-    if let webView = webView?.internalWebView, let url = webView.url,
-      webView.configuration.preferences.isFraudulentWebsiteWarningEnabled,
-      webView.responds(to: Selector(("_safeBrowsingWarning"))),
-      webView.value(forKey: "_safeBrowsingWarning") != nil
-    {
-      self.virtualURL = url  // We can update the URL whenever showing an interstitial warning
-      observers.forEach {
-        $0.tabDidUpdateURL(self)
-      }
-    }
-
     observers.forEach {
       $0.tabDidChangeTitle(self)
     }
@@ -365,6 +354,9 @@ class ChromiumTabState: TabState, TabStateImpl {
       let coder = try NSKeyedUnarchiver(forReadingFrom: sessionData)
       coder.requiresSecureCoding = false
       webView.decodeRestorableState(with: coder)
+      // Set the UI delegate again after restoring as the act of restoring resets a lot of
+      // CWVWebView state including the JavaScript dialog presenter
+      webView.uiDelegate = uiHandler
     } catch {
       Logger.module.error("Failed to restore web view with session data: \(error)")
       isRestoring = false
@@ -448,6 +440,10 @@ class ChromiumTabState: TabState, TabStateImpl {
 
   @MainActor func createFullPagePDF() async throws -> Data? {
     return await webView?.createFullPagePDF()
+  }
+
+  var isFindNavigatorVisible: Bool {
+    webView?.isFindNavigatorVisible ?? false
   }
 
   func presentFindInteraction(with text: String) {

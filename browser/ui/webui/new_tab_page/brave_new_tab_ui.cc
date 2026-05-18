@@ -63,7 +63,7 @@
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
-#include "brave/components/brave_vpn/browser/brave_vpn_service.h"
+#include "brave/components/brave_vpn/browser/brave_vpn_service_impl.h"
 #include "brave/components/brave_vpn/common/brave_vpn_utils.h"
 #endif
 
@@ -210,14 +210,12 @@ void BraveNewTabUI::BindInterface(
 }
 
 void BraveNewTabUI::BindInterface(
-    mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler) {
-  auto* profile = Profile::FromWebUI(web_ui());
-  CHECK(profile);
-
-  realbox_handler_ = std::make_unique<RealboxHandler>(
-      std::move(pending_page_handler), profile, web_ui()->GetWebContents(),
-      base::BindRepeating(&BraveNewTabUI::GetContextualSessionHandle,
-                          base::Unretained(this)));
+    mojo::PendingReceiver<searchbox::mojom::PageHandlerFactory>
+        pending_receiver) {
+  if (searchbox_page_factory_receiver_.is_bound()) {
+    searchbox_page_factory_receiver_.reset();
+  }
+  searchbox_page_factory_receiver_.Bind(std::move(pending_receiver));
 }
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
@@ -248,6 +246,16 @@ BraveNewTabUI::GetContextualSessionHandle() {
     }
   }
   return session_handle_.get();
+}
+
+void BraveNewTabUI::CreatePageHandler(
+    mojo::PendingRemote<searchbox::mojom::Page> pending_page,
+    mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler) {
+  realbox_handler_ = std::make_unique<RealboxHandler>(
+      std::move(pending_page_handler), std::move(pending_page),
+      Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
+      base::BindRepeating(&BraveNewTabUI::GetContextualSessionHandle,
+                          base::Unretained(this)));
 }
 
 void BraveNewTabUI::CreatePageHandler(

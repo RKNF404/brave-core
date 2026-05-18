@@ -11,11 +11,27 @@ nala_icon_overrides = [
     source = "ic_browser_bookmark_normal.xml"
     dest = "ic_all_bookmarks_icon_16dp.xml"
   },
+  {
+    # Override Chromium's zoom button at url bar and app menu on tablets.
+    source = "ic_search_zoom_in.xml"
+    dest = "ic_zoom.xml"
+  },
+  {
+    # Override Chromium's zoom in button at floating toolbar and app menu on tablets.
+    source = "ic_add_circle_filled.xml"
+    dest = "ic_add_24dp.xml"
+  },
+  {
+    # Override Chromium's zoom out button at floating toolbar and app menu on tablets.
+    source = "ic_minus.xml"
+    dest = "ic_remove.xml"
+  },
 ]
 
 # Please keep this list sorted alphabetically.
 nala_icons = [
   "ic_accessibility.xml",
+  "ic_antenna.xml",
   "ic_appearance.xml",
   "ic_bar_chart_search.xml",
   "ic_bar_chart.xml",
@@ -38,10 +54,12 @@ nala_icons = [
   "ic_location_on.xml",
   "ic_star_circle.xml",
   "ic_notification.xml",
+  "ic_outside.xml",
   "ic_product_bat_outline.xml",
   "ic_product_brave_leo.xml",
   "ic_product_brave_news.xml",
   "ic_product_origin.xml",
+  "ic_product_private_window.xml",
   "ic_product_brave_wallet.xml",
   "ic_product_sync.xml",
   "ic_product_translate.xml",

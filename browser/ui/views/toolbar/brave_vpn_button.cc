@@ -13,10 +13,10 @@
 #include "brave/app/brave_command_ids.h"
 #include "brave/app/vector_icons/vector_icons.h"
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
-#include "brave/browser/ui/brave_icon_with_badge_image_source.h"
 #include "brave/browser/ui/color/brave_color_id.h"
 #include "brave/browser/ui/color/color_palette.h"
-#include "brave/components/brave_vpn/browser/brave_vpn_service.h"
+#include "brave/browser/ui/views/brave_actions/brave_icon_with_badge_image_source.h"
+#include "brave/components/brave_vpn/browser/brave_vpn_service_impl.h"
 #include "brave/components/vector_icons/vector_icons.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "chrome/browser/ui/browser.h"
@@ -117,7 +117,7 @@ class VPNButtonMenuModel : public ui::SimpleMenuModel,
   }
 
   raw_ptr<Browser, DanglingUntriaged> browser_ = nullptr;
-  raw_ptr<brave_vpn::BraveVpnService, DanglingUntriaged> service_ = nullptr;
+  raw_ptr<brave_vpn::BraveVpnServiceImpl, DanglingUntriaged> service_ = nullptr;
 };
 
 const ui::ColorProvider* GetColorProviderForView(

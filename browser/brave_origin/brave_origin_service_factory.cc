@@ -24,7 +24,9 @@
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/brave_wayback_machine/pref_names.h"
 #include "brave/components/constants/pref_names.h"
+#include "brave/components/email_aliases/buildflags/buildflags.h"
 #include "brave/components/p3a/pref_names.h"
+#include "brave/components/playlist/core/common/buildflags/buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
@@ -57,6 +59,14 @@
 
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
 #include "brave/components/brave_talk/pref_names.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PLAYLIST)
+#include "brave/components/playlist/core/common/pref_names.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EMAIL_ALIASES)
+#include "brave/components/email_aliases/pref_names.h"
 #endif
 
 namespace policy {
@@ -155,6 +165,14 @@ constexpr auto kBraveOriginProfileMetadata =
              /*user_settable=*/true)},
 #endif
 
+#if BUILDFLAG(ENABLE_PLAYLIST)
+        // Playlist preferences
+        {playlist::kPlaylistEnabledPref,
+         BraveOriginServiceFactory::BraveOriginPrefMetadata(
+             false,
+             /*user_settable=*/true)},
+#endif
+
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
         // Brave News preferences
         {brave_news::prefs::kBraveNewsDisabledByPolicy,
@@ -185,6 +203,14 @@ constexpr auto kBraveOriginProfileMetadata =
          BraveOriginServiceFactory::BraveOriginPrefMetadata(
              false,
              /*user_settable=*/true)},
+#endif
+
+#if BUILDFLAG(ENABLE_EMAIL_ALIASES)
+        // Email Aliases preferences
+        {email_aliases::prefs::kEmailAliasesEnabled,
+         BraveOriginServiceFactory::BraveOriginPrefMetadata(
+             false,
+             /*user_settable=*/false)},
 #endif
     });
 

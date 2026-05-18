@@ -34,7 +34,6 @@
 <translation id="878572309106296578">ਬਲੂਟੁੱਥ ਡੀਵਾਈਸਾਂ ਦੀ ਪੜਚੋਲ ਕਰਨ ਲਈ Brave ਨੂੰ ਬਲੂਟੁੱਥ ਪਹੁੰਚ 
  ਦੀ ਲੋੜ ਹੈ। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK"/></translation>
 <translation id="1330562121671411446">ਭਾਸ਼ਾ ਦਾ ਪਤਾ ਲਗਾਓ</translation>
-<translation id="6204677860546245308">Brave ਦੀਆਂ ਸਿਫ਼ਾਰਸ਼ੀ ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਦੀ ਵਰਤੋਂ ਕਰੋ</translation>
 <translation id="108284536240904209">ਨਾਲ ਹੀ Brave (<ph name="URL"/>) ਤੋਂ ਡਾਟਾ ਮਿਟਾਓ</translation>
 <translation id="1345251407431278948">ਪਿੰਨ ਕੀਤਾ ਗਿਆ! ਤੁਸੀਂ ਟੂਲਬਾਰ 'ਤੇ ਦਿੱਤੇ ਨਵੇਂ ਬਟਨ ਨਾਲ 'ਚਿੱਤਰ ਖੋਜ' ਤੱਕ ਦੁਬਾਰਾ ਪਹੁੰਚ ਕਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="1356661055722410047">ਨਵਾਂ! ਤੁਸੀਂ ਆਪਣੀ ਸਕ੍ਰੀਨ 'ਤੇ ਲਿਖਤ ਅਤੇ ਚਿੱਤਰਾਂ, ਦੋਵਾਂ ਦਾ ਅਨੁਵਾਦ ਕਰ ਸਕਦੇ ਹੋ</translation>
@@ -55,11 +54,12 @@
 <translation id="6570689355868013775">Brave ਦੇ ਸੁਰੱਖਿਆ ਸੰਬੰਧੀ ਟੂਲ</translation>
 <translation id="1902837727299679178">Brave ਤੁਹਾਡੇ Password Manager ਡਾਟੇ ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦਾ ਹੈ। ਇਸਦੀ ਆਗਿਆ ਦੇਣ ਲਈ ਆਪਣਾ Windows ਪਾਸਵਰਡ ਟਾਈਪ ਕਰੋ।</translation>
 <translation id="4449148723378534338">Brave ਵਿੱਚ ਪ੍ਰਮੁੱਖ ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ ਕੰਟਰੋਲਾਂ ਦੀ ਸਮੀਖਿਆ ਕਰੋ</translation>
+<translation id="5229247933547820267">ਪੰਨੇ ਨੂੰ ਛੱਡੇ ਬਿਨਾਂ ਆਪਣੀ ਟੈਬ ਬਾਰੇ AI ਮੋਡ ਨੂੰ ਪੁੱਛਣ ਲਈ, Brave ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ। ਤੁਸੀਂ ਆਪਣੇ ਸਾਰੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਆਪਣੇ ਪਾਸਵਰਡ ਅਤੇ ਹੋਰ ਚੀਜ਼ਾਂ ਪ੍ਰਾਪਤ ਕਰ ਸਕੋਗੇ।</translation>
 <translation id="1640672724030957280">ਡਾਊਨਲੋਡ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="1680687534629375545">ਇਸ ਪੰਨੇ ਬਾਰੇ Image Search ਨੂੰ ਪੁੱਛੋ</translation>
+<translation id="509363484780540563">ਤੁਸੀਂ ਸੁਨੇਹਿਆਂ, ਦਸਤਾਵੇਜ਼ਾਂ ਅਤੇ ਹੋਰ ਐਪਾਂ ਵਿੱਚ ਦਿੱਤੇ ਲਿੰਕਾਂ 'ਤੇ ਕਲਿੱਕ ਕਰ ਕੇ ਕਿਸੇ ਵੀ ਵੇਲੇ Brave ਦੀ ਵਰਤੋਂ ਕਰ ਸਕਦੇ ਹੋ। ਇਸਨੂੰ ਤੁਹਾਡੀ ਟਾਸਕਬਾਰ 'ਤੇ ਵੀ ਪਿੰਨ ਕੀਤਾ ਜਾਵੇਗਾ।</translation>
 <translation id="1709772298389099340"><ph name="BROWSER_NAME"/> ਲਈ ਐਲੀਵੇਟਿਡ ਵਿਸ਼ੇਸ਼-ਅਧਿਕਾਰ ਮੁਹੱਈਆ ਕਰਵਾਉਂਦੀ ਹੈ।</translation>
 <translation id="2913217021115517297">ਇਨ੍ਹਾਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਲਈ, Brave ਉਨ੍ਹਾਂ ਨਾਲ ਹੋਈਆਂ ਤੁਹਾਡੀਆਂ ਅੰਤਰਕਿਰਿਆਵਾਂ Brave ਨੂੰ ਭੇਜਦਾ ਹੈ। ਮਨੁੱਖੀ ਸਮੀਖਿਅਕ ਇਸ ਡਾਟੇ ਨੂੰ ਪੜ੍ਹ ਸਕਦੇ ਹਨ, ਇਸ 'ਤੇ ਪ੍ਰਕਿਰਿਆ ਕਰ ਸਕਦੇ ਹਨ ਅਤੇ ਇਸਦੀ ਐਨੋਟੇਸ਼ਨ ਕਰ ਸਕਦੇ ਹਨ।</translation>
-<translation id="1722488837206509557">ਇਹ ਤੁਹਾਨੂੰ ਉਪਲਬਧ ਡੀਵਾਈਸਾਂ ਵਿੱਚੋਂ ਚੁਣਨ ਅਤੇ ਉਨ੍ਹਾਂ 'ਤੇ ਸਮੱਗਰੀ ਦਿਖਾਉਣ ਦੀ ਆਗਿਆ ਦੇਵੇਗਾ।</translation>
 <translation id="8004287232784878841">Brave ਜਲਦ ਹੀ ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟਾ ਮਿਟਾ ਦੇਵੇਗਾ</translation>
 <translation id="4197839351786449392">Brave ਨੈਵੀਗੇਸ਼ਨਾਂ ਨੂੰ HTTPS 'ਤੇ ਅੱਪਗ੍ਰੇਡ ਕਰਨ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰੇਗਾ</translation>
 <translation id="7814200940910057384">ਸਾਫ਼ ਕੀਤਾ Brave  ਡਾਟਾ </translation>
@@ -107,7 +107,7 @@
 <translation id="2170098639895543546">ਪੰਨੇ 'ਤੇ ਕੁਝ ਵੀ ਚੁਣੋ</translation>
 <translation id="142389341645668510">Brave ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
 <translation id="2174917724755363426">ਸਥਾਪਨਾ ਪੂਰੀ ਨਹੀਂ ਹੋਈ। ਕੀ ਤੁਸੀਂ ਪੱਕਾ ਰੱਦ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ?</translation>
-<translation id="8745514854244955877">Brave - ਨੈੱਟਵਰਕ ਸਾਈਨ-ਇਨ - <ph name="PAGE_TITLE"/></translation>
+<translation id="8841019650931243995">Brave Origin - ਨੈੱਟਵਰਕ ਸਾਈਨ-ਇਨ - <ph name="PAGE_TITLE"/></translation>
 <translation id="2190166659037789668">ਅੱਪਡੇਟ ਦੀ ਜਾਂਚ ਸੰਬੰਧੀ ਗੜਬੜੀ: <ph name="UPDATE_CHECK_ERROR"/>.</translation>
 <translation id="2058539073923004395">Brave ਤੋਂ ਖਾਤਾ ਹਟਾਓ</translation>
 <translation id="5550942974310218641">iOS ਲਈ Brave 'ਤੇ ਵਿਸਤ੍ਰਿਤ ਸੁਰੱਖਿਅਤ ਬ੍ਰਾਊਜ਼ਿੰਗ ਨਾਲ ਤੁਰਦੇ-ਫਿਰਦੇ ਸੁਰੱਖਿਅਤ ਰਹੋ</translation>
@@ -194,6 +194,7 @@
 <translation id="3045032126857188731">ਅਨੁਵਾਦਿਤ ਭਾਸ਼ਾ: <ph name="LANGUAGE"/></translation>
 <translation id="3047590466164881923">ਵਿਚਾਰ ਵਿੰਡੋ ਬੰਦ ਕਰੋ</translation>
 <translation id="4503085212612536713">ਹੋਰ Brave ਪ੍ਰੋਫਾਈਲਾਂ</translation>
+<translation id="2041039306630146369">ਐਕਸਟੈਂਸ਼ਨਾਂ ਐਡ-ਆਨ ਹੁੰਦੀਆਂ ਹਨ, ਜੋ ਤੁਹਾਨੂੰ Brave ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰਨ ਦਿੰਦੀਆਂ ਹਨ। ਵਿਵਸਥਿਤ ਰਹਿਣ ਤੋਂ ਲੈ ਕੇ ਰੋਜ਼ਾਨਾ ਦੇ ਕਾਰਜਾਂ ਨੂੰ ਸਰਲ ਬਣਾਉਣ ਤੱਕ, ਐਕਸਟੈਂਸ਼ਨਾਂ Brave ਨੂੰ ਆਪਣੇ ਮੁਤਾਬਕ ਵਿਉਂਤਬੱਧ ਕਰਨ ਵਿੱਚ ਤੁਹਾਡੀ ਮਦਦ ਕਰਦੀਆਂ ਹਨ।</translation>
 <translation id="7918740962659365265">Brave ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰਨ ਲਈ Brave ਨੂੰ ਕ੍ਰੈਸ਼ ਰਿਪੋਰਟਾਂ ਅਤੇ <ph name="UMA_LINK"/> ਭੇਜੋ</translation>
 <translation id="2332543193474246254">{NUM_DEVICES,plural, =0{ਇੱਕ ਜਾਂ ਇੱਕ ਤੋਂ ਵੱਧ Brave ਐਕਸਟੈਂਸ਼ਨਾਂ ਵੱਲੋਂ 1 USB ਡੀਵਾਈਸ ਤੱਕ ਪਹੁੰਚ ਕੀਤੀ ਜਾ ਰਹੀ ਸੀ}=1{ਇੱਕ ਜਾਂ ਇੱਕ ਤੋਂ ਵੱਧ Brave ਐਕਸਟੈਂਸ਼ਨਾਂ ਵੱਲੋਂ 1 USB ਡੀਵਾਈਸ ਤੱਕ ਪਹੁੰਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ}other{ਇੱਕ ਜਾਂ ਇੱਕ ਤੋਂ ਵੱਧ Brave ਐਕਸਟੈਂਸ਼ਨਾਂ ਵੱਲੋਂ # USB ਡੀਵਾਈਸਾਂ ਤੱਕ ਪਹੁੰਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ}}</translation>
 <translation id="3700405816184340252">Brave ਇਤਿਹਾਸ</translation>
@@ -222,8 +223,6 @@
 <translation id="8926637909431618259">ਪਿਛੋਕੜ ਐਪਸ ਚਲਾਉਣਾ ਜਾਰੀ ਰੱਖੋ ਜਦੋਂ Brave ਨੂੰ ਬੰਦ ਕੀਤਾ ਜਾਏ</translation>
 <translation id="518125528057094977">ਅਸੁਰੱਖਿਅਤ ਕਨੈਕਸ਼ਨ ਦੀ ਵਰਤੋਂ ਕਰ ਕੇ ਕਿਸੇ ਵੀ ਸਾਈਟ ਨੂੰ ਲੋਡ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ Brave ਤੁਹਾਨੂੰ ਚਿਤਾਵਨੀ ਦੇਵੇਗਾ</translation>
 <translation id="8652321858775514885">ਜੇ ਤੁਸੀਂ Brave ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕੀਤਾ ਹੋਇਆ ਹੈ, ਤਾਂ ਤੁਹਾਡੇ Brave ਖਾਤੇ ਨੂੰ ਛੱਡ ਕੇ, ਜਦੋਂ ਤੁਸੀਂ ਸਾਰੀਆਂ Brave ਵਿੰਡੋਆਂ ਬੰਦ ਕਰਦੇ ਹੋ, ਤਾਂ ਤੁਹਾਨੂੰ ਜ਼ਿਆਦਾਤਰ ਸਾਈਟਾਂ ਤੋਂ ਸਾਈਨ-ਆਊਟ ਕਰ ਦਿੱਤਾ ਜਾਵੇਗਾ। ਜੇ ਤੁਸੀਂ ਚਾਹੁੰਦੇ ਹੋ ਕਿ ਸਾਈਟਾਂ ਤੁਹਾਡੀ ਜਾਣਕਾਰੀ ਨੂੰ ਯਾਦ ਰੱਖਣ, ਤਾਂ <ph name="SETTINGS_LINK"/>।</translation>
-<translation id="3795277300264350702">ਤੁਹਾਡਾ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਖੋਜ ਇੰਜਣ Brave ਤੋਂ ਬਾਹਰ ਬਦਲਿਆ ਗਿਆ ਸੀ। ਤੁਹਾਨੂੰ ਸੁਰੱਖਿਅਤ ਰੱਖਣ ਲਈ, Brave ਨੇ ਇਸਨੂੰ ਰੀਸੈੱਟ ਕਰ ਦਿੱਤਾ ਹੈ।</translation>
-<translation id="5033074923607633232">ਆਪਣੇ ਸਾਰੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਆਪਣੇ ਪਾਸਵਰਡ, ਬੁੱਕਮਾਰਕ ਅਤੇ ਹੋਰ ਜਾਣਕਾਰੀ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ Brave ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="3352986031709923790">ਖੋਜ ਖੇਤਰ ਦਾ ਸਿਖਰਲਾ ਸੱਜਾ ਕੋਨਾ: ਸੱਜੇ ਤੋਂ <ph name="RIGHT"/>%, ਸਿਖਰ ਤੋਂ <ph name="TOP"/>%</translation>
 <translation id="7261356974224431851">ਤੁਹਾਡੇ ਖਾਤੇ ਵਿੱਚ Brave ਡਾਟਾ</translation>
 <translation id="3369405342922656244">ਇਸ ਪੰਨੇ ਨੂੰ Image Search ਨਾਲ ਖੋਜੋ</translation>
@@ -294,7 +293,7 @@
 <translation id="10925962326134232">ਆਪਣੇ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਨਵੀਂ ਦਿੱਖ ਦੇਣ ਲਈ Brave ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
 <translation id="6596295505984504022">ਆਪਣੇ Brave ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
 <translation id="4148957013307229264">ਇੰਸਟੌਲ ਕਰ ਰਿਹਾ ਹੈ...</translation>
-<translation id="4658486203392098459"><ph name="PAGE_TITLE"/> - ਨੈੱਟਵਰਕ ਸਾਈਨ-ਇਨ - Brave</translation>
+<translation id="5011704081781303429"><ph name="PAGE_TITLE"/> - ਨੈੱਟਵਰਕ ਸਾਈਨ-ਇਨ - Brave Origin</translation>
 <translation id="2871190378186459992">Brave ਲਈ ਸ਼ਾਨਦਾਰ ਐਪਸ, ਗੇਮਸ, ਐਕਸਟੈਂਸ਼ਨਾਂ ਅਤੇ ਵਿਸ਼ੇ ਖੋਜੋ।</translation>
 <translation id="462105622535258178">ਆਪਣੇ ਸਾਰੇ ਕੰਪਿਊਟਰਾਂ 'ਤੇ ਇਹ ਐਕਸਟੈਂਸ਼ਨ ਅਤੇ ਹੋਰ ਬਹੁਤ ਕੁਝ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ, Brave ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="6670140629169983459">ਆਪਣੇ ਮਾਂ-ਪਿਓ ਦੀ ਚੋਣ ਵਾਲੇ ਵਿਕਲਪਾਂ ਨਾਲ ਆਨਲਾਈਨ ਸੁਰੱਖਿਅਤ ਰਹਿਣ ਲਈ, ਆਪਣੇ Brave ਪ੍ਰੋਫਾਈਲ 'ਤੇ ਸਵਿੱਚ ਕਰੋ ਜਿੱਥੇ ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ <ph name="USER_EMAIL_ADDRESS"/> ਵਜੋਂ ਸਾਈਨ-ਇਨ ਕੀਤਾ ਹੋਇਆ ਹੈ</translation>
@@ -428,6 +427,7 @@
 <translation id="5895138241574237353">ਰੀਸਟਾਰਟ ਕਰੋ</translation>
 <translation id="5903106910045431592"><ph name="PAGE_TITLE"/> - ਨੈੱਟਵਰਕ ਸਾਈਨ-ਇਨ</translation>
 <translation id="5924017743176219022">ਇੰਟਰਨੈੱਟ ਨਾਲ ਕਨੈਕਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
+<translation id="1275716786566134844">ਆਓ ਤੁਹਾਡੇ Brave ਨੂੰ ਤਿਆਰ ਕਰੀਏ</translation>
 <translation id="5941711191222866238">ਨਿਊਨਤਮ</translation>
 <translation id="5768962901674164501">ਆਪਣੇ ਸਾਰੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਇਸ ਬੁੱਕਮਾਰਕ ਅਤੇ ਹੋਰ ਚੀਜ਼ਾਂ ਨੂੰ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ, Brave ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="5101892358689285100">Brave ਨੂੰ ਆਪਣਾ ਬਣਾਓ</translation>
@@ -464,6 +464,7 @@
 <translation id="5980269616827212166">ਫ਼ਾਈਲਾਂ ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ Brave ਨੂੰ ਸਟੋਰੋਜ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਸੰਬੰਧੀ ਇਜਾਜ਼ਤ ਦੀ ਲੋੜ ਹੈ</translation>
 <translation id="7651600795135059130">Brave ਵਿੱਚ ਸਟੋਰ ਕੀਤੀਆਂ ਅਸੁਰੱਖਿਅਤ ਸਾਈਟਾਂ ਦੀ ਸੂਚੀ ਦੇ ਨਾਲ URL ਦੀ ਜਾਂਚ ਕੀਤੀ ਜਾਂਦੀ ਹੈ</translation>
 <translation id="5019879183386042809">Brave ਨੂੰ ਪੂਰਵ-ਨਿਰਧਾਰਤ ਬ੍ਰਾਊਜ਼ਰ ਬਣਾਓ</translation>
+<translation id="6248988683584659830">ਖੋਜ ਸੈਟਿੰਗਾਂ</translation>
 <translation id="7445061995866044926">ਕੀ Brave ਤੋਂ ਸਾਈਨ-ਆਊਟ ਹੋਣਾ ਹੈ?</translation>
 <translation id="4659866260728515512">ਇਨ੍ਹਾਂ ਟੈਬਾਂ ਵੱਲੋਂ ਵਾਧੂ ਸਰੋਤਾਂ ਦੀ ਵਰਤੋਂ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ। ਤੁਹਾਡੀ ਕਾਰਗੁਜ਼ਾਰੀ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ, Brave ਨੂੰ ਉਨ੍ਹਾਂ ਟੈਬਾਂ ਨੂੰ ਅਕਿਰਿਆਸ਼ੀਲ ਕਰਨ ਦਿਓ।</translation>
 <translation id="6806912298071949921">ਆਪਣੇ Brave ਪ੍ਰੋਫਾਈਲ ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
@@ -528,7 +529,7 @@
 <translation id="6831043979455480757">ਅਨੁਵਾਦ ਕਰੋ</translation>
 <translation id="8211837073776713955">Brave ਤੁਹਾਨੂੰ ਇਹ ਗੱਲ ਦੱਸਦਾ ਹੈ ਕਿ ਤੁਹਾਡੇ ਪਾਸਵਰਡਾਂ ਨਾਲ ਪਹਿਲਾਂ ਕਦੇ ਛੇੜਛਾੜ ਹੋਈ ਹੈ ਜਾਂ ਨਹੀਂ</translation>
 <translation id="684888714667046800">ਇੰਟਰਨੈੱਟ ਨਾਲ ਕਨੈਕਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ। ਜੇ ਤੁਸੀਂ ਫ਼ਾਇਰਵਾਲ ਦੀ ਵਰਤੋਂ ਕਰਦੇ ਹੋ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਇਹ ਪੱਕਾ ਕਰੋ ਕਿ <ph name="PRODUCT_EXE_NAME"/> ਪ੍ਰਵਾਨਿਤ ਸੂਚੀ ਸ਼ਾਮਲ ਹੈ।</translation>
-<translation id="7830723774663008396">Brave - <ph name="PAGE_TITLE"/></translation>
+<translation id="8237613041998823669">Brave Origin - <ph name="PAGE_TITLE"/></translation>
 <translation id="6859580922007887573">ਜਾਰੀ ਰੱਖਣ ਲਈ ਟੈਬ ਦਬਾਓ</translation>
 <translation id="6862030660799253820">ਇਸ ਚਿੱਤਰ ਨੂੰ Image Search ਨਾਲ ਖੋਜੋ</translation>
 <translation id="3028928628792374067">Brave ਨੂੰ ਇਹ ਪਤਾ ਲੱਗਾ ਕਿ "<ph name="EXTENSION_NAME"/>" ਵਿੱਚ ਮਾਲਵੇਅਰ ਸ਼ਾਮਲ ਹਨ</translation>
@@ -621,6 +622,7 @@ Brave ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸਲ �
 <translation id="7810005234485217901">ਤੁਸੀਂ ਆਸਾਨ ਪਹੁੰਚ ਲਈ 'ਚਿੱਤਰ ਖੋਜ' ਨੂੰ ਪਿੰਨ ਕਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="1652855885539187849">ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਇਸ ਖਾਤੇ ਨਾਲ ਕੋਈ Brave ਪ੍ਰੋਫਾਈਲ ਪਹਿਲਾਂ ਤੋਂ ਹੀ ਮੌਜੂਦ ਹੈ</translation>
 <translation id="7845233973568007926">ਸਥਾਪਨਾ ਕਰਨ ਲਈ ਧੰਨਵਾਦ। <ph name="BUNDLE_NAME"/> ਦੀ ਵਰਤੋਂ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਤੁਹਾਡੇ ਵੱਲੋਂ ਆਪਣੇ ਕੰਪਿਊਟਰ ਨੂੰ ਮੁੜ-ਸ਼ੁਰੂ ਕਰਨਾ ਲਾਜ਼ਮੀ ਹੈ।</translation>
+<translation id="7397737266068428588">ਤੁਹਾਡਾ ਖੋਜ ਇੰਜਣ Brave ਤੋਂ ਬਾਹਰ ਬਦਲਿਆ ਗਿਆ ਸੀ। ਤੁਹਾਨੂੰ ਸੁਰੱਖਿਅਤ ਰੱਖਣ ਲਈ, Brave ਨੇ ਇਸਨੂੰ ਇਸਦੇ ਮੂਲ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ 'ਤੇ ਰੀਸੈੱਟ ਕਰ ਦਿੱਤਾ ਹੈ। <ph name="LEARN_MORE_LINK"/></translation>
 <translation id="9148690296223500734">Brave ਨੂੰ ਨਵੀਂ ਦਿੱਖ ਦੇਣ ਲਈ ਇਸਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
 <translation id="7963515534397191222">Brave ਨਵੀਨ ਵਰਜਨ 'ਤੇ ਅੱਪਡੇਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ, ਇਸ ਲਈ ਤੁਹਾਨੂੰ ਨਵੀਆਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਅਤੇ ਸੁਰੱਖਿਆ ਸਥਿਰ ਨਹੀਂ ਮਿਲ ਰਹੇ ਹਨ।</translation>
 <translation id="7872446069773932638">ਡਾਊਨਲੋਡ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ... <ph name="SECONDS"/> ਸਕਿੰਟ ਬਾਕੀ</translation>
@@ -749,6 +751,7 @@ Brave ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸਲ �
 <translation id="7535429826459677826">Google Chrome Dev</translation>
 <translation id="6283840329609797763">ਅਨਿਸ਼ਚਿਤ ਗੜਬੜ ਕਾਰਨ ਸਥਾਪਨਾ ਅਸਫਲ ਹੋ ਗਈ। ਕਿਰਪਾ ਕਰਕੇ Brave ਨੂੰ ਦੁਬਾਰਾ ਡਾਊਨਲੋਡ ਕਰੋ।</translation>
 <translation id="1743665722170667430">ਅਣਜਾਣ ਸਰੋਤਾਂ ਤੋਂ ਐਕਸਟੈਂਸ਼ਨ, ਐਪਸ ਅਤੇ ਥੀਮਾਂ ਤੁਹਾਡੇ ਜੰਤਰ ਨੂੰ ਨੁਕਸਾਨ ਪਹੁੰਚਾ ਸਕਦੇ ਹਨ। Brave ਸਿਰਫ <ph name="IDS_EXTENSION_WEB_STORE_TITLE"/> ਤੋਂ ਇਨ੍ਹਾਂ ਨੂੰ ਇੰਸਟਾਲ ਕਰਨਾ ਸਿਫਾਰਸ਼ ਕਰਦਾ ਹੈ।</translation>
+<translation id="5840822070878669614">ਵੈੱਬ ਸਟੋਰ ਖੋਲ੍ਹੋ</translation>
 <translation id="6184592406110188164">ਇਹ ਐਕਸਟੈਂਸ਼ਨ Web Store ਨੀਤੀ ਦੀ ਉਲੰਘਣਾ ਕਰਦੀ ਹੈ ਅਤੇ ਅਸੁਰੱਖਿਅਤ ਹੋ ਸਕਦੀ ਹੈ। Brave ਤੋਂ ਇਸਨੂੰ ਹਟਾਓ ਤਾਂ ਜੋ ਇਹ ਤੁਹਾਡੇ ਜਾਣਕਾਰੀ ਨੂੰ ਤੁਹਾਡੇ ਜਾ ਰਹੇ ਸਾਈਟਾਂ 'ਤੇ ਨਹੀਂ ਵੇਖ ਸਕੇ ਅਤੇ 'ਤੇ ਬਦਲ ਸਕੇ।</translation>
 <translation id="1299765473362724475">ਚੇਤਾਵਨੀ: Brave ਐਕਸਟੈਂਸ਼ਨਾਂ ਤੋਂ ਤੁਹਾਡੇ ਬਰਾਊਜ਼ਿੰਗ ਇਤਿਹਾਸ ਨੂੰ ਰਿਕਾਰਡ ਕਰਨਾ ਨਹੀਂ ਰੋਕ ਸਕਦਾ। ਇਸ ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਨਿੱਜੀ ਮੋਡ ਵਿੱਚ ਅਯੋਗ ਕਰਨ ਲਈ, ਇਸ ਵਿਕਲਪ ਨੂੰ ਚੁਣਵੀਂ ਨਾ ਕਰੋ।</translation>
 <translation id="1448049584457347995">Brave ਨੂੰ ਜ਼ਿਆਦਾ ਸੁਰੱਖਿਅਤ ਬਣਾਉਣ ਲਈ, ਅਸੀਂ ਕੁਝ ਐਕਸਟੈਂਸ਼ਨਾਂ ਨੂੰ ਅਯੋਗ ਕਰ ਦਿੱਤਾ ਹੈ ਜੋ <ph name="IDS_EXTENSION_WEB_STORE_TITLE"/> ਵਿੱਚ ਸ਼ਾਮਿਲ ਨਹੀਂ ਹਨ ਅਤੇ ਤੁਹਾਡੇ ਗਿਆਨ ਦੇ ਬਿਨਾਂ ਸ਼ਾਇਦ ਜੋੜੇ ਗਏ ਹੋ।</translation>
@@ -759,6 +762,7 @@ Brave ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸਲ �
           =0 {A new update for Brave is available and will be applied as soon as you relaunch.}
           =1 {A new update for Brave is available and will be applied as soon as you relaunch. Your Private window won't reopen.}
           other {A new update for Brave is available and will be applied as soon as you relaunch. Your # Private windows won't reopen.}}</translation>
+<translation id="7347727235538318126">ਇਹ ਤੁਹਾਨੂੰ Brave ਤੋਂ ਆਪਣੇ ਸਥਾਨਕ ਡਿਵਾਈਸ, ਜਿਵੇਂ ਕਿ ਟੀਵੀ ਜਾਂ ਸਪੀਕਰ ਵਿੱਚ ਸਮਗ੍ਰੀ ਸਾਂਝੀ ਕਰਨ ਦੀ ਆਗਿਆ ਦੇਵੇਗਾ।</translation>
 <translation id="3829358914761176693">{COUNT, plural,
               =0 {Your administrator asks that you relaunch Brave to apply this update}
               =1 {Your administrator asks that you relaunch Brave to apply this update. Your Private window won't reopen.}

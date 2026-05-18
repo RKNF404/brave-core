@@ -38,6 +38,12 @@ enum APIError {
   ServiceOverloaded
 };
 
+// TODO(https://github.com/brave/brave-browser/issues/55518): Add APIError to this struct
+struct APIErrorDetails {
+  int32 status_code;
+  string error_type;
+};
+
 enum SuggestionGenerationStatus {
   None,
   CanGenerate,
@@ -180,6 +186,13 @@ struct TextContentBlock {
   string text;
 };
 
+// Content block for text extracted from an uploaded file (PDF or text file).
+// Server side handles this type specially to better support large file content
+// without hitting context limits.
+struct FileExtractedTextContentBlock {
+  string text;
+};
+
 struct PageExcerptContentBlock {
   string text;
 };
@@ -287,6 +300,7 @@ union ContentBlock {
   ImageContentBlock image_content_block;
   TextContentBlock text_content_block;
   FileContentBlock file_content_block;
+  FileExtractedTextContentBlock file_extracted_text_content_block;
 
   // Brave customized content blocks
   PageExcerptContentBlock page_excerpt_content_block;
@@ -697,6 +711,7 @@ struct ConversationEntriesState {
   SuggestionGenerationStatus suggestion_status;
   // Current API error state
   APIError current_error;
+  APIErrorDetails? current_error_details;
   // Whether this is a temporary (non-persisted) conversation
   bool is_temporary = false;
 };

@@ -23,6 +23,11 @@ PolkadotChainMetadata& PolkadotChainMetadata::operator=(
 PolkadotChainMetadata& PolkadotChainMetadata::operator=(
     PolkadotChainMetadata&&) noexcept = default;
 
+bool PolkadotChainMetadata::operator==(
+    const PolkadotChainMetadata& other) const {
+  return chain_metadata_ == other.chain_metadata_;
+}
+
 std::optional<PolkadotChainMetadata> PolkadotChainMetadata::FromBytes(
     base::span<const uint8_t> metadata_bytes) {
   auto result = parse_chain_metadata_from_scale(
@@ -38,7 +43,7 @@ std::optional<PolkadotChainMetadata> PolkadotChainMetadata::FromBytes(
                     parsed->transfer_allow_death_call_index(),
                     parsed->transfer_keep_alive_call_index(),
                     parsed->transfer_all_call_index(), parsed->ss58_prefix(),
-                    parsed->spec_version());
+                    parsed->spec_version(), parsed->asset_tx_payment());
 }
 
 // static
@@ -50,7 +55,8 @@ PolkadotChainMetadata PolkadotChainMetadata::FromFields(
     uint8_t transfer_keep_alive_call_index,
     uint8_t transfer_all_call_index,
     uint16_t ss58_prefix,
-    uint32_t spec_version) {
+    uint32_t spec_version,
+    bool asset_tx_payment) {
   CxxPolkadotChainMetadata metadata;
   metadata.system_pallet_index = system_pallet_index;
   metadata.balances_pallet_index = balances_pallet_index;
@@ -60,6 +66,7 @@ PolkadotChainMetadata PolkadotChainMetadata::FromFields(
   metadata.transfer_all_call_index = transfer_all_call_index;
   metadata.ss58_prefix = ss58_prefix;
   metadata.spec_version = spec_version;
+  metadata.asset_tx_payment = asset_tx_payment;
   return PolkadotChainMetadata(metadata);
 }
 
@@ -78,7 +85,8 @@ std::optional<PolkadotChainMetadata> PolkadotChainMetadata::FromChainName(
                       /*transfer_allow_death_call_index=*/0,
                       /*transfer_keep_alive_call_index=*/3,
                       /*transfer_all_call_index=*/4,
-                      /*ss58_prefix=*/42, kUnknownSpecVersion);
+                      /*ss58_prefix=*/42, kUnknownSpecVersion,
+                      /*asset_tx_payment=*/false);
   }
 
   // https://github.com/polkadot-js/api/blob/f45dfc72ec320cab7d69f08010c9921d2a21065f/packages/types-support/src/metadata/v15/asset-hub-kusama-json.json#L969
@@ -89,7 +97,8 @@ std::optional<PolkadotChainMetadata> PolkadotChainMetadata::FromChainName(
                       /*transfer_allow_death_call_index=*/0,
                       /*transfer_keep_alive_call_index=*/3,
                       /*transfer_all_call_index=*/4,
-                      /*ss58_prefix=*/42, kUnknownSpecVersion);
+                      /*ss58_prefix=*/42, kUnknownSpecVersion,
+                      /*asset_tx_payment=*/true);
   }
 
   // https://github.com/polkadot-js/api/blob/f45dfc72ec320cab7d69f08010c9921d2a21065f/packages/types-support/src/metadata/v15/polkadot-json.json#L1096
@@ -100,7 +109,8 @@ std::optional<PolkadotChainMetadata> PolkadotChainMetadata::FromChainName(
                       /*transfer_allow_death_call_index=*/0,
                       /*transfer_keep_alive_call_index=*/3,
                       /*transfer_all_call_index=*/4,
-                      /*ss58_prefix=*/0, kUnknownSpecVersion);
+                      /*ss58_prefix=*/0, kUnknownSpecVersion,
+                      /*asset_tx_payment=*/false);
   }
 
   // https://github.com/polkadot-js/api/blob/f45dfc72ec320cab7d69f08010c9921d2a21065f/packages/types-support/src/metadata/v15/asset-hub-polkadot-json.json#L969
@@ -111,7 +121,8 @@ std::optional<PolkadotChainMetadata> PolkadotChainMetadata::FromChainName(
                       /*transfer_allow_death_call_index=*/0,
                       /*transfer_keep_alive_call_index=*/3,
                       /*transfer_all_call_index=*/4,
-                      /*ss58_prefix=*/0, kUnknownSpecVersion);
+                      /*ss58_prefix=*/0, kUnknownSpecVersion,
+                      /*asset_tx_payment=*/true);
   }
 
   return std::nullopt;
@@ -151,6 +162,10 @@ uint16_t PolkadotChainMetadata::GetSs58Prefix() const {
 
 uint32_t PolkadotChainMetadata::GetSpecVersion() const {
   return chain_metadata_.spec_version;
+}
+
+bool PolkadotChainMetadata::UsesAssetTxPayment() const {
+  return chain_metadata_.asset_tx_payment;
 }
 
 PolkadotChainMetadata::PolkadotChainMetadata(

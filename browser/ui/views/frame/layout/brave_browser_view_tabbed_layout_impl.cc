@@ -11,18 +11,22 @@
 
 #include "base/check.h"
 #include "base/check_is_test.h"
+#include "brave/browser/ui/tabs/brave_compact_horizontal_tabs_layout.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_contents_view_util.h"
 #include "brave/browser/ui/views/sidebar/sidebar_container_view.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
@@ -38,6 +42,24 @@ BraveBrowserViewTabbedLayoutImpl::BraveBrowserViewTabbedLayoutImpl(
                                   std::move(views)) {}
 
 BraveBrowserViewTabbedLayoutImpl::~BraveBrowserViewTabbedLayoutImpl() = default;
+
+void BraveBrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(
+    const BrowserLayoutParams& params,
+    CustomCornersBackground* background) {
+  BrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(params,
+                                                               background);
+#if BUILDFLAG(IS_LINUX)
+  // Curve top container corners like window corner as it's top-most UI
+  // in vertical tabs.
+  if (delegate().ShouldShowVerticalTabs() &&
+      !delegate().ShouldShowWindowTitleForVerticalTabs()) {
+    CustomCornersBackground::Corners corners;
+    corners.upper_trailing = background->GetWindowCorner(/*upper=*/true);
+    corners.upper_leading = background->GetWindowCorner(/*upper=*/true);
+    background->SetCorners(corners);
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+}
 
 // static
 gfx::Rect BraveBrowserViewTabbedLayoutImpl::ComputeSidebarBounds(
@@ -254,6 +276,21 @@ void BraveBrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
   auto* const toolbar_background =
       static_cast<CustomCornersBackground*>(views().toolbar->background());
   CustomCornersBackground::Corners toolbar_corners;
+
+#if BUILDFLAG(IS_LINUX)
+  if (delegate().ShouldShowVerticalTabs() &&
+      !delegate().ShouldShowWindowTitleForVerticalTabs()) {
+    // Curve toolbar corners like window corner as toolbar it's top-most UI in
+    // vertical tabs.
+    toolbar_corners.upper_trailing =
+        toolbar_background->GetWindowCorner(/*upper=*/true);
+    toolbar_corners.upper_leading =
+        toolbar_background->GetWindowCorner(/*upper=*/true);
+    toolbar_background->SetCorners(toolbar_corners);
+    return;
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+
   toolbar_corners.upper_trailing.type =
       CustomCornersBackground::CornerType::kRoundedWithBackground;
   toolbar_corners.upper_leading.type =
@@ -300,6 +337,45 @@ BraveBrowserViewTabbedLayoutImpl::GetTopSeparatorType() const {
   // For all other separator types (e.g., kTopContainer, kBookmarkBar), use the
   // upstream behavior as-is since they already work correctly with Brave's UI.
   return top_separator_type;
+}
+
+int BraveBrowserViewTabbedLayoutImpl::GetHorizontalTabStripLeadingMargin(
+    const BrowserLayoutParams& params) const {
+  // Defer to upstream when compact horizontal tabs is not active so the
+  // default tab strip keeps its established swoop-sized leading margin.
+  if (!tabs::ShouldUseCompactHorizontalTabsForNonTouchUI()) {
+    return BrowserViewTabbedLayoutImpl::GetHorizontalTabStripLeadingMargin(
+        params);
+  }
+
+  // The `internal_padding` branch in upstream is used by alternate tab strip
+  // layouts (e.g. split-view) and computes a margin from the leading
+  // exclusion's horizontal padding rather than the tab swoop. Preserve it
+  // verbatim so we don't perturb those paths.
+  if (const gfx::Insets* internal_padding =
+          views().horizontal_tab_strip_region_view->GetProperty(
+              views::kInternalPaddingKey)) {
+    return std::max(0.f, params.leading_exclusion.horizontal_padding -
+                             static_cast<float>(internal_padding->left()));
+  }
+
+  // Compact mode default: tuck the first tab pill closer to the trailing edge
+  // of the caption-button cluster so the tab strip and the traffic lights
+  // read as a single visually centred row. Halving the corner-radius mirrors
+  // imputnet/helium @ b6e5b77e (`fix-caption-button-bounds.patch`, the
+  // companion to the `GetCaptionButtonBounds()` margin zeroing in
+  // `BraveBrowserFrameViewMac::GetCaptionButtonBounds()`).
+  //
+  // No `IS_MAC` guard here: this margin is consumed by upstream's
+  // `GetBoundsWithExclusion()` via
+  // `params.leading_exclusion.ContentWithPaddingAndInsets(leading_margin, …)`,
+  // which has no visible effect when `params.leading_exclusion` is empty
+  // (the typical Windows/Linux case with no leading caption buttons). The
+  // half-radius value therefore only takes effect on platforms that expose
+  // leading caption buttons (Mac traffic lights, and Linux DEs configured
+  // for left-side caption buttons), which is exactly the surface this
+  // adjustment is meant for.
+  return TabStyle::Get()->GetBottomCornerRadius() / 2;
 }
 
 void BraveBrowserViewTabbedLayoutImpl::CalculateBraveVerticalTabStripLayout(
@@ -430,6 +506,11 @@ void BraveBrowserViewTabbedLayoutImpl::CalculateSideBarLayout(
     }
     panel_layout->bounds = ComputeAdjustedPanelBounds(on_left, sidebar_bounds,
                                                       panel_layout->bounds);
+    // The upstream layout offsets the panel -1px above the contents to overlap
+    // the toolbar separator. Brave doesn't need that overlap; align the panel's
+    // vertical extent with the contents container instead.
+    panel_layout->bounds.set_y(contents_bounds.y());
+    panel_layout->bounds.set_height(contents_bounds.height());
   };
   adjust_panel(views().contents_height_side_panel.get());
 

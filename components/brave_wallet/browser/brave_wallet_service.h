@@ -23,8 +23,10 @@
 #include "brave/components/brave_wallet/browser/brave_wallet_p3a.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_service_delegate.h"
 #include "brave/components/brave_wallet/browser/cardano/cardano_wallet_service.h"
+#include "brave/components/brave_wallet/browser/keyring_service_observer_base.h"
 #include "brave/components/brave_wallet/browser/polkadot/polkadot_wallet_service.h"
 #include "brave/components/brave_wallet/browser/simple_hash_client.h"
+#include "brave/components/brave_wallet/browser/tx_service_observer_base.h"
 #include "brave/components/brave_wallet/browser/zcash/zcash_wallet_service.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
@@ -63,6 +65,7 @@ struct PendingGetEncryptPublicKeyRequest;
 class BraveWalletService : public KeyedService,
                            public mojom::BraveWalletService,
                            public KeyringServiceObserverBase,
+                           public TxServiceObserverBase,
                            public BraveWalletServiceDelegate::Observer {
  public:
   using APIRequestHelper = api_request_helper::APIRequestHelper;
@@ -102,11 +105,6 @@ class BraveWalletService : public KeyedService,
                                      const mojom::NetworkInfo& network,
                                      bool is_eip1559,
                                      std::string_view pref_key);
-  static void MigrateGoerliNetwork(PrefService* prefs);
-  static void MigrateAuroraMainnetAsCustomNetwork(PrefService* prefs);
-  static void MigrateEip1559ForCustomNetworks(PrefService* prefs);
-  void MaybeMigrateCompressedNfts();
-  void MaybeMigrateSPLTokenProgram();
 
   // mojom::BraveWalletService:
   void AddObserver(::mojo::PendingRemote<mojom::BraveWalletServiceObserver>
@@ -299,6 +297,9 @@ class BraveWalletService : public KeyedService,
   // KeyringServiceObserverBase:
   void WalletRestored() override;
 
+  // TxServiceObserverBase:
+  void OnTransactionStatusChanged(mojom::TransactionInfoPtr tx_info) override;
+
   void OnDiscoverAssetsStarted();
 
   void OnDiscoverAssetsCompleted(
@@ -350,6 +351,9 @@ class BraveWalletService : public KeyedService,
     return delegate_.get();
   }
 
+  void SetDelegateForTesting(
+      std::unique_ptr<BraveWalletServiceDelegate> delegate);
+
   base::CallbackListSubscription RegisterSignMessageRequestAddedCallback(
       base::RepeatingClosure cb);
   base::CallbackListSubscription RegisterSignTransactionRequestAddedCallback(
@@ -369,6 +373,9 @@ class BraveWalletService : public KeyedService,
   }
   SimulationService* simulation_service() { return simulation_service_.get(); }
   BraveWalletIpfsService* ipfs_service() { return ipfs_service_.get(); }
+  AccountDiscoveryManager* account_discovery_manager() {
+    return account_discovery_manager_.get();
+  }
 
   // Might return nullptr.
   BitcoinWalletService* GetBitcoinWalletService();
@@ -447,6 +454,8 @@ class BraveWalletService : public KeyedService,
   void OnGetNftsForCompressedMigration(
       std::vector<mojom::BlockchainTokenPtr> nfts);
 
+  void OnWalletReset();
+
   // For testing
   base::OnceClosure sign_tx_request_added_cb_for_testing_;
   base::OnceClosure sign_sol_txs_request_added_cb_for_testing_;
@@ -502,6 +511,8 @@ class BraveWalletService : public KeyedService,
   mojo::ReceiverSet<mojom::BraveWalletService> receivers_;
   mojo::Receiver<brave_wallet::mojom::KeyringServiceObserver>
       keyring_observer_receiver_{this};
+  mojo::Receiver<brave_wallet::mojom::TxServiceObserver>
+      tx_service_observer_receiver_{this};
   PrefChangeRegistrar pref_change_registrar_;
   base::WeakPtrFactory<BraveWalletService> weak_ptr_factory_;
 };

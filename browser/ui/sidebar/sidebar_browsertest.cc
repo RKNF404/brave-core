@@ -44,7 +44,7 @@
 #include "brave/components/brave_talk/buildflags/buildflags.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/constants/brave_switches.h"
-#include "brave/components/playlist/core/common/features.h"
+#include "brave/components/playlist/core/common/buildflags/buildflags.h"
 #include "brave/components/sidebar/browser/constants.h"
 #include "brave/components/sidebar/browser/pref_names.h"
 #include "brave/components/sidebar/browser/sidebar_item.h"
@@ -62,7 +62,6 @@
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -82,11 +81,22 @@
 #include "ui/display/test/test_screen.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
+#include "ui/events/test/event_generator.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/views/animation/ink_drop.h"
+#include "ui/views/widget/widget_utils.h"
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #include "brave/components/ai_chat/core/common/features.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PLAYLIST)
+#include "brave/components/playlist/core/common/features.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SIDEBAR_V2)
+#include "brave/browser/ui/views/side_panel/brave_side_panel_resize_area.h"
 #endif
 
 using ::testing::Eq;
@@ -290,9 +300,11 @@ class SidebarBrowserTest : public InProcessBrowserTest {
     auto item_count =
         std::size(SidebarServiceFactory::kDefaultBuiltInItemTypes) -
         1 /* for history*/;
+#if BUILDFLAG(ENABLE_PLAYLIST)
     if (!base::FeatureList::IsEnabled(playlist::features::kPlaylist)) {
       item_count -= 1;
     }
+#endif
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
     if (!ai_chat::features::IsAIChatEnabled()) {
@@ -1620,6 +1632,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Bool());
 #endif  // BUILDFLAG(ENABLE_AI_CHAT)
 
+#if BUILDFLAG(ENABLE_PLAYLIST)
 class SidebarBrowserTestWithPlaylist : public SidebarBrowserTest {
  public:
   SidebarBrowserTestWithPlaylist() {
@@ -1657,6 +1670,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithPlaylist, Incognito) {
   // Try Remove an item
   sidebar_service->RemoveItemAt(0);
 }
+#endif  // BUILDFLAG(ENABLE_PLAYLIST)
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
 
@@ -1896,10 +1910,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
   auto* sidebar_container = GetSidebarContainerView();
 
   // Get the tab registry and create a kToolbar type entry
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   ASSERT_TRUE(registry);
 
   // Create a kToolbar type SidePanelEntry
@@ -2049,11 +2060,20 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2PanelPositionTest) {
   // --- Sidebar on right (default LTR: kSidePanelHorizontalAlignment = true)
   ASSERT_FALSE(sidebar->sidebar_on_left());
 
+  auto* contents = browser_view->contents_container();
+
   // Panel sits immediately left of the sidebar control:
   //   [contents] [panel] [sidebar_control]
   EXPECT_EQ(panel->bounds().right(), sidebar->bounds().x())
       << "panel=" << panel->bounds().ToString()
       << " sidebar=" << sidebar->bounds().ToString();
+
+  // Panel top must align with the contents container — the upstream layout
+  // offsets the panel -1px to overlap the toolbar separator; Brave removes
+  // that offset so the separator is fully visible.
+  EXPECT_EQ(panel->bounds().y(), contents->bounds().y())
+      << "panel y=" << panel->bounds().y()
+      << " contents y=" << contents->bounds().y();
 
   // --- Sidebar on left (kSidePanelHorizontalAlignment = false)
   prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
@@ -2066,6 +2086,10 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2PanelPositionTest) {
   EXPECT_EQ(sidebar->bounds().right(), panel->bounds().x())
       << "sidebar=" << sidebar->bounds().ToString()
       << " panel=" << panel->bounds().ToString();
+
+  EXPECT_EQ(panel->bounds().y(), contents->bounds().y())
+      << "panel y=" << panel->bounds().y()
+      << " contents y=" << contents->bounds().y();
 }
 
 // Verify that the sidebar item active state in SidebarModel is updated:
@@ -2124,6 +2148,308 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ActiveItemStateSync) {
   panel_ui->Toggle();
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return !model()->active_index().has_value(); }));
+}
+
+// Verify that the upstream SidePanelHeader is never added when a sidebar panel
+// is opened in V2, so Brave can render its own header.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2NoUpstreamHeaderTest) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* side_panel = browser_view->contents_height_side_panel();
+  side_panel->DisableAnimationsForTesting();
+
+  panel_ui->Toggle();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return side_panel->GetVisible(); }));
+
+  EXPECT_EQ(nullptr, side_panel->GetHeaderView<views::View>())
+      << "Upstream SidePanelHeader should not be present after V2 panel open";
+
+  // Also verify CustomizeChrome panel does not get an upstream header.
+  panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntryId::kCustomizeChrome));
+  }));
+
+  EXPECT_EQ(nullptr, side_panel->GetHeaderView<views::View>())
+      << "Upstream SidePanelHeader should not be present for CustomizeChrome "
+         "panel";
+}
+
+// Verify that the resize area is positioned correctly for both border states.
+// With border: the resize area sits inside the border inset strip (its width
+// equals the border inset and it starts at x=0).
+// Without border: the resize area is a narrow kNoBorderResizeAreaWidth strip
+// placed at the inner edge facing the web content.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
+                       SidebarV2ResizeAreaPositionMatchesBorderState) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* side_panel = browser_view->contents_height_side_panel();
+  side_panel->DisableAnimationsForTesting();
+  auto* prefs = browser()->profile()->GetPrefs();
+
+  // Default: sidebar on right.
+  ASSERT_TRUE(prefs->GetBoolean(prefs::kSidePanelHorizontalAlignment));
+
+  panel_ui->Toggle();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return side_panel->GetVisible(); }));
+
+  auto* resize_area = side_panel->resize_area_for_testing();
+  ASSERT_TRUE(resize_area);
+
+  // --- Border case (rounded corners ON) ---
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+  RunScheduledLayouts();
+  EXPECT_FALSE(side_panel->GetInsets().IsEmpty());
+
+  // In the bordered case the resize strip sits in the gap between the panel
+  // edge and the content, at the left edge (panel is on the right in LTR).
+  const gfx::Rect bordered_bounds = resize_area->bounds();
+  EXPECT_EQ(bordered_bounds.top_right(),
+            side_panel->GetContentParentView()->origin())
+      << "Bordered resize area right edge should align with content origin";
+  EXPECT_EQ(bordered_bounds.width(), side_panel->GetInsets().left())
+      << "Bordered resize area width should match the left border inset";
+
+  // --- No-border case (rounded corners OFF) ---
+  prefs->SetBoolean(kWebViewRoundedCorners, false);
+  RunScheduledLayouts();
+  EXPECT_TRUE(side_panel->GetInsets().IsEmpty());
+
+  // --- Panel-switch: border OFF must survive switching panels ---
+  panel_ui->Show(SidePanelEntryId::kBookmarks);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  }));
+  panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntryId::kCustomizeChrome));
+  }));
+  RunScheduledLayouts();
+  EXPECT_TRUE(side_panel->GetInsets().IsEmpty())
+      << "Border insets should stay empty after switching panels (border OFF)";
+
+  const gfx::Rect no_border_bounds = resize_area->bounds();
+  EXPECT_EQ(no_border_bounds.origin(),
+            side_panel->GetContentParentView()->origin())
+      << "No-border resize area should be placed at the inner edge of content";
+  EXPECT_EQ(no_border_bounds.width(),
+            views::BraveSidePanelResizeArea::kNoBorderResizeAreaWidth)
+      << "No-border resize area width should equal kNoBorderResizeAreaWidth";
+}
+
+class ScopedSidePanelUIForTesting {
+ public:
+  ScopedSidePanelUIForTesting(SidebarController* controller, SidePanelUI* ui)
+      : controller_(controller) {
+    controller_->SetSidePanelUIForTesting(ui);
+  }
+  ~ScopedSidePanelUIForTesting() {
+    controller_->SetSidePanelUIForTesting(nullptr);
+  }
+
+ private:
+  raw_ptr<SidebarController> controller_;
+};
+
+class MockSidePanelUI : public SidePanelUI {
+ public:
+  MOCK_METHOD(void,
+              Show,
+              (SidePanelEntryId, std::optional<SidePanelOpenTrigger>, bool),
+              (override));
+  MOCK_METHOD(void,
+              Show,
+              (SidePanelEntryKey, std::optional<SidePanelOpenTrigger>, bool),
+              (override));
+  MOCK_METHOD(void, ShowFrom, (SidePanelEntryKey, gfx::Rect), (override));
+  MOCK_METHOD(void,
+              Close,
+              (SidePanelEntry::PanelType, SidePanelEntryHideReason, bool),
+              (override));
+  MOCK_METHOD(void,
+              Toggle,
+              (SidePanelEntryKey, SidePanelOpenTrigger),
+              (override));
+  MOCK_METHOD(std::optional<SidePanelEntryId>,
+              GetCurrentEntryId,
+              (SidePanelEntry::PanelType),
+              (const, override));
+  MOCK_METHOD(int,
+              GetCurrentEntryDefaultContentWidth,
+              (SidePanelEntry::PanelType),
+              (const, override));
+  MOCK_METHOD(bool,
+              IsSidePanelShowing,
+              (SidePanelEntry::PanelType),
+              (const, override));
+  MOCK_METHOD(bool,
+              IsSidePanelEntryShowing,
+              (const SidePanelEntryKey&),
+              (const, override));
+  MOCK_METHOD(bool,
+              IsSidePanelEntryShowing,
+              (const SidePanelEntry::Key&, bool),
+              (const, override));
+  MOCK_METHOD(base::CallbackListSubscription,
+              RegisterSidePanelShown,
+              (SidePanelEntry::PanelType, ShownCallback),
+              (override));
+  MOCK_METHOD(void,
+              OnActiveTabChanged,
+              (content::WebContents*, content::WebContents*, bool),
+              (override));
+  MOCK_METHOD(content::WebContents*,
+              GetWebContentsForTest,
+              (SidePanelEntryId),
+              (override));
+  MOCK_METHOD(void, DisableAnimationsForTesting, (), (override));
+  MOCK_METHOD(void, SetNoDelaysForTesting, (bool), (override));
+};
+
+// Verify suppress_animations is false when opening from a closed state and
+// true when switching panels while one is already active.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
+                       SidebarV2ActivatePanelItemSuppressAnimation) {
+  MockSidePanelUI mock_ui;
+  ScopedSidePanelUIForTesting scoped_ui(controller(), &mock_ui);
+
+  // No active panel: opening should animate (suppress_animations=false).
+  ASSERT_FALSE(model()->active_index().has_value())
+      << "Expected no active panel before first ActivatePanelItem call";
+  EXPECT_CALL(mock_ui,
+              Show(testing::An<SidePanelEntryId>(), testing::Eq(std::nullopt),
+                   /*suppress_animations=*/false));
+  controller()->ActivatePanelItem(SidebarItem::BuiltInItemType::kBookmarks);
+  testing::Mock::VerifyAndClearExpectations(&mock_ui);
+  controller()->UpdateActiveItemState(SidebarItem::BuiltInItemType::kBookmarks);
+
+  // Active panel present: switching panels should suppress animations.
+  ASSERT_TRUE(model()->active_index().has_value())
+      << "Expected active panel after UpdateActiveItemState";
+  EXPECT_CALL(mock_ui,
+              Show(testing::An<SidePanelEntryId>(), testing::Eq(std::nullopt),
+                   /*suppress_animations=*/true));
+  controller()->ActivatePanelItem(SidebarItem::BuiltInItemType::kReadingList);
+}
+
+// In V2, the toolbar SidePanelButton acts as a "temporal pin" for the sidebar
+// control view: clicking it toggles a session-only pinned state that forces
+// the sidebar visible regardless of show option. The pinned state must reset
+// when the show option changes. The button is hidden under kShowAlways
+// because the sidebar is already always visible.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ToolbarButtonPinning) {
+  auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
+  auto* sidebar_container = GetSidebarContainerView();
+  auto* button = GetSidePanelToolbarButton();
+  ASSERT_TRUE(button);
+  auto button_highlighted = [&]() {
+    return views::InkDrop::Get(button)->GetHighlighted();
+  };
+
+  // Park the mouse at the top of the toolbar — well outside the sidebar
+  // bounds — so that kShowOnMouseOver doesn't keep the sidebar visible due
+  // to an incidental hover. Without this the test is sensitive to wherever
+  // the OS leaves the cursor between runs.
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  ui::test::EventGenerator event_generator(
+      views::GetRootWindow(browser_view->GetWidget()),
+      browser_view->GetNativeWindow());
+  event_generator.MoveMouseTo(
+      browser_view->toolbar()->GetBoundsInScreen().CenterPoint());
+  ASSERT_FALSE(sidebar_container->IsMouseHovered())
+      << "Mouse should not be over the sidebar at test start";
+
+  // Pin → assert visible/highlighted; unpin → assert hidden/unhighlighted.
+  // Precondition: pinned=false, sidebar hidden. Used once per non-kShowAlways
+  // show option. SCOPED_TRACE makes failures point back to the caller.
+  auto verify_pin_cycle = [&]() {
+    ASSERT_FALSE(controller()->sidebar_pinned())
+        << "Precondition: pinned=false before pin";
+    ASSERT_FALSE(sidebar_container->IsSidebarVisible())
+        << "Precondition: sidebar hidden before pin";
+    ASSERT_FALSE(button_highlighted())
+        << "Precondition: button not highlighted before pin";
+
+    // Pin: sidebar snaps visible, button highlights (fade-in).
+    controller()->ToggleSidebarPinning();
+    EXPECT_TRUE(controller()->sidebar_pinned()) << "Pin should set pinned=true";
+    EXPECT_TRUE(sidebar_container->IsSidebarVisible())
+        << "Pin should force sidebar visible regardless of show option";
+    ASSERT_TRUE(base::test::RunUntil([&]() { return button_highlighted(); }))
+        << "Pin should highlight the toolbar button";
+
+    // Unpin: pinned flips immediately; button highlight + sidebar visibility
+    // unwind asynchronously (animations).
+    controller()->ToggleSidebarPinning();
+    EXPECT_FALSE(controller()->sidebar_pinned())
+        << "Unpin should set pinned=false";
+    ASSERT_TRUE(base::test::RunUntil([&]() { return !button_highlighted(); }))
+        << "Unpin should clear the button highlight";
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return !sidebar_container->IsSidebarVisible();
+    })) << "Unpin should hide the sidebar (current show option doesn't keep "
+           "it visible without pin)";
+  };
+
+  // kShowAlways (the fixture default) → button is hidden because the sidebar
+  // is always visible.
+  ASSERT_EQ(SidebarService::ShowSidebarOption::kShowAlways,
+            service->GetSidebarShowOption());
+  EXPECT_FALSE(button->GetVisible())
+      << "Toolbar button must be hidden under kShowAlways";
+
+  // Switch to kShowNever so the button becomes visible and the sidebar hides.
+  service->SetSidebarShowOption(SidebarService::ShowSidebarOption::kShowNever);
+  EXPECT_TRUE(button->GetVisible())
+      << "Toolbar button must be visible under kShowNever";
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !sidebar_container->IsSidebarVisible();
+  })) << "Sidebar should hide after switching to kShowNever";
+
+  {
+    SCOPED_TRACE("kShowNever");
+    verify_pin_cycle();
+  }
+
+  // Pin again, then change the show option → pinned must reset to false and
+  // the sidebar must follow the new option (kShowOnMouseOver, mouse parked
+  // outside sidebar → hidden).
+  controller()->ToggleSidebarPinning();
+  ASSERT_TRUE(controller()->sidebar_pinned())
+      << "Pinning again should set pinned=true (precondition for reset test)";
+  ASSERT_TRUE(sidebar_container->IsSidebarVisible())
+      << "Sidebar should be visible while pinned (precondition)";
+  ASSERT_TRUE(base::test::RunUntil([&]() { return button_highlighted(); }))
+      << "Button should be highlighted while pinned (precondition)";
+
+  service->SetSidebarShowOption(
+      SidebarService::ShowSidebarOption::kShowOnMouseOver);
+  EXPECT_FALSE(controller()->sidebar_pinned())
+      << "Changing show option must reset pinned state to false";
+  EXPECT_TRUE(button->GetVisible())
+      << "Toolbar button must be visible under kShowOnMouseOver";
+  ASSERT_TRUE(base::test::RunUntil([&]() { return !button_highlighted(); }))
+      << "Button highlight should fade off after pinned reset";
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !sidebar_container->IsSidebarVisible();
+  })) << "Sidebar should hide once pinned is reset under kShowOnMouseOver "
+         "(mouse is not over sidebar in tests)";
+
+  {
+    SCOPED_TRACE("kShowOnMouseOver");
+    verify_pin_cycle();
+  }
+
+  // Switching back to kShowAlways re-hides the toolbar button.
+  service->SetSidebarShowOption(SidebarService::ShowSidebarOption::kShowAlways);
+  EXPECT_FALSE(button->GetVisible())
+      << "Toolbar button must be hidden again under kShowAlways";
+  EXPECT_FALSE(controller()->sidebar_pinned())
+      << "Pinned state must remain false after returning to kShowAlways";
 }
 
 #endif  // BUILDFLAG(ENABLE_SIDEBAR_V2)

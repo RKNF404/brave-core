@@ -7,19 +7,23 @@
 
 #include <memory>
 
+#include "brave/browser/ui/tabs/brave_compact_horizontal_tabs_layout.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
 #include "brave/browser/ui/views/frame/brave_window_frame_graphic.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/fullscreen_util_mac.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "ui/base/hit_test.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/outsets_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/scoped_canvas.h"
 
@@ -98,6 +102,27 @@ int BraveBrowserFrameViewMac::GetTopInset(bool restored) const {
   return 0;
 }
 
+BrowserFrameViewMac::BoundsAndMargins
+BraveBrowserFrameViewMac::GetCaptionButtonBounds() const {
+  auto bounds_and_margins = BrowserFrameViewMac::GetCaptionButtonBounds();
+  bounds_and_margins.bounds.set_y(bounds_and_margins.bounds.y() +
+                                  tabs::GetHorizontalTabControlsDelta());
+  // In compact horizontal tabs mode the tab pill is ~26 DIP tall, but the
+  // upstream caption button rect carries vertical margins of 11 px (macOS 15-)
+  // / 10 px (macOS 26+) above and below. Those margins flow into
+  // `BrowserFrameView::GetBrowserLayoutParams()` as `leading_exclusion`'s
+  // vertical extent, reserving more vertical band than the tab strip occupies
+  // and biasing where the tab strip lays out next to the traffic lights. Zero
+  // them so the exclusion rect collapses around the buttons themselves and
+  // the tab strip can sit centred against them. Mirrors Helium's
+  // `fix-caption-button-bounds.patch` (imputnet/helium @ b6e5b77e).
+  if (tabs::ShouldUseCompactHorizontalTabsForNonTouchUI() &&
+      !bounds_and_margins.bounds.IsEmpty()) {
+    bounds_and_margins.margins.set_top(0).set_bottom(0);
+  }
+  return bounds_and_margins;
+}
+
 bool BraveBrowserFrameViewMac::ShouldShowWindowTitleForVerticalTabs() const {
   return tabs::utils::ShouldShowWindowTitleForVerticalTabs(
              GetBrowserView()->browser()) &&
@@ -134,9 +159,13 @@ int BraveBrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
   // widget, violating brave::NonClientHitTest's precondition that the toolbar
   // and browser view share the same widget. Skip it while immersive mode is
   // active.
-  if (!ImmersiveModeController::From(GetBrowserView()->browser())
-           ->IsEnabled()) {
-    if (auto res = brave::NonClientHitTest(GetBrowserView(), point);
+  auto* browser_view = GetBrowserView();
+  auto* browser = browser_view->browser();
+  if (!ImmersiveModeController::From(browser)->IsEnabled()) {
+    auto* non_client_hit_test_helper =
+        browser->browser_window_features()->brave_non_client_hit_test_helper();
+    if (auto res =
+            non_client_hit_test_helper->NonClientHitTest(browser_view, point);
         res != HTNOWHERE) {
       return res;
     }

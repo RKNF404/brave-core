@@ -562,11 +562,12 @@ enum SwapProvider {
   kSquid,
   kJupiter,
   kLiFi,
+  kZeroEx,
 
   // Providers not supported by Gate3
-  kZeroEx,
   kCowSwap,
   kJupiterLegacy,  // Direct Jupiter API (legacy, for iOS)
+  kZeroExLegacy,  // Direct 0x API (legacy, for iOS/Android)
 };
 
 struct SwapQuoteParams {
@@ -936,11 +937,6 @@ enum KeyringId {
   kPolkadotImport = 16,
   kPolkadotImportTestnet = 17,
 };
-
-const string kP3ACountTestNetworksSwitch = "p3a-count-wallet-test-networks";
-
-const string kP3ACountTestNetworksLoadTimeKey =
-    "braveWalletP3ACountTestNetworks";
 
 enum FilecoinAddressProtocol {
   SECP256K1 = 1,  // Represents the address SECP256K1 protocol
@@ -2268,6 +2264,13 @@ struct PolkadotAccountInfo {
   PolkadotAccountBalance data;
 };
 
+enum PolkadotValidationStatus {
+  kNoError = 0,
+  kInvalidPrefix = 1,
+  kInvalidAddressFormat = 2,
+  kFailedToFetchMetadata = 3,
+};
+
 interface PolkadotWalletService {
   GetNetworkName(AccountId account)
       => (string? network, string? error_message);
@@ -2279,6 +2282,9 @@ interface PolkadotWalletService {
 
   GetAccountBalance(AccountId account, string chain_id)
       => (PolkadotAccountInfo? account, string? error_message);
+
+  ValidateAddressForTransaction(string chain_id, string address)
+      => (PolkadotValidationStatus status);
 };
 
 enum TransactionStatus {
@@ -3170,36 +3176,7 @@ interface BraveWalletService {
 };
 
 // For reporting wallet related P3A metrics.
-interface BraveWalletP3A {
-  // Called when the wallet provider type is evaluated after page load.
-  ReportJSProvider(JSProviderType provider_type,
-                   CoinType coin_type,
-                   bool allow_provider_overwrite);
-
-  // Called when a Wallet onboarding action is performed.
-  ReportOnboardingAction(OnboardingAction onboarding_action);
-
-  // Called to report an active wallet count for P3A
-  RecordActiveWalletCount(int32 count, CoinType coin_type);
-
-  // Called to report displayed NFT count upon viewing the NFT gallery
-  RecordNFTGalleryView(int32 nft_count);
-};
-
-enum OnboardingAction {
-  Shown = 0,
-  LegalAndPassword = 1,
-  RecoverySetup = 2,
-  Complete = 3,
-  CompleteRecoverySkipped = 4,
-  StartRestore = 5,
-};
-
-enum JSProviderType {
-  None = 0,
-  ThirdParty = 1,
-  Native = 2,
-};
+interface BraveWalletP3A {};
 
 enum DefaultWallet {
   AskDeprecated = 0,

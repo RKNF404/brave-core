@@ -7,20 +7,36 @@ static_library("browser") {
   sources = [
     "query_filter_component_installer.cc",
     "query_filter_component_installer.h",
+    "query_filter_data.cc",
+    "query_filter_data.h",
+    "utils.cc",
+    "utils.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//brave/components/query_filter/common:schema",
+    "//components/component_updater",
+    "//components/update_client",
+    "//url",
   ]
 
   deps = [
-    "//base",
     "//brave/components/brave_component_updater/browser:public",
     "//brave/components/query_filter/common",
-    "//components/component_updater",
+    "//net",
+    "//third_party/re2",
   ]
 }
 
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "query_filter_component_installer_unittest.cc" ]
+  sources = [
+    "query_filter_component_installer_unittest.cc",
+    "query_filter_data_unittest.cc",
+    "utils_unittest.cc",
+  ]
 
   deps = [
     ":browser",
@@ -28,9 +44,12 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//brave/components/brave_component_updater/browser:test_support",
     "//brave/components/query_filter/common",
+    "//brave/components/query_filter/common/internal:unit_tests",
     "//components/component_updater:test_support",
     "//components/update_client",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/abseil-cpp:absl",
+    "//url",
   ]
 }

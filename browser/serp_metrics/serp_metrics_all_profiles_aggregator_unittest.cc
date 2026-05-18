@@ -7,8 +7,9 @@
 
 #include "base/files/file_path.h"
 #include "base/time/time.h"
-#include "brave/browser/serp_metrics/serp_metrics_time_period_store_factory.h"
+#include "brave/browser/serp_metrics/profile_attributes_time_period_store_factory.h"
 #include "brave/components/constants/pref_names.h"
+#include "brave/components/serp_metrics/pref_names.h"
 #include "brave/components/serp_metrics/serp_metric_type.h"
 #include "brave/components/serp_metrics/serp_metrics.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -30,8 +31,18 @@ class SerpMetricsAllProfilesAggregatorTest : public ::testing::Test {
   ~SerpMetricsAllProfilesAggregatorTest() override = default;
 
   void SetUp() override {
+    // Advance to a specific time so tests have a predictable starting point
+    // to avoid MOCK_TIME starting near Unix epoch, where times serialize to
+    // 0.0 via `InSecondsFSinceUnixEpoch` and deserialize back as null rather
+    // than UnixEpoch, causing a DCHECK in `UTCMidnight`.
+    base::Time time;
+    CHECK(base::Time::FromUTCString("2050-01-04 12:35:56", &time));
+    task_environment_.AdvanceClock(time - base::Time::Now());
+
     local_state_.registry()->RegisterStringPref(kLastCheckYMD,
                                                 "");  // Never checked.
+    local_state_.registry()->RegisterTimePref(
+        std::string(prefs::kLastReportedAt), /* Never reported */ base::Time());
     ProfileAttributesStorage::RegisterPrefs(local_state_.registry());
     storage_ = std::make_unique<ProfileAttributesStorage>(
         &local_state_, base::FilePath(kUserDataDir));
@@ -79,7 +90,7 @@ TEST_F(SerpMetricsAllProfilesAggregatorTest,
       base::FilePath(kUserDataDir).AppendASCII("testing_profile");
   AddProfile(profile_path);
   std::unique_ptr<SerpMetrics> serp_metrics = std::make_unique<SerpMetrics>(
-      local_state(), SerpMetricsTimePeriodStoreFactory(
+      local_state(), ProfileAttributesTimePeriodStoreFactory(
                          profile_path, profile_attributes_storage()));
 
   // Day 0: Stale
@@ -108,7 +119,7 @@ TEST_F(SerpMetricsAllProfilesAggregatorTest,
       base::FilePath(kUserDataDir).AppendASCII("testing_profile");
   AddProfile(profile_path);
   std::unique_ptr<SerpMetrics> serp_metrics = std::make_unique<SerpMetrics>(
-      local_state(), SerpMetricsTimePeriodStoreFactory(
+      local_state(), ProfileAttributesTimePeriodStoreFactory(
                          profile_path, profile_attributes_storage()));
 
   // Day 0: Stale
@@ -151,13 +162,13 @@ TEST_F(SerpMetricsAllProfilesAggregatorTest,
       base::FilePath(kUserDataDir).AppendASCII("testing_profile_1");
   AddProfile(profile_path_1);
   std::unique_ptr<SerpMetrics> serp_metrics_1 = std::make_unique<SerpMetrics>(
-      local_state(), SerpMetricsTimePeriodStoreFactory(
+      local_state(), ProfileAttributesTimePeriodStoreFactory(
                          profile_path_1, profile_attributes_storage()));
   base::FilePath profile_path_2 =
       base::FilePath(kUserDataDir).AppendASCII("testing_profile_2");
   AddProfile(profile_path_2);
   std::unique_ptr<SerpMetrics> serp_metrics_2 = std::make_unique<SerpMetrics>(
-      local_state(), SerpMetricsTimePeriodStoreFactory(
+      local_state(), ProfileAttributesTimePeriodStoreFactory(
                          profile_path_2, profile_attributes_storage()));
 
   // Day 0: Stale
@@ -191,13 +202,13 @@ TEST_F(SerpMetricsAllProfilesAggregatorTest,
       base::FilePath(kUserDataDir).AppendASCII("testing_profile_1");
   AddProfile(profile_path_1);
   std::unique_ptr<SerpMetrics> serp_metrics_1 = std::make_unique<SerpMetrics>(
-      local_state(), SerpMetricsTimePeriodStoreFactory(
+      local_state(), ProfileAttributesTimePeriodStoreFactory(
                          profile_path_1, profile_attributes_storage()));
   base::FilePath profile_path_2 =
       base::FilePath(kUserDataDir).AppendASCII("testing_profile_2");
   AddProfile(profile_path_2);
   std::unique_ptr<SerpMetrics> serp_metrics_2 = std::make_unique<SerpMetrics>(
-      local_state(), SerpMetricsTimePeriodStoreFactory(
+      local_state(), ProfileAttributesTimePeriodStoreFactory(
                          profile_path_2, profile_attributes_storage()));
 
   // Day 0: Stale

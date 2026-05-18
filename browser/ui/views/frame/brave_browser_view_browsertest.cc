@@ -59,6 +59,7 @@
 #include "ui/views/widget/widget_delegate.h"
 
 #if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
 #include "chrome/browser/ui/fullscreen_util_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -392,6 +393,14 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
 // Test 2: Rounded corners in split tab mode
 IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
                        RoundedCornersWithSplitTabTest) {
+#if BUILDFLAG(IS_MAC)
+  // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
+  // unexpected test timeout failures are resolved.
+  if (base::mac::MacOSMajorVersion() == 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  }
+#endif
+
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   panel_ui->Toggle();
   RunScheduledLayouts();
@@ -429,6 +438,14 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
 // Test 3: Rounded corners after exiting split tab mode
 IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
                        RoundedCornersAfterExitingSplitTabTest) {
+#if BUILDFLAG(IS_MAC)
+  // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
+  // unexpected test timeout failures are resolved.
+  if (base::mac::MacOSMajorVersion() == 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  }
+#endif
+
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   panel_ui->Toggle();
   RunScheduledLayouts();
@@ -562,6 +579,43 @@ INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,
     BraveBrowserViewWithRoundedCornersTest,
     testing::Bool());
+
+IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
+                       BoundingBoxStableWithSidePanelTest) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* brave_view = brave_browser_view();
+
+  // Get bounds with panel closed.
+  auto bounds_panel_closed =
+      brave_view->GetBoundingBoxInScreenForMouseOverHandling();
+
+  // Bounds should span the full browser width.
+  EXPECT_EQ(browser_view()->width(), bounds_panel_closed.width());
+
+  // Bounds should start at the bottom of the top container.
+  EXPECT_EQ(browser_view()->top_container()->GetBoundsInScreen().bottom(),
+            bounds_panel_closed.y());
+
+  // Bounds should extend to the bottom of the browser window.
+  EXPECT_EQ(brave_view->GetBoundsInScreen().bottom(),
+            bounds_panel_closed.bottom());
+
+  // Open the side panel.
+  panel_ui->Toggle();
+  RunScheduledLayouts();
+
+  // Bounds should be unchanged after opening the side panel.
+  EXPECT_EQ(bounds_panel_closed,
+            brave_view->GetBoundingBoxInScreenForMouseOverHandling());
+
+  // Close the side panel.
+  panel_ui->Toggle();
+  RunScheduledLayouts();
+
+  // Bounds should be unchanged after closing the side panel.
+  EXPECT_EQ(bounds_panel_closed,
+            brave_view->GetBoundingBoxInScreenForMouseOverHandling());
+}
 
 // MacOS does not need views window scrim. We use sheet to show window modals
 // (-[NSWindow beginSheet:]), which natively draws a scrim since macOS 11.

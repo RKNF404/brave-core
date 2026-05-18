@@ -154,6 +154,9 @@ BraveSidePanelCoordinator::GetLastActiveEntryKey() const {
 
 void BraveSidePanelCoordinator::UpdateToolbarButtonHighlight(
     bool side_panel_visible) {
+  // In V2, we don't highlight sidebar toolbar button when panel
+  // is opened.
+#if !BUILDFLAG(ENABLE_SIDEBAR_V2)
   // Workaround to prevent crashing while window closing.
   // See https://github.com/brave/brave-browser/issues/34334
   if (!browser_view_ || !browser_view_->GetWidget() ||
@@ -169,6 +172,7 @@ void BraveSidePanelCoordinator::UpdateToolbarButtonHighlight(
         side_panel_visible ? IDS_TOOLTIP_SIDEBAR_HIDE
                            : IDS_TOOLTIP_SIDEBAR_SHOW));
   }
+#endif
 }
 
 void BraveSidePanelCoordinator::PopulateSidePanel(
@@ -178,8 +182,12 @@ void BraveSidePanelCoordinator::PopulateSidePanel(
     SidePanelEntry* entry,
     std::optional<std::unique_ptr<views::View>> content_view) {
   CHECK(entry);
+
+  // Brave has its own side panel header, so hide the built-in entry headers.
+  entry->set_should_show_header(false);
+
   actions::ActionItem* const action_item =
-      SidePanelUtil::GetActionItem(browser_view_->browser(), entry->key());
+      SidePanelHelper::GetActionItem(browser_view_->browser(), entry->key());
   if (!action_item) {
     const std::string entry_id = SidePanelEntryIdToString(entry->key().id());
     LOG(ERROR) << __func__ << " no side panel action item for " << entry_id;

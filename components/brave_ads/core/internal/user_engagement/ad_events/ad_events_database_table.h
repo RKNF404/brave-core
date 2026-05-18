@@ -7,7 +7,6 @@
 #define BRAVE_COMPONENTS_BRAVE_ADS_CORE_INTERNAL_USER_ENGAGEMENT_AD_EVENTS_AD_EVENTS_DATABASE_TABLE_H_
 
 #include <string>
-#include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
@@ -67,16 +66,11 @@ class AdEvents final : public TableInterface {
                      ResultCallback callback) const;
   void PurgeAllOrphaned(ResultCallback callback) const;
 
+  // TableInterface:
   void Create(const mojom::DBTransactionInfoPtr& mojom_db_transaction) override;
   void Migrate(const mojom::DBTransactionInfoPtr& mojom_db_transaction,
                int to_version) override;
 
- private:
-  void Insert(const mojom::DBTransactionInfoPtr& mojom_db_transaction,
-              const AdEventList& ad_event);
-
-  std::string BuildInsertSql(const mojom::DBActionInfoPtr& mojom_db_action,
-                             const AdEventList& ad_events) const;
 };
 
 }  // namespace brave_ads::database::table

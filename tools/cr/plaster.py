@@ -4,6 +4,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
+from __future__ import annotations
+
 import argparse
 from dataclasses import dataclass, field
 import hashlib
@@ -14,18 +16,15 @@ import os
 import re
 import sys
 import tomllib
-from typing import Optional
 
-from terminal import console, terminal
-from incendiary_error_handler import IncendiaryErrorHandler
+from terminal import IncendiaryErrorHandler, console, is_verbose, terminal
 import repository
-from repository import Repository
 
 # The path to the directory containing plaster files in brave-core.
-PLASTER_FILES_PATH = repository.BRAVE_CORE_PATH / 'rewrite'
+PLASTER_FILES_PATH = repository.brave.root / 'rewrite'
 
 # The path to the directory where patch files are stored in brave-core.
-PATCHES_PATH = Path('patches/')
+PATCHES_PATH = repository.brave.root / 'patches'
 
 @dataclass
 class PathChecksumPair:
@@ -35,18 +34,18 @@ class PathChecksumPair:
     provides a way to track changes in the file content.
     """
 
-    # The file path relative to BRAVE_CORE_PATH.
+    # The file path relative to the brave-core root.
     path: Path
 
     # Cached checksum of the file content. It will be set to None if the file
     # does not exist.
-    checksum: Optional[str] = field(init=False)
+    checksum: str | None = field(init=False)
 
     def __post_init__(self):
         """Initialize the PathChecksumPair and calculate the checksum."""
         self.checksum = self.calculate_file_checksum()
 
-    def calculate_file_checksum(self) -> Optional[str]:
+    def calculate_file_checksum(self) -> str | None:
         """Calculate the SHA-256 checksum of the file's current content."""
         if not self.path.exists():
             return None
@@ -76,6 +75,7 @@ class PathChecksumPair:
             return False  # No change detected
         logging.debug('Saving: %s', self.path)
         if not dry_run:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
             # On Windows we checkout files in Linux mode, so we should make
             # sure not to use Windows newlines here.
             self.path.write_text(new_content, encoding='utf-8', newline='\n')
@@ -132,14 +132,14 @@ class PatchInfo:
     this may change in the future.
     """
 
-    # Path to the plaster file, relative to BRAVE_CORE_PATH.
+    # Path to the plaster file, relative to the brave-core root.
     plaster_file: Path
 
     # Contents of the plaster file as a string (read during initialization).
     plaster_contents: str = field(init=False)
 
     # SHA-256 checksum of the plaster file contents.
-    plaster_checksum: Optional[str] = field(init=False)
+    plaster_checksum: str | None = field(init=False)
 
     # The relative path to the source file that the plaster file applies to.
     # This field is kept separate to allow the use in git commands to the
@@ -157,7 +157,7 @@ class PatchInfo:
 
     def __post_init__(self):
         """Initializes the PatchInfo data with checksums and paths."""
-        self.plaster_contents = self.plaster_file.read_text(encoding='utf-8')
+        self.plaster_contents = self.plaster_file.read_bytes().decode('utf-8')
         self.plaster_checksum = hashlib.sha256(
             self.plaster_contents.encode()).hexdigest()
 
@@ -177,10 +177,10 @@ class PatchInfo:
         self.patchinfo = PathChecksumPair(
             self.patch.path.with_suffix('.patchinfo'))
 
-        # This is set relative, so it gets validated to be under
-        # BRAVE_CORE_PATH.
+        # This is set relative, so it gets validated to be under the
+        # brave-core root.
         self.plaster_file = self.plaster_file.relative_to(
-            repository.BRAVE_CORE_PATH)
+            repository.brave.root)
 
     def save_source_if_changed(self,
                                content: str,
@@ -236,12 +236,12 @@ class PlasterFile:
     This class is used to apply plaster files to sources in other repositories.
     """
 
-    # The path to the plaster file. This path is relative to
-    # BRAVE_CORE_PATH.
+    # The path to the plaster file. This path is relative to the brave-core
+    # root.
     path: Path
 
     @classmethod
-    def find_all(cls) -> list["PlasterFile"]:
+    def find_all(cls) -> list[PlasterFile]:
         """ Finds all plaster files in the rewrite directory.
         Returns:
             A list of PlasterFile objects.
@@ -321,11 +321,7 @@ class PlasterFile:
             errors.append(f'Invalid regex: {e} in {self.path}')
 
         if errors:
-            print('\n\nThere were errors attempting to apply the patches:',
-                  file=sys.stderr)
-            for error in errors:
-                print(f'{error}', file=sys.stderr)
-            sys.exit(1)
+            raise PlasterApplyError(errors)
 
         has_changed = info.save_source_if_changed(contents, dry_run=dry_run)
         has_changed = info.save_patch_if_changed(
@@ -338,12 +334,25 @@ class PlasterFile:
             info.save_patchinfo_if_changed()
 
 
-class PlasterFileNeedsRegen(Exception):
+class PlasterError(Exception):
+    """Base class for errors reported by the plaster tool."""
+
+
+class PlasterFileNeedsRegen(PlasterError):
     pass
 
 
-def get_plaster_files(
-        filepaths: Optional[list[str]] = None) -> list["PlasterFile"]:
+class PlasterApplyError(PlasterError):
+    """Raised when applying a plaster file produces substitution errors."""
+
+    def __init__(self, errors: list[str]):
+        self.errors = errors
+        super().__init__(
+            'There were errors attempting to apply the patches:\n' +
+            '\n'.join(errors))
+
+
+def get_plaster_files(filepaths: list[str] | None = None) -> list[PlasterFile]:
     """Returns plaster files matching the provided file paths.
 
     If no file paths are provided, all plaster files are returned.
@@ -386,24 +395,17 @@ def apply(args):
         for plaster_file in plaster_files:
             console.log(f'Applying plaster file: {plaster_file.path}')
             plaster_file.apply()
+    return 0
 
 
 def check(args):
     """Checks whether plaster files need to be reapplied.
     """
     plaster_files = get_plaster_files(getattr(args, 'filepaths', None))
-
-    has_failure = False
     for plaster_file in plaster_files:
-        try:
-            logging.debug('Checking plaster file: %s', plaster_file.path)
-            plaster_file.apply(dry_run=True)
-        except PlasterFileNeedsRegen as e:
-            print(e, file=sys.stderr)
-            has_failure = True
-
-    if has_failure:
-        sys.exit(1)
+        logging.debug('Checking plaster file: %s', plaster_file.path)
+        plaster_file.apply(dry_run=True)
+    return 0
 
 
 def main():
@@ -439,13 +441,16 @@ def main():
     if hasattr(args, 'infra_mode') and args.infra_mode:
         terminal.set_infra_mode()
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format='%(message)s',
-        handlers=[IncendiaryErrorHandler(markup=True, rich_tracebacks=True)])
+    logging.basicConfig(level=logging.DEBUG if is_verbose() else logging.INFO,
+                        format='%(message)s',
+                        handlers=[IncendiaryErrorHandler()],
+                        force=True)
 
-    args.func(args)
-    return 0
+    try:
+        return args.func(args)
+    except PlasterError as e:
+        print(e, file=sys.stderr)
+        return 1
 
 
 if __name__ == '__main__':
