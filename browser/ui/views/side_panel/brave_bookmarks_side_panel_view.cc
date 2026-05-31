@@ -10,6 +10,7 @@
 #include "base/check_op.h"
 #include "base/memory/raw_ref.h"
 #include "brave/browser/ui/color/brave_color_id.h"
+#include "brave/browser/ui/sidebar/features.h"
 #include "brave/components/vector_icons/vector_icons.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "brave/ui/color/nala/nala_color_id.h"
@@ -101,7 +102,7 @@ class BookmarksSidePanelHeaderView : public views::View {
         AddChildView(std::make_unique<views::ImageButton>(base::BindRepeating(
             [](SidePanelUI* side_panel_ui) {
               if (side_panel_ui) {
-                side_panel_ui->Close(SidePanelEntry::PanelType::kContent);
+                side_panel_ui->Close();
               }
             },
             scope.GetBrowserWindowInterface().GetFeatures().side_panel_ui())));
@@ -141,6 +142,8 @@ END_METADATA
 
 BraveBookmarksSidePanelView::BraveBookmarksSidePanelView(
     SidePanelEntryScope& scope) {
+  CHECK(!base::FeatureList::IsEnabled(sidebar::features::kSidebarV2));
+
   CHECK_EQ(SidePanelEntryScope::ScopeType::kBrowser, scope.get_scope_type());
   SetLayoutManager(std::make_unique<views::FlexLayout>())
       ->SetOrientation(views::LayoutOrientation::kVertical);

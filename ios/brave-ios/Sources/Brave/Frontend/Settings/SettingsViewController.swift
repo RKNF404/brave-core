@@ -57,7 +57,6 @@ protocol SettingsDelegate: AnyObject {
   func settingsCreateFakeTabs()
   func settingsCreateFakeBookmarks()
   func settingsCreateFakeHistory()
-  func settingsPresentQuickView()
 }
 
 class SettingsViewController: TableViewController, BraveAccountAuthenticationObserver {
@@ -205,7 +204,6 @@ class SettingsViewController: TableViewController, BraveAccountAuthenticationObs
     super.viewWillAppear(animated)
     // Reset dev options access count
     aboutHeaderTapCount = 0
-    // Hide toolbar in case it was enabled by a child controller
     navigationController?.setToolbarHidden(true, animated: animated)
   }
 
@@ -1167,7 +1165,8 @@ class SettingsViewController: TableViewController, BraveAccountAuthenticationObs
         selection: { [unowned self] in
           self.navigationController?.pushViewController(
             NTPTableViewController(
-              rewards: rewards,
+              rewards: BraveRewards.isSupported(prefService: braveCore.profile.prefs)
+                ? rewards : nil,
               linkTapped: { [unowned self] request in
                 self.tabManager.addTabAndSelect(
                   request,
@@ -1361,17 +1360,33 @@ class SettingsViewController: TableViewController, BraveAccountAuthenticationObs
         Row(
           text: Strings.Autofill.managePasswordsTitle,
           selection: { [unowned self] in
-
             if FeatureList.kUseChromiumWebViewsAutofill.enabled,
               let autofillDataManager = braveCore.defaultWebViewConfiguration.autofillDataManager
             {
-              let managePasswordsViewController = ManagePasswordsViewController(
-                autofillDataManager: autofillDataManager
+              let viewModel = ManagePasswordsViewModel(autofillDataManager: autofillDataManager)
+              let controller = UIHostingController(
+                rootView:
+                  ManagePasswordsView(viewModel: viewModel)
+                  .environment(
+                    \.openURL,
+                    OpenURLAction { [weak self] url in
+                      self?.settingsDelegate?.settingsOpenURLInNewTab(url)
+                      return .handled
+                    }
+                  )
+                  // Failed privacy-lock auth must exit the entire navigation flow: `dismiss` only pops the
+                  // top SwiftUI screen, so from second order stack i.e detail/group
+                  // we would not return to settings. `popToViewController` unwinds every `NavigationLink`-pushed host;
+                  .environment(
+                    \.autofillPrivacyLockExitOnFailure,
+                    AutofillPrivacyLockExitOnFailureAction { [weak self] in
+                      guard let self, let nav = self.navigationController else { return }
+                      nav.popToViewController(self, animated: true)
+                    }
+                  )
               )
-              self.navigationController?.pushViewController(
-                managePasswordsViewController,
-                animated: true
-              )
+
+              navigationController?.pushViewController(controller, animated: true)
             } else {
               let loginsPasswordsViewController = LoginListViewController(
                 passwordAPI: passwordAPI,
@@ -1781,20 +1796,6 @@ class SettingsViewController: TableViewController, BraveAccountAuthenticationObs
           },
           accessory: .disclosureIndicator,
           cellClass: MultilineValue1Cell.self
-        )
-      )
-    }
-    if FeatureList.kQuickViewEnabled.enabled {
-      section.rows.append(
-        Row(
-          text: "Test QuickView",
-          selection: { [weak self] in
-            guard let self else { return }
-            self.dismiss(animated: true) {
-              self.settingsDelegate?.settingsPresentQuickView()
-            }
-          },
-          cellClass: ButtonCell.self
         )
       )
     }

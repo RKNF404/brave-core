@@ -63,8 +63,8 @@
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #else
-#include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #endif
@@ -475,13 +475,9 @@ void AIChatUIPageHandler::OnTabStripModelChanged(
 
   auto* new_contents = selection.new_contents.get();
   if (new_contents) {
-    // Note: We treat not being allowed to associate the content the same as not
-    // having content.
     auto* active_chat_tab_helper =
         ai_chat::AIChatTabHelper::FromWebContents(new_contents);
-    if (active_chat_tab_helper &&
-        ai_chat::CanAssociateContent(
-            &active_chat_tab_helper->web_contents_content())) {
+    if (active_chat_tab_helper) {
       active_chat_tab_helper_ = active_chat_tab_helper;
       associated_content_delegate_observation_.Observe(
           &active_chat_tab_helper_->web_contents_content());

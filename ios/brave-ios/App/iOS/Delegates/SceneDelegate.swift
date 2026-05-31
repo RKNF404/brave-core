@@ -156,25 +156,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         sceneState: sceneState
       )
 
-      // When launching in private mode with biometric/PIN lock enabled, authenticate before showing content.
-      // If auth fails or is cancelled, launch in regular mode instead.
-      if browserViewController.privateBrowsingManager.isPrivateBrowsing
-        && Preferences.Privacy.privateBrowsingLock.value
-      {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-          windowProtection.presentAuthenticationForViewController(
-            determineLockWithPasscode: false,
-            viewType: .general
-          ) { success, error in
-            // Treat passcodeNotSet as success (user may have removed passcode)
-            if !success && error != .passcodeNotSet {
-              browserViewController.privateBrowsingManager.isPrivateBrowsing = false
-            }
-            continuation.resume()
-          }
-        }
-      }
-
       browserViewController.windowProtection = windowProtection
 
       let container = UINavigationController(rootViewController: browserViewController)
@@ -516,7 +497,7 @@ extension SceneDelegate {
     Task { @MainActor in
       let isPrivateBrowsing =
         scene.browserViewController?.privateBrowsingManager.isPrivateBrowsing == true
-      await BraveSkusManager(isPrivateMode: isPrivateBrowsing)?.refreshVPNCredentials()
+      await Skus.SkusServiceFactory.get(privateMode: isPrivateBrowsing)?.refreshVPNCredentials()
     }
   }
 
@@ -756,8 +737,11 @@ extension SceneDelegate {
       {
         // Restore the scene from the User-Info WindowID
         windowId = windowUUID
-        isPrivate = windowInfo.isPrivate
-        privateBrowsingManager.isPrivateBrowsing = windowInfo.isPrivate
+        let isPrivateFromActivity = windowInfo.isPrivate
+        isPrivate =
+          isPrivateFromActivity
+          || self.shouldLaunchInPrivateMode(windowId: windowUUID)
+        privateBrowsingManager.isPrivateBrowsing = isPrivate
         urlToOpen = windowInfo.openURL
 
         // Create a new session window if it does not already exist

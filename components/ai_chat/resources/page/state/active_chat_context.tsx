@@ -10,6 +10,8 @@ import useHasConversationStarted from '../hooks/useHasConversationStarted'
 import { useAIChat } from './ai_chat_context'
 
 export const tabAssociatedChatId = 'tab'
+export const initiallyTabAssociated =
+  window.location.pathname === '/' + tabAssociatedChatId
 
 export interface SelectedChatDetails
   extends Pick<BindConversation.ConversationBindings, 'api'> {
@@ -106,12 +108,16 @@ export function ActiveChatProvider({
         }
       },
       createNewConversation: () => {
-        // Special case for the tab-associated conversation mode
-        // Simply bind a new conversation, this will make it associated
-        // with the current tab, if applicable, via the UIHandler.
-        if (selectedConversationId === tabAssociatedChatId) {
+        // Special case mainConversation - manually bind a new conversation as we might
+        // not be able to change the URL.
+        if (isMainConversation) {
           setConversationAPI(BindConversation.newConversation(aiChat.api))
-          return
+
+          // Note: On tab-associated conversations, we shouldn't navigate to "/" because then we wouldn't be looking at
+          // the tab-associated conversation!
+          if (selectedConversationId === tabAssociatedChatId) {
+            return
+          }
         }
 
         // Otherwise, navigate to "/"

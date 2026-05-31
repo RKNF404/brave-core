@@ -96,6 +96,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_SIDEBAR_V2)
+#include "brave/browser/ui/views/side_panel/brave_side_panel_header.h"
 #include "brave/browser/ui/views/side_panel/brave_side_panel_resize_area.h"
 #endif
 
@@ -705,11 +706,9 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, DefaultEntryTest) {
   WaitUntil(base::BindLambdaForTesting(
       [&]() { return controller()->IsActiveIndex(bookmark_item_index); }));
 
-  panel_ui->Close(SidePanelEntry::PanelType::kContent);
-  WaitUntil(base::BindLambdaForTesting([&]() {
-    return !panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent)
-                .has_value();
-  }));
+  panel_ui->Close();
+  WaitUntil(base::BindLambdaForTesting(
+      [&]() { return !panel_ui->GetCurrentEntryId().has_value(); }));
 
   // Remove bookmarks and check it's gone.
   SidebarServiceFactory::GetForProfile(browser()->profile())
@@ -718,13 +717,10 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, DefaultEntryTest) {
 
   // Open panel w/o entry id.
   panel_ui->Toggle();
-  WaitUntil(base::BindLambdaForTesting([&]() {
-    return panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent)
-        .has_value();
-  }));
+  WaitUntil(base::BindLambdaForTesting(
+      [&]() { return panel_ui->GetCurrentEntryId().has_value(); }));
   // Check bookmark panel is not opened again as it's deleted item.
-  EXPECT_NE(SidePanelEntryId::kBookmarks,
-            panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent));
+  EXPECT_NE(SidePanelEntryId::kBookmarks, panel_ui->GetCurrentEntryId());
 }
 
 // Category A:
@@ -974,7 +970,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
     panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
     ASSERT_TRUE(
         base::test::RunUntil([&]() { return GetSidePanel()->GetVisible(); }));
-    panel_ui->Close(SidePanelEntry::PanelType::kContent);
+    panel_ui->Close();
     ASSERT_TRUE(
         base::test::RunUntil([&]() { return !GetSidePanel()->GetVisible(); }));
     return;
@@ -1372,11 +1368,10 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, UnManagedPanelEntryTest) {
 
   // Close panel and wait till panel closing animation ends. Panel is hidden
   // when closing completes.
-  panel_ui->Close(SidePanelEntry::PanelType::kContent);
+  panel_ui->Close();
   WaitUntil(base::BindLambdaForTesting(
       [&]() { return !GetSidePanel()->GetVisible(); }));
-  EXPECT_FALSE(
-      !!panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent));
+  EXPECT_FALSE(!!panel_ui->GetCurrentEntryId());
 
   // Remove bookmarks and check it's gone.
   SidebarServiceFactory::GetForProfile(browser()->profile())
@@ -1387,8 +1382,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, UnManagedPanelEntryTest) {
   panel_ui->Show(SidePanelEntryId::kBookmarks);
   WaitUntil(base::BindLambdaForTesting(
       [&]() { return GetSidePanel()->GetVisible(); }));
-  EXPECT_EQ(SidePanelEntryId::kBookmarks,
-            panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent));
+  EXPECT_EQ(SidePanelEntryId::kBookmarks, panel_ui->GetCurrentEntryId());
 }
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
@@ -1445,28 +1439,24 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
 
   // No panel when activated tab at 1 because we don't open any global panel.
   tab_model()->ActivateTabAt(1);
-  EXPECT_FALSE(
-      panel_ui->IsSidePanelShowing(SidePanelEntry::PanelType::kContent));
+  EXPECT_FALSE(panel_ui->IsSidePanelShowing());
 
   // Open global panel when active tab index is 1.
   panel_ui->Show(SidePanelEntryId::kBookmarks);
   WaitUntil(base::BindLambdaForTesting([&]() {
-    return panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent) ==
-           SidePanelEntryId::kBookmarks;
+    return panel_ui->GetCurrentEntryId() == SidePanelEntryId::kBookmarks;
   }));
 
   // Contextual panel should be set when activate tab at 0.
   tab_model()->ActivateTabAt(0);
   WaitUntil(base::BindLambdaForTesting([&]() {
-    return panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent) ==
-           SidePanelEntryId::kCustomizeChrome;
+    return panel_ui->GetCurrentEntryId() == SidePanelEntryId::kCustomizeChrome;
   }));
 
   // Global panel should be set when activate tab at 1.
   tab_model()->ActivateTabAt(1);
   WaitUntil(base::BindLambdaForTesting([&]() {
-    return panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent) ==
-           SidePanelEntryId::kBookmarks;
+    return panel_ui->GetCurrentEntryId() == SidePanelEntryId::kBookmarks;
   }));
 }
 
@@ -1600,18 +1590,15 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestWithkSidebarShowAlwaysOnStable,
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   if (GetParam()) {
     // Wait till browser has active panel.
-    WaitUntil(base::BindLambdaForTesting([&]() {
-      return !!panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent);
-    }));
+    WaitUntil(base::BindLambdaForTesting(
+        [&]() { return !!panel_ui->GetCurrentEntryId(); }));
 
-    EXPECT_EQ(SidePanelEntryId::kChatUI,
-              panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent));
+    EXPECT_EQ(SidePanelEntryId::kChatUI, panel_ui->GetCurrentEntryId());
   }
   testing::Mock::VerifyAndClearExpectations(&observer_);
 
-  panel_ui->Close(SidePanelEntry::PanelType::kContent);
-  EXPECT_FALSE(
-      panel_ui->IsSidePanelShowing(SidePanelEntry::PanelType::kContent));
+  panel_ui->Close();
+  EXPECT_FALSE(panel_ui->IsSidePanelShowing());
 
   // Check one shot panel is not opened anymore.
   EXPECT_CALL(observer_, OnActiveIndexChanged(testing::_, testing::_)).Times(0);
@@ -1619,8 +1606,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestWithkSidebarShowAlwaysOnStable,
       browser(), GURL("https://www.brave.com/"),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-  EXPECT_FALSE(
-      panel_ui->IsSidePanelShowing(SidePanelEntry::PanelType::kContent));
+  EXPECT_FALSE(panel_ui->IsSidePanelShowing());
   testing::Mock::VerifyAndClearExpectations(&observer_);
 
   observation_.Reset();
@@ -1778,24 +1764,21 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat,
   // Open a "tab specific" panel from Tab 1
   tab_model()->ActivateTabAt(1);
   SimulateSidebarItemClickAt(tab_specific_item_index.value());
-  EXPECT_EQ(SidePanelEntryId::kChatUI,
-            panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent));
+  EXPECT_EQ(SidePanelEntryId::kChatUI, panel_ui->GetCurrentEntryId());
   EXPECT_TRUE(GetSidePanel()->GetVisible());
   // Tab Specific panel should be open when Tab 1 is active
   EXPECT_EQ(model()->active_index(), tab_specific_item_index);
 
   // Global panel should be open when Tab 0 is active
   tab_model()->ActivateTabAt(0);
-  EXPECT_EQ(SidePanelEntryId::kBookmarks,
-            panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent));
+  EXPECT_EQ(SidePanelEntryId::kBookmarks, panel_ui->GetCurrentEntryId());
   EXPECT_TRUE(model()->active_index().has_value());
   EXPECT_EQ(model()->active_index(),
             model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks));
 
   // Global panel should be open when Tab 2 is active
   tab_model()->ActivateTabAt(2);
-  EXPECT_EQ(SidePanelEntryId::kBookmarks,
-            panel_ui->GetCurrentEntryId(SidePanelEntry::PanelType::kContent));
+  EXPECT_EQ(SidePanelEntryId::kBookmarks, panel_ui->GetCurrentEntryId());
   EXPECT_TRUE(model()->active_index().has_value());
   EXPECT_EQ(model()->active_index(),
             model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks));
@@ -1916,7 +1899,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
   // Create a kToolbar type SidePanelEntry
   std::unique_ptr<SidePanelEntry> toolbar_entry =
       std::make_unique<SidePanelEntry>(
-          SidePanelEntry::PanelType::kToolbar,
+          SidePanelType::kToolbar,
           SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
           base::BindRepeating([](SidePanelEntryScope&) {
             return std::make_unique<views::View>();
@@ -2046,7 +2029,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Covers both the default right-side and the explicitly set left-side layouts.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2PanelPositionTest) {
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  auto* panel = browser_view->contents_height_side_panel();
+  auto* panel = browser_view->side_panel();
   panel->DisableAnimationsForTesting();
   SidebarContainerView* sidebar = GetSidebarContainerView();
   auto* prefs = browser()->profile()->GetPrefs();
@@ -2116,7 +2099,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ActiveItemStateSync) {
   EXPECT_EQ(model()->active_index(), bookmark_item_index);
 
   // Deactivate by closing the panel.
-  panel_ui->Close(SidePanelEntry::PanelType::kContent);
+  panel_ui->Close();
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return !model()->active_index().has_value(); }));
 
@@ -2127,7 +2110,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ActiveItemStateSync) {
       [&]() { return controller()->IsActiveIndex(bookmark_item_index); }));
 
   // Closing the side panel via the panel UI deactivates the item in the model.
-  panel_ui->Close(SidePanelEntry::PanelType::kContent);
+  panel_ui->Close();
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return !model()->active_index().has_value(); }));
 
@@ -2140,9 +2123,8 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ActiveItemStateSync) {
   // Wait for the panel to be fully shown before toggling closed, so that
   // BraveSidePanelCoordinator::Toggle() sees IsSidePanelShowing() == true
   // and takes the close branch instead of the show branch.
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return panel_ui->IsSidePanelShowing(SidePanelEntry::PanelType::kContent);
-  }));
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
 
   // Toggling the panel closed deactivates the item in the model.
   panel_ui->Toggle();
@@ -2150,30 +2132,41 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ActiveItemStateSync) {
       [&]() { return !model()->active_index().has_value(); }));
 }
 
-// Verify that the upstream SidePanelHeader is never added when a sidebar panel
-// is opened in V2, so Brave can render its own header.
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2NoUpstreamHeaderTest) {
+// Verify the Brave-styled side panel header is attached for reading list and
+// bookmarks and absent for other entries.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2BraveHeaderTest) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  auto* side_panel = browser_view->contents_height_side_panel();
+  auto* side_panel = browser_view->side_panel();
   side_panel->DisableAnimationsForTesting();
 
-  panel_ui->Toggle();
-  ASSERT_TRUE(base::test::RunUntil([&]() { return side_panel->GetVisible(); }));
+  // Reading list: Brave header attached.
+  panel_ui->Show(SidePanelEntryId::kReadingList);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntryId::kReadingList));
+  }));
+  EXPECT_NE(nullptr, side_panel->GetHeaderView<BraveSidePanelHeader>())
+      << "BraveSidePanelHeader should be attached for the reading list panel";
 
-  EXPECT_EQ(nullptr, side_panel->GetHeaderView<views::View>())
-      << "Upstream SidePanelHeader should not be present after V2 panel open";
+  // Bookmarks: Brave header attached.
+  panel_ui->Show(SidePanelEntryId::kBookmarks);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  }));
+  EXPECT_NE(nullptr, side_panel->GetHeaderView<BraveSidePanelHeader>())
+      << "BraveSidePanelHeader should be attached for the bookmarks panel";
 
-  // Also verify CustomizeChrome panel does not get an upstream header.
+  // CustomizeChrome: no Brave header (the previous one must be cleared when
+  // switching to an entry that doesn't request a Brave header).
   panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return panel_ui->IsSidePanelEntryShowing(
         SidePanelEntry::Key(SidePanelEntryId::kCustomizeChrome));
   }));
-
-  EXPECT_EQ(nullptr, side_panel->GetHeaderView<views::View>())
-      << "Upstream SidePanelHeader should not be present for CustomizeChrome "
-         "panel";
+  EXPECT_EQ(nullptr, side_panel->GetHeaderView<BraveSidePanelHeader>())
+      << "BraveSidePanelHeader should not be attached for CustomizeChrome";
 }
 
 // Verify that the resize area is positioned correctly for both border states.
@@ -2185,7 +2178,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
                        SidebarV2ResizeAreaPositionMatchesBorderState) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  auto* side_panel = browser_view->contents_height_side_panel();
+  auto* side_panel = browser_view->side_panel();
   side_panel->DisableAnimationsForTesting();
   auto* prefs = browser()->profile()->GetPrefs();
 
@@ -2201,44 +2194,88 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
   // --- Border case (rounded corners ON) ---
   prefs->SetBoolean(kWebViewRoundedCorners, true);
   RunScheduledLayouts();
-  EXPECT_FALSE(side_panel->GetInsets().IsEmpty());
+  EXPECT_GT(side_panel->GetInsets().width(), 0)
+      << "panel should have left/right insets";
 
   // In the bordered case the resize strip sits in the gap between the panel
   // edge and the content, at the left edge (panel is on the right in LTR).
-  const gfx::Rect bordered_bounds = resize_area->bounds();
-  EXPECT_EQ(bordered_bounds.top_right(),
-            side_panel->GetContentParentView()->origin())
+  // Check resize area and panel's screen bounds.origin().
+  EXPECT_EQ(resize_area->GetBoundsInScreen().origin(),
+            side_panel->GetBoundsInScreen().origin())
       << "Bordered resize area right edge should align with content origin";
-  EXPECT_EQ(bordered_bounds.width(), side_panel->GetInsets().left())
+  EXPECT_EQ(resize_area->width(), side_panel->GetInsets().left())
       << "Bordered resize area width should match the left border inset";
+  EXPECT_EQ(side_panel->GetIndexOf(resize_area),
+            side_panel->children().size() - 1)
+      << "resize area should be the top-most view";
 
   // --- No-border case (rounded corners OFF) ---
   prefs->SetBoolean(kWebViewRoundedCorners, false);
   RunScheduledLayouts();
-  EXPECT_TRUE(side_panel->GetInsets().IsEmpty());
+  EXPECT_EQ(0, side_panel->GetInsets().width());
+
+  // Shared assertions for the no-border state after a panel switch.
+  auto verify_no_border_state = [&](const base::Location& loc) {
+    SCOPED_TRACE(loc.ToString());
+    EXPECT_EQ(0, side_panel->GetInsets().width())
+        << "Border insets' width should stay empty after switching panels "
+           "(border OFF)";
+    EXPECT_EQ(resize_area->GetBoundsInScreen().origin(),
+              side_panel->GetBoundsInScreen().origin())
+        << "No-border resize area should be placed at the inner edge of "
+           "content";
+    EXPECT_EQ(resize_area->width(),
+              views::BraveSidePanelResizeArea::kNoBorderResizeAreaWidth)
+        << "No-border resize area width should equal kNoBorderResizeAreaWidth";
+    EXPECT_EQ(side_panel->GetIndexOf(resize_area),
+              side_panel->children().size() - 1)
+        << "resize area should be the top-most view";
+  };
 
   // --- Panel-switch: border OFF must survive switching panels ---
+  // Switch to another panel that has brave panel header.
   panel_ui->Show(SidePanelEntryId::kBookmarks);
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return panel_ui->IsSidePanelEntryShowing(
         SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
   }));
+  RunScheduledLayouts();
+  verify_no_border_state(FROM_HERE);
+
+  // Switch to another panel that doesn't have brave panel header.
   panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return panel_ui->IsSidePanelEntryShowing(
         SidePanelEntry::Key(SidePanelEntryId::kCustomizeChrome));
   }));
   RunScheduledLayouts();
-  EXPECT_TRUE(side_panel->GetInsets().IsEmpty())
-      << "Border insets should stay empty after switching panels (border OFF)";
+  verify_no_border_state(FROM_HERE);
+}
 
-  const gfx::Rect no_border_bounds = resize_area->bounds();
-  EXPECT_EQ(no_border_bounds.origin(),
-            side_panel->GetContentParentView()->origin())
-      << "No-border resize area should be placed at the inner edge of content";
-  EXPECT_EQ(no_border_bounds.width(),
-            views::BraveSidePanelResizeArea::kNoBorderResizeAreaWidth)
-      << "No-border resize area width should equal kNoBorderResizeAreaWidth";
+// Regression test: the top container separator must remain visible when a side
+// panel opens. Upstream suppresses it (suppress_top_separator=true) when the
+// side panel is shown and GetTopSeparatorType() returns kTopContainer.
+// BraveBrowserViewTabbedLayoutImpl::CalculateTopContainerLayoutImpl resets the
+// flag to false for that case so the separator stays shown.
+// Rounded corners must be disabled: GetTopSeparatorType() only returns
+// kTopContainer (instead of kNone) when rounded corners are off.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
+                       TopContainerSeparatorVisibleWhenPanelOpens) {
+  browser()->profile()->GetPrefs()->SetBoolean(kWebViewRoundedCorners, false);
+  RunScheduledLayouts();
+
+  auto* brave_view =
+      BraveBrowserView::From(BrowserView::GetBrowserViewForBrowser(browser()));
+  auto* separator = brave_view->top_container_separator_for_testing();
+  ASSERT_TRUE(separator);
+  EXPECT_TRUE(separator->GetVisible());
+
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  panel_ui->Show(SidePanelEntryId::kBookmarks);
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
+
+  EXPECT_TRUE(separator->GetVisible());
 }
 
 class ScopedSidePanelUIForTesting {
@@ -2266,26 +2303,17 @@ class MockSidePanelUI : public SidePanelUI {
               (SidePanelEntryKey, std::optional<SidePanelOpenTrigger>, bool),
               (override));
   MOCK_METHOD(void, ShowFrom, (SidePanelEntryKey, gfx::Rect), (override));
-  MOCK_METHOD(void,
-              Close,
-              (SidePanelEntry::PanelType, SidePanelEntryHideReason, bool),
-              (override));
+  MOCK_METHOD(void, Close, (SidePanelEntryHideReason, bool), (override));
   MOCK_METHOD(void,
               Toggle,
               (SidePanelEntryKey, SidePanelOpenTrigger),
               (override));
   MOCK_METHOD(std::optional<SidePanelEntryId>,
               GetCurrentEntryId,
-              (SidePanelEntry::PanelType),
+              (),
               (const, override));
-  MOCK_METHOD(int,
-              GetCurrentEntryDefaultContentWidth,
-              (SidePanelEntry::PanelType),
-              (const, override));
-  MOCK_METHOD(bool,
-              IsSidePanelShowing,
-              (SidePanelEntry::PanelType),
-              (const, override));
+  MOCK_METHOD(int, GetCurrentEntryDefaultContentWidth, (), (const, override));
+  MOCK_METHOD(bool, IsSidePanelShowing, (), (const, override));
   MOCK_METHOD(bool,
               IsSidePanelEntryShowing,
               (const SidePanelEntryKey&),
@@ -2296,7 +2324,7 @@ class MockSidePanelUI : public SidePanelUI {
               (const, override));
   MOCK_METHOD(base::CallbackListSubscription,
               RegisterSidePanelShown,
-              (SidePanelEntry::PanelType, ShownCallback),
+              (ShownCallback),
               (override));
   MOCK_METHOD(void,
               OnActiveTabChanged,

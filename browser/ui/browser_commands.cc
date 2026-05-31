@@ -54,11 +54,12 @@
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -110,17 +111,16 @@
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
 #include "brave/browser/ui/brave_vpn/brave_vpn_controller.h"
-#include "brave/components/brave_vpn/browser/brave_vpn_service_impl.h"
+#include "brave/components/brave_vpn/browser/brave_vpn_service.h"
 #include "brave/components/brave_vpn/common/brave_vpn_constants.h"
 #include "brave/components/brave_vpn/common/brave_vpn_utils.h"
 #include "brave/components/brave_vpn/common/pref_names.h"
+#endif  // BUILDFLAG(ENABLE_BRAVE_VPN)
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(ENABLE_BRAVE_VPN_V1) && BUILDFLAG(IS_WIN)
 #include "brave/browser/brave_vpn/win/storage_utils.h"
 #include "brave/browser/brave_vpn/win/wireguard_utils_win.h"
-#endif  // BUILDFLAG(ENABLE_BRAVE_VPN)
-
-#endif  // BUILDFLAG(ENABLE_BRAVE_VPN)
+#endif  // BUILDFLAG(ENABLE_BRAVE_VPN_V1) && BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_COMMANDER)
 #include "brave/browser/ui/commander/commander_service.h"
@@ -282,7 +282,7 @@ void ShowBraveVPNBubble(Browser* browser) {
 }
 
 void ToggleBraveVPNTrayIcon() {
-#if BUILDFLAG(ENABLE_BRAVE_VPN) && BUILDFLAG(IS_WIN)
+#if BUILDFLAG(ENABLE_BRAVE_VPN_V1) && BUILDFLAG(IS_WIN)
   brave_vpn::EnableVPNTrayIcon(!brave_vpn::IsVPNTrayIconEnabled());
   if (brave_vpn::IsVPNTrayIconEnabled()) {
     brave_vpn::wireguard::ShowBraveVpnStatusTrayIcon();
@@ -347,12 +347,12 @@ void CloseWalletBubble(Browser* browser) {
 }
 #endif
 
-void CopySanitizedURL(Browser* browser, const GURL& url) {
-  if (!browser || !browser->profile()) {
+void CopySanitizedURL(BrowserWindowInterface* browser, const GURL& url) {
+  if (!browser || !browser->GetProfile()) {
     return;
   }
   GURL sanitized_url = brave::URLSanitizerServiceFactory::GetForBrowserContext(
-                           browser->profile())
+                           browser->GetProfile())
                            ->SanitizeURL(url);
 
   ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);

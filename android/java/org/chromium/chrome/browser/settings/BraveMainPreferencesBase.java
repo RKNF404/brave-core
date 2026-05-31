@@ -241,7 +241,6 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
         removePreferenceIfPresent(PREF_PRIVACY);
         removePreferenceIfPresent(PREF_BRAVE_VPN_CALLOUT);
         removePreferenceIfPresent(MainSettings.PREF_SETTINGS_PROMO_CARD);
-        removePreferenceIfPresent(MainSettings.PREF_MANAGE_SYNC);
 
         if (!ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)) {
             removePreferenceIfPresent(PREF_BRAVE_PLAYLIST);
@@ -292,6 +291,9 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
     }
 
     /** We need to override it to avoid NullPointerException in Chromium's child classes */
+    // mRemovedPreferences stores the erased Preference type, but callers request a typed
+    // subtype via T, so the (T) cast is unverifiable at compile time.
+    @SuppressWarnings("unchecked")
     @Nullable
     @Override
     public <T extends Preference> T findPreference(CharSequence key) {
@@ -386,11 +388,7 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
         setPreferenceOrder(PREF_CONTENT_SETTINGS, ++generalOrder);
         setPreferenceOrder(PREF_DOWNLOADS, ++generalOrder);
         setPreferenceOrder(PREF_CLOSING_ALL_TABS_CLOSES_BRAVE, ++generalOrder);
-        if (DeviceFormFactor.isTablet()) {
-            removePreferenceIfPresent(PREF_USE_CUSTOM_TABS);
-        } else {
-            setPreferenceOrder(PREF_USE_CUSTOM_TABS, ++generalOrder);
-        }
+        setPreferenceOrder(PREF_USE_CUSTOM_TABS, ++generalOrder);
 
         if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_ORIGIN)) {
             setPreferenceOrder(PREF_BRAVE_ORIGIN, ++generalOrder);
@@ -710,7 +708,6 @@ public abstract class BraveMainPreferencesBase extends BravePreferenceFragment
                     indexData.removeEntry(getUniqueId(MainSettings.PREF_DOWNLOADS));
                     indexData.removeEntry(getUniqueId(MainSettings.PREF_SAFETY_HUB));
                     indexData.removeEntry(getUniqueId(MainSettings.PREF_SETTINGS_PROMO_CARD));
-                    indexData.removeEntry(getUniqueId(MainSettings.PREF_MANAGE_SYNC));
                     indexData.removeEntry(
                             getUniqueId(MainSettings.PREF_ACCOUNT_AND_GOOGLE_SERVICES_SECTION));
                     indexData.removeEntry(getUniqueId(MainSettings.PREF_GOOGLE_SERVICES));

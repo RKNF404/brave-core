@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_service.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
@@ -15,7 +16,6 @@
 #include "brave/components/brave_wallet/browser/keyring_service.h"
 #include "brave/components/brave_wallet/browser/keyring_service_migrations.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
-#include "brave/components/p3a_utils/feature_usage.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -58,6 +58,15 @@ inline constexpr char kBraveWalletP3ANFTGalleryUsedDeprecated[] =
 // Deprecated 05/2026
 inline constexpr char kBraveWalletP3AOnboardingLastStepDeprecated[] =
     "brave.wallet.p3a_last_onboarding_step";
+// Deprecated 05/2026
+inline constexpr char kBraveWalletP3AFirstUnlockTimeDeprecated[] =
+    "brave.wallet.p3a_first_unlock_time";
+// Deprecated 05/2026
+inline constexpr char kBraveWalletP3ALastUnlockTimeDeprecated[] =
+    "brave.wallet.p3a_last_unlock_time";
+// Deprecated 05/2026
+inline constexpr char kBraveWalletP3AUsedSecondDayDeprecated[] =
+    "brave.wallet.p3a_used_second_day";
 
 base::DictValue GetDefaultSelectedNetworks() {
   base::DictValue selected_networks;
@@ -124,9 +133,6 @@ base::DictValue GetDefaultHiddenNetworks() {
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterTimePref(kBraveWalletLastUnlockTime, base::Time());
-  p3a_utils::RegisterFeatureUsagePrefs(
-      registry, kBraveWalletP3AFirstUnlockTime, kBraveWalletP3ALastUnlockTime,
-      kBraveWalletP3AUsedSecondDay, nullptr, nullptr);
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -152,6 +158,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(kBraveWalletEip1559CustomChains);
   registry->RegisterDictionaryPref(kBraveWalletHiddenNetworks,
                                    GetDefaultHiddenNetworks());
+  registry->RegisterListPref(kBraveWalletHiddenAccounts);
   registry->RegisterDictionaryPref(kBraveWalletSelectedNetworks,
                                    GetDefaultSelectedNetworks());
   registry->RegisterDictionaryPref(kBraveWalletSelectedNetworksPerOrigin,
@@ -197,6 +204,14 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kBraveWalletP3ANFTGalleryUsedDeprecated, false);
   // Deprecated 05/2026
   registry->RegisterIntegerPref(kBraveWalletP3AOnboardingLastStepDeprecated, 0);
+  // Deprecated 05/2026
+  registry->RegisterTimePref(kBraveWalletP3AFirstUnlockTimeDeprecated,
+                             base::Time());
+  // Deprecated 05/2026
+  registry->RegisterTimePref(kBraveWalletP3ALastUnlockTimeDeprecated,
+                             base::Time());
+  // Deprecated 05/2026
+  registry->RegisterBooleanPref(kBraveWalletP3AUsedSecondDayDeprecated, false);
 }
 
 void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
@@ -206,6 +221,12 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
   local_state->ClearPref(kBraveWalletP3ANFTGalleryUsedDeprecated);
   // Deprecated 05/2026
   local_state->ClearPref(kBraveWalletP3AOnboardingLastStepDeprecated);
+  // Deprecated 05/2026
+  local_state->ClearPref(kBraveWalletP3AFirstUnlockTimeDeprecated);
+  // Deprecated 05/2026
+  local_state->ClearPref(kBraveWalletP3ALastUnlockTimeDeprecated);
+  // Deprecated 05/2026
+  local_state->ClearPref(kBraveWalletP3AUsedSecondDayDeprecated);
 }
 
 void RegisterProfilePrefsForMigration(
@@ -251,6 +272,7 @@ void ClearKeyringServiceProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kBraveWalletSelectedEthDappAccount);
   prefs->ClearPref(kBraveWalletSelectedSolDappAccount);
   prefs->ClearPref(kBraveWalletSelectedAdaDappAccount);
+  prefs->ClearPref(kBraveWalletHiddenAccounts);
 }
 
 void ClearBraveWalletServicePrefs(PrefService* prefs) {

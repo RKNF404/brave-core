@@ -192,8 +192,8 @@ AdsServiceImpl::AdsServiceImpl(
   // upgrades regardless of whether the service is eligible to start.
   Migrate();
 
-  // Must be active regardless of whether the service starts so that
-  // pref-driven eligibility changes are always observed.
+  // Always registered to observe eligibility pref changes even when the
+  // service is not running.
   InitializeLocalStatePrefChangeRegistrar();
   InitializePrefChangeRegistrar();
 
@@ -210,25 +210,8 @@ AdsServiceImpl::~AdsServiceImpl() = default;
 ///////////////////////////////////////////////////////////////////////////////
 
 
-void AdsServiceImpl::RegisterResourceComponents() {
-  RegisterCountryResourceComponent();
-
-  if (UserHasOptedInToNotificationAds()) {
-    // Only utilized for text classification, which requires the user to have
-    // joined Brave Rewards and opted into notification ads.
-    RegisterLanguageResourceComponent();
-  }
-}
 
 void AdsServiceImpl::Migrate() {
-  // Added 08/2023.
-  const int64_t ads_per_hour =
-      prefs_->GetInt64(prefs::kMaximumNotificationAdsPerHour);
-  if (ads_per_hour == 0) {
-    prefs_->ClearPref(prefs::kMaximumNotificationAdsPerHour);
-    prefs_->SetBoolean(prefs::kOptedInToNotificationAds, false);
-  }
-
   // Added 10/2025.
   if (!local_state_->HasPrefPath(prefs::kFirstRunAt)) {
     base::Time first_run_at =
@@ -241,11 +224,25 @@ void AdsServiceImpl::Migrate() {
   }
 }
 
+void AdsServiceImpl::RegisterResourceComponents() {
+  RegisterCountryResourceComponent();
+
+  if (UserHasOptedInToNotificationAds()) {
+    // Only utilized for text classification, which requires the user to have
+    // joined Brave Rewards and opted into notification ads.
+    RegisterLanguageResourceComponent();
+  }
+}
+
 void AdsServiceImpl::RegisterCountryResourceComponent() {
   if (resource_component_) {
     resource_component_->RegisterCountryComponent(
         delegate_->GetVariationsCountryCode());
   }
+}
+
+void AdsServiceImpl::UnregisterCountryResourceComponent() {
+  resource_component_->UnregisterCountryComponent();
 }
 
 void AdsServiceImpl::RegisterLanguageResourceComponent() {
@@ -254,7 +251,15 @@ void AdsServiceImpl::RegisterLanguageResourceComponent() {
   }
 }
 
+void AdsServiceImpl::UnregisterLanguageResourceComponent() {
+  resource_component_->UnregisterLanguageComponent();
+}
+
 bool AdsServiceImpl::UserHasJoinedBraveRewards() const {
+  if (prefs_->IsManagedPreference(brave_rewards::prefs::kDisabledByPolicy) &&
+      prefs_->GetBoolean(brave_rewards::prefs::kDisabledByPolicy)) {
+    return false;
+  }
   return prefs_->GetBoolean(brave_rewards::prefs::kEnabled);
 }
 
@@ -700,6 +705,11 @@ void AdsServiceImpl::InitializePrefChangeRegistrar() {
 
 void AdsServiceImpl::InitializeBraveRewardsPrefChangeRegistrar() {
   pref_change_registrar_.Add(
+      brave_rewards::prefs::kDisabledByPolicy,
+      base::BindRepeating(&AdsServiceImpl::OnAdsPrefChanged,
+                          base::Unretained(this)));
+
+  pref_change_registrar_.Add(
       brave_rewards::prefs::kEnabled,
       base::BindRepeating(&AdsServiceImpl::NotifyPrefChanged,
                           base::Unretained(this),
@@ -758,18 +768,24 @@ void AdsServiceImpl::InitializeSearchResultAdsPrefChangeRegistrar() {
 
 void AdsServiceImpl::OnAdsPrefChanged(const std::string& path) {
   if (!CanStartBatAdsService()) {
-    // The pref change made the service ineligible to run, so tear it down.
+    // The pref change made the service ineligible to run, so tear it down and
+    // release resource components that are no longer needed.
+    UnregisterCountryResourceComponent();
+    UnregisterLanguageResourceComponent();
     return ShutdownAdsService();
   }
 
-  if (bat_ads_service_remote_.is_bound() && UserHasOptedInToNotificationAds() &&
+  if (bat_ads_service_remote_.is_bound() &&
       path == prefs::kOptedInToNotificationAds) {
-    // Register language resource components if the user has joined Brave
-    // Rewards, opted into notification ads, and the Bat Ads Service has
-    // already started.
-    RegisterLanguageResourceComponent();
+    if (UserHasOptedInToNotificationAds()) {
+      // Register now that the user has opted in.
+      RegisterLanguageResourceComponent();
 
-    delegate_->MaybeInitNotificationHelper();
+      delegate_->MaybeInitNotificationHelper();
+    } else {
+      // Unregister now that the user has opted out.
+      UnregisterLanguageResourceComponent();
+    }
   }
 
   MaybeStartBatAdsService();
@@ -1078,6 +1094,11 @@ void AdsServiceImpl::Shutdown() {
   policy_initialization_waiter_.reset();
 
   ShutdownAdsService();
+
+  // ApplicationStateMonitor is only used by this service, it needs to be reset
+  // to let go of the BrowserCollectionObserver before GlobalFeatures object is
+  // destoryed.
+  ApplicationStateMonitor::GetInstance()->Reset();
 }
 
 void AdsServiceImpl::AddBatAdsObserver(

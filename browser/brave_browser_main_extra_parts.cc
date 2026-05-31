@@ -51,8 +51,9 @@ void RecordInitialP3AValues() {
                                             g_browser_process->local_state());
 
   // Record crash reporting status stats.
-  const bool crash_reports_enabled = g_browser_process->local_state()->
-      GetBoolean(metrics::prefs::kMetricsReportingEnabled);
+  const bool crash_reports_enabled =
+      g_browser_process->local_state()->GetBoolean(
+          metrics::prefs::kMetricsReportingEnabled);
   UMA_HISTOGRAM_BOOLEAN("Brave.Core.CrashReportsEnabled",
                         crash_reports_enabled);
 }
@@ -78,8 +79,10 @@ void BraveBrowserMainExtraParts::PreProfileInit() {
   g_brave_browser_process->ads_brave_stats_helper();
 #endif  // BUILDFLAG(ENABLE_BRAVE_ADS)
 
+#if BUILDFLAG(ENABLE_BRAVE_STATS_UPDATER)
   // Early initialize brave stats
   g_brave_browser_process->brave_stats_updater();
+#endif
 }
 
 void BraveBrowserMainExtraParts::PostBrowserStart() {
@@ -102,4 +105,15 @@ void BraveBrowserMainExtraParts::PreMainMessageLoopRun() {
   brave::BraveWindowTracker::CreateInstance(g_browser_process->local_state());
 #endif  // !BUILDFLAG(IS_ANDROID)
   g_brave_browser_process->process_misc_metrics()->uptime_monitor()->Init();
+}
+
+void BraveBrowserMainExtraParts::PostDestroyThreads() {
+#if !BUILDFLAG(IS_ANDROID)
+  // Based on chrome/browser/metrics/chrome_browser_main_extra_parts_metrics.cc
+  // The instance needs to delete itself as it uses BrowserCollection observer
+  // and the collection will go out of scope with the browser process.
+  if (brave::BraveWindowTracker::HasInstance()) {
+    brave::BraveWindowTracker::ClearInstance();
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
 }

@@ -75,6 +75,7 @@ const MODELS: Mojom.Model[] = [
     supportedCapabilities: [Mojom.ConversationCapability.CHAT],
     isSuggestedModel: true,
     isNearModel: false,
+    supportsPrivateInference: false,
     options: {
       leoModelOptions: {
         name: 'model-one',
@@ -101,6 +102,7 @@ const MODELS: Mojom.Model[] = [
     ],
     isSuggestedModel: true,
     isNearModel: false,
+    supportsPrivateInference: false,
     options: {
       leoModelOptions: {
         name: 'model-two-premium',
@@ -124,6 +126,7 @@ const MODELS: Mojom.Model[] = [
     supportedCapabilities: [Mojom.ConversationCapability.CHAT],
     isSuggestedModel: false,
     isNearModel: false,
+    supportsPrivateInference: false,
     options: {
       leoModelOptions: {
         name: 'model-three-freemium',
@@ -147,6 +150,7 @@ const MODELS: Mojom.Model[] = [
     supportedCapabilities: [Mojom.ConversationCapability.CHAT],
     isSuggestedModel: false,
     isNearModel: false,
+    supportsPrivateInference: false,
     options: {
       leoModelOptions: undefined,
       customModelOptions: {
@@ -314,6 +318,7 @@ type CustomArgs = {
   trimmedTokens: number
   isGenerating: boolean
   isToolExecuting: boolean
+  isUploadingFiles: boolean
   attachmentsDialog: 'tabs' | 'bookmarks' | 'history' | null
   isNewConversation: boolean
   generatedUrlToBeOpened: Url | undefined
@@ -364,6 +369,7 @@ const args: CustomArgs = {
   trimmedTokens: 0,
   isGenerating: false,
   isToolExecuting: false,
+  isUploadingFiles: false,
   attachmentsDialog: null,
   isNewConversation: false,
   generatedUrlToBeOpened: undefined,
@@ -614,6 +620,7 @@ function StoryContext(
         isDragActive: args.isDragActive,
         isDragOver: args.isDragOver,
         generatedUrlToBeOpened: args.generatedUrlToBeOpened,
+        isUploadingFiles: args.isUploadingFiles,
       }}
       deps={[...Object.values(args)]}
     >

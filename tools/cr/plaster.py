@@ -15,7 +15,13 @@ import json
 import os
 import re
 import sys
+
+# TODO(https://github.com/brave/brave-browser/issues/55738): Remove all the
+# TOML-related code once every plaster under `rewrite/` has been migrated to
+# YAML.
 import tomllib
+
+import yaml
 
 from terminal import IncendiaryErrorHandler, console, is_verbose, terminal
 import repository
@@ -25,6 +31,19 @@ PLASTER_FILES_PATH = repository.brave.root / 'rewrite'
 
 # The path to the directory where patch files are stored in brave-core.
 PATCHES_PATH = repository.brave.root / 'patches'
+
+# Supported plaster file extensions.
+#
+# `.yaml` is the preferred format. `.toml` is the original syntax and is
+# **deprecated**.
+#
+# TODO(https://github.com/brave/brave-browser/issues/55738): Once every
+# plaster under `rewrite/` has been migrated to YAML, drop `'.toml'` from
+# this tuple and remove every other site tagged with the same issue
+# number (the `tomllib` import, `Substitution.from_toml`, and the
+# `.toml` branch in `PlasterFile.apply`).
+PLASTER_EXTENSIONS = ('.yaml', '.toml')
+
 
 @dataclass
 class PathChecksumPair:
@@ -84,13 +103,112 @@ class PathChecksumPair:
         return True
 
 
-@dataclass
-class PatchInfo:
-    """ Manages a .patchinfo file contents.
+@dataclass(frozen=True)
+class Patchinfo:
+    """In-memory representation of a parsed .patchinfo file.
+    """
 
-    This class is used to manage the patchfile metadata, known as .patchinfo,
-    which are used by our machinery when applying patches to determine if a file
-    needs to be updated or not.
+    @dataclass(frozen=True)
+    class Entry:
+        """A single path/checksum pair from a .patchinfo file."""
+
+        # Path of the file the entry refers to. Stored as a string because
+        # that is how it is serialized in JSON.
+        path: str
+
+        # SHA-256 checksum (hex) of the file at `path`.
+        checksum: str
+
+    # Schema version of the patchinfo file format.
+    schema_version: int
+
+    # SHA-256 checksum (hex) of the .patch file.
+    patch_checksum: str
+
+    # The file the patch applies to, paired with its post-patch checksum.
+    # JSON stores this under "appliesTo" as an array, but in practice we only
+    # ever produce and accept a single entry.
+    applies_to: Entry
+
+    # The plaster file that produced this patchinfo (`.yaml`, or the
+    # deprecated `.toml`).
+    plaster: Entry
+
+    @staticmethod
+    def from_json(content: str) -> Patchinfo | None:
+        """Parse the JSON content of a .patchinfo file.
+
+        Returns None if the content is not valid JSON, if any required
+        path/checksum pair is missing, if any field has the wrong type, or
+        if "appliesTo" does not contain exactly one entry.
+        """
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(data, dict):
+            return None
+
+        schema_version = data.get('schemaVersion')
+        if not isinstance(schema_version, int):
+            return None
+        patch_checksum = data.get('patchChecksum')
+        if not isinstance(patch_checksum, str):
+            return None
+
+        applies_to_raw = data.get('appliesTo')
+        if not isinstance(applies_to_raw, list) or len(applies_to_raw) != 1:
+            return None
+        entry = applies_to_raw[0]
+        if not isinstance(entry, dict):
+            return None
+        applies_path = entry.get('path')
+        applies_checksum = entry.get('checksum')
+        if (not isinstance(applies_path, str)
+                or not isinstance(applies_checksum, str)):
+            return None
+
+        plaster_raw = data.get('plaster')
+        if not isinstance(plaster_raw, dict):
+            return None
+        plaster_path = plaster_raw.get('path')
+        plaster_checksum = plaster_raw.get('checksum')
+        if (not isinstance(plaster_path, str)
+                or not isinstance(plaster_checksum, str)):
+            return None
+
+        return Patchinfo(
+            schema_version=schema_version,
+            patch_checksum=patch_checksum,
+            applies_to=Patchinfo.Entry(path=applies_path,
+                                       checksum=applies_checksum),
+            plaster=Patchinfo.Entry(path=plaster_path,
+                                    checksum=plaster_checksum),
+        )
+
+    def to_json(self) -> str:
+        """Serialize this Patchinfo to the .patchinfo JSON representation."""
+        return json.dumps({
+            'schemaVersion': self.schema_version,
+            'patchChecksum': self.patch_checksum,
+            'appliesTo': [{
+                'path': self.applies_to.path,
+                'checksum': self.applies_to.checksum,
+            }],
+            'plaster': {
+                'path': self.plaster.path,
+                'checksum': self.plaster.checksum,
+            },
+        })
+
+
+@dataclass
+class PatchinfoBuilder:
+    """ Builds a .patchinfo file's contents for a given plaster.
+
+    A builder for the patchfile metadata, known as .patchinfo, which is used
+    by our machinery when applying patches to determine if a file needs to be
+    updated or not.
 
     patchinfo files are not committted to the repository. These files have the
     same name as the patch file, but with a .patchinfo extension. They usually
@@ -106,8 +224,9 @@ class PatchInfo:
       ]
     }
 
-    This class extends the contents of patchinfo files to include the details
-    of the plaster file, including path and checksum, under the "plaster" key.
+    This builder extends the contents of patchinfo files to include the
+    details of the plaster file, including path and checksum, under the
+    "plaster" key.
     {
       "schemaVersion": 1,
       "patchChecksum": "78cb50920870416befe307fa4272bb6076e5000ba25dfbcac2cf00",
@@ -123,10 +242,10 @@ class PatchInfo:
       }
     }
 
-    This class is used to generate a patchinfo file, and with its hash data,
-    determine if we should make changes to the source, patch, and patchinfo
-    files. These three files are supposed to be changed only when the resulting
-    new content is different from what is in disk.
+    It produces a patchinfo file and, with its hash data, decides whether
+    changes need to be persisted to the source, patch, and patchinfo files.
+    These three files are supposed to be changed only when the resulting new
+    content is different from what is in disk.
 
     The new additions to .patchinfo are not known yet to `apply_patches`, but
     this may change in the future.
@@ -156,7 +275,7 @@ class PatchInfo:
     patchinfo: PathChecksumPair = field(init=False)
 
     def __post_init__(self):
-        """Initializes the PatchInfo data with checksums and paths."""
+        """Initializes the PatchinfoBuilder data with checksums and paths."""
         self.plaster_contents = self.plaster_file.read_bytes().decode('utf-8')
         self.plaster_checksum = hashlib.sha256(
             self.plaster_contents.encode()).hexdigest()
@@ -215,19 +334,204 @@ class PatchInfo:
 
     def save_patchinfo_if_changed(self):
         """Save the patchinfo metadata JSON only if it has changed."""
-        content = json.dumps({
-            'schemaVersion': 1,
-            'patchChecksum': self.patch.checksum,
-            'appliesTo': [{
-                'path': str(self.source),
-                'checksum': self.source_with_checksum.checksum,
-            }],
-            'plaster': {
-                'path': str(self.plaster_file),
-                'checksum': self.plaster_checksum,
-            },
-        })
+        content = Patchinfo(
+            schema_version=1,
+            patch_checksum=self.patch.checksum,
+            applies_to=Patchinfo.Entry(
+                path=str(self.source),
+                checksum=self.source_with_checksum.checksum,
+            ),
+            plaster=Patchinfo.Entry(
+                path=str(self.plaster_file),
+                checksum=self.plaster_checksum,
+            ),
+        ).to_json()
         self.patchinfo.save_if_changed(content)
+
+
+@dataclass(frozen=True)
+class Substitution:
+    """A single substitution entry parsed from a plaster file.
+
+    `from_yaml` instantiates all the substitutions from a YAML plaster
+    file, and `from_toml` does the same for a (deprecated) TOML plaster
+    file.
+    """
+
+    # Human-readable description, used as a prefix in error messages.
+    description: str
+
+    # Regex pattern passed verbatim to `re.subn`. When the plaster entry
+    # uses the literal `pattern` form, this field holds its `re.escape`'d
+    # form.
+    re_pattern: str
+
+    # Replacement string passed to `re.subn`.
+    replace: str
+
+    # Expected number of substitutions. `0` means "replace all matches"
+    # and disables the count check.
+    expected_count: int = 1
+
+    # Combined bitmask of `re` flags built from the `re_flags` plaster
+    # field.
+    re_flags: int = 0
+
+    # Every key accepted on a substitution mapping. Anything else is
+    # rejected by `_from_dict` so typos surface immediately instead of
+    # being silently ignored.
+    _ALLOWED_KEYS = frozenset(('description', 'pattern', 're_pattern',
+                               'replace', 'count', 're_flags'))
+
+    class _NoDupSafeLoader(yaml.SafeLoader):
+        """`yaml.SafeLoader` that rejects duplicate mapping keys.
+
+        `yaml.safe_load` silently keeps the last value for a duplicate
+        key — which would let a typo'd substitution field shadow the
+        real one and apply the wrong patch. We surface those cases as
+        a `ValueError` instead.
+        """
+
+        @staticmethod
+        def _construct_mapping_strict(loader: yaml.SafeLoader,
+                                      node: yaml.MappingNode) -> dict:
+            """Construct a dict from `node`, raising on duplicate keys."""
+            loader.flatten_mapping(node)
+            seen: set = set()
+            duplicates: list = []
+            for key_node, _ in node.value:
+                key = loader.construct_object(key_node, deep=True)
+                if key in seen:
+                    duplicates.append(key)
+                else:
+                    seen.add(key)
+            if duplicates:
+                raise ValueError('Duplicate key(s) in YAML mapping: ' +
+                                 ', '.join(repr(k) for k in duplicates))
+            return loader.construct_mapping(node, deep=True)
+
+        # Install the strict constructor.
+        yaml_constructors = yaml.SafeLoader.yaml_constructors | {
+            'tag:yaml.org,2002:map': _construct_mapping_strict,
+        }
+
+    # TODO(https://github.com/brave/brave-browser/issues/55738): Remove
+    # `from_toml` (and its callers) once every plaster under `rewrite/`
+    # has been migrated to YAML.
+    @staticmethod
+    def from_toml(contents: str) -> list[Substitution]:
+        """Parse all substitutions from the contents of a TOML plaster file.
+
+        TOML plasters use `[[substitution]]` array-of-tables entries.
+        """
+        data = tomllib.loads(contents)
+        raw = data.get('substitution')
+        if raw is None:
+            raise ValueError(
+                'Plaster TOML is missing required `[[substitution]]` entries')
+        if not isinstance(raw, list):
+            raise ValueError('TOML `substitution` must be an array of tables')
+        if not raw:
+            raise ValueError(
+                'Plaster TOML must declare at least one `[[substitution]]`')
+        return [Substitution._from_dict(entry) for entry in raw]
+
+    @staticmethod
+    def from_yaml(contents: str) -> list[Substitution]:
+        """Parse all substitutions from the contents of a YAML plaster file.
+
+        YAML plasters use a top-level `substitutions:` list whose items
+        have the same field names as their TOML counterparts.
+        """
+        data = yaml.load(contents, Loader=Substitution._NoDupSafeLoader)
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise ValueError('Plaster YAML must be a mapping at the top level')
+        raw = data.get('substitutions')
+        if raw is None:
+            raise ValueError(
+                'Plaster YAML is missing required `substitutions:` key')
+        if not isinstance(raw, list):
+            raise ValueError('YAML `substitutions` must be a list')
+        if not raw:
+            raise ValueError(
+                'Plaster YAML `substitutions:` must contain at least one entry'
+            )
+        return [Substitution._from_dict(entry) for entry in raw]
+
+    @staticmethod
+    def _from_dict(data: object) -> Substitution:
+        """Validate a single substitution mapping and build a Substitution.
+
+        Both `from_toml` and `from_yaml` dispatch through this helper after
+        format-specific parsing produces a Python `dict` for each entry.
+
+        Raises:
+            ValueError: if required fields are missing, a field has the
+                wrong type, or `pattern` and `re_pattern` are both set.
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f'substitution entry must be a mapping, got '
+                             f'{type(data).__name__}')
+
+        unknown = sorted(set(data.keys()) - Substitution._ALLOWED_KEYS)
+        if unknown:
+            raise ValueError('Unrecognised substitution key(s): '
+                             f'{", ".join(repr(k) for k in unknown)}')
+
+        description = data.get('description')
+        if not isinstance(description, str):
+            raise ValueError('No description specified for substitution entry')
+
+        pattern = data.get('pattern')
+        re_pattern = data.get('re_pattern')
+        if pattern is not None and re_pattern is not None:
+            raise ValueError(
+                f'Please specify either pattern or re_pattern, not both '
+                f'(in "{description}")')
+        if pattern is None and re_pattern is None:
+            raise ValueError(f'No pattern specified (in "{description}")')
+        if pattern is not None:
+            if not isinstance(pattern, str):
+                raise ValueError(
+                    f'pattern must be a string (in "{description}")')
+            re_pattern = re.escape(pattern)
+        elif not isinstance(re_pattern, str):
+            raise ValueError(
+                f're_pattern must be a string (in "{description}")')
+
+        replace = data.get('replace')
+        if not isinstance(replace, str):
+            raise ValueError(
+                f'No replace value specified (in "{description}")')
+
+        expected_count = data.get('count', 1)
+        # bool is a subclass of int; reject it explicitly.
+        if (not isinstance(expected_count, int)
+                or isinstance(expected_count, bool)):
+            raise ValueError(f'count must be an integer (in "{description}")')
+
+        flags_raw = data.get('re_flags', [])
+        if not isinstance(flags_raw, list):
+            raise ValueError(
+                f're_flags must be a list of strings (in "{description}")')
+        re_flags = 0
+        for flag in flags_raw:
+            if not isinstance(flag, str):
+                raise ValueError(
+                    f're_flags entries must be strings (in "{description}")')
+            if not (flag.isupper() and hasattr(re, flag)):
+                raise ValueError(f'Invalid re flag specified: {flag}')
+            re_flags |= getattr(re, flag)
+
+        return Substitution(
+            description=description,
+            re_pattern=re_pattern,
+            replace=replace,
+            expected_count=expected_count,
+            re_flags=re_flags,
+        )
 
 
 @dataclass
@@ -250,72 +554,106 @@ class PlasterFile:
 
         for root, _, files in os.walk(PLASTER_FILES_PATH):
             for file in files:
-                if file.endswith('.toml'):
+                if file.endswith(PLASTER_EXTENSIONS):
                     plaster_files.append(cls(Path(root) / file))
 
         return plaster_files
 
+    def needs_apply(self) -> bool:
+        """Returns True if this plaster file needs to be re-applied.
+
+        The basics of this function is that it checks if a given plaster file
+        or its source last change occurred after the last change for
+        `.pathcinfo`. If that's the case, then it means something changed in
+        these files, since the last time the patch was applied with our
+        tooling, which warrent checksum checks for all of them, and at that
+        point if any of the checksum values don't match, we do return True.
+        """
+        source_relative = self.path.relative_to(
+            PLASTER_FILES_PATH).with_suffix('')
+        source_path = Path(repository.chromium.from_brave(source_relative))
+        patch_stem = source_relative.as_posix().replace('/', '-')
+        patch_path = PATCHES_PATH / f'{patch_stem}.patch'
+        patchinfo_path = PATCHES_PATH / f'{patch_stem}.patchinfo'
+
+        # Only the plaster file itself is guaranteed to exist here; any
+        # of the other files may be missing and that is by itself a
+        # reason to re-apply.
+        if (not patchinfo_path.exists() or not patch_path.exists()
+                or not source_path.exists()):
+            return True
+
+        patchinfo_mtime = patchinfo_path.stat().st_mtime
+        plaster_mtime = self.path.stat().st_mtime
+        patch_mtime = patch_path.stat().st_mtime
+        source_mtime = source_path.stat().st_mtime
+
+        if (patchinfo_mtime >= plaster_mtime
+                and patchinfo_mtime >= source_mtime
+                and patchinfo_mtime >= patch_mtime):
+            return False
+
+        try:
+            content = patchinfo_path.read_bytes().decode('utf-8')
+        except OSError:
+            return True
+
+        info = Patchinfo.from_json(content)
+        if info is None:
+            return True
+
+        return (
+            PathChecksumPair(source_path).checksum != info.applies_to.checksum
+            or PathChecksumPair(self.path).checksum != info.plaster.checksum
+            or PathChecksumPair(patch_path).checksum != info.patch_checksum)
+
     def apply(self, dry_run=False):
-        info = PatchInfo(self.path)
-        plaster_file = tomllib.loads(info.plaster_contents)
+        suffix = self.path.suffix.lower()
+
+        # TODO(https://github.com/brave/brave-browser/issues/55738): Remove
+        # this collision check once every plaster under `rewrite/` has
+        # been migrated to YAML — only one extension will exist by then,
+        # so the twin can never appear.
+        if suffix in PLASTER_EXTENSIONS:
+            twin_ext = '.toml' if suffix == '.yaml' else '.yaml'
+            twin = self.path.with_suffix(twin_ext)
+            if twin.exists():
+                raise PlasterError(
+                    'Both `.yaml` and `.toml` plaster files exist for the '
+                    f'same source — remove one:\n  {self.path}\n  {twin}')
+
+        info = PatchinfoBuilder(self.path)
+        if suffix == '.yaml':
+            substitutions = Substitution.from_yaml(info.plaster_contents)
+        elif suffix == '.toml':
+            # TODO(https://github.com/brave/brave-browser/issues/55738):
+            # Drop this entire `elif` branch once every plaster under
+            # `rewrite/` has been migrated to YAML.
+            substitutions = Substitution.from_toml(info.plaster_contents)
+        else:
+            raise ValueError(f'Unsupported plaster file extension: {suffix}')
         contents = repository.chromium.read_file(info.source)
         errors = []
 
         try:
-            for substitution in plaster_file.get('substitution'):
-                description = substitution.get('description')
-                re_pattern = substitution.get('re_pattern')
-                pattern = substitution.get('pattern')
-                replace = substitution.get('replace')
-                expected_count = substitution.get('count', 1)
-                flags = substitution.get('re_flags', [])
-
-                if description is None:
-                    raise ValueError(
-                        f'No description specified in {info.source}')
-
-                if re_pattern is not None and pattern is not None:
-                    raise ValueError(
-                        f'Please specify either pattern or re_pattern '
-                        f' in {info.source}')
-
-                if re_pattern is None:
-                    if pattern is None:
-                        raise ValueError(
-                            f'No pattern specified in {info.source}')
-                    re_pattern = re.escape(pattern)
-
-                if replace is None:
-                    raise ValueError(
-                        f'No replace value specified in {info.source}')
-
-                re_flags = 0
-                for flag in flags:
-                    # Only accept valid re flags
-                    if flag.isupper() and hasattr(re, flag):
-                        re_flags |= getattr(re, flag)
-                    else:
-                        raise ValueError(
-                            f'Invalid re flag specified: {flag} in '
-                            f'{info.source}')
-
+            for substitution in substitutions:
                 contents, num_changes = re.subn(
-                    re_pattern,
-                    replace,
+                    substitution.re_pattern,
+                    substitution.replace,
                     contents,
-                    flags=re_flags,
-                    # We dont't want to explicitly limit the number of matches
+                    flags=substitution.re_flags,
+                    # We don't want to explicitly limit the number of matches
                     # here, we want to control what matches using the match
                     # pattern and then ensure the output matches only what we
-                    # expected
+                    # expected.
                     count=0)
 
-                # count == 0 means "replace all matches" and bypass count
-                # validation
-                if expected_count not in (0, num_changes):
+                # count == 0 means "replace all matches" and bypasses count
+                # validation.
+                if substitution.expected_count not in (0, num_changes):
                     errors.append(
                         f'Unexpected number of matches ({num_changes} vs '
-                        f'{expected_count}) in {self.path}')
+                        f'{substitution.expected_count}) in {self.path}')
 
         except re.error as e:
             errors.append(f'Invalid regex: {e} in {self.path}')
@@ -365,10 +703,14 @@ def get_plaster_files(filepaths: list[str] | None = None) -> list[PlasterFile]:
         filepath = PurePath(filepath).as_posix()
         if filepath.startswith('patches/') and filepath.endswith('.patch'):
             base = filepath[len('patches/'):-len('.patch')]
-            plaster_relative = base.replace('-', '/') + '.toml'
-            plaster_path = f'rewrite/{plaster_relative}'
-            expected_plaster_files.add(plaster_path)
-        elif filepath.startswith('rewrite/') and filepath.endswith('.toml'):
+            stem = f'rewrite/{base.replace("-", "/")}'
+            # The patch file does not tell us which plaster format produced
+            # it, so seed candidates for every supported extension and let
+            # the existence filter below pick the real one.
+            for ext in PLASTER_EXTENSIONS:
+                expected_plaster_files.add(f'{stem}{ext}')
+        elif (filepath.startswith('rewrite/')
+              and filepath.endswith(PLASTER_EXTENSIONS)):
             expected_plaster_files.add(filepath)
         else:
             raise ValueError(f'Unexpected file path: {filepath}')
@@ -389,10 +731,25 @@ def get_plaster_files(filepaths: list[str] | None = None) -> list[PlasterFile]:
 
 def apply(args):
     """Applies plaster files to brave.
+
+    This function default mode, meaning no arguments were provided when calling
+    `plaster apply` will cause a `needs_apply` check to be used before applying
+    a plaster, which is a way to make calling plaster inexpensive.
+
+    When `--all` is passed, this causes all plaster files to be reapplied. When
+    specific plaster file paths or patch file paths are passed, only those are
+    run.
     """
+    filepaths = getattr(args, 'filepaths', None)
+    apply_all = getattr(args, 'all', False)
+    skip_up_to_date = not apply_all and not filepaths
+
     with terminal.with_status('Applying plaster files'):
-        plaster_files = get_plaster_files(getattr(args, 'filepaths', None))
+        plaster_files = get_plaster_files(filepaths)
         for plaster_file in plaster_files:
+            if skip_up_to_date and not plaster_file.needs_apply():
+                logging.debug('Up-to-date, skipping: %s', plaster_file.path)
+                continue
             console.log(f'Applying plaster file: {plaster_file.path}')
             plaster_file.apply()
     return 0
@@ -423,6 +780,11 @@ def main():
     # Add the 'apply' subparser
     apply_parser = subparsers.add_parser(
         'apply', help='Apply all plaster files to the sources in brave-core')
+    apply_parser.add_argument(
+        '--all',
+        action='store_true',
+        help='Re-apply every plaster file unconditionally, even if the '
+        'patchinfo indicates it is already up-to-date.')
     apply_parser.add_argument('filepaths',
                               nargs='*',
                               help='Filepaths to apply')

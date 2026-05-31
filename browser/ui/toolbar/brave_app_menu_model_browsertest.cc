@@ -25,8 +25,6 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_window.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -37,7 +35,7 @@
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
-#include "brave/components/brave_vpn/browser/brave_vpn_service_impl.h"
+#include "brave/components/brave_vpn/browser/brave_vpn_service.h"
 #include "brave/components/brave_vpn/common/features.h"
 #endif
 
@@ -62,7 +60,8 @@ class BraveAppMenuModelBrowserTest : public InProcessBrowserTest {
     auto target_state = purchased
                             ? brave_vpn::mojom::PurchasedState::PURCHASED
                             : brave_vpn::mojom::PurchasedState::NOT_PURCHASED;
-    service->SetPurchasedState(skus::GetDefaultEnvironment(), target_state);
+    service->SetPurchasedStateForTesting(skus::GetDefaultEnvironment(),
+                                         target_state);
     // Call explicitely to update vpn commands status because mojo works in
     // async way.
     static_cast<chrome::BraveBrowserCommandController*>(

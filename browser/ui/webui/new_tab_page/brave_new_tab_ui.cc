@@ -63,7 +63,7 @@
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
-#include "brave/components/brave_vpn/browser/brave_vpn_service_impl.h"
+#include "brave/components/brave_vpn/browser/brave_vpn_service.h"
 #include "brave/components/brave_vpn/common/brave_vpn_utils.h"
 #endif
 
@@ -114,8 +114,8 @@ BraveNewTabUI::BraveNewTabUI(
 
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,
-      "trusted-types static-types lottie-worker-script-loader lit-html-desktop "
-      "default; ");
+      "trusted-types static-types lottie-worker-script-loader "
+      "lit-html-desktop;");
 
   source->AddBoolean("featureCustomBackgroundEnabled",
                      !profile->GetPrefs()->IsManagedPreference(

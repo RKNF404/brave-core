@@ -97,6 +97,7 @@ export class Config {
   useSiso: boolean
   useReclient: boolean
   offline: boolean
+  readonly rbeReadOnly: boolean
   use_libfuzzer: boolean
   androidAabToApk: boolean
   useBraveHermeticToolchain: boolean
@@ -257,6 +258,7 @@ export class Config {
       this.useRemoteExec && !this.useSiso,
     )
     this.offline = envConfig.getBoolean(['offline'], false)
+    this.rbeReadOnly = envConfig.getBoolean(['rbe_readonly'], false)
     this.use_libfuzzer = false
     this.androidAabToApk = false
     this.useBraveHermeticToolchain = envConfig.getBoolean(
@@ -357,14 +359,15 @@ export class Config {
   }
 
   getBraveLogoIconName() {
-    let iconName = 'brave-icon-dev-color.svg'
+    const prefix = this.isBraveOriginBranded ? 'brave-origin' : 'brave-icon'
+    let iconName = `${prefix}-dev-color.svg`
     if (this.isBraveReleaseBuild()) {
       if (this.channel === 'beta') {
-        iconName = 'brave-icon-beta-color.svg'
+        iconName = `${prefix}-beta-color.svg`
       } else if (this.channel === 'nightly') {
-        iconName = 'brave-icon-nightly-color.svg'
+        iconName = `${prefix}-nightly-color.svg`
       } else {
-        iconName = 'brave-icon-release-color.svg'
+        iconName = `${prefix}-release-color.svg`
       }
     }
     return iconName

@@ -17,7 +17,6 @@ import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -53,7 +52,6 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.brave_news.mojom.BraveNewsController;
 import org.chromium.brave_news.mojom.CardType;
-import org.chromium.brave_news.mojom.DisplayAd;
 import org.chromium.brave_news.mojom.Feed;
 import org.chromium.brave_news.mojom.FeedItem;
 import org.chromium.brave_news.mojom.FeedPage;
@@ -71,7 +69,6 @@ import org.chromium.chrome.browser.brave_news.LinearLayoutManagerWrapper;
 import org.chromium.chrome.browser.brave_news.models.FeedItemCard;
 import org.chromium.chrome.browser.brave_news.models.FeedItemsCard;
 import org.chromium.chrome.browser.brave_stats.BraveStatsUtil;
-import org.chromium.chrome.browser.local_database.DatabaseHelper;
 import org.chromium.chrome.browser.ntp_background_images.NTPBackgroundImagesBridge;
 import org.chromium.chrome.browser.ntp_background_images.model.NTPImage;
 import org.chromium.chrome.browser.ntp_background_images.model.SponsoredTab;
@@ -101,8 +98,6 @@ import org.chromium.ui.base.WindowAndroid;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
@@ -113,7 +108,6 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
         implements ConnectionErrorHandler, OnBraveNtpListener {
     private static final String TAG = "BraveNewTabPage";
 
-    private static final int MINIMUM_VISIBLE_HEIGHT_THRESHOLD = 50;
     private static final int HOUR_MS = 3_600_000;
 
     private @Nullable ViewGroup mMvTilesContainerLayout;
@@ -136,8 +130,6 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
     // Whether to show sponsored image on NTP based on experiment variant
     private boolean mShouldShowSponsoredImage;
     private @Nullable NTPBackgroundImagesBridge mNTPBackgroundImagesBridge;
-    private final DatabaseHelper mDatabaseHelper;
-
     private @Nullable LottieAnimationView mBadgeAnimationView;
 
     private @Nullable Tab mTab;
@@ -160,16 +152,8 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
     private @Nullable NTPImage mNtpImageGlobal;
     private @Nullable BraveNewsController mBraveNewsController;
 
-    private long mStartCardViewTime;
-    private long mEndCardViewTime;
-    private @Nullable String mCreativeInstanceId;
-    private @Nullable String mUuid;
-    // @TODO alex make an enum
-    private @Nullable String mCardType;
-    private int mItemPosition;
     private int mPrevVisibleNewsCardPosition = -1;
     private int mNewsSessionCardViews;
-    private @Nullable FeedItemsCard mVisibleCard;
     private String mFeedHash;
     private SharedPreferences.@Nullable OnSharedPreferenceChangeListener mPreferenceListener;
     private boolean mIsTopSitesEnabled;
@@ -184,7 +168,6 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
     public BraveNewTabPageLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        mDatabaseHelper = DatabaseHelper.getInstance();
         // Default to show sponsored image on NTP
         // This will be overridden in onAttachedToWindow if the experiment variant is D
         mShouldShowSponsoredImage = true;
@@ -491,26 +474,6 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
                             }
                             mNewsFeedLastViewTime = nowMillis;
                             if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                                mEndCardViewTime = System.currentTimeMillis();
-                                long timeDiff = mEndCardViewTime - mStartCardViewTime;
-                                // if viewed for more than 100 ms send the event
-                                if (timeDiff > BraveNewsUtils.BRAVE_NEWS_VIEWD_CARD_TIME) {
-                                    if (mVisibleCard != null && mCardType != null) {
-                                        // send viewed cards events
-                                        if (mCardType.equals("promo")
-                                                && !mCardType.equals("displayad")) {
-                                            if (!TextUtils.isEmpty(mUuid)
-                                                    && !TextUtils.isEmpty(mCreativeInstanceId)) {
-                                                mVisibleCard.setViewStatSent(true);
-                                                if (mBraveNewsController != null) {
-                                                    mBraveNewsController.onPromotedItemView(
-                                                            mUuid, mCreativeInstanceId);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
                                 int lastVisibleItemPosition =
                                         linearLayoutManager.findLastCompletelyVisibleItemPosition();
                                 if (mNewsItemsFeedCard != null
@@ -552,10 +515,6 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
 
                             if (newState == RecyclerView.SCROLL_STATE_IDLE
                                     || newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                                mStartCardViewTime = System.currentTimeMillis();
-                                int lastVisibleItemPosition =
-                                        linearLayoutManager.findLastVisibleItemPosition();
-
                                 mFeedHash =
                                         ChromeSharedPreferences.getInstance()
                                                 .readString(
@@ -574,142 +533,7 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
                                                 }
                                             });
                                 }
-
-                                Rect rvRect = new Rect();
-                                assertNonNull(mRecyclerView);
-                                mRecyclerView.getGlobalVisibleRect(rvRect);
-
-                                int visiblePercentage = 0;
-                                for (int viewPosition = firstVisibleItemPosition;
-                                        viewPosition <= lastVisibleItemPosition;
-                                        viewPosition++) {
-                                    Rect rowRect = new Rect();
-                                    if (linearLayoutManager.findViewByPosition(viewPosition)
-                                            != null) {
-                                        linearLayoutManager
-                                                .findViewByPosition(viewPosition)
-                                                .getGlobalVisibleRect(rowRect);
-
-                                        if (linearLayoutManager
-                                                        .findViewByPosition(viewPosition)
-                                                        .getHeight()
-                                                > 0) {
-                                            if (rowRect.bottom >= rvRect.bottom) {
-                                                int visibleHeightFirst =
-                                                        rvRect.bottom - rowRect.top;
-                                                visiblePercentage =
-                                                        (visibleHeightFirst * 100)
-                                                                / linearLayoutManager
-                                                                        .findViewByPosition(
-                                                                                viewPosition)
-                                                                        .getHeight();
-                                            } else {
-                                                int visibleHeightFirst =
-                                                        rowRect.bottom - rvRect.top;
-                                                visiblePercentage =
-                                                        (visibleHeightFirst * 100)
-                                                                / linearLayoutManager
-                                                                        .findViewByPosition(
-                                                                                viewPosition)
-                                                                        .getHeight();
-                                            }
-                                        }
-
-                                        if (visiblePercentage > 100) {
-                                            visiblePercentage = 100;
-                                        }
-                                    }
-
-                                    final int visiblePercentageFinal = visiblePercentage;
-
-                                    int newsFeedViewPosition = viewPosition - newsFeedPosition;
-                                    if (newsFeedViewPosition >= 0
-                                            && newsFeedViewPosition < mNewsItemsFeedCard.size()) {
-                                        if (visiblePercentageFinal
-                                                >= MINIMUM_VISIBLE_HEIGHT_THRESHOLD) {
-                                            mVisibleCard =
-                                                    mNewsItemsFeedCard.get(newsFeedViewPosition);
-                                            // get params for view PROMOTED_ARTICLE
-                                            if (mVisibleCard.getCardType()
-                                                    == CardType.PROMOTED_ARTICLE) {
-                                                mItemPosition = newsFeedViewPosition;
-                                                mCreativeInstanceId =
-                                                        BraveNewsUtils.getPromotionIdItem(
-                                                                mVisibleCard);
-                                                mUuid = mVisibleCard.getUuid();
-                                                mCardType = "promo";
-                                            }
-
-                                            // get params for view DISPLAY_AD
-                                            if (mVisibleCard.getCardType() == CardType.DISPLAY_AD) {
-                                                mItemPosition = newsFeedViewPosition;
-                                                DisplayAd currentDisplayAd =
-                                                        BraveNewsUtils.getFromDisplayAdsMap(
-                                                                newsFeedViewPosition);
-                                                if (currentDisplayAd != null) {
-                                                    mCreativeInstanceId =
-                                                            currentDisplayAd != null
-                                                                    ? currentDisplayAd
-                                                                            .creativeInstanceId
-                                                                    : "";
-                                                    mUuid =
-                                                            currentDisplayAd != null
-                                                                    ? currentDisplayAd.uuid
-                                                                    : "";
-                                                    mCardType = "displayad";
-
-                                                    // if viewed for more than 100 ms and is more
-                                                    // than 50%
-                                                    // visible send the event
-                                                    final int tabIdForLambda = tabId;
-                                                    Timer timer = new Timer();
-                                                    timer.schedule(
-                                                            new TimerTask() {
-                                                                @Override
-                                                                public void run() {
-                                                                    new Thread() {
-                                                                        @Override
-                                                                        public void run() {
-                                                                            if (!mDatabaseHelper
-                                                                                            .isDisplayAdAlreadyAdded(
-                                                                                                    mUuid)
-                                                                                    && visiblePercentageFinal
-                                                                                            > MINIMUM_VISIBLE_HEIGHT_THRESHOLD
-                                                                                    && mBraveNewsController
-                                                                                            != null
-                                                                                    && mVisibleCard
-                                                                                            != null) {
-                                                                                mVisibleCard
-                                                                                        .setViewStatSent(
-                                                                                                true);
-                                                                                mBraveNewsController
-                                                                                        .onDisplayAdView(
-                                                                                                mUuid,
-                                                                                                mCreativeInstanceId);
-
-                                                                                insertAd(
-                                                                                        tabIdForLambda);
-                                                                            }
-                                                                        }
-                                                                    }.start();
-                                                                }
-                                                            },
-                                                            BraveNewsUtils
-                                                                    .BRAVE_NEWS_VIEWD_CARD_TIME);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
                             }
-                        }
-                    }
-
-                    private void insertAd(int tabId) {
-                        DisplayAd currentDisplayAd =
-                                BraveNewsUtils.getFromDisplayAdsMap(mItemPosition);
-                        if (tabId != -1) {
-                            mDatabaseHelper.insertAd(currentDisplayAd, mItemPosition, tabId);
                         }
                     }
 
@@ -1023,7 +847,6 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
                         });
 
         mNewsItemsFeedCard.clear();
-        BraveNewsUtils.initCurrentAds();
         ChromeSharedPreferences.getInstance()
                 .writeString(BravePreferenceKeys.BRAVE_NEWS_FEED_HASH, feed.hash);
 
@@ -1045,26 +868,11 @@ public class BraveNewTabPageLayout extends NewTabPageLayout
             mNewsItemsFeedCard.add(featuredItemsCard);
         }
 
-        if (mNewsItemsFeedCard.size() > 0 || (feed.pages != null && feed.pages.length > 0)) {
-            //  adds empty card to trigger Display ad call for the second card, when the
-            //  user starts scrolling
-            FeedItemsCard displayAdCard = new FeedItemsCard();
-            DisplayAd displayAd = new DisplayAd();
-            displayAdCard.setCardType(CardType.DISPLAY_AD);
-            displayAdCard.setDisplayAd(displayAd);
-            displayAdCard.setUuid(UUID.randomUUID().toString());
-            mNewsItemsFeedCard.add(displayAdCard);
-        }
-
         // start page loop
         for (FeedPage page : feed.pages) {
             for (FeedPageItem cardData : page.items) {
-                // if for any reason we get an empty object, unless it's a
-                // DISPLAY_AD we skip it
-                if (cardData.cardType != CardType.DISPLAY_AD) {
-                    if (cardData.items.length == 0) {
-                        continue;
-                    }
+                if (cardData.items.length == 0) {
+                    continue;
                 }
 
                 FeedItemsCard feedItemsCard = new FeedItemsCard();

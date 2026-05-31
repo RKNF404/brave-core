@@ -94,7 +94,7 @@
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
 #include "brave/browser/brave_vpn/vpn_utils.h"
-#include "brave/components/brave_vpn/browser/brave_vpn_service_impl.h"
+#include "brave/components/brave_vpn/browser/brave_vpn_service.h"
 #if BUILDFLAG(IS_WIN)
 #include "brave/browser/ui/webui/settings/brave_vpn/brave_vpn_handler.h"
 #endif
@@ -114,9 +114,9 @@
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "brave/browser/extensions/manifest_v2/features.h"
 #include "brave/browser/ui/webui/settings/brave_extensions_manifest_v2_handler.h"
 #include "brave/browser/ui/webui/settings/brave_tor_snowflake_extension_handler.h"
+#include "extensions/common/extension_features.h"
 #endif
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
@@ -134,6 +134,7 @@
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
 #include "brave/browser/email_aliases/email_aliases_service_factory.h"
 #include "brave/components/email_aliases/email_aliases.mojom.h"
+#include "brave/components/email_aliases/email_aliases_service.h"
 #include "brave/components/email_aliases/features.h"
 #endif
 
@@ -292,8 +293,9 @@ void BraveSettingsUI::AddResources(content::WebUIDataSource* html_source,
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
   html_source->AddBoolean(
       "isEmailAliasesEnabled",
-      email_aliases::features::IsEmailAliasesEnabledForProfile(
-          CHECK_DEREF(profile->GetPrefs())));
+      email_aliases::features::IsEmailAliasesEnabled() &&
+          email_aliases::EmailAliasesServiceFactory::GetServiceForProfile(
+              profile));
 #endif
 #if BUILDFLAG(ENABLE_CONTAINERS)
   html_source->AddBoolean(
@@ -411,6 +413,16 @@ void BraveSettingsUI::BindInterface(
   auto* profile = Profile::FromWebUI(web_ui());
   email_aliases::EmailAliasesServiceFactory::BindForProfile(
       profile, std::move(receiver));
+}
+
+void BraveSettingsUI::BindInterface(
+    mojo::PendingReceiver<email_aliases::mojom::EmailAliasesMetrics> receiver) {
+  auto* profile = Profile::FromWebUI(web_ui());
+  auto* service =
+      email_aliases::EmailAliasesServiceFactory::GetServiceForProfile(profile);
+  if (service) {
+    service->metrics().BindInterface(std::move(receiver));
+  }
 }
 #endif  // BUILDFLAG(ENABLE_EMAIL_ALIASES)
 

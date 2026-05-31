@@ -50,6 +50,7 @@ class FakeNavButtonProvider : public ui::NavButtonProvider {
   }
   gfx::Insets GetTopAreaSpacing() const override { return {}; }
   int GetInterNavButtonSpacing() const override { return 0; }
+  int GetNavButtonHeight(bool maximized) const override { return 0; }
 };
 
 // WindowFrameProvider that records the top_area_height argument of the most
@@ -73,6 +74,11 @@ class FakeWindowFrameProvider : public ui::WindowFrameProvider {
   }
   void reset() { last_top_area_height_.reset(); }
 
+  // ui::WindowFrameProvider overrides:
+  int GetTopAreaMinHeightDip() override { return 24; }
+  gfx::Insets GetTopAreaPaddingDip() override { return gfx::Insets::VH(6, 0); }
+  gfx::Insets GetTopAreaBorderDip() override { return gfx::Insets(); }
+
  private:
   std::optional<int> last_top_area_height_;
 };
@@ -83,10 +89,14 @@ class FakeWindowFrameProvider : public ui::WindowFrameProvider {
 // triggered by UseSystemTheme() can build a valid ColorProviderKey.
 class FakeLinuxUiWithNavButtons : public ui::FakeLinuxUi {
  public:
-  std::unique_ptr<ui::NavButtonProvider> CreateNavButtonProvider() override {
+  std::unique_ptr<ui::NavButtonProvider> CreateNavButtonProvider(
+      ui::FrameType type) override {
     return std::make_unique<FakeNavButtonProvider>();
   }
-  ui::WindowFrameProvider* GetWindowFrameProvider(bool, bool, bool) override {
+  ui::WindowFrameProvider* GetWindowFrameProvider(ui::FrameType,
+                                                  bool,
+                                                  bool,
+                                                  bool) override {
     return &frame_provider_;
   }
   ui::NativeTheme* GetNativeTheme() const override {
@@ -259,10 +269,10 @@ class BraveBrowserFrameViewTabStripHeightTest
 // Verifies the horizontal tab strip height equals kTabStripHeight for both
 // default and compact modes when BraveOpaqueBrowserFrameView is active.
 //
-// Regression: PR #35778 substituted GetHorizontalTabControlsDelta() (negative)
+// Regression: PR #35778 substituted GetHorizontalTabButtonYOffset() (negative)
 // for kTabstripToolbarOverlap (positive) in GetTopAreaHeight(), adding extra
-// pixels to the tab strip: 41→45 px (default, delta=-4) and 38→43 px
-// (compact, delta=-5). The fix restores
+// pixels to the tab strip: 41→45 px (default, offset=-4) and 38→43 px
+// (compact, offset=-5). The fix restores
 // OpaqueBrowserFrameView::GetTopAreaHeight().
 IN_PROC_BROWSER_TEST_P(BraveBrowserFrameViewTabStripHeightTest,
                        TabStripHeightMatchesLayoutConstant) {

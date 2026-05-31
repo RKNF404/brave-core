@@ -49,6 +49,9 @@ const base::FeatureParam<bool> kAutomaticModelSupportsTools{
 const base::FeatureParam<bool> kShouldIndentPageContentBlocks{
     &kAIChat, "should_indent_page_content_blocks", true};
 
+// Enable remote model fetching from server endpoint
+BASE_FEATURE(kAIChatRemoteModelsConfig, base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool IsAIChatEnabled() {
   return base::FeatureList::IsEnabled(features::kAIChat);
 }
@@ -147,6 +150,9 @@ BASE_FEATURE(kNEARModels,
              "AIChatNEARModels",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<bool> kNEARModelsEncryption{&kNEARModels, "encryption",
+                                                     false};
+
 bool IsNEARModelsEnabled() {
   return base::FeatureList::IsEnabled(features::kNEARModels);
 }
@@ -161,22 +167,18 @@ bool IsBraveSummaryModelEnabled() {
 
 BASE_FEATURE(kRichSearchWidgets, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAIChatConversationAPIV2, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsAIChatConversationAPIV2Enabled() {
-  return base::FeatureList::IsEnabled(features::kAIChatConversationAPIV2);
-}
-
 const base::FeatureParam<std::string> kRichSearchWidgetsOrigin{
     &kRichSearchWidgets, "rich_search_widgets_origin",
     "https://prod.browser-ai-includes.s.brave.app"};
 
 BASE_FEATURE(kCodeExecutionTool,
              "AIChatCodeExecutionTool",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kCodeExecutionToolCharts{&kCodeExecutionTool,
                                                         "charts", false};
+const base::FeatureParam<size_t> kMaxConsoleLogOutputSize{
+    &kCodeExecutionTool, "max_console_log_output_size", 50000};
 
 bool IsCodeExecutionToolEnabled() {
   return base::FeatureList::IsEnabled(features::kCodeExecutionTool);

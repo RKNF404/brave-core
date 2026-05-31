@@ -62,6 +62,11 @@ extension BrowserViewController: TabManagerDelegate {
       guard let self, !isPrivate else { return [] }
       return tabManager.allTabs.filter { !$0.isPrivate }
     }
+    tab.aiChatWebUIHelper?.webDelegateForTab = { detachedTab in
+      /// If AIChat created a hidden tab for history or bookmarks, we need to
+      /// use it's `AIChatWebDelegate` to fetch content from.
+      detachedTab.leoTabHelper
+    }
     tab.walletWebUIHelper = .init(
       tab: tab,
       showApprovePanelUIHandler: { [weak self] tab in
@@ -120,6 +125,20 @@ extension BrowserViewController: TabManagerDelegate {
         }
       )
       show(toast: searchResultClickedInfobar, duration: nil)
+    }
+    tab.braveSearch?.presentInQuickView = { [weak self] url, tab in
+      guard let self else { return }
+      let quickViewController = QuickViewController(
+        url: url,
+        profile: tab.profile
+      ) { [weak self] request in
+        guard let self else { return }
+        self.tabManager.addTabAndSelect(
+          request,
+          isPrivate: self.privateBrowsingManager.isPrivateBrowsing
+        )
+      }
+      self.present(quickViewController, animated: true)
     }
   }
 
@@ -369,8 +388,11 @@ extension BrowserViewController: TabManagerDelegate {
       searchResultAdClickedInfoBar = nil
     }
 
-    newTabTakeoverInfoBar?.dismiss(false)
-    newTabTakeoverInfoBar = nil
+    let isNewTabURL = tabManager.selectedTab?.visibleURL?.isNewTabURL
+    if isNewTabURL != true {
+      newTabTakeoverInfoBar?.dismiss(false)
+      newTabTakeoverInfoBar = nil
+    }
   }
 
   func tabManagerDidRemoveAllTabs(_ tabManager: TabManager, toast: ButtonToast?) {

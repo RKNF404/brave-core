@@ -21,6 +21,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/test/values_test_util.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -36,6 +37,7 @@
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
 #include "brave/components/brave_wallet/browser/json_rpc_service.h"
 #include "brave/components/brave_wallet/browser/keyring_service.h"
+#include "brave/components/brave_wallet/browser/polkadot/polkadot_test_utils.h"
 #include "brave/components/brave_wallet/browser/pref_names.h"
 #include "brave/components/brave_wallet/browser/test_utils.h"
 #include "brave/components/brave_wallet/browser/tx_service.h"
@@ -2448,94 +2450,6 @@ TEST_F(BraveWalletServiceUnitTest, Reset) {
 #endif
 }
 
-TEST_F(BraveWalletServiceUnitTest, NewUserReturningMetric) {
-#if BUILDFLAG(IS_MAC)
-  // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
-  // unexpected test timeout failures are resolved.
-  if (base::mac::MacOSMajorVersion() == 26) {
-    GTEST_SKIP() << "Disabled on macOS Tahoe.";
-  }
-#endif
-  histogram_tester_->ExpectBucketCount(
-      kBraveWalletNewUserReturningHistogramName, 0, 1);
-  GetLocalState()->SetTime(kBraveWalletLastUnlockTime, base::Time::Now());
-
-  task_environment_.FastForwardBy(base::Days(1));
-  histogram_tester_->ExpectBucketCount(
-      kBraveWalletNewUserReturningHistogramName, 2, 2);
-
-  GetLocalState()->SetTime(kBraveWalletLastUnlockTime, base::Time::Now());
-  task_environment_.RunUntilIdle();
-
-  histogram_tester_->ExpectBucketCount(
-      kBraveWalletNewUserReturningHistogramName, 3, 1);
-
-  task_environment_.FastForwardBy(base::Days(6));
-  histogram_tester_->ExpectBucketCount(
-      kBraveWalletNewUserReturningHistogramName, 1, 1);
-}
-
-TEST_F(BraveWalletServiceUnitTest, NewUserReturningMetricMigration) {
-#if BUILDFLAG(IS_MAC)
-  // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
-  // unexpected test timeout failures are resolved.
-  if (base::mac::MacOSMajorVersion() == 26) {
-    GTEST_SKIP() << "Disabled on macOS Tahoe.";
-  }
-#endif
-  GetLocalState()->SetTime(kBraveWalletLastUnlockTime, base::Time::Now());
-
-  task_environment_.RunUntilIdle();
-  GetLocalState()->SetTime(kBraveWalletP3AFirstUnlockTime, base::Time());
-  GetLocalState()->SetTime(kBraveWalletP3ALastUnlockTime, base::Time());
-
-  task_environment_.FastForwardBy(base::Hours(30));
-  // Existing unlock timestamp should not trigger "new" value for new user
-  // metric
-  histogram_tester_->ExpectBucketCount(
-      kBraveWalletNewUserReturningHistogramName, 1, 1);
-
-  task_environment_.FastForwardBy(base::Hours(30));
-  histogram_tester_->ExpectBucketCount(
-      kBraveWalletNewUserReturningHistogramName, 1, 2);
-}
-
-TEST_F(BraveWalletServiceUnitTest, LastUsageTimeMetric) {
-#if BUILDFLAG(IS_MAC)
-  // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
-  // unexpected test timeout failures are resolved.
-  if (base::mac::MacOSMajorVersion() == 26) {
-    GTEST_SKIP() << "Disabled on macOS Tahoe.";
-  }
-#endif
-  histogram_tester_->ExpectTotalCount(kBraveWalletLastUsageTimeHistogramName,
-                                      0);
-
-  GetLocalState()->SetTime(kBraveWalletLastUnlockTime, base::Time::Now());
-  task_environment_.RunUntilIdle();
-
-  histogram_tester_->ExpectUniqueSample(kBraveWalletLastUsageTimeHistogramName,
-                                        1, 1);
-
-  task_environment_.FastForwardBy(base::Days(7));
-
-  histogram_tester_->ExpectBucketCount(kBraveWalletLastUsageTimeHistogramName,
-                                       2, 1);
-
-  task_environment_.FastForwardBy(base::Days(7));
-
-  histogram_tester_->ExpectBucketCount(kBraveWalletLastUsageTimeHistogramName,
-                                       3, 1);
-  histogram_tester_->ExpectBucketCount(kBraveWalletLastUsageTimeHistogramName,
-                                       1, 7);
-
-  GetLocalState()->SetTime(kBraveWalletLastUnlockTime, base::Time::Now());
-  task_environment_.RunUntilIdle();
-
-  histogram_tester_->ExpectBucketCount(kBraveWalletLastUsageTimeHistogramName,
-                                       1, 8);
-}
-
 TEST_F(BraveWalletServiceUnitTest, GetNftDiscoveryEnabled) {
   // Default should be off
   GetNftDiscoveryEnabled(false);
@@ -2583,39 +2497,6 @@ TEST_F(BraveWalletServiceUnitTest, SetPrivateWindowsEnabled) {
   service_->SetPrivateWindowsEnabled(false);
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(GetPrefs()->GetBoolean(kBraveWalletPrivateWindowsEnabled));
-}
-
-TEST_F(BraveWalletServiceUnitTest, RecordGeneralUsageMetrics) {
-#if BUILDFLAG(IS_MAC)
-  // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
-  // unexpected test timeout failures are resolved.
-  if (base::mac::MacOSMajorVersion() == 26) {
-    GTEST_SKIP() << "Disabled on macOS Tahoe.";
-  }
-#endif
-  histogram_tester_->ExpectTotalCount(kBraveWalletMonthlyHistogramName, 0);
-  histogram_tester_->ExpectTotalCount(kBraveWalletWeeklyHistogramName, 0);
-  histogram_tester_->ExpectTotalCount(kBraveWalletDailyHistogramName, 0);
-
-  GetLocalState()->SetTime(kBraveWalletLastUnlockTime, base::Time::Now());
-  task_environment_.RunUntilIdle();
-
-  histogram_tester_->ExpectUniqueSample(kBraveWalletMonthlyHistogramName, 1, 1);
-  histogram_tester_->ExpectUniqueSample(kBraveWalletWeeklyHistogramName, 1, 1);
-  histogram_tester_->ExpectUniqueSample(kBraveWalletDailyHistogramName, 1, 1);
-
-  task_environment_.FastForwardBy(base::Days(7));
-
-  histogram_tester_->ExpectUniqueSample(kBraveWalletMonthlyHistogramName, 1, 1);
-  histogram_tester_->ExpectUniqueSample(kBraveWalletWeeklyHistogramName, 1, 1);
-  histogram_tester_->ExpectUniqueSample(kBraveWalletDailyHistogramName, 1, 1);
-
-  GetLocalState()->SetTime(kBraveWalletLastUnlockTime, base::Time::Now());
-  task_environment_.RunUntilIdle();
-
-  histogram_tester_->ExpectUniqueSample(kBraveWalletMonthlyHistogramName, 1, 2);
-  histogram_tester_->ExpectUniqueSample(kBraveWalletWeeklyHistogramName, 1, 2);
-  histogram_tester_->ExpectUniqueSample(kBraveWalletDailyHistogramName, 1, 2);
 }
 
 TEST_F(BraveWalletServiceUnitTest, GetBalanceScannerSupportedChains) {
@@ -2804,16 +2685,14 @@ TEST_F(BraveWalletServiceUnitTest, ConvertFEVMToFVMAddress) {
   }
 }
 
-TEST_F(BraveWalletServiceUnitTest, GenerateReceiveAddress_EthFilSolDot) {
+TEST_F(BraveWalletServiceUnitTest, GenerateReceiveAddress_EthFilSol) {
   SetupWallet();
 
   std::vector<mojom::AccountInfoPtr> accounts;
   accounts.push_back(GetAccountUtils().EnsureEthAccount(0));
   accounts.push_back(GetAccountUtils().EnsureSolAccount(0));
   accounts.push_back(GetAccountUtils().EnsureFilAccount(0));
-  accounts.push_back(GetAccountUtils().EnsureDotAccount(0));
   accounts.push_back(GetAccountUtils().EnsureFilTestAccount(0));
-  accounts.push_back(GetAccountUtils().EnsureDotTestAccount(0));
 
   for (auto& acc : accounts) {
     base::MockCallback<BraveWalletService::GenerateReceiveAddressCallback>
@@ -2825,6 +2704,50 @@ TEST_F(BraveWalletServiceUnitTest, GenerateReceiveAddress_EthFilSolDot) {
     service_->GenerateReceiveAddress(acc->account_id.Clone(), callback.Get());
     service_->GenerateReceiveAddress(acc->account_id.Clone(), callback.Get());
     testing::Mock::VerifyAndClearExpectations(&callback);
+  }
+}
+
+TEST_F(BraveWalletServiceUnitTest, GenerateReceiveAddress_Dot) {
+  SetupWallet();
+
+  auto dot_mainnet_account = GetAccountUtils().EnsureDotAccount(0);
+  auto dot_testnet_account = GetAccountUtils().EnsureDotTestAccount(0);
+
+  auto polkadot_mainnet_url =
+      network_manager_
+          ->GetKnownChain(mojom::kPolkadotMainnet, mojom::CoinType::DOT)
+          ->rpc_endpoints.front();
+  auto polkadot_testnet_url =
+      network_manager_
+          ->GetKnownChain(mojom::kPolkadotTestnet, mojom::CoinType::DOT)
+          ->rpc_endpoints.front();
+
+  SetInterceptors(
+      {{polkadot_mainnet_url,
+        ReadMetadataFixtureJson("state_getMetadata_polkadot.json")},
+       {polkadot_testnet_url,
+        ReadMetadataFixtureJson("state_getMetadata_westend.json")}});
+
+  for (auto* acc : {dot_mainnet_account.get(), dot_testnet_account.get()}) {
+    auto expected_address = std::optional<std::string>(acc->address);
+
+    base::test::TestFuture<const std::optional<std::string>&,
+                           const std::optional<std::string>&>
+        future1;
+    service_->GenerateReceiveAddress(acc->account_id.Clone(),
+                                     future1.GetCallback());
+    auto [address1, error1] = future1.Take();
+    EXPECT_EQ(address1, expected_address);
+    EXPECT_FALSE(error1.has_value());
+
+    base::test::TestFuture<const std::optional<std::string>&,
+                           const std::optional<std::string>&>
+        future2;
+    service_->GenerateReceiveAddress(acc->account_id.Clone(),
+                                     future2.GetCallback());
+    auto [address2, error2] = future2.Take();
+    EXPECT_EQ(address2, expected_address);
+    EXPECT_FALSE(error2.has_value());
   }
 }
 

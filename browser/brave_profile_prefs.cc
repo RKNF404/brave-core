@@ -29,6 +29,7 @@
 #include "brave/components/brave_search/browser/brave_search_default_host.h"
 #include "brave/components/brave_search/common/brave_search_utils.h"
 #include "brave/components/brave_search_conversion/utils.h"
+#include "brave/components/brave_shields/content/browser/ad_block_pref_service.h"
 #include "brave/components/brave_shields/content/browser/brave_farbling_service.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_p3a.h"
 #include "brave/components/brave_shields/core/common/pref_names.h"
@@ -56,10 +57,10 @@
 #include "brave/components/web_discovery/buildflags/buildflags.h"
 #include "brave/components/webcompat_reporter/common/pref_names.h"
 #include "build/build_config.h"
+#include "chrome/browser/new_tab_page/ntp_pref_names.h"
 #include "chrome/browser/prefetch/pref_names.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/preloading/preloading_prefs.h"
-#include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/embedder_support/pref_names.h"
@@ -221,6 +222,10 @@ void OverrideDefaultPrefValues(user_prefs::PrefRegistrySyncable* registry) {
   registry->SetDefaultPrefValue(prefs::kSafeBrowsingScoutReportingEnabled,
                                 base::Value(false));
 
+  // Disable safe browsing deep scanning per security/privacy team.
+  registry->SetDefaultPrefValue(prefs::kSafeBrowsingDeepScanningEnabled,
+                                base::Value(false));
+
 #if defined(TOOLKIT_VIEWS)
   // Disable side search by default.
   // Copied from side_search_prefs.cc because it's not exported.
@@ -266,6 +271,12 @@ void OverrideDefaultPrefValues(user_prefs::PrefRegistrySyncable* registry) {
   // Disabled due to crash with tab group dragging.
   // TODO(https://github.com/brave/brave-browser/issues/49752): Re-enable.
   registry->SetDefaultPrefValue(prefs::kSplitViewDragAndDropEnabled,
+                                base::Value(false));
+
+  // Disables WebRTC logs collection.
+  registry->SetDefaultPrefValue(prefs::kWebRtcEventLogCollectionAllowed,
+                                base::Value(false));
+  registry->SetDefaultPrefValue(prefs::kWebRtcTextLogCollectionAllowed,
                                 base::Value(false));
 }
 
@@ -350,6 +361,7 @@ void RegisterProfilePrefsForMigration(
 #endif
 
   brave_shields::RegisterShieldsP3AProfilePrefsForMigration(registry);
+  brave_shields::AdBlockPrefService::RegisterProfilePrefsForMigration(registry);
 
   // Added 2024-05
   ipfs::RegisterDeprecatedIpfsPrefs(registry);
@@ -430,12 +442,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       query_filter::kTrackingQueryParametersFilteringEnabled, true);
   registry->RegisterBooleanPref(
       global_privacy_control::kGlobalPrivacyControlEnabled, true);
-  registry->RegisterBooleanPref(brave_shields::prefs::kFBEmbedControlType,
-                                true);
-  registry->RegisterBooleanPref(brave_shields::prefs::kTwitterEmbedControlType,
-                                true);
-  registry->RegisterBooleanPref(brave_shields::prefs::kLinkedInEmbedControlType,
-                                false);
   registry->RegisterBooleanPref(brave_shields::prefs::kAdBlockDeveloperMode,
                                 false);
   registry->RegisterIntegerPref(brave_shields::prefs::kShieldsDisabledCount, 0);

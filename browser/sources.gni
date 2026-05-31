@@ -355,8 +355,10 @@ if (enable_brave_wallet) {
     "//brave/components/decentralized_dns/core",
   ]
   if (!is_android) {
-    brave_chrome_browser_deps +=
-        [ "//brave/browser/brave_wallet/notifications" ]
+    brave_chrome_browser_deps += [
+      "//brave/browser/brave_wallet/notifications",
+      "//brave/browser/ui/webui/brave_wallet/wallet_panel",
+    ]
   }
 }
 
@@ -399,14 +401,6 @@ if (!is_android) {
     "feed/feed_service_factory.h",
     "feed/rss_links_fetcher.cc",
     "feed/rss_links_fetcher.h",
-    "feed/web_feed_page_information_fetcher.cc",
-    "feed/web_feed_page_information_fetcher.h",
-    "feed/web_feed_tab_helper.cc",
-    "feed/web_feed_tab_helper.h",
-    "feed/web_feed_ui_util.cc",
-    "feed/web_feed_ui_util.h",
-    "feed/web_feed_util.cc",
-    "feed/web_feed_util.h",
   ]
 
   brave_chrome_browser_deps += [
@@ -415,6 +409,8 @@ if (!is_android) {
     "//brave/browser/ui/webui/brave_new_tab_page_refresh",
     "//brave/browser/ui/webui/brave_new_tab_page_refresh:mojom",
     "//brave/browser/ui/webui/brave_welcome_page",
+    "//brave/browser/workspaces",
+    "//brave/browser/workspaces:impl",
     "//brave/ui/webui/brave_color_change_listener",
     "//chrome/browser/regional_capabilities",
     "//chrome/browser/ui/thumbnails",
@@ -550,13 +546,16 @@ if (enable_web_discovery_native) {
 if (enable_brave_vpn) {
   brave_chrome_browser_deps += [
     "//brave/components/brave_vpn/browser",
-    "//brave/components/brave_vpn/browser/connection",
     "//brave/components/brave_vpn/browser/connection:api",
     "//brave/components/brave_vpn/common",
   ]
+  if (enable_brave_vpn_v1) {
+    brave_chrome_browser_deps +=
+        [ "//brave/components/brave_vpn/browser/connection" ]
+  }
 }
 
-if (enable_brave_vpn2_deps) {
+if (enable_brave_vpn_v2) {
   brave_chrome_browser_deps += [ "//brave/third_party/boringtun" ]
 }
 
@@ -646,6 +645,7 @@ if (enable_extensions) {
     "//chrome/browser/extensions",
     "//extensions/browser",
     "//extensions/common:common_constants",
+    "//extensions/common:extension_features",
   ]
 }
 
@@ -713,6 +713,7 @@ brave_chrome_browser_public_deps = [
   "//brave/browser/resources/bookmark_icon:bookmark_icon_resources",
   "//brave/common/importer:interfaces",
   "//brave/components/brave_sync:constants",
+  "//brave/components/containers/buildflags",
   "//brave/components/psst/buildflags",
   "//brave/components/v8/buildflags",
   "//brave/components/variations",
@@ -807,11 +808,29 @@ if (enable_brave_ai_chat_agent_profile) {
       [ "//brave/browser/ai_chat:ai_chat_agent_profile_impl" ]
 }
 
+if (enable_ai_chat_tab_management_tool) {
+  brave_chrome_browser_deps +=
+      [ "//brave/browser/ai_chat:ai_chat_tab_management_tool_impl" ]
+  brave_chrome_browser_allow_circular_includes_from +=
+      [ "//brave/browser/ai_chat:ai_chat_tab_management_tool_impl" ]
+}
+
 if (enable_brave_ads) {
   brave_chrome_browser_allow_circular_includes_from += [
     "//brave/browser/brave_ads:impl",
     "//brave/browser/brave_ads/creatives/search_result_ad",
   ]
+}
+
+# `rewards_service_factory.cc` includes `chrome/browser/policy/
+# profile_policy_connector.h`, which lives in the `//chrome/browser:browser`
+# monolith. Since `:browser` already depends on `:brave_rewards_impl` (added
+# above), the include can only resolve via a circular-include allowance.
+# Drop this entry once the header is componentized upstream
+# (crbug.com/353332589).
+if (enable_brave_rewards) {
+  brave_chrome_browser_allow_circular_includes_from +=
+      [ "//brave/browser/brave_rewards:brave_rewards_impl" ]
 }
 
 if (toolkit_views) {

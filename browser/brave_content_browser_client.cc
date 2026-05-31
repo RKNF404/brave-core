@@ -183,7 +183,6 @@
 #include "brave/browser/brave_wallet/brave_wallet_provider_delegate_impl.h"
 #include "brave/browser/brave_wallet/brave_wallet_service_factory.h"
 #include "brave/browser/brave_wallet/brave_wallet_tab_helper.h"
-#include "brave/components/brave_wallet/browser/brave_wallet_p3a_private.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_service.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
@@ -346,7 +345,7 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
 #include "brave/browser/ui/webui/brave_wallet/wallet_page/wallet_page_ui.h"
 #if !BUILDFLAG(IS_ANDROID)
-#include "brave/browser/ui/webui/brave_wallet/wallet_panel_ui.h"
+#include "brave/browser/ui/webui/brave_wallet/wallet_panel/wallet_panel_ui.h"
 #endif
 #endif
 
@@ -369,25 +368,6 @@ void BindCosmeticFiltersResources(
   g_brave_browser_process->ad_block_service()->AsyncCall(base::BindOnce(
       &BindCosmeticFiltersResourcesOnTaskRunner, std::move(receiver)));
 }
-
-#if BUILDFLAG(ENABLE_BRAVE_WALLET)
-void MaybeBindWalletP3A(
-    content::RenderFrameHost* const frame_host,
-    mojo::PendingReceiver<brave_wallet::mojom::BraveWalletP3A> receiver) {
-  auto* context = frame_host->GetBrowserContext();
-  if (brave_wallet::IsAllowedForContext(frame_host->GetBrowserContext())) {
-    brave_wallet::BraveWalletService* wallet_service =
-        brave_wallet::BraveWalletServiceFactory::GetServiceForContext(context);
-    DCHECK(wallet_service);
-    wallet_service->GetBraveWalletP3A()->Bind(std::move(receiver));
-  } else {
-    // Dummy API to avoid reporting P3A for OTR contexts
-    mojo::MakeSelfOwnedReceiver(
-        std::make_unique<brave_wallet::BraveWalletP3APrivate>(),
-        std::move(receiver));
-  }
-}
-#endif
 
 void BindBraveSearchFallbackHost(
     content::ChildProcessId process_id,
@@ -663,7 +643,8 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
   if (email_aliases::features::IsEmailAliasesEnabled()) {
     registry.ForWebUI<BraveSettingsUI>()
-        .Add<email_aliases::mojom::EmailAliasesService>();
+        .Add<email_aliases::mojom::EmailAliasesService>()
+        .Add<email_aliases::mojom::EmailAliasesMetrics>();
   }
 #endif
   if (brave_account::features::IsBraveAccountEnabled()) {
@@ -713,16 +694,16 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
       .Add<brave_wallet::mojom::PageHandlerFactory>()
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
       .Add<brave_rewards::mojom::RewardsPageHandler>()
-#endif
+#endif  // BUILDFLAG(ENABLE_BRAVE_REWARDS)
       ;
 #if !BUILDFLAG(IS_ANDROID)
   registry.ForWebUI<WalletPanelUI>()
       .Add<brave_wallet::mojom::PanelHandlerFactory>()
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
       .Add<brave_rewards::mojom::RewardsPageHandler>()
-#endif
+#endif  // BUILDFLAG(ENABLE_BRAVE_REWARDS)
       ;
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(ENABLE_BRAVE_WALLET)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -852,22 +833,32 @@ BraveContentBrowserClient::GetEphemeralStorageToken(
 bool BraveContentBrowserClient::AllowWorkerFingerprinting(
     const GURL& url,
     content::BrowserContext* browser_context) {
-  return WorkerGetBraveShieldSettings(url, browser_context)->farbling_level !=
-         brave_shields::mojom::FarblingLevel::MAXIMUM;
+  return WorkerGetBraveShieldSettings(url, browser_context, nullptr)
+             ->farbling_level != brave_shields::mojom::FarblingLevel::MAXIMUM;
 }
 
 brave_shields::mojom::ShieldsSettingsPtr
 BraveContentBrowserClient::WorkerGetBraveShieldSettings(
     const GURL& url,
-    content::BrowserContext* browser_context) {
+    content::BrowserContext* browser_context,
+    const content::StoragePartitionConfig* storage_partition_config) {
   const brave_shields::mojom::FarblingLevel farbling_level =
       brave_shields::GetFarblingLevel(
           HostContentSettingsMapFactory::GetForProfile(browser_context), url);
+  std::string additional_entropy;
+#if BUILDFLAG(ENABLE_CONTAINERS)
+  if (storage_partition_config &&
+      base::FeatureList::IsEnabled(containers::features::kContainers)) {
+    additional_entropy =
+        std::string(containers::GetContainerIdFromStoragePartitionConfig(
+            *storage_partition_config));
+  }
+#endif
   const base::Token farbling_token =
       farbling_level != brave_shields::mojom::FarblingLevel::OFF
           ? brave_shields::GetFarblingToken(
                 HostContentSettingsMapFactory::GetForProfile(browser_context),
-                url)
+                url, base::as_byte_span(additional_entropy))
           : base::Token();
 
   PrefService* pref_service = user_prefs::UserPrefs::Get(browser_context);
@@ -942,8 +933,6 @@ void BraveContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   }
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
-  map->Add<brave_wallet::mojom::BraveWalletP3A>(
-      base::BindRepeating(&MaybeBindWalletP3A));
   if (brave_wallet::IsAllowedForContext(
           render_frame_host->GetBrowserContext())) {
     map->Add<brave_wallet::mojom::EthereumProvider>(base::BindRepeating(
@@ -1576,6 +1565,16 @@ bool BraveContentBrowserClient::IsWindowsRecallDisabled() {
 }
 
 bool BraveContentBrowserClient::ShouldInheritStoragePartition(
+    const content::StoragePartitionConfig& partition_config) const {
+#if BUILDFLAG(ENABLE_CONTAINERS)
+  return base::FeatureList::IsEnabled(containers::features::kContainers) &&
+         containers::IsContainersStoragePartition(partition_config);
+#else
+  return false;
+#endif  // BUILDFLAG(ENABLE_CONTAINERS)
+}
+
+bool BraveContentBrowserClient::ShouldUseDefaultHostZoomMapForStoragePartition(
     const content::StoragePartitionConfig& partition_config) const {
 #if BUILDFLAG(ENABLE_CONTAINERS)
   return base::FeatureList::IsEnabled(containers::features::kContainers) &&

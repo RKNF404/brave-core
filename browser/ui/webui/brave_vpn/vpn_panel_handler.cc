@@ -10,7 +10,7 @@
 #include "base/check.h"
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
 #include "brave/browser/ui/webui/brave_vpn/vpn_panel_ui.h"
-#include "brave/components/brave_vpn/browser/brave_vpn_service_impl.h"
+#include "brave/components/brave_vpn/browser/brave_vpn_service.h"
 #include "brave/components/brave_vpn/common/brave_vpn_constants.h"
 #include "brave/components/brave_vpn/common/brave_vpn_utils.h"
 #include "chrome/browser/ui/browser.h"
@@ -28,15 +28,15 @@ bool ShouldOpenSingletonTab(brave_vpn::mojom::ManageURLType type) {
          type == brave_vpn::mojom::ManageURLType::ABOUT;
 }
 
-void ShowSingletonVPNTab(Browser* browser, const GURL& url) {
-  for (auto i = 0; i < browser->tab_strip_model()->count(); i++) {
-    auto* web_contents = browser->tab_strip_model()->GetWebContentsAt(i);
+void ShowSingletonVPNTab(BrowserWindowInterface* browser, const GURL& url) {
+  for (auto i = 0; i < browser->GetTabStripModel()->count(); i++) {
+    auto* web_contents = browser->GetTabStripModel()->GetWebContentsAt(i);
     const GURL& contents_url = web_contents->GetVisibleURL();
     bool is_equal = contents_url.SchemeIs(url.scheme()) &&
                     contents_url.DomainIs(url.host()) &&
                     contents_url.path() == url.path();
     if (is_equal) {
-      browser->tab_strip_model()->ActivateTabAt(i);
+      browser->GetTabStripModel()->ActivateTabAt(i);
       return;
     }
   }

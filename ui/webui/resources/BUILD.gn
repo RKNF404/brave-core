@@ -26,9 +26,9 @@ include_polymer = !is_android && !is_ios
 
 group("grdp") {
   public_deps = [
+    ":external_js_bundles",
     ":fonts_grdp",
     ":icons_grdp",
-    ":leo_bundle",
     ":static_grdp",
     "//brave/components/brave_account/resources/opaque_ke",
   ]
@@ -90,18 +90,28 @@ if (include_polymer) {
   ]
 }
 
-transpile_web_ui("leo_bundle") {
+transpile_web_ui("external_js_bundles") {
   generate_grdp = true
   resource_path_prefix = "brave"
+  no_externals = true
 
-  imports_from = [ "//brave/ui/webui/resources/leo/" ]
+  imports_from = [
+    "//brave/ui/webui/resources/leo/",
+    "//brave/ui/webui/resources/react/",
+  ]
 
-  entry_points = [ [
-        "leo",
-        rebase_path("leo/initialize_bundle.ts"),
-      ] ]
+  entry_points = [
+    [
+      "leo",
+      rebase_path("leo/initialize_bundle.ts"),
+    ],
+    [
+      "react",
+      rebase_path("react/initialize_bundle.ts"),
+    ],
+  ]
 
-  resource_name = "leo"
+  resource_name = "external_js"
 }
 
 # Create a grdp that //ui/webui/resources can include in its main resources GRD
@@ -351,7 +361,7 @@ leo_icons_sources = [
   "notification.svg",
   "ollama.svg",
   "op-color.svg",
-  "openai-color.svg",
+  "openai.svg",
   "outside.svg",
   "pause-circle.svg",
   "pause-filled.svg",
@@ -423,14 +433,13 @@ leo_icons_sources = [
   "smartphone-desktop.svg",
   "smartphone-hand.svg",
   "social-brave-release-favicon-fullheight-color.svg",
-  "social-dribbble.svg",
-  "social-github.svg",
+  "social-github-color.svg",
   "social-leo-favicon-fullheight-color.svg",
-  "social-reddit.svg",
-  "social-twitch.svg",
-  "social-vimeo.svg",
-  "social-x.svg",
-  "social-youtube.svg",
+  "social-reddit-color.svg",
+  "social-twitch-color.svg",
+  "social-vimeo-color.svg",
+  "social-x-color.svg",
+  "social-youtube-color.svg",
   "sol-color.svg",
   "solana-off.svg",
   "solana-on.svg",
@@ -497,6 +506,7 @@ leo_icons_sources = [
 
 if (enable_brave_vpn_panel) {
   leo_icons_sources += [
+    "country-ae.svg",
     "country-al.svg",
     "country-ar.svg",
     "country-at.svg",
@@ -532,6 +542,7 @@ if (enable_brave_vpn_panel) {
     "country-lu.svg",
     "country-mx.svg",
     "country-my.svg",
+    "country-ng.svg",
     "country-nl.svg",
     "country-no.svg",
     "country-nz.svg",
@@ -541,8 +552,10 @@ if (enable_brave_vpn_panel) {
     "country-pt.svg",
     "country-py.svg",
     "country-ro.svg",
+    "country-rs.svg",
     "country-se.svg",
     "country-sg.svg",
+    "country-sk.svg",
     "country-th.svg",
     "country-tr.svg",
     "country-ua.svg",
