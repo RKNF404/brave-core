@@ -6,12 +6,15 @@
 #include "brave/components/brave_account/brave_account_state_prefs.h"
 
 #include <optional>
+#include <utility>
 
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/json/values_util.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "brave/components/brave_account/brave_account_service_constants.h"
+#include "brave/components/brave_account/pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
 
 namespace brave_account {
@@ -19,14 +22,17 @@ namespace brave_account {
 namespace {
 
 template <typename VerificationPtr>
-auto MakeVerification(std::optional<int> verification_intent) {
+auto MakeVerification(std::optional<int> verification_intent,
+                      const std::string* verification_verified_email) {
   VerificationPtr verification;
 
   if (verification_intent) {
     if (const auto intent =
             static_cast<decltype(verification->intent)>(*verification_intent);
         mojom::IsKnownEnumValue(intent)) {
-      verification = VerificationPtr::Struct::New(intent);
+      verification = VerificationPtr::Struct::New(
+          intent,
+          verification_verified_email ? *verification_verified_email : "");
     }
   }
 
@@ -46,23 +52,6 @@ void AccountStatePrefs::SetLoggedOut() {
                                                prefs::state_kinds::kLoggedOut));
 }
 
-void AccountStatePrefs::SetLoggedOutWithVerification(
-    const std::string& encrypted_verification_token,
-    mojom::LoggedOutVerificationIntent intent) {
-  CHECK(!encrypted_verification_token.empty());
-
-  pref_service_->SetDict(
-      prefs::kBraveAccountState,
-      base::DictValue()
-          .Set(prefs::keys::kKind, prefs::state_kinds::kLoggedOut)
-          .Set(prefs::keys::kVerification,
-               base::DictValue()
-                   .Set(prefs::keys::kVerificationToken,
-                        encrypted_verification_token)
-                   .Set(prefs::keys::kVerificationIntent,
-                        static_cast<int>(intent))));
-}
-
 void AccountStatePrefs::SetLoggedIn(
     const std::string& email,
     const std::string& encrypted_authentication_token) {
@@ -76,6 +65,61 @@ void AccountStatePrefs::SetLoggedIn(
           .Set(prefs::keys::kEmail, email)
           .Set(prefs::keys::kAuthenticationToken,
                encrypted_authentication_token));
+}
+
+void AccountStatePrefs::AddVerification(
+    const std::string& encrypted_verification_token,
+    mojom::VerificationIntentPtr intent) {
+  CHECK(!encrypted_verification_token.empty());
+  CHECK(intent);
+
+  const int intent_value = [&] {
+    const auto account_state = GetAccountState();
+
+    switch (intent->which()) {
+      case mojom::VerificationIntent::Tag::kLoggedOutIntent:
+        CHECK(account_state->is_logged_out());
+        return static_cast<int>(intent->get_logged_out_intent());
+      case mojom::VerificationIntent::Tag::kLoggedInIntent:
+        CHECK(account_state->is_logged_in());
+        return static_cast<int>(intent->get_logged_in_intent());
+    }
+  }();
+
+  ScopedDictPrefUpdate(&*pref_service_, prefs::kBraveAccountState)
+      ->Set(prefs::keys::kVerification,
+            base::DictValue()
+                .Set(prefs::keys::kVerificationToken,
+                     encrypted_verification_token)
+                .Set(prefs::keys::kVerificationIntent, intent_value));
+}
+
+void AccountStatePrefs::SetVerificationVerifiedEmail(
+    const std::string& verification_verified_email) {
+  CHECK(!verification_verified_email.empty());
+
+  // The verification slot can be cleared concurrently from another surface,
+  // e.g. by clicking the cancel button in a `brave://settings` tab while a
+  // verification step is still in flight in a different tab showing the
+  // `brave://account` WebUI. `ClearVerification()` is a same-alternative
+  // transition, so the in-flight request and its callback survive and may still
+  // arrive here after the slot is gone. Drop the write in that case rather than
+  // crashing: the cancel won, so there is no slot left to record the verified
+  // email on.
+  if (!pref_service_->GetDict(prefs::kBraveAccountState)
+           .FindDict(prefs::keys::kVerification)) {
+    return;
+  }
+
+  CHECK_DEREF(ScopedDictPrefUpdate(&*pref_service_, prefs::kBraveAccountState)
+                  ->FindDict(prefs::keys::kVerification))
+      .Set(prefs::keys::kVerificationVerifiedEmail,
+           verification_verified_email);
+}
+
+void AccountStatePrefs::ClearVerification() {
+  ScopedDictPrefUpdate(&*pref_service_, prefs::kBraveAccountState)
+      ->Remove(prefs::keys::kVerification);
 }
 
 // Firewall against tampered prefs: enforce on the way out the same
@@ -96,23 +140,34 @@ mojom::AccountStatePtr AccountStatePrefs::GetAccountState() const {
   const auto* verification_token =
       verification ? verification->FindString(prefs::keys::kVerificationToken)
                    : nullptr;
+  const auto* verification_verified_email =
+      verification
+          ? verification->FindString(prefs::keys::kVerificationVerifiedEmail)
+          : nullptr;
 
-  CHECK((!verification && !verification_intent && !verification_token) ||
+  CHECK((!verification && !verification_intent && !verification_token &&
+         !verification_verified_email) ||
         (verification && verification_intent && verification_token &&
-         !verification_token->empty()));
+         !verification_token->empty() &&
+         (!verification_verified_email ||
+          !verification_verified_email->empty())));
 
-  if (kind && *kind == prefs::state_kinds::kLoggedIn) {
+  CHECK(kind);
+  if (*kind == prefs::state_kinds::kLoggedIn) {
     CHECK(authentication_token && !authentication_token->empty());
     CHECK(email && !email->empty());
     auto logged_in_verification =
-        MakeVerification<mojom::LoggedInVerificationPtr>(verification_intent);
+        MakeVerification<mojom::LoggedInVerificationPtr>(
+            verification_intent, verification_verified_email);
     CHECK(!verification == !logged_in_verification);
     return mojom::AccountState::NewLoggedIn(
         mojom::LoggedInState::New(*email, std::move(logged_in_verification)));
   }
 
+  CHECK_EQ(*kind, prefs::state_kinds::kLoggedOut);
   auto logged_out_verification =
-      MakeVerification<mojom::LoggedOutVerificationPtr>(verification_intent);
+      MakeVerification<mojom::LoggedOutVerificationPtr>(
+          verification_intent, verification_verified_email);
   CHECK(!verification == !logged_out_verification);
   return mojom::AccountState::NewLoggedOut(
       mojom::LoggedOutState::New(std::move(logged_out_verification)));
@@ -121,6 +176,38 @@ mojom::AccountStatePtr AccountStatePrefs::GetAccountState() const {
 std::string AccountStatePrefs::GetAuthenticationToken() const {
   const auto* token = pref_service_->GetDict(prefs::kBraveAccountState)
                           .FindString(prefs::keys::kAuthenticationToken);
+  return token ? *token : "";
+}
+
+std::string AccountStatePrefs::GetVerificationToken(
+    mojom::VerificationIntentPtr intent) const {
+  CHECK(intent);
+
+  const bool has_matching_verification = [&] {
+    const auto account_state = GetAccountState();
+
+    switch (intent->which()) {
+      case mojom::VerificationIntent::Tag::kLoggedOutIntent:
+        return account_state->is_logged_out() &&
+               account_state->get_logged_out()->verification &&
+               account_state->get_logged_out()->verification->intent ==
+                   intent->get_logged_out_intent();
+      case mojom::VerificationIntent::Tag::kLoggedInIntent:
+        return account_state->is_logged_in() &&
+               account_state->get_logged_in()->verification &&
+               account_state->get_logged_in()->verification->intent ==
+                   intent->get_logged_in_intent();
+    }
+  }();
+
+  if (!has_matching_verification) {
+    return "";
+  }
+
+  const auto* token =
+      CHECK_DEREF(pref_service_->GetDict(prefs::kBraveAccountState)
+                      .FindDict(prefs::keys::kVerification))
+          .FindString(prefs::keys::kVerificationToken);
   return token ? *token : "";
 }
 

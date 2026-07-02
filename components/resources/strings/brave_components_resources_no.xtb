@@ -106,7 +106,6 @@
 <translation id="8890516388109605451">Kilder</translation>
 <translation id="5158129253322921540">Deaktiver innhold fra <ph name="PUBLISHER_NAME"/></translation>
 <translation id="3189348785087463371">Anbefalt</translation>
-<translation id="4541978218358617681">Annonse</translation>
 <translation id="1776831331757823105">Klokke</translation>
 <translation id="7791543448312431591">Legg til</translation>
 <translation id="6216996674668969227">Få flere tokener ved å se annonser som respekterer personvernet ditt.</translation>
@@ -377,7 +376,6 @@
 <translation id="1430915738399379752">Skriv ut</translation>
 <translation id="2600847485413879104">Belønninger i BAT</translation>
 <translation id="3439853736976204026">bitFlyer</translation>
-<translation id="8533411848724153701">Gemini</translation>
 <translation id="6569877533335686968">Oppretthold</translation>
 <translation id="6011108706830742093">ZebPay</translation>
 <translation id="5390923430722428146">Solana</translation>
@@ -439,6 +437,7 @@
 <translation id="4894106830958548828">Jeg forstår</translation>
 <translation id="2729085694451916573">Teststreng for <ph name="PART_ONE"/>plassholdere
 <ph name="PART_ONE_END"/>. <ph name="PART_TWO"/>Finn ut mer<ph name="PART_TWO_END"/></translation>
+<translation id="6705666103672654256">Søkene dine og sideinnhold behandles på denne enheten. Ingenting sendes til Brave eller sees av menneskelige korrekturlesere. Dette er en eksperimentell funksjon og vil ikke alltid være riktig.</translation>
 <translation id="7534079972563542000">Ustoppelige domener</translation>
 <translation id="4492298165410552103">Vil du slå på støtte for ustoppelige domener i Brave?</translation>
 <translation id="5015092481905019948">Brave vil bruke <ph name="PROVIDER_NAME"/> for å løse <ph name="DOMAIN_LIST"/>-domenenavn som er på <ph name="DOMAIN_PROVIDER_NAME"/>. Brave skjuler IP-adressen din. Hvis du aktiverer dette, vil <ph name="PROVIDER_NAME"/> se at noen prøver å besøke disse domenene, men ikke noe mer. Se <ph name="PROVIDER_NAME"/> sine <ph name="BEGIN_PROVIDER_TOU_LINK"/>bruksvilkår<ph name="END_PROVIDER_TOU_LINK"/> og <ph name="BEGIN_PROVIDER_PRIVACY_LINK"/>personvernerklæring<ph name="END_PROVIDER_PRIVACY_LINK"/>.</translation>
@@ -738,9 +737,9 @@
 <translation id="8251969358165471584">Web3-lommebok</translation>
 <translation id="7160424977552599351">Bruk Web3-lommeboken din</translation>
 <translation id="6369571967625114920">Private Brave-annonser er ikke tilgjengelig i regionen din ennå.</translation>
-<translation id="5309155375926073606">Ja, jeg vil også bidra til Brave Search og godtar å bli med i <ph name="LINK_BEGIN"/>Web Discovery Project<ph name="LINK_END"/>.</translation>
-<translation id="4622826307953794521">Del nettleser- og søkedata helt anonymt for å gjøre Brave Search bedre med Web Discovery Project. Det har helt åpen kildekode.</translation>
-<translation id="4174337572777167894">Web Discovery-prosjektet</translation>
+<translation id="5309155375926073606">Ja, jeg vil også bidra til Brave Search og melde meg på <ph name="LINK_BEGIN"/>Web Discovery Project<ph name="LINK_END"/>.</translation>
+<translation id="4622826307953794521">Bidra med anonyme søke- og nettleserdata for å forbedre Brave Search med Web Discovery Project. Det er fullstendig åpen kildekode.</translation>
+<translation id="4174337572777167894">Web Discovery Project</translation>
 <translation id="9034669711835382440">Community</translation>
 <translation id="845020633253356720">Gå til butikken</translation>
 <translation id="7777123407058400802">Basic Attention Token – BAT</translation>
@@ -750,7 +749,6 @@
 <translation id="1288078776976153868">nettverk</translation>
 <translation id="1148827340205946630">Brukeren avslo forespørselen</translation>
 <translation id="2403819048476450281">Ugyldige parametere.</translation>
-<translation id="3849003816301348130">Destinasjonsadressen står på OFAC SDN-listen.</translation>
 <translation id="3955144560853195652">Kjeden <ph name="VALUE"/> har ikke blitt lagt til</translation>
 <translation id="1875861420974447980">Denne blokkjeden er allerede i bruk</translation>
 <translation id="167698752210114155">Det har oppstått en intern feil</translation>
@@ -864,11 +862,12 @@
 <translation id="3751611888003301070">Ruter</translation>
 <translation id="3799091982455573025">Bytt på <ph name="NETWORK_NAME"/> via <ph name="EXCHANGE_NAME"/></translation>
 <translation id="5136093123841570193">Bro fra <ph name="FRIST_NETWORK_NAME"/> til <ph name="SECOND_NETWORK_NAME"/></translation>
-<translation id="5962276579291287541">{SWAP_EXCHANGE_STEPS, plural,
-      =1 {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} trinn}
-      other {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} trinn}
+<translation id="4419195975736642805">{SWAP_EXCHANGE_STEPS, plural,
+      =1 {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} trinn)}
+      other {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} trinn)}
     }</translation>
 <translation id="8621264173374071200"><ph name="EXCHANGE_NAME"/> via <ph name="PROVIDER_NAME"/></translation>
+<translation id="7214440235486032620"><ph name="DESTINATION_TOKEN"/> ← <ph name="SOURCE_TOKEN"/> via</translation>
 <translation id="646023614746251785">Bekreft bytte</translation>
 <translation id="6264944956989873014">Bekreft bro</translation>
 <translation id="7067917728851842589">Bekreft sending</translation>
@@ -949,6 +948,7 @@
 <translation id="1108298724135935307">Tilkoblede nettsteder</translation>
 <translation id="5716350339763180836">Saldoer</translation>
 <translation id="5538251867290702601">Graf</translation>
+<translation id="8123016618655108594">Fordeling</translation>
 <translation id="352407037922720467">NFT-fane</translation>
 <translation id="163697698769819510">Ta en backup av lommeboken din nå for å sikre midlene dine og sørge for at du aldri mister tilgang.</translation>
 <translation id="1018806299114415224">Sikkerhetskopier nå</translation>
@@ -981,11 +981,11 @@
 <translation id="7080614857771109950">Støtter EVM-kompatible verdier på Ethereum-blockchainen (ERC-20, ERC-721, ERC-1551, ERC-1155)</translation>
 <translation id="6577166808959668729">Støtter SPL-kompatible verdier på Solana-blockchainen</translation>
 <translation id="4541295941776129088">Lagre FIL-ressurs</translation>
-<translation id="6030958132571544682">Lagre FIL Testnet-ressurs</translation>
+<translation id="6030958132571544682">Lagre FIL Testnet-eiendel</translation>
 <translation id="29759539656432505">Lagre BTC-eiendeler</translation>
 <translation id="2399555431746923964">Lagre BTC Testnet-ressurser</translation>
 <translation id="8749751940551938347">Oppbevar ZEC-ressurser</translation>
-<translation id="3451958544919449297">Lagre ZEC Testnet-ressurser</translation>
+<translation id="3451958544919449297">Lagre ZEC Testnet-eiendeler</translation>
 <translation id="8459631690385393533">Lagre eiendeler fra Cardano</translation>
 <translation id="4915057812371523845">Lagre eiendeler fra Cardano Testnet</translation>
 <translation id="5387140102951033657">Støtter Substrate-aktiva på Polkadots relékjede og Substrate-parakjeder</translation>
@@ -1004,6 +1004,9 @@
 <translation id="6720675936326555106">Valgt fil</translation>
 <translation id="5891811606602061966">Kunne ikke importere kontoen – prøv på nytt.</translation>
 <translation id="6566535583781706170">Importer konto</translation>
+<translation id="8079448455682522748">Kopier den private nøkkelen for kontoen du vil importere fra en annen lommebok.</translation>
+<translation id="8475326612689436917">Eksporter den private nøkkelen fra en annen lommebok til en JSON-fil og last den opp her.</translation>
+<translation id="5733063593286221597">Last opp JSON-fil</translation>
 <translation id="5051929972046200722">Velg maskinvarelommebokenheten din</translation>
 <translation id="5745936663807461565">Koble din <ph name="HARDWARE_DEVICE"/>-lommebok direkte til datamaskinen din.</translation>
 <translation id="4350216031085285578">Lås opp enheten og velg <ph name="BLOCKCHAIN_NETWORK"/>-appen.</translation>
@@ -1049,9 +1052,10 @@
 <translation id="7657130382217527063">MERK: Den private nøkkelen må gis som en hex-kodet JSON som inneholder privatnøkkel- og protokollinfo. <ph name="LINK_START"/>Les mer<ph name="LINK_END"/>.</translation>
 <translation id="4482913669726886926">MERK: Kun utvidede nøkler i <ph name="FORMAT"/> støttes.</translation>
 <translation id="6457746820359933716">Importer ved å bruke en JSON-fil eksportert fra Polkadot.js eller kompatible lommebøker. Skriv inn passordet som ble brukt for å kryptere eksporten.</translation>
-<translation id="9133762451347918196">Testnet-kontoer</translation>
+<translation id="7285350832506166367">Ser du etter testnett-kontoer?</translation>
 <translation id="42126664696688958">Eksportér</translation>
 <translation id="1366855498335432549">Innskudd</translation>
+<translation id="3852653589653889099">Skjul konto</translation>
 <translation id="790104325876206743">Kontoinnstillinger</translation>
 <translation id="8856844353253421399">Sist oppdatert <ph name="TIME_AGO"/> siden</translation>
 <translation id="6322030314101903925">Ingen tilgjengelige eiendeler</translation>
@@ -1172,12 +1176,12 @@
 <translation id="4324239559624557455">I 24 timer</translation>
 <translation id="9139452553033760558">I 1 uke</translation>
 <translation id="1658834457013045127">Alltid</translation>
-<translation id="5571630233760536706"><ph name="DEVICE_NAME"/> er koblet til</translation>
-<translation id="7058480232601314508"><ph name="DEVICE_NAME"/> frakoblet</translation>
+<translation id="620344059960827012"><ph name="ACCOUNT_NAME"/> er koblet til <ph name="DEVICE_NAME"/></translation>
+<translation id="4403794623379243396"><ph name="ACCOUNT_NAME"/> er frakoblet</translation>
 <translation id="434328838837168401">Vis instruksjoner</translation>
-<translation id="6739517232898494646">Koble <ph name="DEVICE_NAME"/> til for å fortsette</translation>
+<translation id="13670155462680755">Koble <ph name="ACCOUNT_NAME"/> til for å fortsette</translation>
 <translation id="6941881257520473899">Maskinvarelommeboken må bekreftes på enheten.</translation>
-<translation id="2288190100157580461">Maskinvarelommeboken krever at <ph name="NETWORK"/>-appen åpnes i <ph name="DEVICE_NAME"/></translation>
+<translation id="4108619287854657806">Maskinvarelommeboken krever at <ph name="NETWORK"/>-appen åpnes i <ph name="ACCOUNT_NAME"/></translation>
 <translation id="8687869982094542529">sendt</translation>
 <translation id="5013754027092416509">mottatt</translation>
 <translation id="5867988533873716616">Block Explorer-nettadressen er ikke tilgjengelig.</translation>
@@ -1352,6 +1356,12 @@
 <translation id="3067168166931605141">Kontonavn</translation>
 <translation id="1213870770696612739">Minimumsbeløp: <ph name="AMOUNT"/></translation>
 <translation id="3041074161036535192">Maksimumsbeløp: <ph name="AMOUNT"/></translation>
+<translation id="3419957337495393511">Kontoen ble opprettet</translation>
+<translation id="7444985841455466546">Kontoen ble importert</translation>
+<translation id="6775224295382583896">{ACCOUNTS, plural,
+      =1 {Maskinvarelommebok-kontoen ble tilkoblet}
+      other {{ACCOUNTS} maskinvarelommebok-kontoer ble tilkoblet}
+    }</translation>
 <translation id="8528916244724490964">Alle nettverk</translation>
 <translation id="7721139939763655123">Lav til høy</translation>
 <translation id="5458608274117818139">Høy til lav</translation>
@@ -1362,6 +1372,7 @@
 <translation id="8491675129455635799">Grupper ressurser etter</translation>
 <translation id="5331775401966766526">Filtre og visningsinnstillinger</translation>
 <translation id="5332541468425943610">NFT-visningsinnstillinger</translation>
+<translation id="1539149309756422999">Fordeling av eiendeler</translation>
 <translation id="886032538431162695">Sorter ressurser</translation>
 <translation id="6080181976198929758">Sorter etter fiat-verdi eller navn</translation>
 <translation id="2563815561570398537">Skjul saldoer med små beløp</translation>
@@ -1373,6 +1384,7 @@
 <translation id="1257387162647804035">Primære nettverk</translation>
 <translation id="8323674164587854512">Ethereum + EVM-kjeder</translation>
 <translation id="1398414935371867469">Solana + SVM-kjeder</translation>
+<translation id="6498449512528552760">Ugyldig prefiks</translation>
 <translation id="7058248670699639973">Nettverkslogo</translation>
 <translation id="4378208228955237306">Vis nettverkslogo på NFT-er</translation>
 <translation id="5472199803712163015">Spam-NFT-er</translation>
@@ -1605,6 +1617,9 @@
 <translation id="5882719778740918116">Bare send merker til denne adressen på <ph name="VALUE"/></translation>
 <translation id="6885009592653876601">Kjøp, send og bytt mer enn 200+ kryptoressurser</translation>
 <translation id="8716223552348254401">Kjører i selve nettleseren, ingen risikable utvidelser</translation>
+<translation id="1198271701881992799">La oss komme i gang</translation>
+<translation id="7904301836463577071">Kjøp din første krypto med kreditt- eller debetkort</translation>
+<translation id="3721561070667360112">Sett inn krypto fra en annen lommebok eller børs</translation>
 <translation id="4559901986238865734">Flere kjeder og NFT-støtte</translation>
 <translation id="296101411136980896">Klikk for å bytte</translation>
 <translation id="753655478253155745">Tolvte</translation>
@@ -1639,7 +1654,7 @@
 <translation id="1353726744456297797">Hvis du ikke fant eiendelen din i denne listen, kan du legge den til manuelt ved å bruke knappen nedenfor</translation>
 <translation id="4543171429371680949">Fant ikke eiendelen</translation>
 <translation id="1026825928738055872">Er du sikker på at du vil fjerne «<ph name="ACCOUNT_NAME"/>»?</translation>
-<translation id="3910551537328657217">Be om funksjoner</translation>
+<translation id="2220529011494928058">Rapporter et problem</translation>
 <translation id="7657322905916621147">Gjenopprettingsfrasen må være på 12, 15, 18, 21 eller 24 ord.</translation>
 <translation id="5026874946691314267">Ikke vis dette igjen.</translation>
 <translation id="434502623875309667">Adresseresolusjon krever offchain-nettverksforespørsler. Vil du fortsette?</translation>
@@ -1752,6 +1767,7 @@
 <translation id="8549067157732633185">Dette tokenet er verifisert</translation>
 <translation id="2130170065617939165">Dette tokenet er verifisert i <ph name="NUMBER_OF_LISTS"/> lister</translation>
 <translation id="1554316484739382186">Forbruker: <ph name="ADDRESS"/></translation>
+<translation id="8533411848724153701">Gemini</translation>
 <translation id="4265415116535094892">Zebpay</translation>
 <translation id="3026353765778463291"><ph name="PROVIDER"/>-konto</translation>
 <translation id="5360752485622434494">Brave Rewards i BAT på <ph name="PROVIDER"/></translation>
@@ -2069,6 +2085,7 @@
 <translation id="7294510764127771956">Slå på/av innsettingspunkt</translation>
 <translation id="4186334830839439230">Vis ytelsesinnstillinger</translation>
 <translation id="1094277301241124207">Vis bokmerke-sidepanel</translation>
+<translation id="5101042277149003567">Åpne alle bokmerker</translation>
 <translation id="8283515796576236471">Åpne alle bokmerker i bokmerkeraden i et nytt vindu</translation>
 <translation id="5271773791943587595">Åpne alle bokmerker i bokmerkeraden i et privat vindu</translation>
 <translation id="2748975346534113286">Åpne alle bokmerker i bokmerkeraden i en ny fanegruppe</translation>
@@ -2146,13 +2163,16 @@
 <translation id="6459036216700972269">Udelte faner</translation>
 <translation id="4235382917338421035">Bytt faneposisjoner</translation>
 <translation id="4288085058450834672">Se apper</translation>
+<translation id="4750337523930607658">Slå på/av fokusmodus</translation>
 <translation id="4144468798716165316">Hurtigkommandoer</translation>
 <translation id="3617523374417810198">Ny delt visning</translation>
 <translation id="8571323456914890254">Åpne i delt visning</translation>
 <translation id="5329136173514538969">Udelte faner</translation>
 <translation id="7595612919377246359">Bytt faneposisjoner</translation>
 <translation id="2367972762794486313">Vis apper</translation>
+<translation id="3142853026316054951">Slå på/av fokusmodus</translation>
 <translation id="3468387898712904997">Nytt e-postalias</translation>
+<translation id="2796584247246518451">Ny midlertidig beholder</translation>
 <translation id="8591883849678260674">Vis original</translation>
 <translation id="1969654232209826429">min. lest</translation>
 <translation id="4101707289420716287">Slå av Speedreader</translation>
@@ -2199,6 +2219,7 @@
 <translation id="5923170497201832190">Rull til nederst</translation>
 <translation id="6219262425964000211">Slipp filene her</translation>
 <translation id="4313763911013851687">Slipp filene her for å legge dem til i samtalen</translation>
+<translation id="8206915760129310348">Noen filer kunne ikke leses og ble ikke vedlagt</translation>
 <translation id="4524675003624341892">Foreslå spørsmål …</translation>
 <translation id="4567071417854988869">Oppsummer denne videoen</translation>
 <translation id="4264902191243445258">{PAGE_COUNT, plural,
@@ -2209,7 +2230,9 @@
 <translation id="7932221068776853847">Koble fra for å slutte å sende innholdet på denne siden til Leo, og begynn en ny samtale</translation>
 <translation id="8743383817154663379">Noe gikk galt i behandlingen av forespørselen. Prøv igjen senere.</translation>
 <translation id="2712650703044366764">Denne modellen har et ugyldig endepunkt. Kontroller konfigurasjonen og prøv på nytt.</translation>
-<translation id="1167803637855350748">Det oppstod et nettverksproblem under tilkoblingen til Leo. Kontroller forbindelsen og prøv på nytt.</translation>
+<translation id="7092656392206649236">Noe gikk galt under kommunikasjon med Leo. Prøv igjen.</translation>
+<translation id="3552709750512842961">Statuskode: <ph name="STATUS_CODE"/>, feilkode: <ph name="ERROR_CODE"/></translation>
+<translation id="9215978379284690246">Statuskode: <ph name="STATUS_CODE"/></translation>
 <translation id="1996126325390835277">Du har nådd premium-grensen. Prøv på nytt om noen timer.</translation>
 <translation id="3683964919745779766">Du har enten nådd maksgrensen for denne modellen, eller så er du tom for kreditter. Prøv igjen senere.</translation>
 <translation id="7692501701960747469">API-nøkkelen som er konfigurert for denne modellen er ugyldig. Sjekk konfigurasjonen og prøv på nytt.</translation>
@@ -2219,6 +2242,7 @@
 <translation id="1238020084128916796">Hei, jeg heter Leo og er en KI-assistent fra Brave. Jeg driftes av Llama 3.1 8B, som er en ytelsesdyktig modell fra Meta med mange ulike bruksområder. Brave er vert for Llama via vår egen, sikre infrastruktur.<ph name="LINK_BEFORE"/>Les mer<ph name="LINK_AFTER"/>.</translation>
 <translation id="3852808100039989429">Hei, jeg heter Leo og er en KI-assistent fra Brave. Jeg driftes av Qwen VL 30B, som er en ytelsesdyktig modell fra Alibaba Cloud med mange ulike bruksområder. Brave er vert for Qwen via vår egen, sikre infrastruktur.<ph name="LINK_BEFORE"/>Les mer<ph name="LINK_AFTER"/>.</translation>
 <translation id="3812564134126884433">Hei, jeg heter Leo og er en KI-assistent fra Brave. Jeg driftes av GLM-5, som er en ytelsesdyktig modell fra Zhipu AI med mange ulike bruksområder. GLM-5 er vert for via deres egen verifiserbart private og sikre infrastruktur.<ph name="LINK_BEFORE"/>Les mer<ph name="LINK_AFTER"/></translation>
+<translation id="784931275560506522">Hei, jeg heter Leo og er en KI-assistent fra Brave. Jeg driftes av GLM-5.1, som er en ytelsesdyktig modell fra Zhipu AI med mange ulike bruksområder. GLM-5.1 er vert for via deres egen verifiserbart private og sikre infrastruktur.<ph name="LINK_BEFORE"/>Les mer<ph name="LINK_AFTER"/></translation>
 <translation id="8932568551552504373">Hei, jeg er Leo. Jeg er en AI-assistent fra Brave. Jeg drives av Claude Instant, en modell utviklet av Anthropic for samtale og tekstbehandling. Claude Instant hostes av Brave via vår egen sikre infrastruktur.<ph name="LINK_BEFORE"/>Les mer<ph name="LINK_AFTER"/></translation>
 <translation id="3789772321824682783">Hei, jeg heter Leo. Jeg er en KI-assistent fra Brave. Jeg driftes av Claude Haiku, en modell skapt av Anthropic for å drive samtale- og tekstbehandlingsoppgaver. Brave er vert for Claude Haiku via vår egen, sikre infrastruktur.<ph name="LINK_BEFORE"/>Les mer<ph name="LINK_AFTER"/>.</translation>
 <translation id="1778885220602472158">Hei, jeg heter Leo. Jeg er en KI-assistent fra Brave. Jeg driftes av Claude Sonnet, en modell skapt av Anthropic for å drive samtale- og tekstbehandlingsoppgaver. Brave er vert for Claude Sonnet via vår egen, sikre infrastruktur.<ph name="LINK_BEFORE"/>Les mer<ph name="LINK_AFTER"/>.</translation>
@@ -2336,8 +2360,8 @@
 <translation id="4592293425457329338">Det ser ut til at deler av konteksten mangler. Leo klarte å ta vare på <ph name="PERCENTAGE"/> av det relaterte innholdet.</translation>
 <translation id="8501106061098623831">Det ble tatt for mange bilder fra siden. Leo kunne bruke <ph name="PERCENTAGE"/> av det tilgjengelige visuelle innholdet.</translation>
 <translation id="4370698775470316661">Denne samtalen er for lang, og kan ikke fortsette. Det kan finnes andre tilgjengelige modeller med Leo der samtalen kan holde høy kvalitet over lengre tid.</translation>
-<translation id="5719170755629028558">Forbedrer svaret ditt med Brave-søk …</translation>
-<translation id="5794962229997281366">Forbedret svarsøk for <ph name="SEARCH_TERMS"/>.</translation>
+<translation id="4744144453035015075">Søker på nettet</translation>
+<translation id="8548351747582087191">Søker på nettet etter <ph name="SEARCH_TERMS"/>.</translation>
 <translation id="7307396647043599949"><ph name="COUNT"/> til …</translation>
 <translation id="8103700533980268469">Lukk denne meldingen</translation>
 <translation id="3417835166382867856">Søk etter faner</translation>
@@ -2408,8 +2432,8 @@
 <translation id="2370739752330685659">Kanskje senere</translation>
 <translation id="983013125018250242">Leo-verktøy</translation>
 <translation id="7623223587478473368">Vedlegg</translation>
-<translation id="3777121685517940177">Last opp fil ...</translation>
-<translation id="6739516910850820220">Laster opp fil...</translation>
+<translation id="3728603231003977269">Legg ved fil …</translation>
+<translation id="7899721102369502629">Legger ved fil …</translation>
 <translation id="9088751620363630236">Ta et bilde ...</translation>
 <translation id="4250229828105606438">Skjermbilde</translation>
 <translation id="7949596341600215809">Skjermbilde av hele siden</translation>
@@ -2457,10 +2481,12 @@
 <translation id="7607002721634913082">Midlertidig stanset</translation>
 <translation id="4773299976671772492">Stoppet</translation>
 <translation id="6946722113367118030">Tenker</translation>
+<translation id="7918928051723770926">Oppgave fullført</translation>
 <translation id="2113810663179257944">Kodekjøring</translation>
-<translation id="6338250692384725496">Utførte kode i sandkasse for å hjelpe med spørsmålet ditt</translation>
+<translation id="4838375634693651776">Utfører kode i sandkasse for å hjelpe med spørsmålet ditt</translation>
 <translation id="4379566111233326721">Kode:</translation>
 <translation id="3542130965673205258">Ut:</translation>
+<translation id="6911817209337314910">Genererer noen alternativer du kan velge mellom</translation>
 <translation id="5382076391290708074">Flytter dine faner rundt</translation>
 <translation id="3862123464576147769">Hvis du tillater dette, vil <ph name="URL_FORMAT_START"/>URL-en<ph name="URL_FORMAT_END"/> og <ph name="TITLE_FORMAT_START"/>tittelen<ph name="TITLE_FORMAT_END"/> på alle fanene og fanegruppene dine bli sendt til Brave AI, og Brave AI vil kunne flytte dem rundt. Denne tillatelsen gjelder kun for denne samtalen.</translation>
 <translation id="396165714586708444">Dyp forsking</translation>
@@ -2492,7 +2518,9 @@
 <translation id="5663901348199429994">Dine e-postaliaser</translation>
 <translation id="9046133327037621173">Nytt e-postalias</translation>
 <translation id="3768606658230902536">Opprett en tilfeldig e-postadresse som videresender alle e-poster til innboksen din, samtidig som den personlige e-postadressen din holdes hemmelig.</translation>
-<translation id="6887156107256264506">Du har nådd grensen på 5 gratis e-postaliaser. Gå til Administrer for å bruke eller slette et alias.</translation>
+<translation id="4452721050684632493">Aliasgrensen er nådd</translation>
+<translation id="2912191433415590080">Du har brukt alle <ph name="MAX_ALIASES"/> e-postaliasene dine. Slett et eksisterende alias for å opprette et nytt.</translation>
+<translation id="3847337908410945070">Aliasene dine (<ph name="CURRENT"/> / <ph name="MAX"/>)</translation>
 <translation id="1104500750724567895">Nytt alias</translation>
 <translation id="8072910658503112482">Foreslå et annet e-postalias</translation>
 <translation id="7710361355427562228">Genererer nytt alias …</translation>
@@ -2509,6 +2537,7 @@
 <translation id="646524615209870492">Dersom du fjerner <ph name="ALIAS"/> som alias, mister du muligheten til å motta e-poster.</translation>
 <translation id="8133100642915054515">Aliaset kunne ikke slettes. Sjekk internettkoblingen og prøv på nytt.</translation>
 <translation id="8465742443901727718">Dette kan ikke angres. Er du sikker på at du ønsker å fortsette?</translation>
+<translation id="6402052536605772735">Feil under henting av e-postaliaser fra serverne våre. Sjekk internettilkoblingen din.</translation>
 <translation id="9162685486229945876">Logg inn eller opprett en Brave-konto</translation>
 <translation id="1335007417599138852">En Brave-konto lar deg få tilgang til visse Brave-produkter og synkronisere informasjonen din enkelt på alle enhetene dine.</translation>
 <translation id="2133391407495495735">Få innloggingslenke</translation>
@@ -2535,6 +2564,8 @@
 <translation id="2991633563551889054">Skjul Talk-kort</translation>
 <translation id="5355776323718420036">Skjul populære nettsteder</translation>
 <translation id="1689504141194856995">Skjul VPN-kort</translation>
+<translation id="2919329118360099847">Brave vil brukes som søkemotor i adresselinjen for vanlige vinduer.</translation>
+<translation id="6792837540759934892">Angi Brave som standard søkemotor?</translation>
 <translation id="8262911270872215147">Tilpass Nyheter</translation>
 <translation id="3884037897537157986">Deaktiver Nyheter</translation>
 <translation id="7847477075635510673">Skjul Nyheter</translation>
@@ -2673,7 +2704,7 @@
 <translation id="2273851479262317744">Angi Brave som standard nettleser</translation>
 <translation id="5037676449506322593">Velg alle</translation>
 <translation id="5148943178722443958">Bidra til å gjøre Brave bedre.</translation>
-<translation id="479535542793009168">Stabilitet og diagnostikk</translation>
+<translation id="8874748598814587364">Stabilitet</translation>
 <translation id="1097073572755862978">Send diagnoserapporter hvis du opplever at systemet krasjer eller henger seg opp. <ph name="LINK_BEFORE"/>Finn ut mer.<ph name="LINK_AFTER"/></translation>
 <translation id="6629244688368006959">Del private og anonyme produktinnsikter om hvilke funksjoner Brave-brukerne benytter seg av <ph name="LINK_BEFORE"/>Finn ut mer.<ph name="LINK_AFTER"/></translation>
 <translation id="7415454883318062233">Ferdig</translation>
@@ -2686,7 +2717,7 @@
 <translation id="4117637339509843559">Mørk modus</translation>
 <translation id="6302485303316397682">Vil du ha bedre søkeresultater?</translation>
 <translation id="7014699001826714920">Bli med i bevegelsen, bidra til Brave-søk.</translation>
-<translation id="6821108091726602352">Hjelp oss med å fikse nettet ved å delta i Braves Web Discovery Project. Ved å dele helt anonyme søkesignaler kan du hjelpe Brave med å vokse søkeindeksen.</translation>
+<translation id="6821108091726602352">Hjelp oss å fikse nettet ved å delta i Braves Web Discovery Project. Ved å dele helt anonyme søkesignaler kan du hjelpe Brave med å utvide søkeindeksen.</translation>
 <translation id="6764845498618413165">Finn ut mer.</translation>
 <translation id="7818938154803162778">Klart, jeg kan hjelpe</translation>
 <translation id="7207456302801184289">Velkommen til Brave</translation>
@@ -2802,6 +2833,10 @@ eksisterende fanen</translation>
 <translation id="1602850501393095406">Trykk ↑ for å fremheve</translation>
 <translation id="8367705492654390392">Spør om hva som helst</translation>
 <translation id="8525248723479742219">Spill senere</translation>
+<translation id="1751249301761991853">Personlig</translation>
+<translation id="1122068467107743258">Arbeid</translation>
+<translation id="8372721116225477180">Sosialt</translation>
+<translation id="1539343118617844331">Skole</translation>
 <translation id="2935698011275148880">Brave Origin</translation>
 <translation id="3983844925615091103">Velkommen til Brave Origin. For å fortsette, kjøp eller gjenopprett Brave Origin-kjøpet ditt.</translation>
 <translation id="4801175670604644729">Du trenger et aktivt Brave Origin-kjøp for å bruke denne nettleseren.</translation>
@@ -2817,4 +2852,66 @@ eksisterende fanen</translation>
 <translation id="5816720995022674532">Origin er gratis å bruke på Linux-enheter, men er fortsatt <ph name="BEGIN_LINK"/>tilgjengelig for kjøp<ph name="END_LINK"/> hvis du vil støtte Brave som en bedrift. Kjøp vil også åpne muligheten til å bruke Origin på Android, iOS, macOS og Windows-enheter.</translation>
 <translation id="3065220545261045367">Støtt Brave ved å kjøpe Origin</translation>
 <translation id="2069499076031488636">Fortsett med Origin gratis på Linux</translation>
+<translation id="5713644099811900409">Brave-konto</translation>
+<translation id="2906576968270573525">Logg inn eller opprett en Brave-konto</translation>
+<translation id="6972754398087986839">Kom i gang</translation>
+<translation id="5378207817582281342">Nesten i mål!</translation>
+<translation id="3750210661641549834">For å opprette kontoen din, må du verifisere e-postadressen din.</translation>
+<translation id="4129813507847680661">Skriv inn registreringskode</translation>
+<translation id="1672793037892810340">Du skal ha mottatt en e-post med en kode du må skrive inn.</translation>
+<translation id="4821255729182569254">Send bekreftelses-e-post på nytt</translation>
+<translation id="5837679375142747484">Finner du ikke e-posten? Sjekk søppelposten eller <ph name="BEGIN_LINK"/>send på nytt<ph name="END_LINK"/>.</translation>
+<translation id="1080588816740959885">Finner du ikke e-posten? Sjekk søppelposten eller send den på nytt.</translation>
+<translation id="1020730839570724178">Avbryt registrering</translation>
+<translation id="4869737930995549965">Logg ut</translation>
+<translation id="5538654494923870167">Kom i gang med Brave-kontoen din</translation>
+<translation id="1544145635547515689">Opprett en Brave-konto</translation>
+<translation id="3828644479849256404">Har du allerede en konto? Logg på</translation>
+<translation id="6624553071240278643">Opprett kontoen din</translation>
+<translation id="6505120968393722022">Du kan ikke bruke @bravealias.com-adresser til å opprette Brave-kontoer. Prøv igjen med et annet domene.</translation>
+<translation id="8248460961680233459">Lag et passord</translation>
+<translation id="552339301062636488">For svakt til å fortsette</translation>
+<translation id="8433528931936107676">Nesten der</translation>
+<translation id="4324743471050874155">Sterkt nok</translation>
+<translation id="5585552203448068294">Eksepsjonelt sterkt</translation>
+<translation id="5486261815000869482">Bekreft passord</translation>
+<translation id="7345706641791090287">Bekreft passordet ditt</translation>
+<translation id="7114054701490058191">Passordene samsvarer ikke</translation>
+<translation id="1293857704520741614">Logg på kontoen din</translation>
+<translation id="118617366439356381">Glemt passordet?</translation>
+<translation id="5183159033908953146">Bekreft e-postadressen til Brave-kontoen din, så får du tilsendt en lenke for å tilbakestille passordet. Lenken vil kun være gyldig i 30 minutter.</translation>
+<translation id="3997368361371298873">Advarsel: siden du ikke er logget inn på denne enheten, vil tilbakestilling av passordet ditt <ph name="BEGIN_BOLD"/>slette alle dataene dine<ph name="END_BOLD"/> på serveren. Hvis du har en annen enhet der du er logget inn, bytt passordet fra den enheten i stedet for å tilbakestille passordet.</translation>
+<translation id="3674472551471103443">Tilbakestill passordet ditt</translation>
+<translation id="2755539422340788311">Bekreft e-postadressen din</translation>
+<translation id="6641436078676327508">Du skal ha mottatt en e-post med en kort kode. Skriv den inn her for å fortsette.</translation>
+<translation id="7228810962389847249">Skriv inn koden her</translation>
+<translation id="4683390091376980486">Bekreft kode</translation>
+<translation id="3970028678400797622">Send e-postkode på nytt</translation>
+<translation id="2475982808118771221">Det oppstod en feil</translation>
+<translation id="5430795854491041407">feil</translation>
+<translation id="2232323423357029857">Nettleseren oppdaget en uventet feil<ph name="ERROR_CODE"/>. Start nettleseren på nytt og prøv igjen.</translation>
+<translation id="7167650060829320707">Intern serverfeil (<ph name="STATUS_CODE"/><ph name="ERROR_CODE"/>). Prøv igjen senere.</translation>
+<translation id="2387645930330673048">Denne kontoen venter på e-postverifisering.</translation>
+<translation id="2199962270601714404">Ingen konto funnet for den e-postadressen. Prøv igjen, eller opprett en ny konto.</translation>
+<translation id="8130611002720478693">Feil passord. Prøv igjen.</translation>
+<translation id="7144067487084094749">Det finnes allerede en konto for denne e-postadressen. Prøv å logge på i stedet for å opprette en konto.</translation>
+<translation id="5288951359968156008">Domenet til denne e-postadressen støttes ikke. Bruk en annen e-postadresse.</translation>
+<translation id="7625678607509255072">Grensen for e-postverifisering er overskredet. Vent 30 minutter før du prøver igjen.</translation>
+<translation id="4582421696414628320">Verifiseringen er utløpt. Start registreringsprosessen på nytt.</translation>
+<translation id="8439543211004394821">For mange feil koder ble skrevet inn. Start registreringsprosessen på nytt.</translation>
+<translation id="3229986152760633988">Feil kode, prøv igjen.</translation>
+<translation id="818783632689113711">Det er allerede bedt om en konto for denne e-postadressen. Sjekk e-posten din eller prøv igjen om 30 minutter.</translation>
+<translation id="4178004989875422946">En Brave-konto lar deg enkelt få tilgang til Brave-tjenester.</translation>
+<translation id="4902897635127068510">Mente du <ph name="SUGGESTION"/>?</translation>
+<translation id="8314772463905284467">Caps Lock er på</translation>
+<translation id="7044608453949401443">Mellomrom er ikke tillatt i begynnelsen eller slutten av passordet.</translation>
+<translation id="2939492377741553693">Bekreftelses-e-post sendt på nytt.</translation>
+<translation id="2112559299194052697">Kunne ikke sende på nytt</translation>
+<translation id="7932611814134267012">For mange verifiserings-e-poster har allerede blitt sendt. Sjekk søppelpostmappen din.</translation>
+<translation id="1364223093800750401">E-post allerede verifisert.</translation>
+<translation id="3353844160742960162">Justering av personverninnstillinger</translation>
+<translation id="528205534230423181">Dette nettstedet tilbyr personverninnstillinger som Brave kan justere automatisk for deg. Her er det vi anbefaler:</translation>
+<translation id="1063227610401477317">Bruk endringene</translation>
+<translation id="5539769255716491933">Rapporter mislykkede trinn</translation>
+<translation id="7562163394445060270">Fullføring av oppgave mislyktes</translation>
 </translationbundle>

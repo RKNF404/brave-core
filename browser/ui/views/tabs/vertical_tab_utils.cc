@@ -10,7 +10,7 @@
 #include "base/command_line.h"
 #include "base/numerics/safe_conversions.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
-#include "brave/browser/ui/views/tabs/switches.h"
+#include "brave/browser/ui/tabs/public/switches.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
@@ -47,6 +47,12 @@ bool SupportsBraveVerticalTabs(const BrowserWindowInterface* browser) {
 
 bool ShouldShowBraveVerticalTabs(const BrowserWindowInterface* browser) {
   if (!SupportsBraveVerticalTabs(browser)) {
+    return false;
+  }
+
+  if (!browser->GetProfile()) {
+    // During unit tests, profile can be null.
+    CHECK_IS_TEST();
     return false;
   }
 

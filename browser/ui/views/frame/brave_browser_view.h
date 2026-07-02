@@ -17,6 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "brave/browser/ui/commands/accelerator_service.h"
+#include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "brave/browser/ui/tabs/brave_tab_strip_model.h"
 #include "brave/components/brave_vpn/common/buildflags/buildflags.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "components/prefs/pref_member.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
@@ -48,7 +50,6 @@ enum class SpeedreaderBubbleLocation : int;
 namespace sidebar {
 FORWARD_DECLARE_TEST(SidebarBrowserWithSplitViewTest,
                      ShowSidebarOnMouseOverTest);
-FORWARD_DECLARE_TEST(SidebarV2BrowserTest, BrowserStartsWithV2Enabled);
 }  // namespace sidebar
 
 namespace content {
@@ -64,14 +65,16 @@ class Widget;
 }  // namespace views
 
 class BraveBrowser;
+class BraveSidePanelShadowOverlayView;
 class BraveShieldsToolbarButton;
 class BraveHelpBubbleHostView;
 class BraveMultiContentsView;
 class ContentsLayoutManager;
+class FocusModeTopOverlay;
 class SidebarContainerView;
 class SidePanelEntry;
 class TabStripPlacementCoordinator;
-class VerticalTabStripWidgetDelegateView;
+class BraveVerticalTabStripContainerView;
 class ViewShadow;
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
@@ -79,7 +82,8 @@ class WalletButton;
 #endif
 
 class BraveBrowserView : public BrowserView,
-                         public commands::AcceleratorService::Observer {
+                         public commands::AcceleratorService::Observer,
+                         public FocusModeController::Observer {
   METADATA_HEADER(BraveBrowserView, BrowserView)
  public:
   explicit BraveBrowserView(Browser* browser);
@@ -131,16 +135,16 @@ class BraveBrowserView : public BrowserView,
                           content::WebContents* new_contents,
                           int index,
                           int reason) override;
+  void UpdateToolbar(content::WebContents* contents) override;
+  bool UpdateToolbarSecurityState() override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
   bool IsInTabDragging() const override;
   void ReadyToListenFullscreenChanges() override;
   bool IsWebPanelContents(content::WebContents* contents) override;
   ClientFrameElementInfo GetFrameElementInfo() const override;
 
-#if BUILDFLAG(IS_MAC)
-  bool UsesImmersiveFullscreenMode() const override;
-  bool UsesImmersiveFullscreenTabbedMode() const override;
-#endif
+  void OnImmersiveFullscreenExited() override;
+  void OnImmersiveModeControllerDestroyed() override;
 
 #if defined(USE_AURA)
   views::View* sidebar_host_view() { return sidebar_host_view_; }
@@ -148,11 +152,9 @@ class BraveBrowserView : public BrowserView,
 
   void StopListeningFullscreenChanges();
   bool IsSidebarVisible() const;
-  void SetSidePanelOperationByActiveTabChange(bool tab_change);
 
-  VerticalTabStripWidgetDelegateView*
-  vertical_tab_strip_widget_delegate_view() {
-    return vertical_tab_strip_widget_delegate_view_;
+  BraveVerticalTabStripContainerView* vertical_tab_strip_container_view() {
+    return vertical_tab_strip_container_view_;
   }
   bool ShowBraveHelpBubbleView(const std::string& text) override;
 
@@ -160,10 +162,18 @@ class BraveBrowserView : public BrowserView,
   void OnAcceleratorsChanged(
       const commands::AcceleratorPrefManager::Accelerators& changed) override;
 
+  // FocusModeController::Observer:
+  void OnFocusModeToggled(bool enabled) override;
+
   BraveMultiContentsView* GetBraveMultiContentsView() const;
   void UpdateRoundedCornersUI();
   void UpdateVerticalTabStripBorder();
   void UpdateSidebarBorder();
+
+  // Re-applies the side panel border so the content corner radii track the
+  // sidebar control view's visibility. Wired as SidebarContainerView's
+  // control-view-visibility-changed callback.
+  void OnSidebarControlViewVisibilityChanged();
 
   SidebarContainerView* sidebar_container_view() {
     return sidebar_container_view_;
@@ -173,9 +183,15 @@ class BraveBrowserView : public BrowserView,
     return tab_strip_placement_.get();
   }
 
+  FocusModeTopOverlay* focus_mode_top_overlay() {
+    return focus_mode_top_overlay_;
+  }
+
   views::View* top_container_separator_for_testing() const {
     return top_container_separator_;
   }
+
+  views::View* side_panel_shadow_overlay_for_testing();
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Returns the PWA Shields toolbar button, if it exists. Note that this
@@ -202,28 +218,25 @@ class BraveBrowserView : public BrowserView,
   FRIEND_TEST_ALL_PREFIXES(SpeedReaderBrowserTest, ToolbarLangs);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedState);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedWidth);
-  FRIEND_TEST_ALL_PREFIXES(SideBySideEnabledBrowserTest,
-                           BraveMultiContentsViewTest);
+  FRIEND_TEST_ALL_PREFIXES(SplitViewBrowserTest, BraveMultiContentsViewTest);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest, GetMinimumWidth);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest,
                            ShouldBeInvisible);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest,
                            ShowVerticalTabOnMouseOverTest);
-  FRIEND_TEST_ALL_PREFIXES(SideBySideWithRoundedCornersTest,
+  FRIEND_TEST_ALL_PREFIXES(SplitViewWithRoundedCornersTest,
                            TabFullscreenStateTest);
   FRIEND_TEST_ALL_PREFIXES(BraveBrowserViewWithRoundedCornersTest,
                            ContentsBackgroundEventHandleTest);
-  FRIEND_TEST_ALL_PREFIXES(SideBySideWithRoundedCornersTest,
-                           ContentsShadowTest);
+  FRIEND_TEST_ALL_PREFIXES(SplitViewWithRoundedCornersTest, ContentsShadowTest);
   FRIEND_TEST_ALL_PREFIXES(sidebar::SidebarBrowserWithSplitViewTest,
                            ShowSidebarOnMouseOverTest);
-  FRIEND_TEST_ALL_PREFIXES(sidebar::SidebarV2BrowserTest,
-                           BrowserStartsWithV2Enabled);
 
   static void SetDownloadConfirmReturnForTesting(bool allow);
 
   // BrowserView overrides:
   void AddedToWidget() override;
+  void RemovedFromWidget() override;
   void LoadAccelerators() override;
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
@@ -244,16 +257,20 @@ class BraveBrowserView : public BrowserView,
   void HideSplitView() override;
   void ReparentTopContainerForEndOfImmersive() override;
   bool ShouldDrawTabStrokes() const override;
+  void UpdateTabSearchBubbleHost() override;
 
   void HandleBrowserWindowMouseEvent(const ui::MouseEvent& event);
   bool IsBraveWebViewRoundedCornersEnabled();
   void UpdateContentsShadowVisibility();
   void StopTabCycling();
   void UpdateSearchTabsButtonState();
+  void OnCompactModePrefChanged();
   void OnPreferenceChanged(const std::string& pref_name);
   void OnWindowClosingConfirmResponse(bool allowed_to_close);
   BraveBrowser* GetBraveBrowser() const;
   void UpdateWebViewRoundedCorners();
+  void UpdateFocusModeState();
+  bool ShouldDisableFocusModeForActiveTab() const;
 
   // FindBarHost is anchored to |find_bar_host_view_|; it must remain the last
   // child of BrowserView for correct z-order. Call when a child is added after
@@ -285,8 +302,9 @@ class BraveBrowserView : public BrowserView,
   raw_ptr<SidebarContainerView> sidebar_container_view_ = nullptr;
   raw_ptr<views::View> contents_background_view_ = nullptr;
   raw_ptr<views::View> vertical_tab_strip_host_view_ = nullptr;
-  raw_ptr<VerticalTabStripWidgetDelegateView, DanglingUntriaged>
-      vertical_tab_strip_widget_delegate_view_ = nullptr;
+  raw_ptr<BraveVerticalTabStripContainerView>
+      vertical_tab_strip_container_view_ = nullptr;
+  raw_ptr<FocusModeTopOverlay> focus_mode_top_overlay_ = nullptr;
 
 #if defined(USE_AURA)
   raw_ptr<views::View> sidebar_host_view_ = nullptr;
@@ -305,19 +323,17 @@ class BraveBrowserView : public BrowserView,
       browser_window_mouse_event_handler_;
   std::unique_ptr<ViewShadow> contents_shadow_;
 
+  // Sibling of `side_panel_` that renders the panel's drop shadow without
+  // drawing outside the browser view. Tracks the panel by observing it.
+  raw_ptr<BraveSidePanelShadowOverlayView> side_panel_shadow_overlay_ = nullptr;
+
   PrefChangeRegistrar pref_change_registrar_;
+  BooleanPrefMember compact_horizontal_tabs_;
   base::ScopedObservation<commands::AcceleratorService,
                           commands::AcceleratorService::Observer>
       accelerators_observation_{this};
-
-#if BUILDFLAG(IS_MAC)
-  // Cached at construction: true if vertical tabs were enabled at startup.
-  // When true, immersive fullscreen is disabled for this window's lifetime.
-  // Essential immersive mode objects (e.g. overlay_widget_) are initialized
-  // only at browser window startup; if they are not created then, immersive
-  // mode does not work at runtime.
-  bool vertical_tabs_on_at_startup_ = false;
-#endif
+  base::ScopedObservation<FocusModeController, FocusModeController::Observer>
+      focus_mode_observation_{this};
 
   base::WeakPtrFactory<BraveBrowserView> weak_ptr_{this};
 };

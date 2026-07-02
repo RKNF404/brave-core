@@ -37,6 +37,7 @@
 #include "brave/components/brave_wallet/browser/bitcoin/bitcoin_import_keyring.h"
 #include "brave/components/brave_wallet/browser/blockchain_registry.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_constants.h"
+#include "brave/components/brave_wallet/browser/brave_wallet_service_delegate.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
 #include "brave/components/brave_wallet/browser/cardano/cardano_cip30_serializer.h"
 #include "brave/components/brave_wallet/browser/cardano/cardano_hd_keyring.h"
@@ -1036,6 +1037,10 @@ void MaybeRunPasswordMigrations(PrefService* profile_prefs,
 
 base::flat_set<std::string> GetHiddenAccountUniqueKeys(
     PrefService* profile_prefs) {
+  if (!IsAccountHidingEnabled()) {
+    return {};
+  }
+
   base::flat_set<std::string> hidden_account_unique_keys;
   for (const auto& hidden_account :
        profile_prefs->GetList(kBraveWalletHiddenAccounts)) {
@@ -1132,6 +1137,10 @@ KeyringService::~KeyringService() {
   auto_lock_timer_.reset();
 }
 
+void KeyringService::SetDelegate(BraveWalletServiceDelegate* delegate) {
+  delegate_ = delegate;
+}
+
 void KeyringService::Bind(
     mojo::PendingReceiver<mojom::KeyringService> receiver) {
   receivers_.Add(this, std::move(receiver));
@@ -1140,6 +1149,19 @@ void KeyringService::Bind(
 void KeyringService::RequestUnlock() {
   DCHECK(IsLockedSync());
   request_unlock_pending_ = true;
+}
+
+void KeyringService::GenerateMnemonic(int32_t word_count,
+                                      GenerateMnemonicCallback callback) {
+  if (word_count != 12 && word_count != 24) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+
+  uint32_t entropy_size = word_count == 12 ? bip39::k12WordsEntropySize
+                                           : bip39::k24WordsEntropySize;
+  std::move(callback).Run(
+      *bip39::GenerateMnemonic(base::RandBytesAsVector(entropy_size)));
 }
 
 void KeyringService::GetWalletMnemonic(const std::string& password,
@@ -1169,10 +1191,17 @@ void KeyringService::CreateWallet(const std::string& password,
     return;
   }
 
+  CreateWalletWithMnemonic(*mnemonic, password, std::move(callback));
+}
+
+void KeyringService::CreateWalletWithMnemonic(
+    const std::string& mnemonic,
+    const std::string& password,
+    CreateWalletWithMnemonicCallback callback) {
   WalletDataFilesInstaller::GetInstance()
       .MaybeRegisterWalletDataFilesComponentOnDemand(base::BindOnce(
           &KeyringService::OnCreateWalletRegisterComponentUpdater,
-          weak_ptr_factory_.GetWeakPtr(), *mnemonic, password,
+          weak_ptr_factory_.GetWeakPtr(), mnemonic, password,
           std::move(callback)));
 }
 
@@ -2079,12 +2108,22 @@ void KeyringService::RemoveAccount(mojom::AccountIdPtr account_id,
   }
 
   if (account_id->kind == mojom::AccountKind::kImported) {
-    std::move(callback).Run(RemoveImportedAccountInternal(account_id));
+    const bool removed = RemoveImportedAccountInternal(account_id);
+    if (removed && delegate_) {
+      delegate_->ResetPermissionsForAccount(
+          account_id->coin, GetAccountPermissionIdentifier(account_id));
+    }
+    std::move(callback).Run(removed);
     return;
   }
 
   if (account_id->kind == mojom::AccountKind::kHardware) {
-    std::move(callback).Run(RemoveHardwareAccountInternal(*account_id));
+    const bool removed = RemoveHardwareAccountInternal(*account_id);
+    if (removed && delegate_) {
+      delegate_->ResetPermissionsForAccount(
+          account_id->coin, GetAccountPermissionIdentifier(account_id));
+    }
+    std::move(callback).Run(removed);
     return;
   }
 
@@ -2791,6 +2830,10 @@ std::vector<mojom::AccountInfoPtr> KeyringService::GetHiddenAccountsSync() {
 }
 
 bool KeyringService::CanHideAccount(const mojom::AccountId& account_id) const {
+  if (!IsAccountHidingEnabled()) {
+    return false;
+  }
+
   if (account_id.kind != mojom::AccountKind::kDerived) {
     return false;
   }
@@ -2835,12 +2878,22 @@ void KeyringService::AddHiddenAccount(mojom::AccountIdPtr account_id,
     MaybeFixAccountSelection();
   }
 
+  if (delegate_) {
+    delegate_->ResetPermissionsForAccount(
+        account_id->coin, GetAccountPermissionIdentifier(account_id));
+  }
+
   std::move(callback).Run(true);
 }
 
 void KeyringService::RemoveHiddenAccounts(
     std::vector<mojom::AccountIdPtr> account_ids,
     RemoveHiddenAccountsCallback callback) {
+  if (!IsAccountHidingEnabled()) {
+    std::move(callback).Run(false);
+    return;
+  }
+
   base::flat_set<std::string> unique_keys_to_remove;
   for (const auto& account_id : account_ids) {
     unique_keys_to_remove.insert(account_id->unique_key);

@@ -80,21 +80,21 @@ struct EncryptionView: View {
             VStack(spacing: 4) {
               Text(account.name)
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(Color(.braveLabel))
+                .foregroundColor(Color(braveSystemName: .textPrimary))
               Text(account.address.truncatedAddress)
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(Color(.secondaryBraveLabel))
+                .foregroundColor(Color(braveSystemName: .textSecondary))
             }
           }
           Text(originInfo: request.originInfo)
             .font(.caption)
-            .foregroundColor(Color(.braveLabel))
+            .foregroundColor(Color(braveSystemName: .textPrimary))
             .multilineTextAlignment(.center)
         }
         .accessibilityElement(children: .combine)
         Text(subtitle)
           .font(.headline)
-          .foregroundColor(Color(.bravePrimary))
+          .foregroundColor(Color(braveSystemName: .textPrimary))
       }
       .padding(.vertical, 32)
       .multilineTextAlignment(.center)
@@ -122,7 +122,7 @@ struct EncryptionView: View {
                 } label: {
                   Text(Strings.Wallet.decryptRequestReveal)
                 }
-                .buttonStyle(BraveFilledButtonStyle(size: .normal))
+                .buttonStyle(.filled)
               }
             }
           )
@@ -137,11 +137,11 @@ struct EncryptionView: View {
       }
       .frame(maxWidth: .infinity)
       .frame(height: 200)
-      .background(Color(.tertiaryBraveGroupedBackground))
+      .background(Color(.tertiarySystemGroupedBackground))
       .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
       .padding()
       .background(
-        Color(.secondaryBraveGroupedBackground)
+        Color(.secondarySystemGroupedBackground)
       )
       .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
@@ -160,9 +160,9 @@ struct EncryptionView: View {
             .background(
               LinearGradient(
                 stops: [
-                  .init(color: Color(.braveGroupedBackground).opacity(0), location: 0),
-                  .init(color: Color(.braveGroupedBackground).opacity(1), location: 0.05),
-                  .init(color: Color(.braveGroupedBackground).opacity(1), location: 1),
+                  .init(color: Color(.systemGroupedBackground).opacity(0), location: 0),
+                  .init(color: Color(.systemGroupedBackground).opacity(1), location: 0.05),
+                  .init(color: Color(.systemGroupedBackground).opacity(1), location: 1),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -177,15 +177,15 @@ struct EncryptionView: View {
     .frame(maxWidth: .infinity)
     .navigationTitle(navigationTitle)
     .navigationBarTitleDisplayMode(.inline)
-    .foregroundColor(Color(.braveLabel))
-    .background(Color(.braveGroupedBackground).edgesIgnoringSafeArea(.all))
+    .foregroundColor(Color(braveSystemName: .textPrimary))
+    .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
     .toolbar {
       ToolbarItemGroup(placement: .cancellationAction) {
         Button {
           onDismiss()
         } label: {
           Text(Strings.cancelButtonTitle)
-            .foregroundColor(Color(.braveBlurpleTint))
+            .foregroundColor(Color(braveSystemName: .textInteractive))
         }
       }
     }
@@ -219,14 +219,16 @@ struct EncryptionView: View {
       Label(Strings.cancelButtonTitle, systemImage: "xmark")
         .imageScale(.large)
     }
-    .buttonStyle(BraveOutlineButtonStyle(size: .large))
+    .buttonStyle(.outline)
+    .controlSize(.large)
     Button {  // approve
       handleAction(approved: true)
     } label: {
       Label(approveButtonTitle, braveSystemImage: "leo.check.circle-filled")
         .imageScale(.large)
     }
-    .buttonStyle(BraveFilledButtonStyle(size: .large))
+    .buttonStyle(.filled)
+    .controlSize(.large)
   }
 
   private func handleAction(approved: Bool) {

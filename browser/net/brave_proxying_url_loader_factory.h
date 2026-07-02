@@ -32,6 +32,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/completion_once_callback.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/http_request_headers_update_params.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/early_hints.mojom-forward.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -74,12 +75,21 @@ class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
     ~InProgressRequest() override;
 
     void Restart();
+    // Called when ThrottlingURLLoader disconnects our proxied_loader_receiver_.
+    // For redirect-restart disconnects (kFollowRedirectReason), we forward the
+    // same disconnect reason to target_loader_ so that any inner proxy layer
+    // (e.g. WebRequestProxyingURLLoaderFactory) also receives the signal and
+    // can clean up its request-ID bookkeeping before the restarted loader
+    // registers the same ID. Without this propagation the inner proxy's
+    // AssociateProxyWithRequestId check fails on the new request, causing the
+    // navigation to hang. See
+    // https://github.com/brave/brave-browser/issues/56271.
+    void OnLoaderDisconnected(uint32_t custom_reason,
+                              const std::string& description);
 
     // network::mojom::URLLoader:
     void FollowRedirect(
-        const std::vector<std::string>& removed_headers,
-        const net::HttpRequestHeaders& modified_headers,
-        const net::HttpRequestHeaders& modified_cors_exempt_headers,
+        network::HttpRequestHeadersUpdateParams headers_update_params,
         const std::optional<GURL>& new_url) override;
     void SetPriority(net::RequestPriority priority,
                      int32_t intra_priority_value) override;

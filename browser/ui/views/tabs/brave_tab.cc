@@ -12,8 +12,8 @@
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
-#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_widget_delegate_view.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/components/tabs/public/tree_tab_node.h"
 #include "cc/paint/paint_flags.h"
@@ -161,7 +161,7 @@ void BraveTab::RemovedFromWidget() {
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
 void BraveTab::MaybeStartObservingFullscreenChanges() {
-  if (!small_accent_icon_view_ || fullscreen_observation_.IsObserving()) {
+  if (!small_accent_icon_view_ || fullscreen_subscription_) {
     return;
   }
 
@@ -182,11 +182,16 @@ void BraveTab::MaybeStartObservingFullscreenChanges() {
     return;
   }
 
-  fullscreen_observation_.Observe(fullscreen_controller);
+  // Observe changes to fullscreen state.
+  fullscreen_subscription_ =
+      ExclusiveAccessManager::From(browser)
+          ->fullscreen_controller()
+          ->RegisterOnFullscreenStateChanged(base::BindRepeating(
+              &BraveTab::OnFullscreenStateChanged, base::Unretained(this)));
 }
 
 void BraveTab::StopObservingFullscreenChanges() {
-  fullscreen_observation_.Reset();
+  fullscreen_subscription_ = {};
 }
 
 void BraveTab::OnFullscreenStateChanged() {
@@ -444,6 +449,7 @@ void BraveTab::UpdateSmallAccentIconLayer() {
   const views::Widget* widget = GetWidget();
   small_accent_icon_view_->SetCanPaintToLayer(widget &&
                                               !widget->IsFullscreen());
+  small_accent_icon_view_->SchedulePaint();
 }
 
 void BraveTab::LayoutSmallTabAccentIcon() {
@@ -574,13 +580,7 @@ bool BraveTab::ShouldShowLargeAccentIcon() const {
     return width() >= tabs::kVerticalTabMinWidth + kTabAccentIconAreaWidth;
   }
 
-  if (IsActive()) {
-    return width() >= tab_style()->GetMinimumActiveWidth(split().has_value()) +
-                          kTabAccentIconAreaWidth;
-  }
-
-  return width() >= tab_style()->GetPinnedWidth(split().has_value()) +
-                        kTabAccentIconAreaWidth;
+  return width() >= tab_style()->GetStandardWidth(split().has_value()) * 0.5;
 }
 
 bool BraveTab::ShouldRenderAsNormalTab() const {
@@ -739,8 +739,8 @@ void BraveTab::UpdateTreeToggleButtonIcon() {
   const SkColor icon_color =
       tab_style_views()->CalculateTargetColors().foreground_color;
   const bool collapsed = GetTreeTabNode()->collapsed();
-  const auto& icon = collapsed ? vector_icons::kSubmenuArrowChromeRefreshIcon
-                               : vector_icons::kExpandMoreIcon;
+  const auto& icon = collapsed ? vector_icons::kSubmenuArrowChromeRefreshOldIcon
+                               : vector_icons::kExpandMoreOldIcon;
   tree_toggle_button_->SetImageModel(
       views::Button::STATE_NORMAL,
       ui::ImageModel::FromVectorIcon(icon, icon_color, icon_size));

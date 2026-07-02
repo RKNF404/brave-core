@@ -5,12 +5,15 @@
 
 #include "brave/browser/ui/brave_browser_actions.h"
 
+#include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/types/to_address.h"
 #include "brave/browser/ui/browser_commands.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
+#include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/containers/buildflags/buildflags.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
+#include "brave/components/psst/buildflags/buildflags.h"
 #include "brave/components/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -28,6 +31,10 @@
 #include "brave/components/ai_chat/core/browser/utils.h"
 #endif
 
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+#include "brave/components/brave_news/common/features.h"
+#endif
+
 #if BUILDFLAG(ENABLE_CONTAINERS)
 #include "brave/components/containers/core/common/features.h"
 #endif
@@ -36,9 +43,15 @@
 #include "brave/components/playlist/core/browser/utils.h"
 #endif
 
+#if BUILDFLAG(ENABLE_PSST)
+#include "brave/components/psst/core/common/features.h"
+#include "chrome/browser/ui/page_action/page_action_triggers.h"
+#endif
+
 namespace {
 
-#if BUILDFLAG(ENABLE_PLAYLIST) || BUILDFLAG(ENABLE_AI_CHAT)
+#if BUILDFLAG(ENABLE_PLAYLIST) || BUILDFLAG(ENABLE_AI_CHAT) || \
+    BUILDFLAG(ENABLE_BRAVE_NEWS)
 actions::ActionItem::ActionItemBuilder SidePanelAction(
     SidePanelEntryId id,
     int title_id,
@@ -55,7 +68,8 @@ actions::ActionItem::ActionItemBuilder SidePanelAction(
       .SetImage(ui::ImageModel::FromVectorIcon(icon, ui::kColorIcon))
       .SetProperty(actions::kActionItemPinnableKey, is_pinnable);
 }
-#endif  // BUILDFLAG(ENABLE_PLAYLIST) || BUILDFLAG(ENABLE_AI_CHAT)
+#endif  // BUILDFLAG(ENABLE_PLAYLIST) || BUILDFLAG(ENABLE_AI_CHAT) ||
+        // BUILDFLAG(ENABLE_BRAVE_NEWS)
 
 }  // namespace
 
@@ -108,6 +122,16 @@ void BraveBrowserActions::InitializeBrowserActions() {
   }
 #endif
 
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+  if (base::FeatureList::IsEnabled(brave_news::features::kBraveNewsSidebar)) {
+    root_action_item_->AddChild(
+        SidePanelAction(SidePanelEntryId::kBraveNews, IDS_BRAVE_NEWS_TITLE,
+                        IDS_BRAVE_NEWS_TITLE, kLeoRssIcon,
+                        kActionSidePanelShowBraveNews, bwi, true)
+            .Build());
+  }
+#endif
+
 #if BUILDFLAG(ENABLE_CONTAINERS)
   if (base::FeatureList::IsEnabled(containers::features::kContainers)) {
     root_action_item_->AddChild(
@@ -126,4 +150,23 @@ void BraveBrowserActions::InitializeBrowserActions() {
             .Build());
   }
 #endif
+
+#if BUILDFLAG(ENABLE_PSST)
+  if (base::FeatureList::IsEnabled(psst::features::kEnablePsst)) {
+    root_action_item_->AddChild(
+        actions::ActionItem::Builder(
+            base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  brave::OpenPsstMenuOnPageActionView(
+                      bwi, item,
+                      context.GetProperty(
+                          page_actions::kBravePageActionEventFlagKey));
+                },
+                bwi))
+            .SetActionId(kActionShowPsstIcon)
+            .SetEnabled(true)
+            .Build());
+  }
+#endif  // BUILDFLAG(ENABLE_PSST)
 }

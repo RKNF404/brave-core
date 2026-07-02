@@ -50,6 +50,9 @@ bool HasInsecureDownloads(BrowserView* browser_view) {
 // `GetDownloadsButton`, which is declared in the unamed namespace of the
 // shadowed source.
 void UpdateIcon_BraveImpl(BrowserView* browser_view,
+                          const gfx::VectorIcon& icon,
+                          DownloadDisplay::IconState state,
+                          DownloadDisplay::IconActive active,
                           actions::ActionItem* action_item);
 
 }  // namespace
@@ -59,6 +62,9 @@ void UpdateIcon_BraveImpl(BrowserView* browser_view,
 namespace {
 
 void UpdateIcon_BraveImpl(BrowserView* browser_view,
+                          const gfx::VectorIcon& icon,
+                          DownloadDisplay::IconState state,
+                          DownloadDisplay::IconActive active,
                           actions::ActionItem* action_item) {
   if (!action_item) {
     return;
@@ -75,13 +81,15 @@ void UpdateIcon_BraveImpl(BrowserView* browser_view,
     auto icon_color = browser_view->GetColorProvider()->GetColor(
         ui::kColorAlertMediumSeverityIcon);
     button->SetIconEnabledColorsOverride(icon_color);
-    button->SetVectorIcon(vector_icons::kNotSecureWarningIcon);
-    const gfx::VectorIcon* new_icon = &vector_icons::kNotSecureWarningIcon;
+    button->SetVectorIcon(vector_icons::kNotSecureWarningOldIcon);
+    const gfx::VectorIcon* new_icon = &vector_icons::kNotSecureWarningOldIcon;
     const int icon_size = action_item->GetImage().Size().height();
     action_item->SetImage(
         ui::ImageModel::FromVectorIcon(*new_icon, icon_color, icon_size));
   } else {
     button->SetIconEnabledColorsOverride(std::nullopt);
+    action_item->SetImage(ui::ImageModel::FromVectorIcon(
+        icon, GetIconColor(state, active, browser_view->GetColorProvider())));
   }
 }
 

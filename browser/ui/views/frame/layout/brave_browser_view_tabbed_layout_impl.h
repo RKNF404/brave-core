@@ -7,8 +7,10 @@
 #define BRAVE_BROWSER_UI_VIEWS_FRAME_LAYOUT_BRAVE_BROWSER_VIEW_TABBED_LAYOUT_IMPL_H_
 
 #include <memory>
+#include <optional>
 
 #include "chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
 
 // Provides a specialized layout implementation for Brave tabbed browsers
@@ -26,22 +28,38 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
   // Pure geometry helpers used by CalculateSideBarLayout. Exposed as public
   // static so tests can call them directly without special access.
   //
-  // Returns the bounds for the sidebar control view given its side, width,
-  // the outer (browser-edge) limits already inset for any vertical tab on the
-  // same side, and the vertical extents of the contents area.
-  static gfx::Rect ComputeSidebarBounds(bool sidebar_on_left,
+  // All bounds are in stored (pre-paint-mirroring) coordinates, following the
+  // upstream convention: `leading` means the lowest-X edge, which renders on
+  // the visual right in RTL.
+  //
+  // Returns the bounds for the sidebar control view given its leading edge,
+  // width, the outer (browser-edge) limits already inset for any vertical tab
+  // on the same side, and the vertical extents of the contents area.
+  static gfx::Rect ComputeSidebarBounds(bool sidebar_leading,
                                         int sidebar_width,
                                         int outer_left,
                                         int outer_right,
                                         int y,
                                         int height);
   // Returns the adjusted bounds for an upstream side panel so that it sits
-  // between the contents area and the sidebar control view.  The panel is
-  // shifted inward (toward the centre of the browser) until it is flush with
-  // the inner edge of |sidebar_bounds|.
-  static gfx::Rect ComputeAdjustedPanelBounds(bool sidebar_on_left,
-                                              const gfx::Rect& sidebar_bounds,
-                                              const gfx::Rect& panel_bounds);
+  // between the contents area and the sidebar control view.  The upstream panel
+  // animates its open/close slide against the browser edge; this translates the
+  // whole slide by a constant offset so it instead plays out against the inner
+  // edge of |sidebar_bounds|, ending flush with the sidebar at full open.
+  // |visual_client_area| is the upstream anchor rect (the same one used to
+  // compute |panel_bounds|), needed to derive that offset.
+  static gfx::Rect ComputeAdjustedPanelBounds(
+      bool sidebar_leading,
+      const gfx::Rect& sidebar_bounds,
+      const gfx::Rect& panel_bounds,
+      const gfx::Rect& visual_client_area);
+  // Returns the adjusted infobar bounds, resetting the width to
+  // |full_window_width| (undoing any panel-driven narrowing upstream applies)
+  // and then insetting by |vtab_insets| when vertical tabs are visible.
+  static gfx::Rect ComputeAdjustedInfobarBounds(
+      const gfx::Rect& current_bounds,
+      int full_window_width,
+      std::optional<gfx::Insets> vtab_insets);
 
   views::View* contents_container() { return views().contents_container; }
 
@@ -54,20 +72,29 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
   gfx::Size GetMinimumSize(const views::View* host) const override;
   ProposedLayout CalculateProposedLayout(
       const BrowserLayoutParams& params) const override;
-  gfx::Rect CalculateTopContainerLayoutImpl(
-      ProposedLayout& layout,
-      BrowserLayoutParams params,
-      bool needs_exclusion,
-      bool suppress_top_separator) const override;
+  gfx::Rect CalculateTopContainerLayout(ProposedLayout& layout,
+                                        BrowserLayoutParams params,
+                                        bool needs_exclusion) const override;
   void ConfigureTopContainerBackground(
       const BrowserLayoutParams& params,
       CustomCornersBackground* background) override;
   void DoPostLayoutVisualAdjustments(
       const BrowserLayoutParams& params) override;
-  TopSeparatorType GetTopSeparatorType() const override;
+  // SeparatorInfo is the upstream's private nested type. Friend access (added
+  // via the chromium_src .h shadow) lets this subclass name it here; the body
+  // of the override lives in
+  // chromium_src/.../browser_view_tabbed_layout_impl.cc where the struct
+  // definition is visible from the included upstream .cc.
+  SeparatorInfo CalculateSeparatorInfo() const override;
   int GetHorizontalTabStripLeadingMargin(
       const BrowserLayoutParams& params) const override;
-  bool ShadowOverlayVisible() const override;
+
+  // Test-only accessors that expose individual SeparatorInfo bools without
+  // requiring the caller to see the upstream's private struct definition.
+  // Implemented alongside CalculateSeparatorInfo() in the chromium_src shadow.
+  bool GetTopContainerSeparatorForTesting() const;
+  bool GetMultiContentsSeparatorForTesting() const;
+  bool GetShadowBoxForTesting() const;
 
  private:
   void CalculateBraveVerticalTabStripLayout(
@@ -76,20 +103,22 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
   void CalculateSideBarLayout(ProposedLayout& layout,
                               const BrowserLayoutParams& params) const;
   void InsetContentsContainerBounds(ProposedLayout& layout) const;
+  void AdjustInfobarLayout(ProposedLayout& layout,
+                           const BrowserLayoutParams params) const;
 
   void UpdateInsetsForVerticalTabStrip();
-  void UpdateMarginsForSideBar();
 
   gfx::Insets GetContentsMargins() const;
   bool ShouldPushBookmarkBarForVerticalTabs() const;
   gfx::Insets GetInsetsConsideringVerticalTabHost() const;
 
-#if BUILDFLAG(IS_MAC)
-  gfx::Insets AddFrameBorderInsets(const gfx::Insets& insets) const;
-  gfx::Insets AddVerticalTabFrameBorderInsets(const gfx::Insets& insets) const;
-
-  friend class BraveBrowserViewTabbedLayoutImplMacTest;
-#endif
+  // Whether the sidebar / vertical tab strip occupies the leading (lowest-X)
+  // edge in stored coordinates. As stored bounds are paint-mirrored in RTL,
+  // these flip the user's alignment pref so the visual side always matches
+  // the pref. This is the same conversion upstream does for its side panel
+  // (`side_panel_leading` in BrowserViewTabbedLayoutImpl).
+  bool IsSidebarLeading() const;
+  bool IsVerticalTabStripLeading() const;
 };
 
 #endif  // BRAVE_BROWSER_UI_VIEWS_FRAME_LAYOUT_BRAVE_BROWSER_VIEW_TABBED_LAYOUT_IMPL_H_

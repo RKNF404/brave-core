@@ -71,13 +71,6 @@ PolkadotSubstrateRpc* PolkadotWalletService::GetPolkadotRpc() {
   return &polkadot_substrate_rpc_;
 }
 
-void PolkadotWalletService::GetNetworkName(mojom::AccountIdPtr account_id,
-                                           GetNetworkNameCallback callback) {
-  std::string chain_id = GetNetworkForPolkadotAccount(account_id);
-  polkadot_substrate_rpc_.GetChainName(std::move(chain_id),
-                                       std::move(callback));
-}
-
 void PolkadotWalletService::GetCompatibleNetworks(
     mojom::AccountIdPtr account_id,
     GetCompatibleNetworksCallback callback) {
@@ -152,6 +145,20 @@ void PolkadotWalletService::GetAccountBalance(
 
   polkadot_substrate_rpc_.GetAccountBalance(chain_id, *pubkey,
                                             std::move(callback));
+}
+
+void PolkadotWalletService::GetAssetAccountBalances(
+    mojom::AccountIdPtr account_id,
+    const std::vector<uint32_t>& asset_ids,
+    const std::string& chain_id,
+    GetAssetAccountBalancesCallback callback) {
+  auto pubkey = keyring_service_->GetPolkadotPubKey(account_id);
+  if (!pubkey) {
+    return std::move(callback).Run({}, WalletInternalErrorMessage());
+  }
+
+  polkadot_substrate_rpc_.GetAssetAccountBalances(chain_id, asset_ids, *pubkey,
+                                                  std::move(callback));
 }
 
 void PolkadotWalletService::ValidateAddressForTransaction(

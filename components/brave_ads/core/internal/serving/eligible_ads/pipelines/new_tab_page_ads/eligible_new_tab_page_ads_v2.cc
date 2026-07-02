@@ -256,26 +256,32 @@ void EligibleNewTabPageAdsV2::FilterAndMaybePredictCreativeAdCallback(
                                              site_history);
   ApplyExclusionRules(creative_ads, last_served_ad_, &exclusion_rules);
 
-  // Round-robin must run after exclusion rules but before pacing. Exclusion
-  // rules determine which ads are actually eligible, so rotation must operate
-  // on that filtered set. Pacing is a rate limiter rather than an eligibility
-  // filter, so it should not influence which ads the rotation considers
-  // unserved. Running round-robin before pacing ensures rotation resets are
-  // driven by which ads have actually been served rather than pacing
-  // suppression.
-  creative_ad_round_robin_->Filter(creative_ads);
-
-  PaceCreativeAds(creative_ads);
-
-  const PrioritizedCreativeAdBuckets<CreativeNewTabPageAdList> buckets =
+  PrioritizedCreativeAdBuckets<CreativeNewTabPageAdList> creative_ad_buckets =
       SortCreativeAdsIntoBucketsByPriority(creative_ads);
-  LogNumberOfCreativeAdsPerBucket(buckets);
+  LogNumberOfCreativeAdsPerBucket(creative_ad_buckets);
 
   // For each bucket of prioritized ads attempt to predict the most suitable ad
-  // for the user in priority order.
-  for (const auto& [priority, prioritized_creative_ads] : buckets) {
+  // for the user in priority order. Pacing is applied before round-robin so
+  // that rotation only considers ads that are eligible to serve right now.
+  // Running round-robin after pacing means its reset logic is driven by
+  // pacing-eligible ads, preventing a fully-paced campaign from consuming
+  // served-set slots and blocking other campaigns in the same bucket.
+  for (auto& [priority, creative_ad_bucket] : creative_ad_buckets) {
+    PaceCreativeAds(creative_ad_bucket);
+
+    creative_ad_round_robin_->Filter(creative_ad_bucket);
+
+    if (creative_ad_bucket.empty()) {
+      BLOG(1, "No eligible ads in priority " << priority);
+      continue;
+    }
+
+    if (creative_ad_bucket.empty()) {
+      continue;
+    }
+
     std::optional<CreativeNewTabPageAdInfo> predicted_creative_ad =
-        MaybePredictCreativeAd(prioritized_creative_ads, user_model, ad_events);
+        MaybePredictCreativeAd(creative_ad_bucket, user_model, ad_events);
     if (!predicted_creative_ad) {
       // Could not predict an ad for this bucket, so continue to the next
       // bucket.

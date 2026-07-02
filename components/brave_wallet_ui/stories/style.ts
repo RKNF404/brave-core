@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // you can obtain one at https://mozilla.org/MPL/2.0/.
 import styled from 'styled-components'
+import * as leo from '@brave/leo/tokens/css/variables'
 
 export const StyledExtensionWrapper = styled.div`
   display: flex;
@@ -37,14 +38,6 @@ export const StyledWelcomPanel = styled.div`
   height: 250px;
 `
 
-export const ChildComponentWrapper = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-`
-
 export const LongWrapper = styled.div<{ padding?: string }>`
   display: flex;
   flex-direction: column;
@@ -55,7 +48,7 @@ export const LongWrapper = styled.div<{ padding?: string }>`
   padding: ${(p) => p?.padding ?? '0px 12px 0px 12px'};
   position: relative;
   box-sizing: border-box;
-  background-color: ${(p) => p.theme.color.background01};
+  background-color: ${leo.color.page.background};
 `
 
 export const ConnectWithSiteWrapper = styled.div`
@@ -63,7 +56,7 @@ export const ConnectWithSiteWrapper = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: ${(p) => p.theme.color.background01};
+  background-color: ${leo.color.page.background};
   width: 390px;
   height: 100%;
 `
@@ -79,33 +72,4 @@ export const ScrollContainer = styled.div`
   position: relative;
   padding: 0px 12px;
   box-sizing: border-box;
-`
-
-export const DesktopComponentWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: ${(p) => p.theme.color.background02};
-  padding: 20px;
-`
-
-export const LineChartWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: white;
-  padding: 20px;
-  width: 80vw;
-`
-
-export const DesktopComponentWrapperRow = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  background-color: ${(p) => p.theme.color.background02};
-  width: 800px;
-  padding: 20px;
 `

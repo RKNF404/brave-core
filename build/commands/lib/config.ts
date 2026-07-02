@@ -82,6 +82,7 @@ export class Config {
   extraGnArgs: Record<string, any>
   extraGnGenOpts: string
   extraNinjaOpts: string[]
+  sisoLimits: Record<string, any>
   sisoJobsLimit: number | undefined
   sisoCacheDir: string | undefined
   braveAndroidSafeBrowsingApiKey: string | undefined
@@ -227,6 +228,7 @@ export class Config {
     this.extraGnArgs = envConfig.getMergedObject(['gn', 'args'])
     this.extraGnGenOpts = envConfig.getString(['brave_extra_gn_gen_opts'], '')
     this.extraNinjaOpts = []
+    this.sisoLimits = envConfig.getMergedObject(['siso_limits'])
     this.sisoJobsLimit = undefined
     this.sisoCacheDir =
       envConfig.getPath(['siso_cache_dir']) || this.resolveCacheDir('siso')
@@ -349,7 +351,8 @@ export class Config {
     // LSAN only works with ASAN and has very low overhead.
     // Chromium supports LeakSanitizer is supported on x86_64 Linux only.
     // See https://www.chromium.org/developers/testing/leaksanitizer/
-    return this.isAsan() && this.targetOS === 'linux'
+    // Temporarily disable LSAN: https://github.com/brave/brave-browser/issues/56047
+    return false
   }
 
   isOfficialBuild() {
@@ -830,6 +833,7 @@ export class Config {
         local: this.sisoJobsLimit,
         remote: this.sisoJobsLimit || kRemoteLimit,
         rewrap: this.sisoJobsLimit || kRemoteLimit,
+        ...this.sisoLimits,
       }
       // Parse SISO_LIMITS from env if set (comma-separated key=value pairs).
       const envSisoLimits = new Map<string, number>()

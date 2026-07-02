@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+#include <cstdlib>
 #include <utility>
 
 #include "base/functional/callback_helpers.h"
@@ -187,10 +188,10 @@ class SameDocumentCommitObserver : public content::WebContentsObserver {
 
 }  // namespace
 
-class SideBySideEnabledBrowserTest : public InProcessBrowserTest {
+class SplitViewBrowserTest : public InProcessBrowserTest {
  public:
-  SideBySideEnabledBrowserTest() = default;
-  ~SideBySideEnabledBrowserTest() override = default;
+  SplitViewBrowserTest() = default;
+  ~SplitViewBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -225,12 +226,81 @@ class SideBySideEnabledBrowserTest : public InProcessBrowserTest {
     browser_non_client_frame_view()->DeprecatedLayoutImmediately();
   }
 
+  bool GetIsTabHiddenFromPermissionManagerFromTabAt(int index) {
+    auto* tab_strip_model = browser()->tab_strip_model();
+    return !permissions::PermissionRequestManager::FromWebContents(
+                tab_strip_model->GetWebContentsAt(index))
+                ->tab_is_active_for_testing();
+  }
+
+  // blocked(true) when tab at |index| has tab modal dialog.
+  bool GetIsWebContentsBlockedFromTabAt(int index) {
+    auto* tab_strip_model = browser()->tab_strip_model();
+    return static_cast<tabs::TabModel*>(tab_strip_model->GetTabAtIndex(index))
+        ->IsBlocked();
+  }
+
+  web_modal::WebContentsModalDialogManager* GetWebModalDialogManagerAt(
+      int index) {
+    return web_modal::WebContentsModalDialogManager::FromWebContents(
+        browser()->tab_strip_model()->GetWebContentsAt(index));
+  }
+
+  bool HasWebModalDialogAt(int index) {
+    return !GetWebModalDialogManagerAt(index)->child_dialogs_.empty();
+  }
+
+  bool IsWebModalDialogVisibleAt(int index) {
+    return views::Widget::GetWidgetForNativeWindow(
+               GetWebModalDialogManagerAt(index)
+                   ->child_dialogs_.front()
+                   .manager->dialog())
+        ->IsVisible();
+  }
+
+  javascript_dialogs::TabModalDialogManager* GetTabModalDialogManagerAt(
+      int index) {
+    return javascript_dialogs::TabModalDialogManager::FromWebContents(
+        browser()->tab_strip_model()->GetWebContentsAt(index));
+  }
+
+  content::WebContents* GetWebContentsAt(int index) {
+    return browser()->tab_strip_model()->GetWebContentsAt(index);
+  }
+
+  void NewSplitTab() {
+    chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
+                        split_tabs::SplitTabCreatedSource::kToolbarButton);
+  }
+
+  bool IsSplitTabAt(int index) {
+    return IsSplitWebContents(GetWebContentsAt(index));
+  }
+
+  void SwapActiveSplitTab() {
+    auto* tab_strip_model = browser()->tab_strip_model();
+    auto split_id =
+        tab_strip_model->GetSplitForTab(tab_strip_model->active_index());
+    ASSERT_TRUE(split_id);
+    tab_strip_model->ReverseTabsInSplit(split_id.value());
+  }
+
+  bool IsSplitWebContents(content::WebContents* web_contents) {
+    auto tab_handle =
+        tabs::TabInterface::GetFromContents(web_contents)->GetHandle();
+    return tab_handle.Get()->IsSplit();
+  }
+
+  ContentsWebView* GetContentsWebView() {
+    return BrowserView::GetBrowserViewForBrowser(browser())
+        ->contents_web_view();
+  }
+
  protected:
   base::test::ScopedFeatureList scoped_features_;
 };
 
-IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest,
-                       BraveMultiContentsViewTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, BraveMultiContentsViewTest) {
   EXPECT_FALSE(split_view_separator()->GetVisible());
 
   auto* browser_view = brave_browser_view();
@@ -250,7 +320,7 @@ IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest,
   EXPECT_NE(gfx::Size(),
             browser_view->top_container_separator_for_testing()->size());
 
-  chrome::NewSplitTab(browser(),
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
   RunScheduledLayouts();
 
@@ -310,15 +380,20 @@ IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest,
   EXPECT_EQ(gfx::Insets(BraveContentsContainerView::kBorderThickness),
             end_contents_container_view->GetBorder()->GetInsets());
 
+  // Tolerate a 1px rounding asymmetry: GetViewSizes uses std::round(0.5 *
+  // (available_size - resize_width)), which gives one side an extra pixel
+  // whenever that quantity is odd.
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return start_contents_web_view->width() == end_contents_web_view->width();
+    return std::abs(start_contents_web_view->width() -
+                    end_contents_web_view->width()) <= 1;
   }));
 
   multi_contents_view->OnResize(30, false);
   multi_contents_view->OnResize(30, true);
 
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return start_contents_web_view->width() != end_contents_web_view->width();
+    return std::abs(start_contents_web_view->width() -
+                    end_contents_web_view->width()) > 1;
   }));
 
   // Check double click makes both contents view have same width.
@@ -329,11 +404,12 @@ IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest,
   event.SetClickCount(2);
   split_view_separator()->OnMouseReleased(event);
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return start_contents_web_view->width() == end_contents_web_view->width();
+    return std::abs(start_contents_web_view->width() -
+                    end_contents_web_view->width()) <= 1;
   }));
 }
 
-IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest, SelectTabTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SelectTabTest) {
   chrome::AddTabAt(browser(), GURL(), -1, /*foreground*/ true);
   chrome::AddTabAt(browser(), GURL(), -1, /*foreground*/ true);
   EXPECT_EQ(2, tab_strip()->GetActiveIndex());
@@ -341,7 +417,7 @@ IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest, SelectTabTest) {
   EXPECT_FALSE(split_view_separator()->GetVisible());
 
   // Created new tab(at 3) for new split view with existing tab(at 2).
-  chrome::NewSplitTab(browser(),
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
   EXPECT_TRUE(tab_strip()->tab_at(2)->split().has_value());
   EXPECT_FALSE(tab_strip()->tab_at(2)->IsActive());
@@ -354,6 +430,16 @@ IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest, SelectTabTest) {
       brave_multi_contents_view()->mini_toolbar_for_testing(0)->GetVisible());
   EXPECT_TRUE(
       brave_multi_contents_view()->mini_toolbar_for_testing(1)->GetVisible());
+
+  // Load settings page on inactive split tab and check url displays brave
+  // scheme (chrome:// replaced with brave://).
+  ASSERT_TRUE(
+      content::NavigateToURL(browser()->tab_strip_model()->GetWebContentsAt(2),
+                             GURL("chrome://settings")));
+  EXPECT_EQ(u"brave://settings", brave_multi_contents_view()
+                                     ->mini_toolbar_for_testing(0)
+                                     ->domain_label_for_testing()
+                                     ->GetText());
 
   // Activate non split view tab.
   tab_strip()->SelectTab(tab_strip()->tab_at(0), GetDummyEvent());
@@ -389,10 +475,10 @@ IN_PROC_BROWSER_TEST_F(SideBySideEnabledBrowserTest, SelectTabTest) {
   EXPECT_TRUE(tab_strip()->tab_at(3)->IsActive());
 }
 
-class SideBySideWithRoundedCornersTest : public SideBySideEnabledBrowserTest {
+class SplitViewWithRoundedCornersTest : public SplitViewBrowserTest {
  public:
-  SideBySideWithRoundedCornersTest() = default;
-  ~SideBySideWithRoundedCornersTest() override = default;
+  SplitViewWithRoundedCornersTest() = default;
+  ~SplitViewWithRoundedCornersTest() override = default;
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -400,11 +486,11 @@ class SideBySideWithRoundedCornersTest : public SideBySideEnabledBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(SideBySideWithRoundedCornersTest, ContentsShadowTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewWithRoundedCornersTest, ContentsShadowTest) {
   // Shadow if split tab is not active.
   EXPECT_TRUE(brave_browser_view()->contents_shadow_);
 
-  chrome::NewSplitTab(browser(),
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
   auto* tab_strip_model = browser()->tab_strip_model();
@@ -441,7 +527,7 @@ IN_PROC_BROWSER_TEST_F(SideBySideWithRoundedCornersTest, ContentsShadowTest) {
 
 // Test multi contents view's rounded corners with fullscreen state w/o split
 // view.
-IN_PROC_BROWSER_TEST_F(SideBySideWithRoundedCornersTest,
+IN_PROC_BROWSER_TEST_F(SplitViewWithRoundedCornersTest,
                        TabFullscreenStateTest) {
   auto* contents_container = brave_browser_view()->contents_container();
   auto* contents_view = brave_browser_view()->GetContentsView();
@@ -474,92 +560,7 @@ IN_PROC_BROWSER_TEST_F(SideBySideWithRoundedCornersTest,
   EXPECT_EQ(contents_view->layer()->rounded_corner_radii(), border_radius);
 }
 
-// Use for testing brave split view and SideBySide together.
-class SplitViewCommonBrowserTest : public InProcessBrowserTest {
- public:
-  SplitViewCommonBrowserTest() = default;
-  ~SplitViewCommonBrowserTest() override = default;
-
-  bool GetIsTabHiddenFromPermissionManagerFromTabAt(int index) {
-    auto* tab_strip_model = browser()->tab_strip_model();
-    return !permissions::PermissionRequestManager::FromWebContents(
-                tab_strip_model->GetWebContentsAt(index))
-                ->tab_is_active_for_testing();
-  }
-
-  // blocked(true) when tab at |index| has tab modal dialog.
-  bool GetIsWebContentsBlockedFromTabAt(int index) {
-    auto* tab_strip_model = browser()->tab_strip_model();
-    return static_cast<tabs::TabModel*>(tab_strip_model->GetTabAtIndex(index))
-        ->IsBlocked();
-  }
-
-  web_modal::WebContentsModalDialogManager* GetWebModalDialogManagerAt(
-      int index) {
-    return web_modal::WebContentsModalDialogManager::FromWebContents(
-        browser()->tab_strip_model()->GetWebContentsAt(index));
-  }
-
-  bool HasWebModalDialogAt(int index) {
-    return !GetWebModalDialogManagerAt(index)->child_dialogs_.empty();
-  }
-
-  bool IsWebModalDialogVisibleAt(int index) {
-    return views::Widget::GetWidgetForNativeWindow(
-               GetWebModalDialogManagerAt(index)
-                   ->child_dialogs_.front()
-                   .manager->dialog())
-        ->IsVisible();
-  }
-
-  javascript_dialogs::TabModalDialogManager* GetTabModalDialogManagerAt(
-      int index) {
-    return javascript_dialogs::TabModalDialogManager::FromWebContents(
-        browser()->tab_strip_model()->GetWebContentsAt(index));
-  }
-
-  content::WebContents* GetWebContentsAt(int index) {
-    return browser()->tab_strip_model()->GetWebContentsAt(index);
-  }
-
-  void NewSplitTab() {
-    chrome::NewSplitTab(browser(),
-                        split_tabs::SplitTabCreatedSource::kToolbarButton);
-  }
-
-  bool IsSplitTabAt(int index) {
-    return IsSplitWebContents(GetWebContentsAt(index));
-  }
-
-  void SwapActiveSplitTab() {
-    auto* tab_strip_model = browser()->tab_strip_model();
-    auto split_id =
-        tab_strip_model->GetSplitForTab(tab_strip_model->active_index());
-    ASSERT_TRUE(split_id);
-    tab_strip_model->ReverseTabsInSplit(split_id.value());
-  }
-
-  bool IsSplitWebContents(content::WebContents* web_contents) {
-    auto tab_handle =
-        tabs::TabInterface::GetFromContents(web_contents)->GetHandle();
-    return tab_handle.Get()->IsSplit();
-  }
-
-  ContentsWebView* GetContentsWebView() {
-    return BrowserView::GetBrowserViewForBrowser(browser())
-        ->contents_web_view();
-  }
-
-  TabStrip* tab_strip() {
-    return BrowserView::GetBrowserViewForBrowser(browser())
-        ->horizontal_tab_strip_for_testing();
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_features_;
-};
-
-IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitTabInsetsTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitTabInsetsTest) {
   brave::ToggleVerticalTabStrip(browser());
 
   auto* tab_strip_model = browser()->tab_strip_model();
@@ -640,7 +641,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitTabInsetsTest) {
 }
 
 // Check split view works with pinned tabs.
-IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitViewWithPinnedTabTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitViewWithPinnedTabTest) {
   auto* tab_strip_model = browser()->tab_strip_model();
   tab_strip_model->SetTabPinned(0, true);
   chrome::AddTabAt(browser(), GURL(), -1, /*foreground*/ true);
@@ -659,7 +660,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitViewWithPinnedTabTest) {
   chrome::PinTab(browser());
 }
 
-IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, BookmarksBarVisibilityTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, BookmarksBarVisibilityTest) {
   auto* prefs = browser()->profile()->GetPrefs();
   auto* tab_strip_model = browser()->tab_strip_model();
   NewSplitTab();
@@ -715,7 +716,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, BookmarksBarVisibilityTest) {
 #endif
 }
 
-IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, InactiveSplitTabTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, InactiveSplitTabTest) {
   NewSplitTab();
   auto* tab_strip_model = browser()->tab_strip_model();
 
@@ -791,7 +792,7 @@ class LoadObserver : public content::WebContentsObserver {
 
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitViewReloadTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitViewReloadTest) {
   NewSplitTab();
   content::WaitForLoadStop(GetWebContentsAt(0));
   content::WaitForLoadStop(GetWebContentsAt(1));
@@ -875,7 +876,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitViewReloadTest) {
   }
 }
 
-IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitViewCloseTabTest) {
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitViewCloseTabTest) {
   NewSplitTab();
 
   auto* tab_strip_model = browser()->tab_strip_model();
@@ -917,7 +918,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewCommonBrowserTest, SplitViewCloseTabTest) {
 
 // Test class for testing link handling in split view (both normal links and
 // target="_blank" links).
-class SplitViewLinkTest : public SplitViewCommonBrowserTest {
+class SplitViewLinkTest : public SplitViewBrowserTest {
  public:
   SplitViewLinkTest() {
     // Enable the split view link feature for these tests
@@ -926,7 +927,7 @@ class SplitViewLinkTest : public SplitViewCommonBrowserTest {
   ~SplitViewLinkTest() override = default;
 
   void SetUpOnMainThread() override {
-    SplitViewCommonBrowserTest::SetUpOnMainThread();
+    SplitViewBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
         &SplitViewLinkTest::HandleRequest, base::Unretained(this)));

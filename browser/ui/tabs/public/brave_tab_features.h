@@ -18,6 +18,7 @@ class Profile;
 #if BUILDFLAG(ENABLE_AI_CHAT)
 namespace ai_chat {
 class TabDataWebContentsObserver;
+class WebMcpInjector;
 }
 #endif
 
@@ -31,6 +32,7 @@ class PartitionedStoragePageActionController;
 #endif
 
 #if BUILDFLAG(ENABLE_PSST)
+#include "brave/browser/ui/views/page_action/psst_action_controller.h"
 namespace psst {
 class PsstTabWebContentsObserver;
 }
@@ -52,6 +54,9 @@ class BraveTabFeatures : public TabFeatures {
   psst::PsstTabWebContentsObserver* psst_web_contents_observer() {
     return psst_web_contents_observer_.get();
   }
+  page_actions::PsstActionController* psst_page_action_controller() {
+    return psst_action_controller_.get();
+  }
 #endif
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
@@ -64,9 +69,11 @@ class BraveTabFeatures : public TabFeatures {
  private:
 #if BUILDFLAG(ENABLE_AI_CHAT)
   std::unique_ptr<ai_chat::TabDataWebContentsObserver> tab_data_observer_;
+  std::unique_ptr<ai_chat::WebMcpInjector> web_mcp_injector_;
 #endif
 #if BUILDFLAG(ENABLE_PSST)
   std::unique_ptr<psst::PsstTabWebContentsObserver> psst_web_contents_observer_;
+  std::unique_ptr<page_actions::PsstActionController> psst_action_controller_;
 #endif
 #if BUILDFLAG(ENABLE_CONTAINERS)
   std::unique_ptr<containers::ContainerTabTracker> container_tab_tracker_;

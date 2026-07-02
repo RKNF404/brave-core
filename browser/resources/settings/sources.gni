@@ -12,10 +12,10 @@ import("//brave/components/email_aliases/buildflags/buildflags.gni")
 import("//brave/components/speedreader/common/buildflags/buildflags.gni")
 import("//brave/components/tor/buildflags/buildflags.gni")
 
-# Provide our file list to chromium's settings page build
-# Since our components start in a different path, we'll do the first step (move them to
-# the generated preprocessed path via preprocess_if_expr, but let chromium handle the rest of the
-# webui build pipeline.
+# Provide our file list to chromium's settings page build Since our components
+# start in a different path, we'll do the first step (move them to the generated
+# preprocessed path via preprocess_if_expr, but let chromium handle the rest of
+# the webui build pipeline.
 brave_settings_preprocess_deps =
     [ "//brave/browser/resources/settings:preprocess" ]
 
@@ -135,16 +135,24 @@ brave_settings_ts_files = [
   "brave_routes.ts",
   "brave_search_engines_page/brave_search_engines_page_browser_proxy.ts",
   "brave_sync_page/brave_sync_browser_proxy.ts",
+  "brave_window.ts",
   "default_brave_shields_page/brave_adblock_browser_proxy.ts",
   "default_brave_shields_page/default_brave_shields_browser_proxy.ts",
   "getting_started_page/brave_account_browser_proxy.ts",
+  "getting_started_page/brave_account_logged_in_row.html.ts",
+  "getting_started_page/brave_account_logged_in_row.ts",
+  "getting_started_page/brave_account_logged_out_row.html.ts",
+  "getting_started_page/brave_account_logged_out_row.ts",
   "getting_started_page/brave_account_row.html.ts",
   "getting_started_page/brave_account_row.ts",
+  "getting_started_page/brave_account_row_base.ts",
   "shortcuts_page/shortcuts_page.ts",
 ]
 
-brave_settings_local_css_files =
-    [ "getting_started_page/brave_account_row.css" ]
+brave_settings_local_css_files = [
+  "getting_started_page/brave_account_logged_in_row.css",
+  "getting_started_page/brave_account_row_common.css",
+]
 
 if (enable_brave_vpn_wireguard) {
   brave_settings_web_component_files +=
@@ -198,6 +206,7 @@ if (enable_ai_chat) {
   ]
   brave_settings_ts_files += [
     "brave_leo_assistant_page/brave_leo_assistant_browser_proxy.ts",
+    "brave_leo_assistant_page/model_icons.ts",
     "brave_leo_assistant_page/model_selector.html.ts",
     "brave_leo_assistant_page/model_selector.ts",
   ]
@@ -237,12 +246,16 @@ if (enable_ai_chat) {
     "$root_gen_dir/brave/components/ai_chat/core/common/mojom/ai_chat.mojom-webui.ts",
     "$root_gen_dir/brave/components/ai_chat/core/common/mojom/bookmarks.mojom-webui.ts",
 
-    # ai_chat.mojom depends on these mojom files, even though they aren't used directly on settings
+    # ai_chat.mojom depends on these mojom files, even though they aren't used
+    # directly on settings
     "$root_gen_dir/brave/components/ai_chat/core/common/mojom/common.mojom-webui.ts",
     "$root_gen_dir/brave/components/ai_chat/core/common/mojom/customization_settings.mojom-webui.ts",
     "$root_gen_dir/brave/components/ai_chat/core/common/mojom/ollama.mojom-webui.ts",
     "$root_gen_dir/brave/components/ai_chat/core/common/mojom/tab_tracker.mojom-webui.ts",
     "$root_gen_dir/brave/components/ai_chat/core/common/mojom/untrusted_frame.mojom-webui.ts",
+
+    # Shared with the AI Chat UI; lands at preprocessed/model_icon_map.ts.
+    "//brave/components/ai_chat/resources/common/model_icon_map.ts",
   ]
 
   brave_settings_mojo_files_deps +=
@@ -284,7 +297,8 @@ if (enable_email_aliases) {
   brave_settings_ts_files += [ "email_aliases_page/email_aliases_page.ts" ]
 }
 
-# Generate the list for inclusion via preprocess and exclusion for chromium's preprocess
+# Generate the list for inclusion via preprocess and exclusion for chromium's
+# preprocess
 brave_settings_local_ts_files =
     brave_settings_web_component_files + brave_settings_ts_files
 

@@ -44,8 +44,9 @@
 #endif
 
 // CHROMIUM_SRC_INTERNAL_USE
-#define BRAVE_AI_CHAT_FLAGS \
-  &ai_chat::features::kAIChat, &ai_chat::features::kAIChatHistory,
+#define BRAVE_AI_CHAT_FLAGS                                        \
+  &ai_chat::features::kAIChat, &ai_chat::features::kAIChatHistory, \
+      &ai_chat::features::kBraveSyncAIChat,
 
 #if BUILDFLAG(ENABLE_BRAVE_ADS)
 // CHROMIUM_SRC_INTERNAL_USE
@@ -110,7 +111,8 @@
     &ntp_background_images::features::kBraveNTPBrandedWallpaperSurveyPanelist, \
     &brave_shields::features::kBraveShredFeature,                              \
     &brave_origin::features::kBraveOrigin,                                     \
-    &features::kBraveCustomSearchEngines
+    &features::kBraveCustomSearchEngines,                                      \
+    &features::kBraveAndroidTabGroupsSettings
 
 // clang-format on
 
@@ -121,3 +123,13 @@
 #undef BRAVE_WEB_DISCOVERY_FLAG
 #undef BRAVE_VPN_FLAG
 #undef EMAIL_ALIASES_FLAG
+
+namespace chrome {
+namespace android {
+
+OVERRIDE_FEATURE_DEFAULT_STATES({{
+    {kAndroidSearchInSettings, base::FEATURE_DISABLED_BY_DEFAULT},
+}});
+
+}  // namespace android
+}  // namespace chrome

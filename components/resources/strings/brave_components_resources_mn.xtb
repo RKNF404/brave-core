@@ -106,7 +106,6 @@
 <translation id="8890516388109605451">Эх сурвалж</translation>
 <translation id="5158129253322921540"><ph name="PUBLISHER_NAME"/>-ийн контентуудыг идэвхгүй болгох</translation>
 <translation id="3189348785087463371">Сурталчилсан</translation>
-<translation id="4541978218358617681">Зар</translation>
 <translation id="1776831331757823105">Цаг</translation>
 <translation id="7791543448312431591">Нэмэх</translation>
 <translation id="6216996674668969227">Нууцлал дэмжсэн сурталчилгаа үзэж токен олох.</translation>
@@ -377,7 +376,6 @@
 <translation id="1430915738399379752">Хэвлэх</translation>
 <translation id="2600847485413879104">Rewards BAT</translation>
 <translation id="3439853736976204026">bitFlyer</translation>
-<translation id="8533411848724153701">Gemini</translation>
 <translation id="6569877533335686968">Хамгаалах</translation>
 <translation id="6011108706830742093">ZebPay</translation>
 <translation id="5390923430722428146">Solana</translation>
@@ -438,6 +436,7 @@
 <translation id="412480955826088549">Бүрдэл хэсгийг татаж байна...</translation>
 <translation id="4894106830958548828">Би ойлгосон</translation>
 <translation id="2729085694451916573">Test string for <ph name="PART_ONE"/>place holders<ph name="PART_ONE_END"/>. <ph name="PART_TWO"/>Learn more<ph name="PART_TWO_END"/></translation>
+<translation id="6705666103672654256">Таны хайлт болон хуудасны агуулга энэ төхөөрөмж дээр боловсруулагдана. Brave-д юу ч илгээгдэхгүй, мөн хүний шалгагч нар үзэхгүй. Энэ нь туршилтын функц бөгөөд үргэлж зөв ажиллахгүй байж болзошгүй.</translation>
 <translation id="7534079972563542000">Unstoppable Domains</translation>
 <translation id="4492298165410552103">Brave дээр Unstoppable Domains дэмжлэгийг идэвхжүүлэх үү?</translation>
 <translation id="5015092481905019948">Brave нь <ph name="DOMAIN_PROVIDER_NAME"/> дээрх <ph name="DOMAIN_LIST"/> домэйн нэрийг шийдвэрлэхийн тулд <ph name="PROVIDER_NAME"/>-ийг ашигладаг. Brave таны IP хаягийг нуудаг. Үүнийг идэвхжүүлвэл, <ph name="PROVIDER_NAME"/> эдгээр домэйн руу хэн нэгэн орохыг оролдож байгааг харах боловч өөр зүйлийг харахгүй. <ph name="PROVIDER_NAME"/>-ийн <ph name="BEGIN_PROVIDER_TOU_LINK"/>хэрэглээний нөхцөлүүд<ph name="END_PROVIDER_TOU_LINK"/> болон <ph name="BEGIN_PROVIDER_PRIVACY_LINK"/>нууцлалын бодлогыг<ph name="END_PROVIDER_PRIVACY_LINK"/> үзнэ үү.</translation>
@@ -737,9 +736,9 @@
 <translation id="8251969358165471584">Web3 түрийвч</translation>
 <translation id="7160424977552599351">Таны Web3 түрийвч ашиглах</translation>
 <translation id="6369571967625114920">Brave Хувийн Зар сурталчилгаа таны бүс нутагт одоогоор ашиглах боломжгүй байна.</translation>
-<translation id="5309155375926073606">Тиймээ, би Brave хайлтын системд хувь нэмэр оруулж, <ph name="LINK_BEGIN"/>Вэб дэмжих төсөлд<ph name="LINK_END"/>оролцох хүсэлтэй байна.</translation>
-<translation id="4622826307953794521">Brave хайлтын системийг Вэб дэмжих төслөөр сайжруулах зорилгоор нэрээ нууцлан хайлтын системийн мэдээллээ оруулж, хувь нэмэр оруулаарай. Энэ бол бүрэн нээлттэй эх сурвалж.</translation>
-<translation id="4174337572777167894">Вэб дэмжих төсөл</translation>
+<translation id="5309155375926073606">Тийм ээ, би мөн Brave хайлтын систем-д хувь нэмэр оруулж, <ph name="LINK_BEGIN"/>Web Discovery Project<ph name="LINK_END"/>-д нэгдэхийг хүсэж байна.</translation>
+<translation id="4622826307953794521">Web Discovery Project-ийн тусламжтайгаар Brave хайлтын систем-ийг сайжруулахын тулд нэргүй хайлт болон үзэх өгөгдлийн зарим хэсгийг хувь нэмэр болгон өг. Энэ нь бүрэн нээлттэй эхтэй.</translation>
+<translation id="4174337572777167894">Web Discovery Project</translation>
 <translation id="9034669711835382440">Community</translation>
 <translation id="845020633253356720">Дэлгүүр үзэх</translation>
 <translation id="7777123407058400802">Хандалт урамшуулах токен – ХУТ</translation>
@@ -749,7 +748,6 @@
 <translation id="1288078776976153868">сүлжээ</translation>
 <translation id="1148827340205946630">Хэрэглэгч хүсэлтээс татгалзсан.</translation>
 <translation id="2403819048476450281">Буруу параметрүүд.</translation>
-<translation id="3849003816301348130">Очих хаяг OFAC SDN жагсаалтад орсон байна.</translation>
 <translation id="3955144560853195652">Сүлжээ <ph name="VALUE"/> нэмэгдээгүй байна</translation>
 <translation id="1875861420974447980">Энэ сүлжээний ID ашиглагдаж байна</translation>
 <translation id="167698752210114155">Дотоод алдаа гарлаа</translation>
@@ -863,8 +861,12 @@
 <translation id="3751611888003301070">Замууд</translation>
 <translation id="3799091982455573025"><ph name="NETWORK_NAME"/> дээр <ph name="EXCHANGE_NAME"/> ашиглан солилцоо хийх</translation>
 <translation id="5136093123841570193"><ph name="FRIST_NETWORK_NAME"/> сүлжээнээс <ph name="SECOND_NETWORK_NAME"/> сүлжээ рүү гүүр тавих</translation>
-<translation id="5962276579291287541">{SWAP_EXCHANGE_STEPS, plural, =1 {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} алхам} other {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} алхмууд}}</translation>
+<translation id="4419195975736642805">{SWAP_EXCHANGE_STEPS, plural,
+      =1 {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} алхам)}
+      other {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} алхам)}
+    }</translation>
 <translation id="8621264173374071200"><ph name="EXCHANGE_NAME"/> дамжуулан <ph name="PROVIDER_NAME"/></translation>
+<translation id="7214440235486032620"><ph name="DESTINATION_TOKEN"/> ← <ph name="SOURCE_TOKEN"/>-аас дамжуулан</translation>
 <translation id="646023614746251785">Солилцоог баталгаажуулах</translation>
 <translation id="6264944956989873014">Хоёр сүлжээг холбохыг баталгаажуулах</translation>
 <translation id="7067917728851842589">Илгээхийг баталгаажуулах</translation>
@@ -945,6 +947,7 @@
 <translation id="1108298724135935307">Холбогдсон сайтууд</translation>
 <translation id="5716350339763180836">Үлдэгдлүүд</translation>
 <translation id="5538251867290702601">График</translation>
+<translation id="8123016618655108594">Хуваарилалт</translation>
 <translation id="352407037922720467">NFT-ийн таб</translation>
 <translation id="163697698769819510">Өөрийн хөрөнгийг хамгаалах бөгөөд хэзээ ч хандахаа алдахгүй байхын тулд одоо түрийвчээ нөөцөл.</translation>
 <translation id="1018806299114415224">Одоо нөөцлөх</translation>
@@ -1000,6 +1003,9 @@
 <translation id="6720675936326555106">Файл сонгосон</translation>
 <translation id="5891811606602061966">Дансыг импортлох боломжгүй байна, дахин оролдоно уу.</translation>
 <translation id="6566535583781706170">Данс импортлох</translation>
+<translation id="8079448455682522748">Бусад түрийвчээс импортлох хүсэж буй хаягийнхаа хувийн түлхүүрийг хуулна уу.</translation>
+<translation id="8475326612689436917">Бусад түрийвчээс хувийн түлхүүрийг JSON файл руу экспортлоод энд оруулна уу.</translation>
+<translation id="5733063593286221597">JSON файл оруулах</translation>
 <translation id="5051929972046200722">Техник хангамжийн түрүйвчийг сонго</translation>
 <translation id="5745936663807461565">Таны <ph name="HARDWARE_DEVICE"/> түрүйвчийг шууд компьютертоо холбох.</translation>
 <translation id="4350216031085285578">Төхөөрөмжөө түгжээг нь тайлж <ph name="BLOCKCHAIN_NETWORK"/> аппийг сонго.</translation>
@@ -1045,9 +1051,10 @@
 <translation id="7657130382217527063">ТЭМДЭГЛЭЛ: Хувийн түлхүүр нь хувийн түлхүүр болон протоколын мэдээллийг агуулсан hex-encoded JSON хэлбэрээр өгөгдөх ёстой. <ph name="LINK_START"/>Дэлгэрэнгүй үзэх<ph name="LINK_END"/>.</translation>
 <translation id="4482913669726886926">ТЭМДЭГЛЭЛ: Зөвхөн <ph name="FORMAT"/> өргөтгөсөн түлхүүрүүд дэмжигдэнэ.</translation>
 <translation id="6457746820359933716">Polkadot.js эсвэл үүнтэй нийцэх түрүүлэлтүүдээс экспортлосон JSON файлыг ашиглан импортлоорой. Экспортыг шифрлэхэд ашигласан нууцлалтыг оруулна уу.</translation>
-<translation id="9133762451347918196">Туршилтын сүлжээний бүртгэлүүд</translation>
+<translation id="7285350832506166367">Testnet хаягуудыг хайж байна уу?</translation>
 <translation id="42126664696688958">Экспортлох</translation>
 <translation id="1366855498335432549">Депозит</translation>
+<translation id="3852653589653889099">Хаягийг нуух</translation>
 <translation id="790104325876206743">Аккаунтын тохиргоо</translation>
 <translation id="8856844353253421399">Сүүлд шинэчлэгдсэн <ph name="TIME_AGO"/> өмнө</translation>
 <translation id="6322030314101903925">Боломжтой хөрөнгүүд алга байна</translation>
@@ -1168,12 +1175,12 @@
 <translation id="4324239559624557455">24 цагийн турш</translation>
 <translation id="9139452553033760558">1 долоо хоногийн турш</translation>
 <translation id="1658834457013045127">Үргэлж</translation>
-<translation id="5571630233760536706"><ph name="DEVICE_NAME"/> холбогдсон</translation>
-<translation id="7058480232601314508"><ph name="DEVICE_NAME"/> холбогдоогүй</translation>
+<translation id="620344059960827012"><ph name="ACCOUNT_NAME"/> нь <ph name="DEVICE_NAME"/>-д холбогдсон</translation>
+<translation id="4403794623379243396"><ph name="ACCOUNT_NAME"/> холбогдоогүй</translation>
 <translation id="434328838837168401">Заавруудыг үзэх</translation>
-<translation id="6739517232898494646"><ph name="DEVICE_NAME"/>-ыг холбуулан үргэлжүүлнэ үү</translation>
+<translation id="13670155462680755"><ph name="ACCOUNT_NAME"/>-ыг холбуулан үргэлжүүлнэ үү</translation>
 <translation id="6941881257520473899">Тоног төхөөрөмжийн түрийвч тохиргоо дуусгахыг шаардана.</translation>
-<translation id="2288190100157580461">Тоног төхөөрөмжийн түрийвч нь <ph name="NETWORK"/> Аппийг <ph name="DEVICE_NAME"/> дээр нээсэн байхыг шаарддаг</translation>
+<translation id="4108619287854657806">Тоног төхөөрөмжийн түрийвч нь <ph name="NETWORK"/> Аппийг <ph name="ACCOUNT_NAME"/> дээр нээсэн байхыг шаарддаг</translation>
 <translation id="8687869982094542529">илгээсэн</translation>
 <translation id="5013754027092416509">хүлээн авсан</translation>
 <translation id="5867988533873716616">Блок институцийн URL боломжгүй байна.</translation>
@@ -1348,6 +1355,12 @@
 <translation id="3067168166931605141">Бүртгэлийн нэр</translation>
 <translation id="1213870770696612739">Хамгийн бага дүн: <ph name="AMOUNT"/></translation>
 <translation id="3041074161036535192">Хамгийн их дүн: <ph name="AMOUNT"/></translation>
+<translation id="3419957337495393511">Хаяг амжилттай үүсгэгдсэн</translation>
+<translation id="7444985841455466546">Хаяг амжилттай импортлогдсон</translation>
+<translation id="6775224295382583896">{ACCOUNTS, plural,
+      =1 {Хардвэр түрийвчний акаунт амжилттай холбогдлоо}
+      other {{ACCOUNTS} хардвэр түрийвчний акаунт амжилттай холбогдлоо}
+    }</translation>
 <translation id="8528916244724490964">Бүх Сүлжээ</translation>
 <translation id="7721139939763655123">Багаас өндөр хүртэл</translation>
 <translation id="5458608274117818139">Өндрөөс бага руу</translation>
@@ -1358,6 +1371,7 @@
 <translation id="8491675129455635799">Хөрөнгө ангилахаар</translation>
 <translation id="5331775401966766526">Шүүлтүүр болон дэлгэцийн тохиргоо</translation>
 <translation id="5332541468425943610">NFT дэлгэцийн тохиргоо</translation>
+<translation id="1539149309756422999">Хөрөнгийн хуваарилалт</translation>
 <translation id="886032538431162695">Хөрөнгийг эрэмбэлэх</translation>
 <translation id="6080181976198929758">Fiat үнэ эсвэл нэрээр эрэмбэлэх</translation>
 <translation id="2563815561570398537">Бага үлдэгдлийг нуух</translation>
@@ -1369,6 +1383,7 @@
 <translation id="1257387162647804035">Үндсэн сүлжээнүүд</translation>
 <translation id="8323674164587854512">Ethereum + EVM Сүлжээ</translation>
 <translation id="1398414935371867469">Solana + SVM Сүлжээ</translation>
+<translation id="6498449512528552760">Буруу угтвар</translation>
 <translation id="7058248670699639973">Сүлжээний лого</translation>
 <translation id="4378208228955237306">NFT дээр сүлжээний лого харуулах</translation>
 <translation id="5472199803712163015">Спам NFT</translation>
@@ -1601,6 +1616,9 @@
 <translation id="5882719778740918116">Зөвхөн <ph name="VALUE"/> сүлжээнд энэ хаяг руу токен илгээнэ үү</translation>
 <translation id="6885009592653876601">200 гаруй крипто хөрөнгийг худалдан авч, илгээж, сольж болно</translation>
 <translation id="8716223552348254401">Браузер-нэйтив, эрсдэлтэй нэмэлтүүд байхгүй</translation>
+<translation id="1198271701881992799">Эхэлцгээе</translation>
+<translation id="7904301836463577071">Кредит эсвэл дебит картаар анхны криптогоо худалдан аваарай</translation>
+<translation id="3721561070667360112">Өөр түрийвч эсвэл биржээс крипто хадгалуулах</translation>
 <translation id="4559901986238865734">Олон сүлжээ &amp; NFT дэмжлэгтэй</translation>
 <translation id="296101411136980896">Солихын тулд дарна уу</translation>
 <translation id="753655478253155745">Арван хоёрдугаар</translation>
@@ -1635,7 +1653,7 @@
 <translation id="1353726744456297797">Хэрэв та энэ жагсаалтаас хөрөнгөө олоогүй бол доорх товчийг ашиглан гараар нэмэх боломжтой</translation>
 <translation id="4543171429371680949">Хөрөнгө олдсонгүй</translation>
 <translation id="1026825928738055872">"<ph name="ACCOUNT_NAME"/>"ийг устгахдаа итгэлтэй байна уу?</translation>
-<translation id="3910551537328657217">Функц хүсэх</translation>
+<translation id="2220529011494928058">Асуудал мэдээлэх</translation>
 <translation id="7657322905916621147">Бүртгэл сэргээх үг нь 12, 15, 18, 21 эсвэл 24 үгээс бүрдэх ёстой</translation>
 <translation id="5026874946691314267">Дахиж бүү үзүүл</translation>
 <translation id="434502623875309667">Хаягийг шийдвэрлэхийн тулд offchain сүлжээний хүсэлтийг шаардана. Үргэлжлүүлэх үү?</translation>
@@ -1748,6 +1766,7 @@
 <translation id="8549067157732633185">Энэ токен баталгаажсан байна</translation>
 <translation id="2130170065617939165">Энэ токен <ph name="NUMBER_OF_LISTS"/> жагсаалтад баталгаажсан байна</translation>
 <translation id="1554316484739382186">Зарцуулсан хаяг: <ph name="ADDRESS"/></translation>
+<translation id="8533411848724153701">Gemini</translation>
 <translation id="4265415116535094892">Zebpay</translation>
 <translation id="3026353765778463291"><ph name="PROVIDER"/> бүртгэл</translation>
 <translation id="5360752485622434494">Brave Rewards ХУТ <ph name="PROVIDER"/>-д</translation>
@@ -2065,6 +2084,7 @@
 <translation id="7294510764127771956">Хүснэгтэн согогийг шилжүүлэх</translation>
 <translation id="4186334830839439230">Үзүүлэлтийн тохиргоог харуулах</translation>
 <translation id="1094277301241124207">Хавчуургын хажуугийн панельд харуулах</translation>
+<translation id="5101042277149003567">Бүх хавчуургыг нээх</translation>
 <translation id="8283515796576236471">Bookmark бар нээлттэй бүгдийг шинэ цонхонд нээх</translation>
 <translation id="5271773791943587595">Bookmark бар нээлттэй бүгдийг нууцлалтай цонхонд нээх</translation>
 <translation id="2748975346534113286">Bookmark бар нээлттэй бүгдийг шинэ таб бүлэтэй нээх</translation>
@@ -2142,13 +2162,16 @@
 <translation id="6459036216700972269">Табуудыг салгах</translation>
 <translation id="4235382917338421035">Таб байрлалыг солих</translation>
 <translation id="4288085058450834672">Апп-уудыг харуулах</translation>
+<translation id="4750337523930607658">Анхаарал төвлөрөх горимыг асаах/унтраах</translation>
 <translation id="4144468798716165316">Шуурхай командууд</translation>
 <translation id="3617523374417810198">Шинэ хуваах харагдац</translation>
 <translation id="8571323456914890254">Хуваах харагдацад нээх</translation>
 <translation id="5329136173514538969">Табуудыг хуваахыг цуцлах</translation>
 <translation id="7595612919377246359">Таб байрлалыг солих</translation>
 <translation id="2367972762794486313">Апп-уудыг харуулах</translation>
+<translation id="3142853026316054951">Анхаарал төвлөрөх горимыг асаах/унтраах</translation>
 <translation id="3468387898712904997">Шинэ нууц хаягнуудын нэрс</translation>
+<translation id="2796584247246518451">Шинэ түр зуурын багц</translation>
 <translation id="8591883849678260674">Эх хуудсыг харах</translation>
 <translation id="1969654232209826429">мин. унших</translation>
 <translation id="4101707289420716287">Speedreader-г унтраах</translation>
@@ -2195,6 +2218,7 @@
 <translation id="5923170497201832190">Доош гүйлгэх</translation>
 <translation id="6219262425964000211">Файлуудыг энд оруулна уу</translation>
 <translation id="4313763911013851687">Буудлагын файлуудыг ярианд нэмэхийн тулд энд унагана уу</translation>
+<translation id="8206915760129310348">Зарим файлуудыг уншиж чадаагүй тул хавсаргасангүй</translation>
 <translation id="4524675003624341892">Асуулт санал болгох…</translation>
 <translation id="4567071417854988869">Энэ видеог хураангуйлах</translation>
 <translation id="4264902191243445258">{PAGE_COUNT, plural,
@@ -2205,7 +2229,9 @@
 <translation id="7932221068776853847">Энэ хуудсын агуулгыг Leo-д илгээхээ зогсоож, шинэ яриа эхлүүлэх</translation>
 <translation id="8743383817154663379">Таны хүсэлтийг боловсруулахад алдаа гарлаа. Дараа дахин оролдоно уу.</translation>
 <translation id="2712650703044366764">Энэ модель буруу endpoint-тэй байна. Тохиргоогоо шалгаад дахин оролдоно уу.</translation>
-<translation id="1167803637855350748">Leo-д холбогдох сүлжээний асуудал гарлаа, холболтоо шалгаад дахин оролдоно уу.</translation>
+<translation id="7092656392206649236">Leo-той холбогдох явцад алдаа гарлаа. Дахин оролдоно уу.</translation>
+<translation id="3552709750512842961">Статусын код: <ph name="STATUS_CODE"/>, алдааны код: <ph name="ERROR_CODE"/></translation>
+<translation id="9215978379284690246">Статусын код: <ph name="STATUS_CODE"/></translation>
 <translation id="1996126325390835277">Та Premium хэрэглээний хязгаарт хүрсэн байна. Дахин хэдэн цагийн дараа оролдоно уу.</translation>
 <translation id="3683964919745779766">Та энэ моделины хэрэглээний хязгаарт хүрсэн эсвэл кредит дууссан байна. Дараа дахин оролдоно уу.</translation>
 <translation id="7692501701960747469">Энэ моделины тохируулсан API түлхүүр худлаа байна. Тохиргоогоо шалгаж, дахин оролдоно уу.</translation>
@@ -2215,6 +2241,7 @@
 <translation id="1238020084128916796">Сайн байна уу, би Leo байна. Би Brave-ийх нэгэн хиймэл оюун ухаан туслах. Намайг Meta-гийн боловсруулсан, олон төрлийн хэрэглээнд тохиромжтой, өндөр гүйцэтгэлтэй Llama 3.1 8B загвар ажиллуулдаг. Llama нь бидний өөрийн баталгаат дэд бүтцээр Brave-д байрлуулсан байдаг.<ph name="LINK_BEFORE"/>Дэлгэрэнгүй<ph name="LINK_AFTER"/></translation>
 <translation id="3852808100039989429">Сайн байна уу, би Leo. Би Brave-ийх нэгэн хиймэл оюун ухааны туслах. Намайг Alibaba Cloud-оор боловсруулсан, олон хэрэглээнд тохиромжтой, өндөр гүйцэтгэлийн Qwen VL 30B загвар ажиллуулдаг. Qwen нь бидний өөрийн баталгаат дэд бүтцээр Brave-д байрлуулсан байдаг.<ph name="LINK_BEFORE"/>Дэлгэрэнгүй<ph name="LINK_AFTER"/></translation>
 <translation id="3812564134126884433">Сайн байна уу, би Leo. Би Brave-ийх нэгэн хиймэл оюун ухааны туслах. Намайг GLM-5-аар боловсруулсан, олон төрлийн хэрэглээнд тохиромжтой, өндөр гүйцэтгэлтэй GLM-5 загвар ажиллуулдаг. GLM-5 нь NEAR-ийн баталгаат, хувийн дэд бүтцэд байрлуулсан байдаг.<ph name="LINK_BEFORE"/>Дэлгэрэнгүй<ph name="LINK_AFTER"/></translation>
+<translation id="784931275560506522">Сайн байна уу, би Leo. Би Brave-ийх нэгэн хиймэл оюун ухааны туслах. Намайг GLM-5.1-аар боловсруулсан, олон төрлийн хэрэглээнд тохиромжтой, өндөр гүйцэтгэлтэй GLM-5.1 загвар ажиллуулдаг. GLM-5.1 нь NEAR-ийн баталгаат, хувийн дэд бүтцэд байрлуулсан байдаг.<ph name="LINK_BEFORE"/>Дэлгэрэнгүй<ph name="LINK_AFTER"/></translation>
 <translation id="8932568551552504373">Сайн байна уу, би Лео. Би Brave-ийн хиймэл оюун ухаанд суурилсан туслах. Намайг Anthropic компаниас бүтээсэн Claude Instant загвар дэмждэг бөгөөд энэ загварыг Brave өөрийн тохирсон аюулгүй дэд бүтцээр хост хийдэг.<ph name="LINK_BEFORE"/>Дэлгэрэнгүй мэдээлэл<ph name="LINK_AFTER"/></translation>
 <translation id="3789772321824682783">Сайн байна уу, би Leo байна. Би Brave-ийх нэгэн хиймэл оюун ухаан туслах. Намайг Anthropic-оор боловсруулсан, харилцан ярилцах болон текст боловсруулалтын үүргийг гүйцэтгэх Claude Haiku загвар ажиллуулдаг. Claude Haiku нь бидний өөрийн баталгаат дэд бүтцээр Brave-д байрлуулсан байдаг.<ph name="LINK_BEFORE"/>Дэлгэрэнгүй<ph name="LINK_AFTER"/></translation>
 <translation id="1778885220602472158">Сайн байна уу, би Leo байна. Би Brave-ийх нэгэн хиймэл оюун ухаан туслах. Намайг Anthropic-оор боловсруулсан, харилцан ярилцах болон текст боловсруулалтын үүргийг гүйцэтгэх Claude Sonnet загвар ажиллуулдаг. Claude Sonnet нь бидний өөрийн баталгаат дэд бүтцээр Brave-д байрлуулсан байдаг.<ph name="LINK_BEFORE"/>Дэлгэрэнгүй<ph name="LINK_AFTER"/></translation>
@@ -2332,8 +2359,8 @@
 <translation id="4592293425457329338">Ярианаас зарим агуулга алдагдаж магадгүй. Leo ярианы хамааралтай агуулгын <ph name="PERCENTAGE"/> хувийг хадгалж чадсан.</translation>
 <translation id="8501106061098623831">Хэтэрхий олон зургийг хуудсаас авсан байна. Leo нь боломжтой харааны контентийн <ph name="PERCENTAGE"/>-ийг ашиглаж чадсан.</translation>
 <translation id="4370698775470316661">Энэ чат хэт урт байгаа тул үргэлжлүүлэх боломжгүй. Удаан хугацааны ярианд Leo-н нарийвчлалыг хадгалах боломжтой бусад загварууд байж болно.</translation>
-<translation id="5719170755629028558">Leo-г Brave Search-тай сайжруулж байна...</translation>
-<translation id="5794962229997281366">Сайжруулсан хариултын хайлт <ph name="SEARCH_TERMS"/>-д</translation>
+<translation id="4744144453035015075">Интернэтээс хайж байна</translation>
+<translation id="8548351747582087191">Интернэтээс <ph name="SEARCH_TERMS"/>-г хайж байна.</translation>
 <translation id="7307396647043599949"><ph name="COUNT"/> илүү...</translation>
 <translation id="8103700533980268469">Энэ мэдэгдлийг хаах</translation>
 <translation id="3417835166382867856">Табуудыг хайх</translation>
@@ -2404,8 +2431,8 @@
 <translation id="2370739752330685659">Дараагийн удаа</translation>
 <translation id="983013125018250242">Лео AI хэрэгслүүд</translation>
 <translation id="7623223587478473368">Хавсралт</translation>
-<translation id="3777121685517940177">Файлаа оруулах...</translation>
-<translation id="6739516910850820220">Файлыг татаж оруулж байна...</translation>
+<translation id="3728603231003977269">Файл хавсаргах...</translation>
+<translation id="7899721102369502629">Файл хавсаргаж байна...</translation>
 <translation id="9088751620363630236">Зургийг авна уу...</translation>
 <translation id="4250229828105606438">Дэлгэцийн агшин</translation>
 <translation id="7949596341600215809">Бүтэн хуудасны скриншот</translation>
@@ -2453,10 +2480,12 @@
 <translation id="7607002721634913082">Түр зогссон</translation>
 <translation id="4773299976671772492">Зогссон</translation>
 <translation id="6946722113367118030">Бодолцож байна</translation>
+<translation id="7918928051723770926">Даалгавар дууссан</translation>
 <translation id="2113810663179257944">Кодыг гүйцэтгэж байна</translation>
-<translation id="6338250692384725496">Таны асуултад туслах зорилгоор кодыг sandbox дээр ажиллуулсан</translation>
+<translation id="4838375634693651776">Таны асуултад туслах зорилгоор кодыг sandbox дээр ажиллуулж байна</translation>
 <translation id="4379566111233326721">Код:</translation>
 <translation id="3542130965673205258">Гаралт:</translation>
+<translation id="6911817209337314910">Танд сонгох боломжуудыг үүсгэж байна</translation>
 <translation id="5382076391290708074">Таб удирдлагыг зөөх</translation>
 <translation id="3862123464576147769">Үүнийг зөвшөөрөх нь бүх таб болон таб бүлгүүдийн <ph name="URL_FORMAT_START"/>URL<ph name="URL_FORMAT_END"/> болон <ph name="TITLE_FORMAT_START"/>Гарчиг<ph name="TITLE_FORMAT_END"/> Brave AI-д илгээх бөгөөд Brave AI-г тэдгээрийг зөөх боломжийг өгнө. Энэ зөвшөөрөл нь зөвхөн энэ яриатай хамаатай.</translation>
 <translation id="396165714586708444">Гүнзгий судалгаа</translation>
@@ -2488,7 +2517,9 @@
 <translation id="5663901348199429994">Таны Цахим шуудангийн нууц нэрүүд</translation>
 <translation id="9046133327037621173">Шинэ нууц хаягнуудын нэрс</translation>
 <translation id="3768606658230902536">Хувийн цахим шууданг нууцлан таны ирсэн мэйлийн хайрцаг руу чиглүүлдэг санамсаргүй нэр үүсгээрэй.</translation>
-<translation id="6887156107256264506">Та 5 үнэгүй хаяг үүсгэх хязгаарт хүрсэн байна. Нэг нэрийг дахин ашиглах эсвэл устгахын тулд 'Удирдах' дээр дарна уу.</translation>
+<translation id="4452721050684632493">Алиасын хязгаарт хүрсэн</translation>
+<translation id="2912191433415590080">Та өөрийн <ph name="MAX_ALIASES"/> имэйл алиасыг бүгдийг нь ашигласан байна. Шинэ алиас үүсгэхийн тулд одоо байгаа алиасаа устгана уу.</translation>
+<translation id="3847337908410945070">Таны алиасууд (<ph name="CURRENT"/> / <ph name="MAX"/>)</translation>
 <translation id="1104500750724567895">Шинэ нэр</translation>
 <translation id="8072910658503112482">Өөр мэйл хаягийн нэр санал болгох</translation>
 <translation id="7710361355427562228">Шинэ нэр үүсгэж байна...</translation>
@@ -2505,6 +2536,7 @@
 <translation id="646524615209870492"><ph name="ALIAS"/> хоч болгон устгах нь таны шуудан хүлээж авах боломж алдагдана.</translation>
 <translation id="8133100642915054515">Хоч устгаж чадсангүй. Интернет холболтоо шалгаж дахин оролдоно уу.</translation>
 <translation id="8465742443901727718">Энэ үйлдлийг цуцлах боломжгүй. Үргэжлүүлэхэд итгэлтэй байна уу?</translation>
+<translation id="6402052536605772735">Манай server-ээс имэйл алиасуудыг авахад алдаа гарлаа. Интернэт холболтоо шалгана уу.</translation>
 <translation id="9162685486229945876">Brave бүртгэл үүсгэх эсвэл нэвтрэх</translation>
 <translation id="1335007417599138852">Brave бүртгэл нь та Brave бүтээгдэхүүнтэй холбоотой чадвартай болох бөгөөд энэ мэдээллийг таны бүх төхөөрөмж дээр хялбархан синхронизировать хийх боломжийг олгоно.</translation>
 <translation id="2133391407495495735">Нэвтрэх линк авах</translation>
@@ -2531,6 +2563,8 @@
 <translation id="2991633563551889054">Talk карт нуух</translation>
 <translation id="5355776323718420036">Шилдэг сайтуудыг нуух</translation>
 <translation id="1689504141194856995">VPN карт нуух</translation>
+<translation id="2919329118360099847">Энгийн цонхны хаягийн мөрөнд Brave-г хайлтын систем болгон ашиглана.</translation>
+<translation id="6792837540759934892">Brave-г үндсэн хайлтын систем болгох уу?</translation>
 <translation id="8262911270872215147">Мэдээ тохируулах</translation>
 <translation id="3884037897537157986">Мэдээг идэвхгүй болгох</translation>
 <translation id="7847477075635510673">Мэдээг нуух</translation>
@@ -2669,7 +2703,7 @@
 <translation id="2273851479262317744">Brave-г үндсэн хөтчөөр тохируулах</translation>
 <translation id="5037676449506322593">Бүгдийг сонгох</translation>
 <translation id="5148943178722443958">Brave-г илүү сайжрахад туслаарай.</translation>
-<translation id="479535542793009168">Тогтвортой чанар &amp; Танилцуулга</translation>
+<translation id="8874748598814587364">Тогтвортой байдал</translation>
 <translation id="1097073572755862978">Системийн алдаа гарах эсвэл "фрийз" болох тохиолдолд алдааны тайлан илгээх. <ph name="LINK_BEFORE"/>Дэлгэрэнгүй үзэх.<ph name="LINK_AFTER"/></translation>
 <translation id="6629244688368006959">Brave-н хэрэглэгчид ямар онцлог функц ашиглаж байгаа тухай бүтээгдэхүүний мэдээллийг нууцлалтай, нэргүй хуваалцах. <ph name="LINK_BEFORE"/>Дэлгэрэнгүй үзэх.<ph name="LINK_AFTER"/></translation>
 <translation id="7415454883318062233">Тохиргоо дууссан</translation>
@@ -2682,7 +2716,7 @@
 <translation id="4117637339509843559">Харанхуй горим</translation>
 <translation id="6302485303316397682">Хайлтын үр дүнгээ сайжруулахыг хүсэж байна уу?</translation>
 <translation id="7014699001826714920">Хөдөлгөөнд нэгдэж, Brave хайлтын системд хувь нэмрээ оруулаарай.</translation>
-<translation id="6821108091726602352">Brave-н Вэб дэмжих төсөлд оролцон, бидэнд вэбээ сайжруулахад минь туслаарай. Нэр бүрэн нууцалсан хайлтын тэмдэгтүүдийг хуваалцах замаар та Brave-н хайлтын системийн индексийг өргөжүүлэхэд туслаарай.</translation>
+<translation id="6821108091726602352">Brave-ийн Веб Нээлтийн Төсөлд оролцож, вебийг засахад бидэнд туслаарай. Бүрэн нэргүй хайлтын дохиог хуваалцснаар та Brave-д хайлтын индексээ хөгжүүлэхэд туслаж чадна.</translation>
 <translation id="6764845498618413165">Илүү ихийг мэдэх.</translation>
 <translation id="7818938154803162778">Мэдээж, би тусалъя</translation>
 <translation id="7207456302801184289">Brave-д тавтай морил</translation>
@@ -2797,6 +2831,10 @@ Brave нь DNS хайлтын баталгаажуулалтыг хамгаал�
 <translation id="1602850501393095406">↑-г дарахад тодруулах</translation>
 <translation id="8367705492654390392">Юу ч асууж болно</translation>
 <translation id="8525248723479742219">Дараа тоглуулах</translation>
+<translation id="1751249301761991853">Хувийн</translation>
+<translation id="1122068467107743258">Ажил</translation>
+<translation id="8372721116225477180">Олон нийт</translation>
+<translation id="1539343118617844331">Сургууль</translation>
 <translation id="2935698011275148880">Brave Origin</translation>
 <translation id="3983844925615091103">Brave Origin-д тавтай морилно уу. Үргэлжүүлэхийн тулд Brave Origin худалдан авалт худалдан авах эсвэл сэргээх хэрэгтэй.</translation>
 <translation id="4801175670604644729">Энэ браузерыг ашиглахын тулд идэвхтэй Brave Origin худалдан авалт шаардлагатай.</translation>
@@ -2812,4 +2850,66 @@ Brave нь DNS хайлтын баталгаажуулалтыг хамгаал�
 <translation id="5816720995022674532">Origin нь Linux төхөөрөмжүүдэд ашиглахад үнэгүй боловч Brave-ийг бизнес хэлбэрээр дэмжихийг хүсвэл <ph name="BEGIN_LINK"/>худалдан авалтад хүргэж<ph name="END_LINK"/> болно. Худалдан авалт хийвэл Android, iOS, macOS, Windows төхөөрөмжүүдэд Origin ашиглах боломжтой болно.</translation>
 <translation id="3065220545261045367">Origin-г худалдан авлаар Brave-ыг дэмжих</translation>
 <translation id="2069499076031488636">Linux-т Origin-г үнэгүй ашиглаж үргэлжүүлнэ үү</translation>
+<translation id="5713644099811900409">Brave Account</translation>
+<translation id="2906576968270573525">Brave бүртгэл үүсгэх эсвэл нэвтрэх</translation>
+<translation id="6972754398087986839">Эхлүүлэх</translation>
+<translation id="5378207817582281342">Бараг дууслаа!</translation>
+<translation id="3750210661641549834">Бүртгэлээ үүсгэхийн тулд имэйл хаягаа баталгаажуулна уу.</translation>
+<translation id="4129813507847680661">Бүртгэлийн код оруулах</translation>
+<translation id="1672793037892810340">Та оруулах шаардлагатай кодтой имэйл хүлээн авсан байх ёстой.</translation>
+<translation id="4821255729182569254">Баталгаажуулах имэйлийг дахин илгээх</translation>
+<translation id="5837679375142747484">Имэйл харагдахгүй байна уу? Спам хавтсаа шалгаарай эсвэл <ph name="BEGIN_LINK"/>дахин илгээх<ph name="END_LINK"/>.</translation>
+<translation id="1080588816740959885">Имэйл харагдахгүй байна уу? Спам хавтсаа шалгаарай эсвэл дахин илгээнэ үү.</translation>
+<translation id="1020730839570724178">Бүртгэлийг цуцлах</translation>
+<translation id="4869737930995549965">Гарах</translation>
+<translation id="5538654494923870167">Brave бүртгэлээ ашиглаж эхлэх</translation>
+<translation id="1544145635547515689">Brave бүртгэл үүсгэх</translation>
+<translation id="3828644479849256404">Бүртгэлтэй юу? Нэвтрэх</translation>
+<translation id="6624553071240278643">Бүртгэлээ үүсгэх</translation>
+<translation id="6505120968393722022">Та @bravealias.com хаягуудыг Brave бүртгэл үүсгэхэд ашиглах боломжгүй. Өөр домэйнтэй хаяг ашиглан дахин оролдоно уу.</translation>
+<translation id="8248460961680233459">Нууц үг үүсгэх</translation>
+<translation id="552339301062636488">Үргэлжлүүлэхэд хэт сул</translation>
+<translation id="8433528931936107676">Болж байна</translation>
+<translation id="4324743471050874155">Хангалттай хүчтэй</translation>
+<translation id="5585552203448068294">Онцгой хүчтэй</translation>
+<translation id="5486261815000869482">Нууц үгээ баталгаажуулах</translation>
+<translation id="7345706641791090287">Нууц үгээ баталгаажуулна уу</translation>
+<translation id="7114054701490058191">Нууц үгс таарахгүй байна</translation>
+<translation id="1293857704520741614">Бүртгэл рүүгээ нэвтэрнэ үү</translation>
+<translation id="118617366439356381">Нууц үгээ мартсан уу?</translation>
+<translation id="5183159033908953146">Brave бүртгэлийн имэйлээ баталгаажуулна уу. Дараа нь та нууц үгээ шинэчлэх холбоосыг хүлээн авна. Холбоос ердөө 30 минут хүчинтэй байх болно.</translation>
+<translation id="3997368361371298873">Анхааруулга: Та энэ төхөөрөмж дээр нэвтрээгүй байгаа тул нууц үгээ шинэчилснээр серверт байгаа <ph name="BEGIN_BOLD"/>таны бүх өгөгдлийг устгана<ph name="END_BOLD"/>. Хэрэв та өөр төхөөрөмж дээр нэвтэрсэн бол нууц үгээ шинэчлэхийн оронд тэр төхөөрөмжөөсөө өөрчилнө үү.</translation>
+<translation id="3674472551471103443">Нууц үгээ шинэчлэх</translation>
+<translation id="2755539422340788311">Имэйлээ баталгаажуулна уу</translation>
+<translation id="6641436078676327508">Та богино код бүхий имэйлийг хүлээн авсан байх ёстой. Үргэлжлүүлэхийн тулд кодыг энд оруулна уу.</translation>
+<translation id="7228810962389847249">Кодыг энд оруулна уу</translation>
+<translation id="4683390091376980486">Кодыг баталгаажуулах</translation>
+<translation id="3970028678400797622">Имэйл кодыг дахин илгээх</translation>
+<translation id="2475982808118771221">Алдаа гарлаа</translation>
+<translation id="5430795854491041407">алдаа</translation>
+<translation id="2232323423357029857">Хөтчид санаандгүй алдаа гарлаа<ph name="ERROR_CODE"/>. Хөтчөө дахин эхлүүлж, дахин оролдоно уу.</translation>
+<translation id="7167650060829320707">Серверийн дотоод алдаа (<ph name="STATUS_CODE"/><ph name="ERROR_CODE"/>). Дараа дахин оролдоно уу.</translation>
+<translation id="2387645930330673048">Энэ бүртгэл имэйл баталгаажуулалт хүлээж байна.</translation>
+<translation id="2199962270601714404">Энэ имэйл хаягаар бүртгэл олдсонгүй. Дахин оролдох эсвэл шинэ бүртгэл үүсгэнэ үү.</translation>
+<translation id="8130611002720478693">Нууц үг буруу байна. Дахин оролдоно уу.</translation>
+<translation id="7144067487084094749">Энэ имэйл хаягаар бүртгэл аль хэдийн үүсгэгдсэн байна. Бүртгэл үүсгэхийн оронд нэвтэрч үзнэ үү.</translation>
+<translation id="5288951359968156008">Энэ имэйл хаягийн домэйнг дэмждэггүй. Өөр имэйл хаяг ашиглана уу.</translation>
+<translation id="7625678607509255072">Имэйл баталгаажуулалтын хязгаараас хэтэрсэн. Дахин оролдохоосоо өмнө 30 минут хүлээнэ үү.</translation>
+<translation id="4582421696414628320">Баталгаажуулалтын хугацаа дууссан. Бүртгэлийн үйл явцыг дахин эхлүүлнэ үү.</translation>
+<translation id="8439543211004394821">Хэт олон удаа буруу код оруулсан. Бүртгэлийн үйл явцыг дахин эхлүүлнэ үү.</translation>
+<translation id="3229986152760633988">Код буруу байна, дахин оролдоно уу.</translation>
+<translation id="818783632689113711">Энэ имэйл хаягт аль хэдийн хаяг хүсэлт гаргасан байна. Имэйлээ шалгах эсвэл 30 минутын дараа дахин оролдоно уу.</translation>
+<translation id="4178004989875422946">Brave бүртгэл нь танд Brave үйлчилгээнд хялбар хандах боломжийг олгоно.</translation>
+<translation id="4902897635127068510">Та <ph name="SUGGESTION"/> гэж хэлэх гэсэн юм биш үү?</translation>
+<translation id="8314772463905284467">Caps Lock асаалттай байна</translation>
+<translation id="7044608453949401443">Нууц үгийн эхэн болон төгсгөлд хоосон зай ашиглах боломжгүй.</translation>
+<translation id="2939492377741553693">Баталгаажуулах имэйлийг дахин илгээлээ.</translation>
+<translation id="2112559299194052697">Дахин илгээх боломжгүй</translation>
+<translation id="7932611814134267012">Баталгаажуулах имэйлийг хэдийнэ хэт олон удаа илгээсэн байна. Спам хавтсаа шалгана уу.</translation>
+<translation id="1364223093800750401">Имэйл аль хэдийн баталгаажсан.</translation>
+<translation id="3353844160742960162">Нууцлалын тохиргооны тааруулалт</translation>
+<translation id="528205534230423181">Энэ вэбсайт нь Brave-ийн автоматаар тохируулж өгөх боломжтой нууцлалын тохиргоонуудыг санал болгож байна. Бид дараахыг зөвлөж байна:</translation>
+<translation id="1063227610401477317">Өөрчлөлтийг хэрэгжүүлэх</translation>
+<translation id="5539769255716491933">Амжилтгүй алхмуудыг мэдэгдэх</translation>
+<translation id="7562163394445060270">Даалгаврыг гүйцэтгэж чадсангүй</translation>
 </translationbundle>

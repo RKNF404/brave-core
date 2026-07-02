@@ -40,13 +40,13 @@ export class LeoModelSelectorElement extends CrLitElement {
   accessor models: ModelWithSubtitle[] = []
   accessor isPremiumUser: boolean = false
 
-  protected getSelectedDisplayName(): string {
+  getSelectedEntry(): ModelWithSubtitle | undefined {
     return this.models?.find(
       (entry) => entry.model.key === this.selectedKey
-    )?.model.displayName ?? ''
+    )
   }
 
-  onSelectionChange_(e: any) {
+  onSelectionChange_(e: {value: string}) {
     this.fire('model-changed', {value: e.value})
   }
 

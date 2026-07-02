@@ -12,15 +12,16 @@
 
 namespace brave_vpn {
 
-BraveVPNServiceObserver::BraveVPNServiceObserver() = default;
+BraveVpnServiceObserver::BraveVpnServiceObserver() = default;
 
-BraveVPNServiceObserver::~BraveVPNServiceObserver() = default;
+BraveVpnServiceObserver::~BraveVpnServiceObserver() = default;
 
-void BraveVPNServiceObserver::Observe(BraveVpnService* service) {
+void BraveVpnServiceObserver::Observe(BraveVpnService* service) {
   if (!service)
     return;
 
   if (service->IsBraveVPNEnabled()) {
+    receiver_.reset();
     mojo::PendingRemote<mojom::ServiceObserver> listener;
     receiver_.Bind(listener.InitWithNewPipeAndPassReceiver());
     service->AddObserver(std::move(listener));

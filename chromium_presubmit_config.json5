@@ -81,6 +81,10 @@
   // Files to skip per check.
   "per_check_files_to_skip": {
     // Permanent ignores.
+    // Disabling +x checks for `.bat` files, as bootstrap is introducing shims
+    // and setting +x on those polutes shell suggetions on POSIX systems.
+    "CheckFilePermissions": ["tools/cr/bootstrap/.*\\.bat$"],
+
     "CheckNewHeaderWithoutGnChangeOnUpload": ["chromium_src/.*\\.h"],
     "CheckForCcIncludes": ["chromium_src/"],
     "CheckForRelativeIncludes": ["chromium_src/"],
@@ -169,9 +173,9 @@
       "components/speedreader/renderer/speedreader_js_handler\\.h",
     ],
     "CheckWebDevStyle": [
+      "build/",
       "components/speedreader/resources/speedreader-desktop.css",
       "components/speedreader/resources/third_party/",
-      "components/webpack/gen-webpack-grd\\.js",
       "test/data/speedreader/",
     ],
     "CheckStableMojomChanges": [

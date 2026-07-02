@@ -88,9 +88,6 @@ public struct StoreKitReceiptView: View {
       }
       .navigationTitle("App Store Receipt")
       .navigationViewStyle(.stack)
-      .introspectNavigationController { controller in
-        controller.navigationBar.topItem?.backButtonDisplayMode = .minimal
-      }
     } else {
       Text("No App Store Receipt")
         .navigationTitle("App Store Receipt")
@@ -184,7 +181,9 @@ public struct StoreKitReceiptView: View {
         value: purchase.originalTransactionId
       )
 
-      StoreKitReceiptLineView(title: "Line Item ID", value: "\(purchase.webOrderLineItemId)")
+      if purchase.webOrderLineItemId != 0 {
+        StoreKitReceiptLineView(title: "Line Item ID", value: "\(purchase.webOrderLineItemId)")
+      }
 
       StoreKitReceiptLineView(title: "Quantity", value: "\(purchase.quantity)")
 

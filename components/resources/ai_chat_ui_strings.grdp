@@ -435,6 +435,9 @@
   <message name="IDS_CHAT_UI_NEW_CONVERSATION_BUTTON_LABEL" desc="A label for the button which starts a new conversation" formatter_data="webui=AiChat">
     Start a new conversation
   </message>
+  <message name="IDS_CHAT_UI_SHARE_CONVERSATION_BUTTON_LABEL" desc="A label for the button which shares the current conversation" formatter_data="webui=AiChat">
+    Share conversation
+  </message>
   <message name="IDS_CHAT_UI_MENU_RENAME_CONVERSATION" desc="Menu entry for renaming a conversation" formatter_data="webui=AiChat">
     Rename conversation
   </message>
@@ -680,6 +683,15 @@
   </message>
   <message name="IDS_CHAT_UI_PAGE_ATTACHMENT_TOOLTIP_INFO" desc="Info tooltip for page attachment" formatter_data="webui=AiChat">
     This page's content will be sent to Leo along with your messages.
+  </message>
+  <message name="IDS_CHAT_UI_TOOLS_ATTACHMENT_LABEL" desc="Label for the section, shown above the input box, listing the tools provided by attached pages" formatter_data="webui=AiChat">
+    Tools
+  </message>
+  <message name="IDS_CHAT_UI_TOOLS_ATTACHMENT_TOOLTIP_INFO" desc="Info tooltip explaining what attached page tools are and their privacy implications" formatter_data="webui=AiChat">
+    These sites expose tools that Leo can use to send data to and from this site. Do not attach or approve these tools if this conversation contains data that you don't want this site to see.
+  </message>
+  <message name="IDS_CHAT_UI_TOOLS_ATTACHMENT_REMOVE_LABEL" desc="Accessible label for the button that removes an attached page's tools" formatter_data="webui=AiChat">
+    Remove tools
   </message>
   <message name="IDS_CHAT_UI_SUBSCRIPTION_POLICY_INFO" desc="An info text that is shown below various subcription prices" formatter_data="webui=AiChat">
     All subscriptions are auto-renewed but can be cancelled at any time before renewal.
@@ -932,6 +944,15 @@
   </message>
   <message name="IDS_CHAT_UI_TOOL_LABEL_CODE_EXECUTION" desc="Title for code execution tool event" formatter_data="webui=AiChat">
     Executing code in sandbox to help with your query
+  </message>
+  <message name="IDS_CHAT_UI_TOOL_LABEL_SEMANTIC_HISTORY_SEARCH" desc="Label shown while the assistant is searching the user's local browsing history for a query. $1 is the natural-language search query." formatter_data="webui=AiChat">
+    Searching your browser history for "<ph name="QUERY">$1<ex>kittens article</ex></ph>"
+  </message>
+  <message name="IDS_CHAT_UI_TOOL_LABEL_SEMANTIC_HISTORY_SEARCH_GENERIC" desc="Label shown while the assistant is searching the user's local browsing history when the query is not yet known." formatter_data="webui=AiChat">
+    Searching your browser history
+  </message>
+  <message name="IDS_CHAT_UI_TOOL_SEMANTIC_HISTORY_SEARCH_PERMISSION_IMPLICATIONS" desc="Explanation shown in the permission prompt when the assistant wants to search the user's local browsing history. Calls out that the search itself is on-device and only the matched pages flow to Brave AI." formatter_data="webui=AiChat">
+    Brave AI wants to search your browsing history. The search runs locally on your device, so your full history isn't sent anywhere. Only the matching pages' titles, URLs, and indexed text passages will be sent to Brave AI as part of this conversation.
   </message>
   <message name="IDS_CHAT_UI_CODE_EXECUTION_CODE_LABEL" desc="Label for code section in code execution tool" formatter_data="webui=AiChat">
     Code:

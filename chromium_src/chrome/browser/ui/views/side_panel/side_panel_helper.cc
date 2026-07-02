@@ -6,6 +6,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_helper.h"
 
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
+#include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
 
 #if BUILDFLAG(ENABLE_PLAYLIST)
@@ -18,13 +19,22 @@
 #include "brave/browser/ui/views/side_panel/ai_chat/ai_chat_side_panel_web_view.h"
 #endif
 
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+#include "base/feature_list.h"
+#include "brave/browser/ui/views/side_panel/brave_news/brave_news_side_panel_web_view.h"
+#include "brave/components/brave_news/common/features.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#endif
+
 #define PopulateGlobalEntries PopulateGlobalEntries_ChromiumImpl
 #include <chrome/browser/ui/views/side_panel/side_panel_helper.cc>
 #undef PopulateGlobalEntries
 
 // static
 void SidePanelHelper::PopulateGlobalEntries(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     SidePanelRegistry* global_registry) {
   PopulateGlobalEntries_ChromiumImpl(browser, global_registry);
 
@@ -42,13 +52,24 @@ void SidePanelHelper::PopulateGlobalEntries(
   // for now.
   // TODO(https://github.com/brave/brave-browser/issues/48526): Remove the
   // condition when the feature flag is removed.
-  if (ai_chat::AIChatServiceFactory::GetForBrowserContext(browser->profile()) &&
-      ai_chat::ShouldSidePanelBeGlobal(browser->profile())) {
+  if (ai_chat::AIChatServiceFactory::GetForBrowserContext(
+          browser->GetProfile()) &&
+      ai_chat::ShouldSidePanelBeGlobal(browser->GetProfile())) {
     global_registry->Register(std::make_unique<SidePanelEntry>(
         SidePanelEntry::Key(SidePanelEntry::Id::kChatUI),
         base::BindRepeating(&AIChatSidePanelWebView::CreateView,
-                            browser->profile(),
+                            browser->GetProfile(),
                             /*is_tab_associated=*/false),
+        base::NullCallback()));
+  }
+#endif
+
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+  if (base::FeatureList::IsEnabled(brave_news::features::kBraveNewsSidebar)) {
+    global_registry->Register(std::make_unique<SidePanelEntry>(
+        SidePanelEntry::Key(SidePanelEntry::Id::kBraveNews),
+        base::BindRepeating(&BraveNewsSidePanelWebView::CreateView,
+                            browser->GetProfile()),
         base::NullCallback()));
   }
 #endif

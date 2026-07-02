@@ -4,6 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import BraveVPN
+import SwiftUI
 import UIKit
 
 extension BrowserViewController {
@@ -33,6 +34,10 @@ extension BrowserViewController {
 
   /// Shows a vpn screen based on vpn state.
   public func presentCorrespondingVPNViewController() {
+    if !profileController.profile.prefs.isBraveVPNAvailable {
+      return
+    }
+
     if BraveVPN.isSkusCredentialSessionExpired {
       let alert = vpnSessionExpiredStateAlert(loginCallback: { [unowned self] _ in
         self.openURLInNewTab(
@@ -81,13 +86,13 @@ extension BrowserViewController {
       installVPNProfile: { [weak self] in
         guard let self = self else { return }
         self.dismiss(animated: true) {
-          self.present(BraveVPNInstallViewController(), animated: true)
+          self.present(UIHostingController(rootView: InstallVPNProfileView()), animated: true)
         }
       }
     )
-    let vpnPaywallHostingVC = BraveVPNPaywallHostingController(paywallView: vpnPaywallView)
+    let vpnPaywallHostingVC = UIHostingController(rootView: vpnPaywallView)
     popToBVC(isAnimated: true) { [weak self] in
-      self?.present(UINavigationController(rootViewController: vpnPaywallHostingVC), animated: true)
+      self?.present(vpnPaywallHostingVC, animated: true)
     }
   }
 }

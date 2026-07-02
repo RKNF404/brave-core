@@ -48,4 +48,36 @@ const base::FeatureParam<std::string> kBackupResultsUAMetadata{
 const base::FeatureParam<int> kBackupResultsMaxDailyRequests{
     &kBackupResults, "max_daily_requests", -1};
 
+const base::FeatureParam<bool> kBackupResultsLoadAfterRestore{
+    &kBackupResults, "load_after_restore", false};
+
+const base::FeatureParam<base::TimeDelta>
+    kBackupResultsLoadAfterRestoreDelayMin{&kBackupResults,
+                                           "load_after_restore_delay_min",
+                                           base::Milliseconds(3000)};
+
+const base::FeatureParam<base::TimeDelta>
+    kBackupResultsLoadAfterRestoreDelayMax{&kBackupResults,
+                                           "load_after_restore_delay_max",
+                                           base::Milliseconds(6000)};
+
+const base::FeatureParam<base::TimeDelta>
+    kBackupResultsLoadAfterRestoreLowDelayMin{
+        &kBackupResults, "load_after_restore_low_delay_min",
+        base::Milliseconds(0)};
+
+const base::FeatureParam<base::TimeDelta>
+    kBackupResultsLoadAfterRestoreLowDelayMax{
+        &kBackupResults, "load_after_restore_low_delay_max",
+        base::Milliseconds(1500)};
+
+const base::FeatureParam<bool> kBackupResultsAllowFetches{
+    &kBackupResults, "allow_fetches", false};
+
+const base::FeatureParam<bool> kBackupResultsAllowCosmeticAssets{
+    &kBackupResults, "allow_cosmetic_assets", false};
+
+const base::FeatureParam<bool> kBackupResultsAllowUnclassifiedRequests{
+    &kBackupResults, "allow_unclassified_requests", false};
+
 }  // namespace brave_search::features

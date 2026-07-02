@@ -5,7 +5,6 @@
 
 import("//brave/browser/shell_integrations/buildflags/buildflags.gni")
 import("//brave/browser/ui/config.gni")
-import("//brave/browser/ui/sidebar/buildflags/buildflags.gni")
 import("//brave/browser/updater/buildflags.gni")
 import("//brave/build/config.gni")
 import("//brave/components/brave_ads/buildflags/buildflags.gni")
@@ -20,6 +19,7 @@ import("//brave/components/brave_wayback_machine/buildflags/buildflags.gni")
 import("//brave/components/commander/common/buildflags/buildflags.gni")
 import("//brave/components/containers/buildflags/buildflags.gni")
 import("//brave/components/email_aliases/buildflags/buildflags.gni")
+import("//brave/components/local_ai/buildflags/buildflags.gni")
 import("//brave/components/ntp_background_images/buildflags/buildflags.gni")
 import("//brave/components/playlist/core/common/buildflags/buildflags.gni")
 import("//brave/components/psst/buildflags/buildflags.gni")
@@ -54,6 +54,7 @@ source_set("ui") {
   # Depend on //chrome/browser/ui instead of //brave/browser/ui.
   visibility = [
     "//chrome/browser",
+    "//chrome/browser:core",
     "//chrome/browser/ui",
     "//chrome/browser/ui/webui:configs",
   ]
@@ -66,7 +67,6 @@ source_set("ui") {
     "//brave/browser/skus",
     "//brave/browser/ui/page_info",
     "//brave/browser/ui/webui/brave_account",
-    "//brave/browser/ui/webui/local_ai",
     "//brave/components/ai_chat/core/common/buildflags",
 
     # Unconditional for gn check as the NTP WebUI always needs the mojom
@@ -87,9 +87,13 @@ source_set("ui") {
     "//brave/components/brave_shields/core/browser",
     "//brave/components/brave_wallet/common/buildflags",
     "//brave/components/webcompat/core/common",
+    "//chrome/browser:command_updater_impl",
+    "//chrome/browser:defaults",
+    "//chrome/browser:file_select_helper",
     "//chrome/browser/contextual_search",
     "//chrome/browser/history",
     "//chrome/browser/image_fetcher",
+    "//chrome/browser/ui:tab_modal_confirm_dialog_delegate",
     "//chrome/browser/ui:tab_search_feature",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/navigator",
@@ -99,6 +103,14 @@ source_set("ui") {
     "//chrome/browser/ui/toolbar",
     "//media",
   ]
+
+  if (is_mac) {
+    deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
+  }
+
+  if (enable_local_ai) {
+    deps += [ "//brave/browser/ui/webui/local_ai" ]
+  }
 
   allow_circular_includes_from = brave_ui_allow_circular_includes_from
   deps += brave_ui_allow_circular_includes_from
@@ -208,7 +220,10 @@ source_set("ui") {
   }
 
   if (enable_brave_news) {
-    deps += [ "//brave/components/brave_news/common" ]
+    deps += [
+      "//brave/browser/brave_news",
+      "//brave/components/brave_news/common",
+    ]
   }
 
   # It doesn't make sense to view the webcompat webui on iOS & Android.
@@ -489,6 +504,10 @@ source_set("ui") {
       ]
     }
 
+    if (enable_brave_wallet) {
+      deps += [ "//brave/components/brave_wallet/common:common_constants" ]
+    }
+
     if (is_win) {
       deps += [ "//brave/components/windows_recall" ]
     }
@@ -570,6 +589,7 @@ source_set("ui") {
     deps += [
       "//brave/browser/ui/commander:fuzzy_finder",
       "//brave/components/commander/browser",
+      "//chrome/browser/ui:accelerator_utils_headers",
       "//chrome/browser/ui/location_bar",
     ]
   }
@@ -580,12 +600,8 @@ source_set("ui") {
       "views/bookmarks/bookmark_bar_instructions_view.h",
       "views/bookmarks/brave_bookmark_bar_view.cc",
       "views/bookmarks/brave_bookmark_bar_view.h",
-      "views/bookmarks/brave_bookmark_context_menu.cc",
-      "views/bookmarks/brave_bookmark_context_menu.h",
       "views/bookmarks/saved_tab_groups/brave_saved_tab_group_button.cc",
       "views/bookmarks/saved_tab_groups/brave_saved_tab_group_button.h",
-      "views/brave_tab_search_bubble_host.cc",
-      "views/brave_tab_search_bubble_host.h",
       "views/commands/default_accelerators_views.cc",
       "views/crash_report_permission_ask_dialog_view.cc",
       "views/crash_report_permission_ask_dialog_view.h",
@@ -631,20 +647,9 @@ source_set("ui") {
       "views/page_action/brave_page_action_icon_container_view.h",
       "views/rounded_separator.cc",
       "views/rounded_separator.h",
-      "views/side_panel/bookmarks/brave_bookmarks_side_panel_coordinator.cc",
-      "views/side_panel/bookmarks/brave_bookmarks_side_panel_coordinator.h",
-      "views/side_panel/brave_bookmarks_side_panel_view.cc",
-      "views/side_panel/brave_bookmarks_side_panel_view.h",
-      "views/side_panel/brave_read_later_side_panel_view.cc",
-      "views/side_panel/brave_read_later_side_panel_view.h",
       "views/side_panel/brave_side_panel_coordinator.cc",
       "views/side_panel/brave_side_panel_coordinator.h",
       "views/side_panel/brave_side_panel_utils.cc",
-      "views/side_panel/brave_side_panel_view_base.cc",
-      "views/side_panel/brave_side_panel_view_base.h",
-      "views/side_panel/side_panel.cc",
-      "views/side_panel/side_panel_resize_widget.cc",
-      "views/side_panel/side_panel_resize_widget.h",
       "views/side_panel/side_panel_web_ui_view_utils.cc",
       "views/side_panel/side_panel_web_ui_view_utils.h",
       "views/tabs/brave_browser_tab_strip_controller.cc",
@@ -671,7 +676,6 @@ source_set("ui") {
       "views/tabs/dragging/tab_drag_controller.h",
       "views/tabs/shared_pinned_tab_dummy_view_views.cc",
       "views/tabs/shared_pinned_tab_dummy_view_views.h",
-      "views/tabs/switches.h",
       "views/tabs/vertical_tab_utils.cc",
       "views/tabs/vertical_tab_utils.h",
       "views/toolbar/bookmark_button.cc",
@@ -688,30 +692,19 @@ source_set("ui") {
       "views/window_closing_confirm_dialog_view.h",
     ]
 
-    # Brave's SidePanel and its resize widget are only built in V1 mode. When
-    # enable_sidebar_v2 is true, upstream's SidePanel is used instead (via
-    # the chromium_src override in side_panel.cc).
-    if (enable_sidebar_v2) {
-      sources -= [
-        "views/side_panel/side_panel.cc",
-        "views/side_panel/side_panel_resize_widget.cc",
-        "views/side_panel/side_panel_resize_widget.h",
-      ]
-    }
-
     deps += [
       "//brave/browser/ui/darker_theme",
       "//brave/browser/ui/focus_mode",
       "//brave/browser/ui/side_panel",
-      "//brave/browser/ui/sidebar/buildflags",
       "//brave/browser/ui/views:layout_provider",
       "//brave/browser/ui/views/frame:frame_impl",
       "//brave/browser/ui/views/location_bar",
       "//brave/browser/ui/views/page_action",
       "//brave/browser/ui/views/tabs/accent_color",
+      "//brave/browser/ui/views/workspaces",
       "//chrome/browser:shell_integration",
       "//chrome/browser/devtools",
-      "//chrome/browser/enterprise/watermark:watermark_view_lib",
+      "//chrome/browser/enterprise/watermark:watermark_lib",
       "//chrome/browser/glic",
       "//chrome/browser/metrics",
       "//chrome/browser/sharing_hub",
@@ -817,6 +810,8 @@ source_set("ui") {
         "views/toolbar/ai_chat_button.h",
       ]
     }
+
+    deps += [ "//brave/browser/ui/views/toolbar:screenshot" ]
   }
 
   if (is_win || is_mac || is_linux) {
@@ -973,9 +968,9 @@ source_set("ui") {
 
   if (enable_psst) {
     deps += [
-      "//brave/components/psst/browser/core",
       "//brave/components/psst/buildflags",
-      "//brave/components/psst/common",
+      "//brave/components/psst/core/browser",
+      "//brave/components/psst/core/common",
       "//brave/components/psst/resources",
       "//brave/components/psst/resources:psst_dialog_generated_resources",
     ]
@@ -985,10 +980,11 @@ source_set("ui") {
     deps += [
       "//brave/browser/brave_vpn",
       "//brave/components/brave_vpn/browser",
-      "//brave/components/brave_vpn/browser/connection:api",
       "//brave/components/brave_vpn/common",
     ]
-    if (enable_brave_vpn_v1 && is_win) {
+  }
+  if (enable_brave_vpn_v1) {
+    if (is_win) {
       deps += [
         "//brave/components/brave_vpn/common/win",
         "//brave/components/brave_vpn/common/wireguard",
@@ -1023,6 +1019,7 @@ source_set("ui") {
       "views/brave_news/brave_news_feeds_container_view.h",
     ]
     deps += [
+      "//brave/browser/ui/views/side_panel/brave_news",
       "//brave/components/brave_news/browser",
       "//ui/base/metadata",
     ]
@@ -1252,6 +1249,7 @@ source_set("ui") {
       deps += [
         "//brave/browser/extensions:component_loader",
         "//chrome/browser:flags",
+        "//extensions/browser:webstore_installer",
         "//third_party/widevine/cdm:buildflags",
       ]
 
@@ -1321,7 +1319,10 @@ source_set("ui") {
 
   if (is_win && is_official_build) {
     sources += [ "//chrome/browser/ui/webui/help/version_updater_win.cc" ]
-    deps += [ "//chrome/updater/app/server/win:updater_legacy_idl" ]
+    deps += [
+      "//chrome/browser/google",
+      "//chrome/updater/app/server/win:updater_legacy_idl",
+    ]
   }
 
   if (enable_tor) {
@@ -1417,6 +1418,7 @@ source_set("ui") {
 
   if (toolkit_views) {
     deps += [
+      "//brave/browser/ui/screenshot",
       "//components/constrained_window",
       "//ui/events",
       "//ui/views",
@@ -1491,14 +1493,18 @@ source_set("unit_tests") {
       deps += [
         "//base",
         "//brave/components/brave_vpn/browser",
-        "//brave/components/brave_vpn/browser/connection:api",
-        "//brave/components/brave_vpn/browser/connection/ikev2:sim",
         "//brave/components/skus/browser",
         "//chrome/browser/prefs",
         "//chrome/browser/themes",
         "//chrome/test:test_support",
         "//skia",
         "//third_party/abseil-cpp:absl",
+      ]
+    }
+    if (enable_brave_vpn_v1) {
+      deps += [
+        "//brave/components/brave_vpn/browser/connection:api",
+        "//brave/components/brave_vpn/browser/connection/ikev2:sim",
       ]
     }
   }

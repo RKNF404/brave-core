@@ -699,24 +699,32 @@ instead. See
 
 <a id="CSM-036"></a>
 
-## ✅ Use `raw_ref<T>` for Fields That Must Never Be Null; `raw_ptr<T>` Otherwise
+## ✅ Use `const raw_ref<T>` for Fields That Must Never Be Null; `raw_ptr<T>` Otherwise
 
-**`raw_ptr<T>` is the default for non-owning fields. Choose `raw_ref<T>` when
-the field must never be null — it communicates that the referenced object is
-expected to outlive the holder, and the holder cannot function without it. Both
+**Per the
+[Chromium C++ Style Guide](https://chromium.googlesource.com/chromium/src/+/HEAD/styleguide/c++/c++.md),
+class and struct fields should be written `const raw_ref<T>` or `raw_ptr<T>`
+rather than `T&` or `T*` whenever possible.** `raw_ptr<T>` is the default for
+non-owning fields. Choose `const raw_ref<T>` when the field must never be null —
+`const` prevents rebinding (matching `T&` semantics), and `raw_ref<T>`
+communicates that the referenced object is expected to outlive the holder. Both
 types enforce that the pointee remains alive for as long as the field holds a
 reference to it: they detect use-after-free rather than silently operating on
 freed memory, and in doing so document the lifetime contract — whenever a field
 of either type holds a value, the expectation is that the memory it points to is
-alive.**
+alive.
+
+Drop the `const` qualifier (plain `raw_ref<T>`) only in the rare case where the
+field must never be null but does need to be rebound to a different referent
+after construction. Default to `const raw_ref<T>`.
 
 ```cpp
-// raw_ptr<T> - default for non-owning fields (can be null or reassigned)
+// raw_ptr<T> - replaces T* fields (can be null or reassigned)
 class TabFeatures {
   raw_ptr<content::WebContents> web_contents_;
 };
 
-// raw_ref<T> - for a mandatory dependency that must outlive the holder
+// const raw_ref<T> - replaces T& fields (mandatory, cannot be null or reseated)
 // Constructor takes a reference when the caller already holds one
 class BraveBrowserDelegate {
  public:
@@ -724,23 +732,30 @@ class BraveBrowserDelegate {
       : window_(window) {}
 
  private:
-  raw_ref<BrowserWindowInterface> window_;
+  const raw_ref<BrowserWindowInterface> window_;
 };
 
-// CHECK_DEREF - when a pointer-returning function result must be stored in a raw_ref
+// CHECK_DEREF - when a pointer-returning function result must be stored in a const raw_ref
 class MyService {
  public:
   explicit MyService(Profile& profile)
       : prefs_(CHECK_DEREF(profile.GetPrefs())) {}
 
  private:
-  raw_ref<PrefService> prefs_;
+  const raw_ref<PrefService> prefs_;
 };
 ```
 
 **Use `CHECK_DEREF` when a pointer-returning function result must be stored in a
-`raw_ref<T>` field.** It asserts non-null and converts to a reference, which is
-safer than `*ptr` (undefined behavior on null).
+`const raw_ref<T>` field.** It asserts non-null and converts to a reference,
+which is safer than `*ptr` (undefined behavior on null).
+
+**Don't reach for `CHECK_DEREF` reflexively.** When a function effectively never
+returns null in practice — e.g. `browser->GetProfile()` — wrapping it in
+`CHECK_DEREF` adds a redundant runtime check that upstream does not do. Reserve
+`CHECK_DEREF` for pointers that genuinely could be null; otherwise prefer
+storing the dependency as it comes (take a `T&` in the constructor, or
+dereference directly) without an extra assertion.
 
 **`RAW_PTR_EXCLUSION` (per-field) is acceptable only for:**
 
@@ -762,3 +777,125 @@ pointing to string literals (if they may point to heap-allocated objects, use
 Blink renderer code using Oilpan, and any other code whose objects are allocated
 outside PartitionAlloc (V8 heap, Java heap, etc.), cannot use `raw_ptr<T>` or
 `raw_ref<T>`.
+
+---
+
+<a id="CSM-037"></a>
+
+## ❌ Don't Bind Unowned View Types into Callbacks
+
+**`base::Bind*` already rejects the unsafe raw-pointer and reference cases at
+compile time (it forces `base::Unretained`, refuses raw pointers to ref-counted
+types, etc.), but it does _not_ catch non-owning "view" types like
+`std::string_view` and `base::span<T>`.** `base::BindOnce` /
+`base::BindRepeating` copy bound arguments by value, and copying a view copies
+only its pointer and length — not the underlying data. If nothing keeps the
+backing storage alive until the callback runs, the view dangles and you get a
+use-after-free. Bind an owning copy (`std::string`, `std::vector<T>`) instead.
+
+```cpp
+// ❌ WRONG - string_view bound into a posted task; backing buffer may be gone
+void Schedule(std::string_view name) {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&MyClass::OnReady, weak_factory_.GetWeakPtr(), name));
+  // `name`'s underlying storage can be freed before OnReady() runs.
+}
+
+// ✅ CORRECT - bind an owning copy
+void Schedule(std::string_view name) {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&MyClass::OnReady, weak_factory_.GetWeakPtr(),
+                     std::string(name)));  // owns its bytes
+}
+```
+
+The same applies to `base::span<T>` — bind an owning container
+(`std::vector<T>`) rather than the span. Prefer making the callback target take
+an owning type (`const std::string&`, `std::vector<T>`) so the bound copy is
+forced to own its data.
+
+**Exception:** Binding a span-like view is acceptable in two cases:
+
+1. **Use
+   [`base::raw_span<T>`](https://source.chromium.org/chromium/chromium/src/+/main:base/memory/raw_span.h)
+   instead of a naked `base::span<T>`.** Like `raw_ptr`, `raw_span` carries
+   dangling-pointer protection for the stored view, so a use-after-free is
+   detected rather than silently exploited.
+2. **The backing storage is static** — a `base::span` over a static/`constexpr`
+   array, or a `std::string_view` of a string literal. Static storage outlives
+   any callback, so the view can never dangle.
+
+```cpp
+// ✅ ALSO CORRECT - bind a base::raw_span (not a naked span), which has
+// dangling-pointer protection for the stored view. Here `buffer_` is an owned
+// member and the bound WeakPtr ensures Decode() only runs while `this` (and
+// therefore `buffer_`) is alive. No copy needed.
+class Decoder {
+ public:
+  void Start() {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&Decoder::Decode, weak_factory_.GetWeakPtr(),
+                       base::raw_span<const uint8_t>(buffer_)));
+  }
+
+ private:
+  void Decode(base::span<const uint8_t> chunk);
+
+  std::vector<uint8_t> buffer_;  // owned; outlives the posted task
+  base::WeakPtrFactory<Decoder> weak_factory_{this};
+};
+
+// ✅ ALSO CORRECT - static storage, so the view can never dangle.
+constexpr auto kMagic = std::to_array<uint8_t>({0x7f, 'E', 'L', 'F'});
+base::BindOnce(&Validate, base::span(kMagic));
+```
+
+---
+
+<a id="CSM-038"></a>
+
+## ✅ Flag `base::Unretained` Only When the Callback Can Outlive `this`
+
+**`base::Unretained(this)` is safe whenever the bound callback is owned by
+`this` — directly or through a member that is destroyed with `this` — so the
+callback cannot run after `this` is gone.** This is the common, correct pattern;
+the only genuinely problematic case is a callback that can outlive `this`. Flag
+(and replace with a `WeakPtr`) only that case — not the member-owned callbacks
+below.
+
+Safe — the callback's owner is a member destroyed with `this`:
+
+- A `PrefChangeRegistrar` held as a member (including one observing
+  `local_state`) — its destructor unregisters every observer, so the callback
+  cannot fire afterwards
+- `base::OneShotTimer` / `base::RepeatingTimer` members (see
+  [CSM-011](#CSM-011))
+- Owned `mojo::Receiver`, `mojo::Remote`, or `mojo::AssociatedRemote`
+  disconnect/error handlers (see [CSM-012](#CSM-012))
+- A `base::CallbackListSubscription` stored as a member
+
+```cpp
+// ✅ SAFE - the registrar is a member destroyed with `this`, so the
+// callback cannot fire after `this` is gone.
+pref_change_registrar_.Init(prefs_);
+pref_change_registrar_.Add(
+    kSomePref,
+    base::BindRepeating(&MyClass::OnPrefChanged, base::Unretained(this)));
+```
+
+Problematic — the callback can outlive `this` (use a `WeakPtr` instead):
+
+```cpp
+// ❌ WRONG - posted to another sequence; `this` may be freed before it runs
+base::ThreadPool::PostTask(
+    FROM_HERE, base::BindOnce(&MyClass::DoWork, base::Unretained(this)));
+```
+
+Only flag `base::Unretained` when the callback is posted to a thread pool or
+another sequence (see [CSM-010](#CSM-010)), stored in a longer-lived object, or
+handed to an API whose lifetime is independent of `this`. A linter that flags
+every `base::Unretained(this)` produces mostly false positives, since
+member-owned callbacks are the dominant, correct usage.

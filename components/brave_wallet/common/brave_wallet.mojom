@@ -1173,6 +1173,13 @@ interface KeyringService {
   // Creates a new wallet and encrypts it using the specified password
   CreateWallet(string password) => (string? mnemonic);
 
+  // Creates a new wallet with given password and mnemonic.
+  CreateWalletWithMnemonic(string mnemonic, string password)
+      => (string? mnemonic);
+
+  // Generate mnemonic. Only 12 and 24 words are supported for now.
+  GenerateMnemonic(int32 word_count) => (string? mnemonic);
+
   // Obtains the mnemonic code words for an already existing wallet
   GetWalletMnemonic(string password) => (string? mnemonic);
 
@@ -1556,7 +1563,13 @@ const string kZCashTestnet = "zcash_testnet";
 
 const string kPolkadotMainnet = "polkadot_mainnet";
 
+const string kPolkadotMainnetAssetHub = "polkadot_asset_hub";
+
 const string kPolkadotTestnet = "polkadot_testnet";
+
+const string kPolkadotTestnetAssetHub = "westend_asset_hub";
+
+const string kPolkadotPaseoAssetHub = "paseo_asset_hub";
 
 // End of polkadot chains.
 const string kArbitrumNovaChainId = "0xa4ba";
@@ -2226,7 +2239,9 @@ interface ZCashWalletService {
   IsSyncInProgress(AccountId account_id)
       => (bool result, string? error_message);
 
-  ResetSyncState(AccountId account_id) => (string? error_message);
+  // `account_birthday_block` is 0 if account birthday shouldn't be changed.
+  ResetSyncState(AccountId account_id, uint32 account_birthday_block)
+      => (string? error_message);
 
   GetChainTipStatus(AccountId account_id)
       => (ZCashChainTipStatus? status, string? error_message);
@@ -2252,6 +2267,10 @@ struct PolkadotAccountInfo {
   PolkadotAccountBalance data;
 };
 
+struct PolkadotAssetAccountInfo {
+  uint128 balance;
+};
+
 enum PolkadotValidationStatus {
   kNoError = 0,
   kInvalidPrefix = 1,
@@ -2260,9 +2279,6 @@ enum PolkadotValidationStatus {
 };
 
 interface PolkadotWalletService {
-  GetNetworkName(AccountId account)
-      => (string? network, string? error_message);
-
   GetCompatibleNetworks(AccountId account) => (array<NetworkInfo>? networks);
 
   GetAddress(AccountId account, string chain_id)
@@ -2270,6 +2286,11 @@ interface PolkadotWalletService {
 
   GetAccountBalance(AccountId account, string chain_id)
       => (PolkadotAccountInfo? account, string? error_message);
+
+  GetAssetAccountBalances(
+      AccountId account_id, array<uint32> asset_ids, string chain_id)
+      => (array<PolkadotAssetAccountInfo> asset_accounts,
+          string? error_message);
 
   ValidateAddressForTransaction(string chain_id, string address)
       => (PolkadotValidationStatus status);
@@ -2388,11 +2409,16 @@ struct CardanoTxData {
   array<CardanoTxOutput> outputs;
 };
 
+struct PolkadotAssetId {
+  uint32 id;
+};
+
 struct PolkadotTxdata {
   string to;
   uint128 amount;
   uint128 fee;
   bool sending_max_amount;
+  PolkadotAssetId? asset_id;
 };
 
 union TxDataUnion {

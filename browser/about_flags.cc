@@ -27,6 +27,7 @@
 #include "brave/components/debounce/core/common/features.h"
 #include "brave/components/email_aliases/buildflags/buildflags.h"
 #include "brave/components/google_sign_in_permission/features.h"
+#include "brave/components/local_ai/buildflags/buildflags.h"
 #include "brave/components/ntp_background_images/browser/features.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
 #include "brave/components/psst/buildflags/buildflags.h"
@@ -48,6 +49,8 @@
 #include "components/webui/flags/feature_entry.h"
 #include "components/webui/flags/feature_entry_macros.h"
 #include "components/webui/flags/flags_state.h"
+#include "media/base/media_switches.h"
+#include "media/media_buildflags.h"
 #include "net/base/features.h"
 #include "third_party/blink/public/common/features.h"
 
@@ -80,7 +83,7 @@
 #include "brave/browser/android/youtube_script_injector/features.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #else
-#include "brave/browser/ui/views/tabs/switches.h"
+#include "brave/browser/ui/tabs/public/switches.h"
 #include "brave/browser/workspaces/features.h"
 #include "brave/components/commander/common/features.h"
 #include "brave/components/commands/common/features.h"
@@ -112,7 +115,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_PSST)
-#include "brave/components/psst/common/features.h"
+#include "brave/components/psst/core/common/features.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
@@ -127,6 +130,7 @@
 #include "brave/browser/ui/darker_theme/features.h"
 #include "brave/browser/ui/focus_mode/focus_mode_features.h"
 #include "brave/browser/ui/page_info/features.h"
+#include "brave/browser/ui/screenshot/features.h"
 #endif
 
 #define EXPAND_FEATURE_ENTRIES(...) __VA_ARGS__,
@@ -269,6 +273,13 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
           "Use the updated Brave News feed",                                   \
           kOsDesktop,                                                          \
           FEATURE_VALUE_TYPE(brave_news::features::kBraveNewsFeedUpdate),      \
+      },                                                                       \
+      {                                                                        \
+          "brave-news-sidebar",                                                \
+          "Brave News Sidebar",                                                \
+          "Show a Brave News entry in the sidebar that opens a side panel.",   \
+          kOsDesktop,                                                          \
+          FEATURE_VALUE_TYPE(brave_news::features::kBraveNewsSidebar),         \
       })
 #else
 #define BRAVE_NEWS_FEATURE_ENTRIES
@@ -348,6 +359,21 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
 #define BRAVE_CHANGE_ACTIVE_TAB_ON_SCROLL_EVENT_FEATURE_ENTRIES
 #endif
 
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_PLATFORM_HEVC)
+#define BRAVE_FFMPEG_SOFTWARE_HEVC_DECODER_FEATURE_ENTRIES              \
+  EXPAND_FEATURE_ENTRIES({                                              \
+      "brave-ffmpeg-software-hevc-decoder",                             \
+      "Software HEVC/H.265 decoder",                                    \
+      "Enables the bundled FFmpeg HEVC software decoder. Useful as a "  \
+      "fallback when hardware decode is unavailable (e.g. NVIDIA GPUs " \
+      "on Linux). Disable if HEVC playback misbehaves.",                \
+      kOsLinux,                                                         \
+      FEATURE_VALUE_TYPE(media::kFFmpegSoftwareHEVCDecoder),            \
+  })
+#else
+#define BRAVE_FFMPEG_SOFTWARE_HEVC_DECODER_FEATURE_ENTRIES
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #define BRAVE_BACKGROUND_VIDEO_PLAYBACK_ANDROID                                \
   EXPAND_FEATURE_ENTRIES({                                                     \
@@ -395,12 +421,21 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
       kOsAndroid,                                                          \
       FEATURE_VALUE_TYPE(features::kBraveCustomSearchEngines),             \
   })
+#define BRAVE_ANDROID_TAB_GROUPS_SETTINGS                            \
+  EXPAND_FEATURE_ENTRIES({                                           \
+      "brave-android-tab-groups-settings",                           \
+      "Android tab groups settings",                                 \
+      "Expose Brave's replacement Tabs and tab groups settings UI.", \
+      kOsAndroid,                                                    \
+      FEATURE_VALUE_TYPE(features::kBraveAndroidTabGroupsSettings),  \
+  })
 #else
 #define BRAVE_BACKGROUND_VIDEO_PLAYBACK_ANDROID
 #define BRAVE_SAFE_BROWSING_ANDROID
 #define BRAVE_ADAPTIVE_BUTTON_IN_TOOLBAR_ANDROID
 #define BRAVE_ANDROID_DYNAMIC_COLORS
 #define BRAVE_CUSTOM_SEARCH_ENGINES
+#define BRAVE_ANDROID_TAB_GROUPS_SETTINGS
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -443,14 +478,6 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
           "Updates the look and feel or horizontal tabs",                    \
           kOsWin | kOsMac | kOsLinux,                                        \
           FEATURE_VALUE_TYPE(tabs::kBraveHorizontalTabsUpdate),              \
-      },                                                                     \
-      {                                                                      \
-          "brave-compact-horizontal-tabs",                                   \
-          "Compact horizontal tabs design",                                  \
-          "Reduces the height of the horizontal tab strip and toolbar "      \
-          "(including the URL bar)",                                         \
-          kOsWin | kOsMac | kOsLinux,                                        \
-          FEATURE_VALUE_TYPE(tabs::kBraveCompactHorizontalTabs),             \
       },                                                                     \
       {                                                                      \
           "brave-vertical-tab-scroll-bar",                                   \
@@ -672,6 +699,13 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
           kOsWin | kOsMac | kOsLinux | kOsAndroid,                             \
           FEATURE_VALUE_TYPE(                                                  \
               ai_chat::features::kAIChatDetailedPageContentExtraction),        \
+      },                                                                       \
+      {                                                                        \
+          "brave-ai-chat-conversation-share",                                  \
+          "Brave AI Chat Conversation Sharing",                                \
+          "Enables sharing a conversation from the conversation header.",      \
+          kOsWin | kOsMac | kOsLinux | kOsAndroid,                             \
+          FEATURE_VALUE_TYPE(ai_chat::features::kAIChatConversationShare),     \
       })
 #else
 #define BRAVE_AI_CHAT_FEATURE_ENTRIES
@@ -691,6 +725,7 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
 // The upstream "history-embeddings" flag expired at M145. Use a
 // different name to bypass the expiry system while controlling the
 // same underlying kHistoryEmbeddings feature.
+#if BUILDFLAG(ENABLE_LOCAL_AI)
 #define BRAVE_HISTORY_EMBEDDINGS_FLAG                             \
   EXPAND_FEATURE_ENTRIES({                                        \
       "brave-history-embeddings",                                 \
@@ -699,6 +734,9 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
       kOsDesktop,                                                 \
       FEATURE_VALUE_TYPE(history_embeddings::kHistoryEmbeddings), \
   })
+#else
+#define BRAVE_HISTORY_EMBEDDINGS_FLAG
+#endif
 
 #define BRAVE_OMNIBOX_FEATURES                                                \
   EXPAND_FEATURE_ENTRIES(                                                     \
@@ -817,6 +855,20 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
   })
 #else
 #define BRAVE_WORKSPACE_FEATURE_ENTRY
+#endif
+
+#if defined(TOOLKIT_VIEWS)
+#define BRAVE_SCREENSHOT_FEATURE_ENTRY                                        \
+  EXPAND_FEATURE_ENTRIES({                                                    \
+      "brave-screenshot",                                                     \
+      "Enable Brave Screenshot",                                              \
+      "Adds a toolbar button for capturing the visible area or full page as " \
+      "a PNG.",                                                               \
+      kOsDesktop,                                                             \
+      FEATURE_VALUE_TYPE(screenshot::features::kBraveScreenshot),             \
+  })
+#else
+#define BRAVE_SCREENSHOT_FEATURE_ENTRY
 #endif
 
 // Keep the last item empty.
@@ -1085,13 +1137,6 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
               net::features::kBraveProvisionalTLDEphemeralLifetime),           \
       },                                                                       \
       {                                                                        \
-          "brave-ephemeral-storage",                                           \
-          "Enable Ephemeral Storage",                                          \
-          "Use ephemeral storage for third-party frames",                      \
-          kOsAll,                                                              \
-          FEATURE_VALUE_TYPE(net::features::kBraveEphemeralStorage),           \
-      },                                                                       \
-      {                                                                        \
           "brave-ephemeral-storage-keep-alive",                                \
           "Ephemeral Storage Keep Alive",                                      \
           "Keep ephemeral storage partitions alive for a specified time "      \
@@ -1214,6 +1259,17 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
               blink::features::kBraveBlockScreenFingerprinting),               \
       },                                                                       \
       {                                                                        \
+          "brave-webgl-balanced-fingerprinting-protections",                   \
+          "Add more protections for graphics in balanced fingerprinting",      \
+          "Adds extra protections when sites asks for device specific "        \
+          "information from the graphics APIs. It also adds noise to APIs "    \
+          "that enumerates webgl extensions which can be used to fingerprint " \
+          "users across sites.",                                               \
+          kOsDesktop | kOsAndroid,                                             \
+          FEATURE_VALUE_TYPE(                                                  \
+              blink::features::kWebGLBalancedFingerprintingProtection),        \
+      },                                                                       \
+      {                                                                        \
           "brave-tor-windows-https-only",                                      \
           "Use HTTPS-Only Mode in Private Windows with Tor",                   \
           "Prevents Private Windows with Tor from making any insecure HTTP "   \
@@ -1322,7 +1378,7 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
           "Insecure URLs that don't meet these requirements will be ignored "  \
           "in favor of the official Brave-hosted server",                      \
           kOsAll,                                                              \
-          ORIGIN_LIST_VALUE_TYPE(syncer::kSyncServiceURL, ""),                 \
+          STRING_VALUE_TYPE(syncer::kSyncServiceURL, ""),                      \
           kBraveSyncImplLink,                                                  \
       },                                                                       \
       {                                                                        \
@@ -1382,8 +1438,10 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
   BRAVE_SAFE_BROWSING_ANDROID                                                  \
   BRAVE_ADAPTIVE_BUTTON_IN_TOOLBAR_ANDROID                                     \
   BRAVE_ANDROID_DYNAMIC_COLORS                                                 \
+  BRAVE_ANDROID_TAB_GROUPS_SETTINGS                                            \
   BRAVE_CUSTOM_SEARCH_ENGINES                                                  \
   BRAVE_CHANGE_ACTIVE_TAB_ON_SCROLL_EVENT_FEATURE_ENTRIES                      \
+  BRAVE_FFMPEG_SOFTWARE_HEVC_DECODER_FEATURE_ENTRIES                           \
   BRAVE_TABS_FEATURE_ENTRIES                                                   \
   BRAVE_DARKER_THEME_FEATURE_ENTRIES                                           \
   BRAVE_PAGE_INFO_FEATURE_ENTRIES                                              \
@@ -1411,6 +1469,7 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabCollapseDelayChoices[] = {
       kOsDesktop | kOsAndroid,                                                 \
       FEATURE_VALUE_TYPE(brave_origin::features::kBraveOrigin),                \
   })                                                                           \
+  BRAVE_SCREENSHOT_FEATURE_ENTRY                                               \
   LAST_BRAVE_FEATURE_ENTRIES_ITEM  // Keep it as the last item.
 namespace flags_ui {
 namespace {

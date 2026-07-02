@@ -15,6 +15,7 @@ source_set("ikev2") {
   ]
   deps = [
     "//base",
+    "//brave/components/brave_vpn/browser:v1_helper",
     "//brave/components/brave_vpn/browser/api",
     "//brave/components/brave_vpn/browser/connection:api",
     "//brave/components/brave_vpn/browser/connection:common",
@@ -51,7 +52,7 @@ source_set("unit_tests") {
 
   deps = [
     ":sim",
-    "//brave/components/brave_vpn/browser",
+    "//brave/components/brave_vpn/browser:v1_utils",
     "//brave/components/brave_vpn/browser/connection:api",
     "//brave/components/brave_vpn/browser/connection:common",
     "//brave/components/brave_vpn/common",

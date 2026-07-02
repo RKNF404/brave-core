@@ -514,7 +514,7 @@ void RenderViewContextMenu::ExecuteAIChatCommand(int command) {
   if (browser) {
     auto* profile_metrics =
         misc_metrics::ProfileMiscMetricsServiceFactory::GetServiceForContext(
-            browser->profile());
+            browser->GetProfile());
     if (profile_metrics) {
       ai_chat_metrics = profile_metrics->GetAIChatMetrics();
       if (ai_chat_metrics) {
@@ -655,20 +655,23 @@ void RenderViewContextMenu::BuildContainersMenu() {
     return;
   }
 
-  std::optional<size_t> first_separator_index;
-  for (size_t i = 0; i < menu_model_.GetItemCount(); ++i) {
-    if (menu_model_.GetTypeAt(i) == ui::MenuModel::TYPE_SEPARATOR) {
-      first_separator_index = i;
-      break;
+  std::optional<size_t> insert_position =
+      menu_model_.GetIndexOfCommandId(IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW);
+  if (!insert_position.has_value()) {
+    for (size_t i = 0; i < menu_model_.GetItemCount(); ++i) {
+      if (menu_model_.GetTypeAt(i) == ui::MenuModel::TYPE_SEPARATOR) {
+        insert_position = i;
+        break;
+      }
     }
   }
 
   containers_submenu_model_ =
       std::make_unique<containers::ContainersMenuModel>(*this, *service);
 
-  if (first_separator_index.has_value()) {
+  if (insert_position.has_value()) {
     menu_model_.InsertSubMenuWithStringIdAt(
-        *first_separator_index, IDC_OPEN_IN_CONTAINER,
+        *insert_position, IDC_OPEN_IN_CONTAINER,
         IDS_CXMENU_OPEN_LINK_IN_CONTAINER, containers_submenu_model_.get());
   } else {
     menu_model_.AddSubMenuWithStringId(IDC_OPEN_IN_CONTAINER,
@@ -678,7 +681,7 @@ void RenderViewContextMenu::BuildContainersMenu() {
 }
 
 Browser* RenderViewContextMenu::GetBrowserToOpenSettings() {
-  return GetBrowser();
+  return GetBrowser()->GetBrowserForMigrationOnly();
 }
 
 float RenderViewContextMenu::GetScaleFactor() {
@@ -812,9 +815,20 @@ void RenderViewContextMenu::InitMenu() {
     }
     if (separator_index.has_value() &&
         split_index.value() < separator_index.value()) {
-      menu_model_.InsertItemAt(separator_index.value(),
-                               IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW,
-                               menu_model_.GetLabelAt(split_index.value()));
+      // The entry can be either a plain item or a submenu (when
+      // `kSplitViewHorizontalDirectAccess` is enabled upstream). Preserve the
+      // original type so the submenu's children survive the move.
+      if (menu_model_.GetTypeAt(split_index.value()) ==
+          ui::MenuModel::TYPE_SUBMENU) {
+        menu_model_.InsertSubMenuAt(
+            separator_index.value(), IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW,
+            menu_model_.GetLabelAt(split_index.value()),
+            menu_model_.GetSubmenuModelAt(split_index.value()));
+      } else {
+        menu_model_.InsertItemAt(separator_index.value(),
+                                 IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW,
+                                 menu_model_.GetLabelAt(split_index.value()));
+      }
       menu_model_.SetIcon(separator_index.value(),
                           menu_model_.GetIconAt(split_index.value()));
       menu_model_.RemoveItemAt(split_index.value());
@@ -845,8 +859,9 @@ void RenderViewContextMenu::InitMenu() {
   if (!TorProfileServiceFactory::IsTorDisabled(GetProfile()) &&
       content_type_->SupportsGroup(ContextMenuContentType::ITEM_GROUP_LINK) &&
       !params_.link_url.is_empty()) {
-    const Browser* browser = GetBrowser();
-    const bool is_app = browser && browser->is_type_app();
+    const auto* browser = GetBrowser();
+    const bool is_app =
+        browser && browser->GetType() == BrowserWindowInterface::TYPE_APP;
 
     index = menu_model_.GetIndexOfCommandId(
         IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD);

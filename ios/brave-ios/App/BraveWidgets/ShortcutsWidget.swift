@@ -35,21 +35,29 @@ private struct ShortcutEntry: TimelineEntry {
 private struct ShortcutProvider: IntentTimelineProvider {
   typealias Intent = ShortcutsConfigurationIntent
   typealias Entry = ShortcutEntry
+
+  private func shortcuts(for configuration: Intent) async -> [WidgetShortcut] {
+    let disabledShortcuts = await DisabledShortcutsWidgetData.loadDisabledShortcuts()
+    return [
+      configuration.slot1,
+      configuration.slot2,
+      configuration.slot3,
+      configuration.slot4,
+    ].filter { !disabledShortcuts.contains($0) }
+  }
+
   func getSnapshot(
     for configuration: Intent,
     in context: Context,
     completion: @escaping (ShortcutEntry) -> Void
   ) {
-    let entry = ShortcutEntry(
-      date: Date(),
-      shortcutSlots: [
-        configuration.slot1,
-        configuration.slot2,
-        configuration.slot3,
-        configuration.slot4,
-      ]
-    )
-    completion(entry)
+    Task {
+      let entry = ShortcutEntry(
+        date: Date(),
+        shortcutSlots: await shortcuts(for: configuration)
+      )
+      completion(entry)
+    }
   }
 
   func placeholder(in context: Context) -> ShortcutEntry {
@@ -64,16 +72,13 @@ private struct ShortcutProvider: IntentTimelineProvider {
     in context: Context,
     completion: @escaping (Timeline<ShortcutEntry>) -> Void
   ) {
-    let entry = ShortcutEntry(
-      date: Date(),
-      shortcutSlots: [
-        configuration.slot1,
-        configuration.slot2,
-        configuration.slot3,
-        configuration.slot4,
-      ]
-    )
-    completion(.init(entries: [entry], policy: .never))
+    Task {
+      let entry = ShortcutEntry(
+        date: Date(),
+        shortcutSlots: await shortcuts(for: configuration)
+      )
+      completion(.init(entries: [entry], policy: .never))
+    }
   }
 }
 
@@ -105,10 +110,11 @@ private struct ShortcutLink<Content: View>: View {
               .multilineTextAlignment(.center)
           }
           .padding(8)
-          .foregroundColor(Color(UIColor.braveLabel))
+          .foregroundColor(Color(braveSystemName: .textPrimary))
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .background(
-            renderingMode == .accented ? Color.white.opacity(0.1) : Color(UIColor.braveBackground),
+            renderingMode == .accented
+              ? Color.white.opacity(0.1) : Color(UIColor(braveSystemName: .containerBackground)),
             in: .containerRelative
           )
         }
@@ -211,38 +217,58 @@ private struct ShortcutsView: View {
               Image("brave-logo-no-bg-small")
                 .widgetAccentedRenderingModeFullColor()
             }
-            .foregroundColor(Color(UIColor.braveLabel))
+            .foregroundColor(Color(braveSystemName: .textPrimary))
             .frame(maxWidth: .infinity)
             .frame(height: 44)
             .background(
               renderingMode == .accented
-                ? Color.white.opacity(0.1) : Color(UIColor.braveBackground),
+                ? Color.white.opacity(0.1) : Color(UIColor(braveSystemName: .containerBackground)),
               in: .containerRelative
             )
           }
         )
       }
       HStack(spacing: 8) {
-        ForEach(slots, id: \.self) { shortcut in
-          ShortcutLink(
-            url: "\(AppURLScheme.appURLScheme)://shortcut?path=\(shortcut.rawValue)",
-            text: shortcut.displayString,
-            image: {
-              shortcut.image
+        if slots.isEmpty {
+          Text(Strings.Widgets.shortcutsEmptyState)
+            .padding(8)
+            .foregroundColor(
+              renderingMode == .accented
+                ? Color.white.opacity(0.7) : Color(braveSystemName: .textDisabled)
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+              ContainerRelativeShape()
+                .stroke(
+                  renderingMode == .accented
+                    ? Color.white.opacity(0.2) : Color(braveSystemName: .dividerSubtle),
+                  style: .init(lineWidth: 1)
+                )
             }
-          )
+        } else {
+          ForEach(slots, id: \.self) { shortcut in
+            ShortcutLink(
+              url: "\(AppURLScheme.appURLScheme)://shortcut?path=\(shortcut.rawValue)",
+              text: shortcut.displayString,
+              image: {
+                shortcut.image
+              }
+            )
+          }
         }
       }
       .frame(maxHeight: .infinity)
     }
     .padding(8)
-    .widgetBackground { Color(UIColor.secondaryBraveBackground) }
+    .widgetBackground { Color(UIColor(braveSystemName: .containerHighlight)) }
   }
 }
 
 // MARK: - Previews
 
-@available(iOS 17.0, *)#Preview(
+#if DEBUG
+
+#Preview(
   as: .systemMedium,
   widget: {
     ShortcutsWidget()
@@ -251,3 +277,15 @@ private struct ShortcutsView: View {
     ShortcutEntry(date: .now, shortcutSlots: [.newTab, .newPrivateTab, .bookmarks])
   }
 )
+
+#Preview(
+  as: .systemMedium,
+  widget: {
+    ShortcutsWidget()
+  },
+  timeline: {
+    ShortcutEntry(date: .now, shortcutSlots: [])
+  }
+)
+
+#endif

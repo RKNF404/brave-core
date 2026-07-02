@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include "brave/components/psst/browser/content/psst_tab_web_contents_observer.h"
+#include "brave/browser/psst/psst_tab_web_contents_observer.h"
 
 #include <string>
 #include <vector>
@@ -13,19 +13,28 @@
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "brave/app/brave_command_ids.h"
 #include "brave/browser/psst/psst_settings_service_factory.h"
 #include "brave/browser/ui/brave_browser_window.h"
 #include "brave/browser/ui/webui/psst/brave_psst_dialog_ui.h"
-#include "brave/components/psst/browser/core/psst_rule.h"
-#include "brave/components/psst/browser/core/psst_rule_registry.h"
-#include "brave/components/psst/browser/core/psst_settings_service.h"
 #include "brave/components/psst/buildflags/buildflags.h"
-#include "brave/components/psst/common/features.h"
-#include "brave/components/psst/common/pref_names.h"
+#include "brave/components/psst/core/browser/pref_names.h"
+#include "brave/components/psst/core/browser/psst_rule.h"
+#include "brave/components/psst/core/browser/psst_rule_registry.h"
+#include "brave/components/psst/core/browser/psst_settings_service.h"
+#include "brave/components/psst/core/common/features.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
 #include "components/infobars/content/content_infobar_manager.h"
@@ -37,6 +46,17 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/actions/actions.h"
+#include "ui/events/base_event_utils.h"
+#include "ui/events/event.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/views/controls/button/button.h"
+#include "ui/views/controls/menu/menu_controller.h"
+#include "ui/views/controls/menu/menu_item_view.h"
+#include "ui/views/test/button_test_api.h"
+#include "ui/views/test/views_test_utils.h"
 #include "url/gurl.h"
 
 namespace psst {
@@ -431,6 +451,34 @@ std::u16string CreateTestUtf16URL(net::EmbeddedTestServer& https_server,
   return base::UTF8ToUTF16(CreateTestURL(https_server, path));
 }
 
+// Returns the root `MenuItemView` of the currently open context menu, or
+// nullptr if no menu is open.
+views::MenuItemView* GetActiveContextMenuRoot() {
+  views::MenuController* const controller =
+      views::MenuController::GetActiveInstance();
+  if (!controller) {
+    return nullptr;
+  }
+  views::MenuItemView* item = controller->GetSelectedMenuItem();
+  while (item && item->GetParentMenuItem()) {
+    item = item->GetParentMenuItem();
+  }
+  return item;
+}
+
+// Selects `item` in the active context menu and activates it via the Enter key,
+// which routes through the real menu machinery to the menu model's
+// ExecuteCommand().
+void AcceptContextMenuItem(views::MenuItemView* item) {
+  views::MenuController* const controller =
+      views::MenuController::GetActiveInstance();
+  ASSERT_TRUE(controller);
+  controller->SelectItemAndOpenSubmenu(item);
+  ui::KeyEvent return_event(ui::EventType::kKeyPressed, ui::VKEY_RETURN,
+                            ui::EF_NONE);
+  controller->OnWillDispatchKeyEvent(&return_event);
+}
+
 }  // namespace
 
 class PsstTabWebContentsObserverBrowserTest : public PlatformBrowserTest {
@@ -560,6 +608,105 @@ class PsstTabWebContentsObserverBrowserTest : public PlatformBrowserTest {
     return true;
   }
 
+  // Returns the PSST location bar page action icon view for the active browser
+  // window, or nullptr if it can't be resolved.
+  IconLabelBubbleView* GetPsstPageActionView() {
+    BrowserView* const browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser());
+    if (!browser_view || !browser_view->toolbar_button_provider()) {
+      return nullptr;
+    }
+    return browser_view->toolbar_button_provider()->GetPageActionView(
+        kActionShowPsstIcon);
+  }
+
+  // Navigates to `url`, waits for the PSST icon to appear in the location bar,
+  // then clicks it with the specified `event_flags` to open its context menu
+  // and waits for the menu to appear, or opens the consent dialog and waits
+  // for it to appear. For a left-click, the opened consent dialog's WebContents
+  // is returned via `dialog_wc_out` when provided.
+  void NavigateAndClickOnPsstLocationBarIcon(
+      const GURL& url,
+      ui::EventFlags event_flags,
+      content::WebContents** dialog_wc_out = nullptr) {
+    ASSERT_TRUE(event_flags == ui::EF_RIGHT_MOUSE_BUTTON ||
+                event_flags == ui::EF_LEFT_MOUSE_BUTTON);
+    IconLabelBubbleView* const psst_view = GetPsstPageActionView();
+    ASSERT_TRUE(psst_view);
+    // The icon starts hidden and only appears as a result of the navigation.
+    ASSERT_FALSE(psst_view->GetVisible());
+
+    actions::ActionItem* const action =
+        actions::ActionManager::Get().FindAction(kActionShowPsstIcon);
+    ASSERT_TRUE(action);
+
+    ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+    // The icon appears once the PSST user script detects a matching rule.
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      views::test::RunScheduledLayout(psst_view);
+      return psst_view->GetVisible();
+    }));
+    ASSERT_FALSE(action->GetIsShowingBubble());
+
+    // Start observing for the consent dialog's WebContents before clicking, so
+    // we don't miss its creation in the left-click case.
+    content::CreateAndLoadWebContentsObserver new_web_contents_observer;
+
+    // A right-click opens the context menu; a left-click opens the consent
+    // dialog.
+    const gfx::Point click_location = psst_view->GetLocalBounds().CenterPoint();
+    const ui::MouseEvent click_event(
+        ui::EventType::kMousePressed, click_location, click_location,
+        ui::EventTimeForNow(), event_flags, event_flags);
+    views::test::ButtonTestApi(views::Button::AsButton(psst_view))
+        .NotifyClick(click_event);
+    if (event_flags & ui::EF_RIGHT_MOUSE_BUTTON) {
+      // Wait for the context menu to open.
+      ASSERT_TRUE(
+          base::test::RunUntil([&]() { return action->GetIsShowingBubble(); }));
+    } else {
+      // Wait for the consent dialog to open.
+      auto* dialog_wc =
+          WaitForAndGetDialogWebContents(new_web_contents_observer);
+      ASSERT_TRUE(dialog_wc);
+      WaitForPsstDialogUIReady(dialog_wc);
+      if (dialog_wc_out) {
+        *dialog_wc_out = dialog_wc;
+      }
+    }
+  }
+
+  // Waits for the PSST context menu to close.
+  void WaitForPsstContextMenuClosed() {
+    actions::ActionItem* const action =
+        actions::ActionManager::Get().FindAction(kActionShowPsstIcon);
+    ASSERT_TRUE(action);
+    ASSERT_TRUE(
+        base::test::RunUntil([&]() { return !action->GetIsShowingBubble(); }));
+  }
+
+  // Waits for the PSST icon to be hidden from the location bar.
+  void WaitForPsstIconHidden() {
+    IconLabelBubbleView* const psst_view = GetPsstPageActionView();
+    ASSERT_TRUE(psst_view);
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      views::test::RunScheduledLayout(psst_view);
+      return !psst_view->GetVisible();
+    }));
+  }
+
+  void WaitForPsstDialogUIReady(content::WebContents* dialog_wc) {
+    ASSERT_TRUE(dialog_wc);
+    auto* dialog_ui =
+        dialog_wc->GetWebUI()->GetController()->GetAs<BravePsstDialogUI>();
+    ASSERT_TRUE(dialog_ui);
+    // Wait for the Mojo PsstConsentFactory::CreatePsstConsentHandler call from
+    // the WebUI JavaScript to complete before interacting with the handler.
+    ASSERT_TRUE(base::test::RunUntil(
+        [dialog_ui]() { return dialog_ui->psst_consent_handler_ != nullptr; }));
+  }
+
  protected:
   raw_ptr<Profile> profile_;
   raw_ptr<PsstSettingsService> psst_settings_service_ = nullptr;
@@ -619,8 +766,11 @@ IN_PROC_BROWSER_TEST_F(PsstTabWebContentsObserverBrowserTest,
   auto* dialog_wc = WaitForAndGetDialogWebContents(new_web_contents_observer);
   ASSERT_TRUE(dialog_wc);
 
+  // Wait for the Mojo PsstConsentFactory::CreatePsstConsentHandler call from
+  // the WebUI JavaScript to complete before interacting with the handler.
+  WaitForPsstDialogUIReady(dialog_wc);
+
   const std::vector<std::string> perform_uids = {"1", "2"};
-  // Accept the consent dialog to continue the flow and apply PSST settings
   ASSERT_TRUE(AcceptModalDialog(
       dialog_wc, url::Origin::Create(url).GetURL().spec(), perform_uids));
 
@@ -720,6 +870,8 @@ IN_PROC_BROWSER_TEST_F(PsstTabWebContentsObserverBrowserTest,
 
   const std::vector<std::string> perform_uids = {"1"};
 
+  WaitForPsstDialogUIReady(dialog_wc);
+
   // Accept dialog and mark one item as unchecked
   ASSERT_TRUE(AcceptModalDialog(
       dialog_wc, url::Origin::Create(url).GetURL().spec(), perform_uids));
@@ -735,6 +887,133 @@ IN_PROC_BROWSER_TEST_F(PsstTabWebContentsObserverBrowserTest,
   EXPECT_EQ(psst_website_settings->consent_status, ConsentStatus::kAllow);
   EXPECT_EQ(psst_website_settings->user_id, kASiteSignedInUserId);
   EXPECT_EQ(psst_website_settings->uids_to_perform, perform_uids);
+}
+
+// The PSST icon appears in the location bar after navigating to a matching
+// site, and selecting "Don't show for this site" from its context menu blocks
+// PSST for that origin and hides the icon.
+IN_PROC_BROWSER_TEST_F(PsstTabWebContentsObserverBrowserTest,
+                       LocationBarIconContextMenuDontShowForThisSite) {
+  GetPrefs()->SetBoolean(prefs::kPsstEnabled, true);
+
+  const GURL url = GetEmbeddedTestServer().GetURL("a.test", "/a_test_0.html");
+  ASSERT_NO_FATAL_FAILURE(
+      NavigateAndClickOnPsstLocationBarIcon(url, ui::EF_RIGHT_MOUSE_BUTTON));
+
+  views::MenuItemView* const root = GetActiveContextMenuRoot();
+  ASSERT_TRUE(root);
+  // Both context menu items are present.
+  EXPECT_TRUE(root->GetMenuItemByID(IDC_PSST_DONT_SHOW_FOR_THIS_SITE));
+  EXPECT_TRUE(root->GetMenuItemByID(IDC_PSST_DISABLE_PRIVACY_SETTINGS_TUNING));
+
+  views::MenuItemView* const dont_show_item =
+      root->GetMenuItemByID(IDC_PSST_DONT_SHOW_FOR_THIS_SITE);
+  ASSERT_TRUE(dont_show_item);
+  ASSERT_NO_FATAL_FAILURE(AcceptContextMenuItem(dont_show_item));
+
+  ASSERT_NO_FATAL_FAILURE(WaitForPsstContextMenuClosed());
+  ASSERT_NO_FATAL_FAILURE(WaitForPsstIconHidden());
+
+  // PSST is blocked for this origin.
+  auto psst_website_settings = GetPsstSettingsService()->GetPsstWebsiteSettings(
+      url::Origin::Create(url), kASiteSignedInUserId);
+  ASSERT_TRUE(psst_website_settings);
+  EXPECT_EQ(psst_website_settings->consent_status, ConsentStatus::kBlock);
+
+  // PSST remains globally enabled - only this site was opted out.
+  EXPECT_TRUE(GetPrefs()->GetBoolean(prefs::kPsstEnabled));
+}
+
+// The PSST icon appears in the location bar after navigating to a matching
+// site, and selecting "Disable privacy settings tuning" from its context menu
+// disables PSST globally and hides the icon.
+IN_PROC_BROWSER_TEST_F(PsstTabWebContentsObserverBrowserTest,
+                       LocationBarIconContextMenuDisablePrivacySettingsTuning) {
+  GetPrefs()->SetBoolean(prefs::kPsstEnabled, true);
+  ASSERT_TRUE(GetPrefs()->GetBoolean(prefs::kPsstEnabled));
+
+  const GURL url = GetEmbeddedTestServer().GetURL("a.test", "/a_test_0.html");
+  ASSERT_NO_FATAL_FAILURE(
+      NavigateAndClickOnPsstLocationBarIcon(url, ui::EF_RIGHT_MOUSE_BUTTON));
+
+  views::MenuItemView* const root = GetActiveContextMenuRoot();
+  ASSERT_TRUE(root);
+  views::MenuItemView* const disable_item =
+      root->GetMenuItemByID(IDC_PSST_DISABLE_PRIVACY_SETTINGS_TUNING);
+  ASSERT_TRUE(disable_item);
+  ASSERT_NO_FATAL_FAILURE(AcceptContextMenuItem(disable_item));
+
+  ASSERT_NO_FATAL_FAILURE(WaitForPsstContextMenuClosed());
+  ASSERT_NO_FATAL_FAILURE(WaitForPsstIconHidden());
+
+  // PSST is disabled globally.
+  EXPECT_FALSE(GetPrefs()->GetBoolean(prefs::kPsstEnabled));
+}
+
+IN_PROC_BROWSER_TEST_F(PsstTabWebContentsObserverBrowserTest,
+                       LocationBarIconLeftClickShowsConsentDialog) {
+  GetPrefs()->SetBoolean(prefs::kPsstEnabled, true);
+  ASSERT_TRUE(GetPrefs()->GetBoolean(prefs::kPsstEnabled));
+
+  const GURL url = GetEmbeddedTestServer().GetURL("a.test", "/a_test_0.html");
+  ASSERT_NO_FATAL_FAILURE(
+      NavigateAndClickOnPsstLocationBarIcon(url, ui::EF_LEFT_MOUSE_BUTTON));
+}
+
+// After navigating to the initial page and left-clicking the PSST location bar
+// icon, accepting the consent dialog runs both scripts across all task pages,
+// applies the PSST settings, and navigates the tab back to the initial page
+// where tuning started.
+IN_PROC_BROWSER_TEST_F(
+    PsstTabWebContentsObserverBrowserTest,
+    LocationBarIconLeftClickAppliesSettingsAndReturnsToPage) {
+  GetPrefs()->SetBoolean(prefs::kPsstEnabled, true);
+  ASSERT_TRUE(GetPrefs()->GetBoolean(prefs::kPsstEnabled));
+
+  const GURL url = GetEmbeddedTestServer().GetURL("a.test", "/a_test_0.html");
+
+  // Observe both scripts running across the initial page and each task page.
+  PsstWebContentsConsoleObserver console_observer(
+      web_contents(),
+      {base::StrCat({kUserScriptLogPrefix,
+                     CreateTestUtf16URL(https_server_, "/a_test_0.html")}),
+       base::StrCat({kUserScriptLogPrefix,
+                     CreateTestUtf16URL(https_server_, "/a_test_1.html")}),
+       base::StrCat({kUserScriptLogPrefix,
+                     CreateTestUtf16URL(https_server_, "/a_test_2.html")})},
+      {base::StrCat({kPolicyScriptLogPrefix,
+                     CreateTestUtf16URL(https_server_, "/a_test_0.html")}),
+       base::StrCat({kPolicyScriptLogPrefix,
+                     CreateTestUtf16URL(https_server_, "/a_test_1.html")}),
+       base::StrCat({kPolicyScriptLogPrefix,
+                     CreateTestUtf16URL(https_server_, "/a_test_2.html")})});
+
+  content::WebContents* dialog_wc = nullptr;
+  ASSERT_NO_FATAL_FAILURE(NavigateAndClickOnPsstLocationBarIcon(
+      url, ui::EF_LEFT_MOUSE_BUTTON, &dialog_wc));
+  ASSERT_TRUE(dialog_wc);
+
+  const std::vector<std::string> perform_uids = {"1", "2"};
+  ASSERT_TRUE(AcceptModalDialog(
+      dialog_wc, url::Origin::Create(url).GetURL().spec(), perform_uids));
+
+  // Both scripts ran on every page, confirming all tasks were processed.
+  ASSERT_TRUE(console_observer.Wait());
+  EXPECT_TRUE(console_observer.CheckMessages());
+
+  // Once tuning completes, the tab returns to the initial page.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return web_contents()->GetLastCommittedURL() == url; }));
+
+  // PSST settings are applied for the signed-in user on this origin.
+  auto psst_website_settings = GetPsstSettingsService()->GetPsstWebsiteSettings(
+      url::Origin::Create(url), kASiteSignedInUserId);
+  ASSERT_TRUE(psst_website_settings);
+  EXPECT_EQ(psst_website_settings->consent_status, ConsentStatus::kAllow);
+  EXPECT_EQ(psst_website_settings->user_id, kASiteSignedInUserId);
+  EXPECT_EQ(psst_website_settings->uids_to_perform, perform_uids);
+
+  ASSERT_TRUE(CloseModalDialog(dialog_wc));
 }
 
 }  // namespace psst

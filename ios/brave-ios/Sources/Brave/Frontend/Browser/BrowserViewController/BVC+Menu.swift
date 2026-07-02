@@ -66,18 +66,15 @@ extension BrowserViewController {
 
   /// Presents Wallet without an origin (ex. from menu)
   func presentWallet() {
-    Task {
-      guard let walletStore = self.walletStore ?? newWalletStore() else { return }
-      if await walletStore.keyringStore.shouldUseWalletWebUI() == true {
-        self.dismiss(animated: true) {
-          self.tabManager.addTabAndSelect(
-            URLRequest(url: .webUI.wallet.home),
-            isPrivate: self.privateBrowsingManager.isPrivateBrowsing
-          )
-        }
-      } else {
-        presentNativeWallet()
+    if FeatureList.kBraveWalletWebUIIOS?.enabled == true {
+      self.dismiss(animated: true) {
+        self.tabManager.addTabAndSelect(
+          URLRequest(url: .webUI.wallet.home),
+          isPrivate: self.privateBrowsingManager.isPrivateBrowsing
+        )
       }
+    } else {
+      presentNativeWallet()
     }
   }
 
@@ -394,14 +391,13 @@ extension BrowserViewController {
           installVPNProfile: { [weak self] in
             guard let self else { return }
             self.popToBVC()
-            self.openInsideSettingsNavigation(with: BraveVPNInstallViewController())
+            self.present(UIHostingController(rootView: InstallVPNProfileView()), animated: true)
           }
         )
 
-        let vc = BraveVPNPaywallHostingController(paywallView: vpnPaywallView)
-        let container = UINavigationController(rootViewController: vc)
+        let vc = UIHostingController(rootView: vpnPaywallView)
         self.dismiss(animated: true) {
-          self.present(container, animated: true)
+          self.present(vc, animated: true)
         }
         return .none
       }

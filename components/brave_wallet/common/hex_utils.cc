@@ -16,6 +16,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_number_conversions_internal.h"
 #include "base/strings/string_util.h"
 #include "base/strings/string_view_util.h"
 
@@ -126,20 +127,18 @@ bool HexValueToUint256(std::string_view hex_input, uint256_t* out) {
   if (!out) {
     return false;
   }
+
   if (!IsValidHexString(hex_input)) {
     return false;
   }
-  *out = 0;
-  uint256_t last_val = 0;  // Used to check overflows
-  for (char c : hex_input.substr(2)) {
-    (*out) <<= 4;
-    (*out) += static_cast<uint256_t>(base::HexDigitToInt(c));
-    if (last_val > *out) {
-      return false;
-    }
-    last_val = *out;
+
+  hex_input = hex_input.substr(2);
+  if (hex_input.empty()) {
+    *out = 0;
+    return true;
   }
-  return true;
+
+  return base::internal::HexStringToIntImpl(hex_input, *out);
 }
 
 std::optional<uint256_t> HexValueToUint256(std::string_view hex_input) {

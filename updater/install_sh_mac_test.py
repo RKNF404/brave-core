@@ -14,6 +14,7 @@ from stat import S_IXUSR
 from subprocess import run, DEVNULL, Popen, PIPE, STDOUT
 from tempfile import TemporaryDirectory
 from threading import Thread
+from time import sleep
 
 import plistlib
 import re
@@ -35,15 +36,18 @@ INSTALL_SH = join(SRC_ROOT, "chrome", "updater", "mac", ".install.sh")
 # COMMAND_WRAPPER (CW) below. CW writes the command name and arguments to a
 # dedicated file descriptor (PROMPT_FD). The Python implementation reads from
 # this file descriptor, invokes the associated Python function and writes the
-# exit code and stderr to CW's stdin. CW then prints the given stderr to stderr
-# and exits with the given code.
+# exit code and stderr to a second dedicated file descriptor (RESPONSE_FD). CW
+# reads from this file descriptor, prints the given stderr and exits with the
+# given code. We use RESPONSE_FD rather than stdin because install.sh
+# backgrounds rsync (`rsync ... &`), and bash redirects backgrounded processes'
+# stdin to /dev/null in non-interactive shells.
 COMMAND_WRAPPER = """
 #!/bin/bash
 
 printf -v args '%q ' "$@"
 echo "$(basename "$0") ${args}" >&"${PROMPT_FD}"
-read -r exit_code
-read -r stderr
+read -r -u "${RESPONSE_FD}" exit_code
+read -r -u "${RESPONSE_FD}" stderr
 if [[ -n "${stderr}" ]]; then
   echo "${stderr}" >&2
 fi
@@ -200,6 +204,19 @@ class InstallShPatchTest(unittest.TestCase):
                                      },
                                      expected_exit_code=expected_exit_code)
 
+    def test_rsync_timeout(self):
+
+        def rsync(_):
+            sleep(2)
+            return 0, ""
+
+        app_dir = join(self.temp_dir.name, f"{PRODUCT_NAME}.app")
+        self._make_app(app_dir, CURRENT_VERSION)
+        self._run_install_sh(app_dir,
+                             commands={'rsync': rsync},
+                             expected_exit_code=80,
+                             env={"RSYNC_TIMEOUT": "1"})
+
     def _prepare_dmg_dir(self):
         dmg_dir = join(self.temp_dir.name, "dmg")
         mkdir(dmg_dir)
@@ -265,32 +282,39 @@ class InstallShPatchTest(unittest.TestCase):
                         installed_app_dir,
                         is_root=False,
                         commands=None,
-                        expected_exit_code=0):
+                        expected_exit_code=0,
+                        env=None):
         commands = commands or {}
+        env = env.copy() if env is not None else {}
         for name in commands:
             wrapper_path = join(self.bin_dir, name)
             with open(wrapper_path, "w") as f:
                 f.write(COMMAND_WRAPPER)
             chmod(wrapper_path, stat(wrapper_path).st_mode | S_IXUSR)
         prompt_r, prompt_w = pipe()
-        env = {"PROMPT_FD": str(prompt_w)}
+        response_r, response_w = pipe()
+        env["PROMPT_FD"] = str(prompt_w)
+        env["RESPONSE_FD"] = str(response_r)
         if is_root:
             env["EUID"] = "0"
         proc = Popen([
             self.install_sh, self.dmg_dir, installed_app_dir, CURRENT_VERSION
         ],
-                     stdin=PIPE,
+                     stdin=DEVNULL,
                      stdout=PIPE,
                      stderr=STDOUT,
                      text=True,
                      bufsize=1,
                      env=env,
-                     pass_fds=(prompt_w, ))
-        # The subprocess inherited its own copy of prompt_w via pass_fds. A
-        # pipe only reaches EOF once *every* writer has closed its end, so we
-        # must drop our copy here; otherwise the read loop below would block
-        # forever even after the subprocess and its children exited.
+                     pass_fds=(prompt_w, response_r))
+        # The subprocess inherited its own copies of prompt_w and response_r
+        # via pass_fds. A pipe only reaches EOF once *every* writer has closed
+        # its end, so we must drop our copy of prompt_w here; otherwise the
+        # read loop below would block forever even after the subprocess and
+        # its children exited. We also close our copy of response_r so that
+        # only the subprocess can read responses.
         close(prompt_w)
+        close(response_r)
         output_lines = []
 
         def drain():
@@ -299,19 +323,29 @@ class InstallShPatchTest(unittest.TestCase):
 
         drain_thread = Thread(target=drain)
         drain_thread.start()
+        responses = fdopen(response_w, "w")
         try:
             with fdopen(prompt_r, "r") as prompts:
                 for line in prompts:
                     name, *args = shlex.split(line)
                     exit_code, stderr = commands[name](args)
-                    proc.stdin.write(f"{exit_code}\n{stderr}\n")
-                    proc.stdin.flush()
+                    try:
+                        responses.write(f"{exit_code}\n{stderr}\n")
+                        responses.flush()
+                    except BrokenPipeError:
+                        break
             proc.wait(timeout=30)
         finally:
             # Reap the subprocess if wait() timed out or the loop raised.
             if proc.poll() is None:
                 proc.kill()
                 proc.wait()
+            try:
+                responses.close()
+            except BrokenPipeError:
+                # This can happen when install.sh exited before we got to write
+                # the last response.
+                pass
             drain_thread.join(timeout=5)
         output = "".join(output_lines)
         self.assertEqual(

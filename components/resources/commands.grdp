@@ -289,6 +289,9 @@
   <message name="IDS_IDC_SHOW_BOOKMARK_SIDE_PANEL">
     Show bookmark side panel
   </message>
+  <message name="IDS_IDC_BOOKMARK_BAR_OPEN_ALL">
+    Open all bookmarks
+  </message>
   <message name="IDS_IDC_BOOKMARK_BAR_OPEN_ALL_NEW_WINDOW">
     Bookmark bar open all in new window
   </message>
@@ -573,6 +576,10 @@
   <message name="IDS_IDC_NEW_EMAIL_ALIAS" desc="Message for context menu that enables the Email Alias generator UI for the page">
     New Email Alias
   </message>
+  <message name="IDS_IDC_NEW_EMAIL_ALIAS_DESC" desc="Desc label for Email Aliases autofill suggestsion">
+    Create a random email that forwards to your inbox.
+  </message>
+
   <message name="IDS_IDC_NEW_TEMPORARY_CONTAINER" desc="Label for the command that opens the current URL in a new local-only temporary container.">
     New temporary container
   </message>

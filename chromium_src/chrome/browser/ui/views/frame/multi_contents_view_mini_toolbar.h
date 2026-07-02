@@ -22,11 +22,15 @@ struct VectorIcon;
   static std::unique_ptr<SplitTabMenuModel> CreateBraveSplitTabMenuModel(   \
       TabStripModel* tab_strip_model, SplitTabMenuModel::MenuSource source, \
       int split_tab_index);                                                 \
-  FRIEND_TEST_ALL_PREFIXES(SideBySideEnabledBrowserTest, SelectTabTest);    \
+  FRIEND_TEST_ALL_PREFIXES(SplitViewBrowserTest, SelectTabTest);            \
   friend class BraveMultiContentsViewMiniToolbar
+
+// Replace chrome scheme to brave for display.
+#define UpdateContents virtual UpdateContents
 
 #include <chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h>  // IWYU pragma: export
 
+#undef UpdateContents
 #undef UpdateState
 
 #endif  // BRAVE_CHROMIUM_SRC_CHROME_BROWSER_UI_VIEWS_FRAME_MULTI_CONTENTS_VIEW_MINI_TOOLBAR_H_

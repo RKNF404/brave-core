@@ -12,7 +12,7 @@ import fs from 'fs-extra'
 import config from '../lib/config.ts'
 import util from '../lib/util.js'
 import build from '../lib/build.js'
-import buildChromiumRelease from '../lib/buildChromiumRelease.js'
+import buildChromiumRelease from '../lib/buildChromiumRelease.ts'
 import { buildFuzzer, runFuzzer } from '../lib/fuzzer.js'
 import versions from '../lib/versions.js'
 import start from '../lib/start.js'
@@ -21,10 +21,10 @@ import updatePatches from './updatePatches.js'
 import pullL10n from '../lib/pullL10n.js'
 import pushL10n from '../lib/pushL10n.js'
 import chromiumRebaseL10n from '../lib/chromiumRebaseL10n.js'
-import test from '../lib/test.js'
+import test from '../lib/test.ts'
 import gnCheck from '../lib/gnCheck.js'
 import genGradle from '../lib/genGradle.js'
-import perfTests from '../lib/perfTests.js'
+import perfTests from '../lib/perfTests.ts'
 import registerListAffectedTestsCommand from './listAffectedTests.js'
 import registerGenerateCoverageReportCommand from './generateCoverageReport.js'
 
@@ -370,6 +370,10 @@ program
   .arguments('[filePaths...]')
   .description(
     'Updates all patches in the brave-core repo. If a filePath is provider, only that specific file will be updated.',
+  )
+  .option(
+    '--no-plaster-check',
+    'Allows regenerating patches, even for plaster managed sources.',
   )
   .action(updatePatches)
 

@@ -3,14 +3,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_root_view.h"
-
 #include "brave/browser/ui/browser_commands.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
-#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_widget_delegate_view.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
+#include "chrome/browser/ui/views/frame/browser_root_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -43,12 +43,9 @@ class VerticalTabStripRootViewBrowserTest : public InProcessBrowserTest {
     return browser_view()->horizontal_tab_strip_for_testing();
   }
 
-  VerticalTabStripRootView* vtab_strip_root_view() {
-    if (vtab_tab_strip_widget_delegate_view()) {
-      return static_cast<VerticalTabStripRootView*>(
-          vtab_tab_strip_widget_delegate_view()->GetWidget()->GetRootView());
-    }
-    return nullptr;
+  BrowserRootView* browser_root_view() {
+    return static_cast<BrowserRootView*>(
+        browser_view()->GetWidget()->GetRootView());
   }
 
   BrowserFrameView* browser_non_client_frame_view() {
@@ -60,13 +57,9 @@ class VerticalTabStripRootViewBrowserTest : public InProcessBrowserTest {
     browser_non_client_frame_view()->DeprecatedLayoutImmediately();
   }
 
-  VerticalTabStripWidgetDelegateView* vtab_tab_strip_widget_delegate_view() {
-    auto* browser_view = static_cast<BraveBrowserView*>(
-        BrowserView::GetBrowserViewForBrowser(browser()));
-    if (browser_view) {
-      return browser_view->vertical_tab_strip_widget_delegate_view();
-    }
-    return nullptr;
+  BraveVerticalTabStripContainerView* vertical_tab_strip_container_view() {
+    return static_cast<BraveBrowserView*>(browser_view())
+        ->vertical_tab_strip_container_view();
   }
 
   void StartAndFinishDrag(const ui::OSExchangeData& data,
@@ -75,7 +68,7 @@ class VerticalTabStripRootViewBrowserTest : public InProcessBrowserTest {
     ui::DropTargetEvent event(data, gfx::PointF(location),
                               gfx::PointF(location),
                               ui::DragDropTypes::DRAG_COPY);
-    VerticalTabStripRootView* root_view = vtab_strip_root_view();
+    BrowserRootView* root_view = browser_root_view();
     EXPECT_NE(nullptr, root_view);
 
     base::RunLoop run_loop;
@@ -105,7 +98,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRootViewBrowserTest,
                        MAYBE_DragAfterCurrentTab) {
   ToggleVerticalTabStrip();
 
-  ASSERT_TRUE(tabs::utils::ShouldShowBraveVerticalTabs(browser()));
+  ASSERT_TRUE(VerticalTabController::FromBrowser(browser())
+                  ->ShouldShowBraveVerticalTabs());
 
   auto* tab_strip_model = browser()->tab_strip_model();
   EXPECT_EQ(tab_strip_model->count(), 1);
@@ -134,13 +128,14 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRootViewBrowserTest,
 
 // Before we have our own interactive ui tests, we need to disable this test as
 // it's flaky when running test suits.
-#define MAYBE_DragOnCurrentTab DISABLED_DragOnCrruentTab
+#define MAYBE_DragOnCurrentTab DISABLED_DragOnCurrentTab
 
 IN_PROC_BROWSER_TEST_F(VerticalTabStripRootViewBrowserTest,
                        MAYBE_DragOnCurrentTab) {
   ToggleVerticalTabStrip();
 
-  ASSERT_TRUE(tabs::utils::ShouldShowBraveVerticalTabs(browser()));
+  ASSERT_TRUE(VerticalTabController::FromBrowser(browser())
+                  ->ShouldShowBraveVerticalTabs());
 
   auto* tab_strip_model = browser()->tab_strip_model();
   EXPECT_EQ(tab_strip_model->count(), 1);
@@ -167,9 +162,14 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRootViewBrowserTest,
                   .EqualsIgnoringRef(url));
 }
 
-// Flaky on Mac.
-// System menu is used on Windows.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+// System menu is used on Windows, so the menu_runner_ path under test does not
+// apply there. On macOS, `views::MenuRunner` shows a native NSMenu whose
+// tracking event loop (`-[NSMenu popUpContextMenu:]` via `ui::ShowContextMenu`)
+// runs synchronously and blocks `RunMenuAt()` until the menu is dismissed. A
+// browser test has no user to dismiss it, so the run loop hangs until the test
+// harness terminates it (SIGTERM), making the test flaky. See
+// https://github.com/brave/brave-browser/issues/56403.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #define MAYBE_ContextMenuInUnobscuredRegion \
   DISABLED_ContextMenuInUnobscuredRegion
 #else
@@ -179,15 +179,51 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRootViewBrowserTest,
                        MAYBE_ContextMenuInUnobscuredRegion) {
   ToggleVerticalTabStrip();
 
-  ASSERT_TRUE(tabs::utils::ShouldShowBraveVerticalTabs(browser()));
+  ASSERT_TRUE(VerticalTabController::FromBrowser(browser())
+                  ->ShouldShowBraveVerticalTabs());
 
-  auto* vtab_strip_root_view =
-      vtab_tab_strip_widget_delegate_view()->vertical_tab_strip_region_view();
+  auto* region_view =
+      vertical_tab_strip_container_view()->vertical_tab_strip_region_view();
 
-  EXPECT_FALSE(vtab_strip_root_view->IsMenuShowing());
+  EXPECT_FALSE(region_view->IsMenuShowing());
 
-  vtab_strip_root_view->ShowContextMenuForView(
-      vtab_strip_root_view, gfx::Point(), ui::mojom::MenuSourceType::kMouse);
+  region_view->ShowContextMenuForView(region_view, gfx::Point(),
+                                      ui::mojom::MenuSourceType::kMouse);
 
-  EXPECT_TRUE(vtab_strip_root_view->IsMenuShowing());
+  EXPECT_TRUE(region_view->IsMenuShowing());
+}
+
+// Testing menu tear down for `menu_runner_`, which is only used on non-Windows
+// platforms. Disabled on macOS for the same reason as the
+// MAYBE_ContextMenuInUnobscuredRegion test: the native NSMenu tracking loop
+// blocks `RunMenuAt()` synchronously until dismissed, hanging the test until it
+// is terminated (SIGTERM). See
+// https://github.com/brave/brave-browser/issues/56402.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#define MAYBE_CloseBrowserWithContextMenuOpen \
+  DISABLED_CloseBrowserWithContextMenuOpen
+#else
+#define MAYBE_CloseBrowserWithContextMenuOpen CloseBrowserWithContextMenuOpen
+#endif
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRootViewBrowserTest,
+                       MAYBE_CloseBrowserWithContextMenuOpen) {
+  ToggleVerticalTabStrip();
+
+  ASSERT_TRUE(VerticalTabController::FromBrowser(browser())
+                  ->ShouldShowBraveVerticalTabs());
+
+  auto* region_view =
+      vertical_tab_strip_container_view()->vertical_tab_strip_region_view();
+  ASSERT_FALSE(region_view->IsMenuShowing());
+
+  region_view->ShowContextMenuForView(region_view, gfx::Point(),
+                                      ui::mojom::MenuSourceType::kMouse);
+  ASSERT_TRUE(region_view->IsMenuShowing());
+
+  // Keep the browser process alive after the target browser is closed.
+  ASSERT_TRUE(CreateBrowser(browser()->profile()));
+
+  // Closing the browser must not use the system menu model after it has been
+  // freed.
+  CloseBrowserSynchronously(browser());
 }

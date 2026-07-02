@@ -28,6 +28,9 @@
 #include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"
 #include "brave/components/ai_chat/core/common/mojom/common.mojom.h"
 #include "components/os_crypt/async/browser/test_utils.h"
+#include "components/sync/model/metadata_batch.h"
+#include "components/sync/protocol/data_type_state.pb.h"
+#include "components/sync/protocol/entity_metadata.pb.h"
 #include "sql/init_status.h"
 #include "sql/meta_table.h"
 #include "sql/test/test_helpers.h"
@@ -45,7 +48,7 @@ class AIChatDatabaseTest : public testing::Test,
     os_crypt_ = os_crypt_async::GetTestOSCryptAsyncForTesting(
         /*is_sync_for_unittests=*/true);
 
-    base::test::TestFuture<os_crypt_async::Encryptor> future;
+    base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
     os_crypt_->GetInstance(future.GetCallback());
     db_ = std::make_unique<AIChatDatabase>(db_file_path(), future.Take());
 
@@ -129,7 +132,7 @@ TEST_P(AIChatDatabaseTest, AddAndGetConversationAndEntries) {
     if (has_content) {
       associated_content.push_back(mojom::AssociatedContent::New(
           content_uuid, mojom::ContentType::PageContent, "page title", 1,
-          page_url, 62, history.front()->uuid.value()));
+          page_url, 62, history.front()->uuid.value(), false));
     }
     const mojom::ConversationPtr metadata = mojom::Conversation::New(
         uuid, "title", now - base::Hours(2), true, std::nullopt, 0, 0, false,
@@ -878,7 +881,7 @@ TEST_P(AIChatDatabaseTest, AddOrUpdateAssociatedContent) {
 
   associated_content.push_back(mojom::AssociatedContent::New(
       content_uuid, mojom::ContentType::PageContent, "page title", 1, page_url,
-      62, history.front()->uuid.value()));
+      62, history.front()->uuid.value(), false));
 
   mojom::ConversationPtr metadata = mojom::Conversation::New(
       uuid, "title", base::Time::Now() - base::Hours(2), true, std::nullopt, 0,
@@ -921,10 +924,10 @@ TEST_P(AIChatDatabaseTest, AddOrUpdateAssociatedContent_MultiContent) {
   const std::string uuid = "for_associated_content";
   auto content_1 = mojom::AssociatedContent::New(
       "content_1", mojom::ContentType::PageContent, "one", 1,
-      GURL("https://one.com"), 61, history.front()->uuid.value());
+      GURL("https://one.com"), 61, history.front()->uuid.value(), false);
   auto content_2 = mojom::AssociatedContent::New(
       "content_2", mojom::ContentType::PageContent, "two", 2,
-      GURL("https://two.com"), 62, history.front()->uuid.value());
+      GURL("https://two.com"), 62, history.front()->uuid.value(), false);
 
   // Note: This is reused for all conversations, as it is moved into the
   // conversation ptr.
@@ -1040,7 +1043,7 @@ TEST_P(AIChatDatabaseTest, DeleteAssociatedWebContent) {
   // are persisted.
   associated_content.push_back(mojom::AssociatedContent::New(
       "first-content", mojom::ContentType::PageContent, "page title", 1,
-      page_url, 62, history_first.front()->uuid.value()));
+      page_url, 62, history_first.front()->uuid.value(), false));
   mojom::ConversationPtr metadata_first = mojom::Conversation::New(
       "first", "title", base::Time::Now() - base::Hours(2), true, std::nullopt,
       0, 0, false, std::move(associated_content));
@@ -1049,7 +1052,7 @@ TEST_P(AIChatDatabaseTest, DeleteAssociatedWebContent) {
   associated_content.clear();
   associated_content.push_back(mojom::AssociatedContent::New(
       "second-content", mojom::ContentType::PageContent, "page title", 2,
-      page_url, 62, history_second.front()->uuid.value()));
+      page_url, 62, history_second.front()->uuid.value(), false));
   mojom::ConversationPtr metadata_second = mojom::Conversation::New(
       "second", "title", base::Time::Now() - base::Hours(1), true, "model-2", 0,
       0, false, std::move(associated_content));
@@ -1114,10 +1117,10 @@ TEST_P(AIChatDatabaseTest, DeleteConversationEntryWithAssociatedContent) {
   std::vector<mojom::AssociatedContentPtr> associated_content;
   associated_content.push_back(mojom::AssociatedContent::New(
       "content_turn_1", mojom::ContentType::PageContent, "page title 1", 1,
-      page_url, 62, history[0]->uuid.value()));
+      page_url, 62, history[0]->uuid.value(), false));
   associated_content.push_back(mojom::AssociatedContent::New(
       "content_turn_3", mojom::ContentType::PageContent, "page title 3", 2,
-      page_url, 65, history[2]->uuid.value()));
+      page_url, 65, history[2]->uuid.value(), false));
 
   mojom::ConversationPtr metadata = mojom::Conversation::New(
       uuid, "title", base::Time::Now() - base::Hours(2), true, std::nullopt, 0,
@@ -1171,6 +1174,105 @@ TEST_P(AIChatDatabaseTest, DeleteConversationEntryWithAssociatedContent) {
   EXPECT_EQ(archive_result->entries[0]->uuid.value(), history[1]->uuid.value());
 }
 
+// Sync metadata tests (non-parameterized, use the same fixture setup pattern).
+class AIChatDatabaseSyncTest : public testing::Test {
+ public:
+  void SetUp() override {
+    CHECK(temp_directory_.CreateUniqueTempDir());
+    os_crypt_ = os_crypt_async::GetTestOSCryptAsyncForTesting(
+        /*is_sync_for_unittests=*/true);
+    base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
+    os_crypt_->GetInstance(future.GetCallback());
+    db_ = std::make_unique<AIChatDatabase>(db_file_path(), future.Take());
+  }
+
+  void TearDown() override {
+    db_.reset();
+    CHECK(temp_directory_.Delete());
+  }
+
+  base::FilePath db_file_path() {
+    return temp_directory_.GetPath().AppendASCII("test_sync_ai_chat.db");
+  }
+
+ protected:
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::ScopedTempDir temp_directory_;
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_;
+  std::unique_ptr<AIChatDatabase> db_;
+};
+
+TEST_F(AIChatDatabaseSyncTest, UpdateAndGetEntityMetadata) {
+  sync_pb::EntityMetadata metadata;
+  metadata.set_creation_time(12345);
+  metadata.set_sequence_number(1);
+
+  EXPECT_TRUE(db_->UpdateEntityMetadata(syncer::AI_CHAT_CONVERSATION,
+                                        "conv-uuid-1", metadata));
+
+  syncer::MetadataBatch batch;
+  ASSERT_TRUE(db_->GetAllSyncMetadata(&batch));
+  ASSERT_EQ(batch.GetAllMetadata().size(), 1u);
+
+  const auto& entry = batch.GetAllMetadata().begin();
+  EXPECT_EQ(entry->first, "conv-uuid-1");
+  EXPECT_EQ(entry->second->creation_time(), 12345);
+}
+
+TEST_F(AIChatDatabaseSyncTest, ClearEntityMetadata) {
+  sync_pb::EntityMetadata metadata;
+  metadata.set_creation_time(1);
+  db_->UpdateEntityMetadata(syncer::AI_CHAT_CONVERSATION, "key1", metadata);
+  db_->UpdateEntityMetadata(syncer::AI_CHAT_CONVERSATION, "key2", metadata);
+
+  EXPECT_TRUE(db_->ClearEntityMetadata(syncer::AI_CHAT_CONVERSATION, "key1"));
+
+  syncer::MetadataBatch batch;
+  ASSERT_TRUE(db_->GetAllSyncMetadata(&batch));
+  EXPECT_EQ(batch.GetAllMetadata().size(), 1u);
+  EXPECT_EQ(batch.GetAllMetadata().begin()->first, "key2");
+}
+
+TEST_F(AIChatDatabaseSyncTest, ClearAllEntityMetadata) {
+  sync_pb::EntityMetadata metadata;
+  metadata.set_creation_time(1);
+  db_->UpdateEntityMetadata(syncer::AI_CHAT_CONVERSATION, "key1", metadata);
+  db_->UpdateEntityMetadata(syncer::AI_CHAT_CONVERSATION, "key2", metadata);
+
+  EXPECT_TRUE(db_->ClearAllEntityMetadata());
+
+  syncer::MetadataBatch batch;
+  ASSERT_TRUE(db_->GetAllSyncMetadata(&batch));
+  EXPECT_TRUE(batch.GetAllMetadata().empty());
+}
+
+TEST_F(AIChatDatabaseSyncTest, UpdateAndGetDataTypeState) {
+  sync_pb::DataTypeState state;
+  state.set_initial_sync_state(sync_pb::DataTypeState::INITIAL_SYNC_DONE);
+
+  EXPECT_TRUE(db_->UpdateDataTypeState(syncer::AI_CHAT_CONVERSATION, state));
+
+  syncer::MetadataBatch batch;
+  ASSERT_TRUE(db_->GetAllSyncMetadata(&batch));
+  EXPECT_EQ(batch.GetDataTypeState().initial_sync_state(),
+            sync_pb::DataTypeState::INITIAL_SYNC_DONE);
+}
+
+TEST_F(AIChatDatabaseSyncTest, ClearDataTypeState) {
+  sync_pb::DataTypeState state;
+  state.set_initial_sync_state(sync_pb::DataTypeState::INITIAL_SYNC_DONE);
+  db_->UpdateDataTypeState(syncer::AI_CHAT_CONVERSATION, state);
+
+  EXPECT_TRUE(db_->ClearDataTypeState(syncer::AI_CHAT_CONVERSATION));
+
+  syncer::MetadataBatch batch;
+  ASSERT_TRUE(db_->GetAllSyncMetadata(&batch));
+  // After clearing, GetDataTypeState returns default (no initial sync).
+  EXPECT_EQ(batch.GetDataTypeState().initial_sync_state(),
+            sync_pb::DataTypeState::INITIAL_SYNC_STATE_UNSPECIFIED);
+}
+
 // Test the migration for each version upgrade
 class AIChatDatabaseMigrationTest : public testing::Test,
                                     public testing::WithParamInterface<int> {
@@ -1188,7 +1290,7 @@ class AIChatDatabaseMigrationTest : public testing::Test,
         /*is_sync_for_unittests=*/true);
 
     // Create database when os_crypt is ready
-    base::test::TestFuture<os_crypt_async::Encryptor> future;
+    base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
     os_crypt_->GetInstance(future.GetCallback());
     CreateDatabase(
         absl::StrFormat("aichat_database_dump_version_%d.sql", version()));
@@ -1325,7 +1427,7 @@ TEST_P(AIChatDatabaseMigrationTest, MigrationToVCurrent) {
     std::vector<mojom::AssociatedContentPtr> associated_content;
     associated_content.push_back(mojom::AssociatedContent::New(
         content_uuid, mojom::ContentType::PageContent, "test title", 1,
-        GURL("https://example.com"), 62, history.front()->uuid.value()));
+        GURL("https://example.com"), 62, history.front()->uuid.value(), false));
 
     uint64_t expected_total_tokens = 3770;
     uint64_t expected_trimmed_tokens = 100;
@@ -1453,7 +1555,8 @@ TEST_P(AIChatDatabaseMigrationTest, MigrationToVCurrent) {
 
     metadata->associated_content.push_back(mojom::AssociatedContent::New(
         "1234", mojom::ContentType::PageContent, "title", 1,
-        GURL("https://example.com"), 100, history.front()->uuid.value()));
+        GURL("https://example.com"), 100, history.front()->uuid.value(),
+        false));
 
     EXPECT_TRUE(db_->AddConversation(metadata->Clone(), {"Hello world!"},
                                      history[0]->Clone()));

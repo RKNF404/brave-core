@@ -28,14 +28,15 @@
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #include "brave/browser/ai_chat/ai_chat_utils.h"
 #include "brave/browser/ai_chat/tab_data_web_contents_observer.h"
+#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"
 #endif
 
 #if BUILDFLAG(ENABLE_PSST)
 #include "brave/browser/psst/psst_settings_service_factory.h"
+#include "brave/browser/psst/psst_tab_web_contents_observer.h"
 #include "brave/browser/psst/psst_ui_delegate_impl.h"
 #include "brave/browser/psst/psst_ui_desktop_presenter.h"
-#include "brave/components/psst/browser/content/psst_tab_web_contents_observer.h"
-#include "brave/components/psst/common/features.h"
+#include "brave/components/psst/core/common/features.h"
 #endif
 
 namespace tabs {
@@ -60,19 +61,26 @@ void BraveTabFeatures::Init(TabInterface& tab, Profile* profile) {
   if (ai_chat::IsAllowedForContext(profile)) {
     tab_data_observer_ = std::make_unique<ai_chat::TabDataWebContentsObserver>(
         tab.GetHandle().raw_value(), tab.GetContents());
+    // Injects Brave-provided WebMCP tools into matching pages; see
+    // WebMcpInjector. Null when WebMCP is disabled or has no rules.
+    web_mcp_injector_ = ai_chat::WebMcpInjector::MaybeCreate(tab.GetContents());
   }
 #endif
 
 #if BUILDFLAG(ENABLE_PSST)
   if (base::FeatureList::IsEnabled(psst::features::kEnablePsst)) {
+    psst_action_controller_ =
+        std::make_unique<page_actions::PsstActionController>(
+            tab, *page_action_controller());
     psst_web_contents_observer_ =
         psst::PsstTabWebContentsObserver::MaybeCreateForWebContents(
-            tab.GetContents(), profile,
+            tab, profile,
             std::make_unique<psst::PsstUiDelegateImpl>(
                 PsstSettingsServiceFactory::GetForProfile(profile),
                 profile->GetPrefs(),
                 std::make_unique<psst::PsstUiDesktopPresenter>(
-                    tab.GetContents()->GetWeakPtr())),
+                    tab.GetContents()->GetWeakPtr(),
+                    psst_action_controller_->AsWeakPtr())),
             profile->GetPrefs(), ISOLATED_WORLD_ID_BRAVE_INTERNAL);
   }
 #endif

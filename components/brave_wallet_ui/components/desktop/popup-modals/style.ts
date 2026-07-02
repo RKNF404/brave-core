@@ -35,7 +35,7 @@ export const Modal = styled.div<{
   justify-content: flex-start;
   min-width: ${(p) => (p.width ? p.width : '580px')};
   max-width: ${(p) => (p.width ? p.width : '580px')};
-  max-height: 90vh;
+  max-height: min(90vh, 90dvh);
   height: ${(p) => p.height ?? 'unset'};
   background-color: ${leo.color.container.background};
   border-radius: ${leo.radius.xl};
@@ -111,7 +111,7 @@ export const CloseIcon = styled(Icon).attrs({
 export const Divider = styled.div`
   display: flex;
   width: 100%;
-  border-bottom: 2px solid ${(p) => p.theme.color.divider01};
+  border-bottom: 2px solid ${leo.color.divider.subtle};
   padding-bottom: 6px;
 `
 

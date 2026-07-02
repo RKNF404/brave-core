@@ -7,7 +7,7 @@ import * as React from 'react'
 import classnames from '$web-common/classnames'
 import { getLocale } from '$web-common/locale'
 import * as Mojom from '../../../common/mojom'
-import ActionTypeLabel from '../../../common/components/action_type_label'
+import { getActionTypeLabel } from '../../../common/components/action_type_label'
 import {
   AttachmentPageItem,
   AttachmentUploadItems,
@@ -20,7 +20,6 @@ import { useUntrustedConversationContext } from '../../untrusted_conversation_co
 import AssistantReasoning from '../assistant_reasoning'
 import ContextActionsAssistant from '../context_actions_assistant'
 import ContextMenuHuman from '../context_menu_human'
-import Quote from '../quote'
 import {
   LongPageContentWarning,
   LongTextContentWarning,
@@ -30,6 +29,7 @@ import AssistantResponse from '../assistant_response'
 import EditInput from '../edit_input'
 import EditIndicator from '../edit_indicator'
 import {
+  getGroupAllowedLinks,
   getReasoningText,
   getToolArtifacts,
   groupConversationEntries,
@@ -127,6 +127,18 @@ export const highlightRichText = (
         )
       })}
     </>
+  )
+}
+
+// Renders an action (e.g. "Explain") as an inline highlighted chip, matching
+// the way skills are rendered.
+const renderActionLabel = (actionType: Mojom.ActionType) => {
+  const label = getActionTypeLabel(actionType)
+  if (!label) return null
+  return (
+    <span className={styles.richLabel}>
+      <span className={styles.richLabelTitle}>{`/${label.toLowerCase()}`}</span>
+    </span>
   )
 }
 
@@ -312,6 +324,13 @@ function ConversationEntries(props: { scrollToBottom: () => void }) {
       ? getToolArtifacts(group)
       : null
 
+    // Computed once per group and passed to both AssistantTask and
+    // AssistantResponse so all entries in the group share the same set of
+    // anchor-permitted URLs. Required because a client-side tool call lives
+    // in a separate assistant entry from the follow-up response that
+    // references the tool's URLs.
+    const allowedLinks = getGroupAllowedLinks(group)
+
     return (
       <div key={firstEntryEdit.uuid || entryNumber}>
         <div
@@ -327,6 +346,7 @@ function ConversationEntries(props: { scrollToBottom: () => void }) {
                 assistantEntries={group}
                 isActiveTask={isActiveGroup}
                 isLeoModel={conversationContext.isLeoModel}
+                allowedLinks={allowedLinks}
               />
             )}
             {!groupIsTask
@@ -336,13 +356,6 @@ function ConversationEntries(props: { scrollToBottom: () => void }) {
                 const isActiveEntryInActiveGroup =
                   isActiveGroup && i === group.length - 1
                 const currentEntryEdit = entry.edits?.at(-1) ?? entry
-                const allowedLinksForEntry: string[] =
-                  currentEntryEdit.events?.flatMap(
-                    (event) =>
-                      event.sourcesEvent?.sources?.map(
-                        (source) => source.url.url,
-                      ) || [],
-                  ) || []
                 const entryText = getCompletion(currentEntryEdit)
                 const hasReasoning = entryText.includes('<think>')
 
@@ -361,6 +374,7 @@ function ConversationEntries(props: { scrollToBottom: () => void }) {
                         )}
                         <AssistantResponse
                           key={entry.uuid || i}
+                          entryUuid={entry.uuid}
                           events={
                             currentEntryEdit.events?.filter(Boolean) ?? []
                           }
@@ -368,7 +382,7 @@ function ConversationEntries(props: { scrollToBottom: () => void }) {
                             isActiveEntryInActiveGroup
                           }
                           isEntryInProgress={isEntryInProgress}
-                          allowedLinks={allowedLinksForEntry}
+                          allowedLinks={allowedLinks}
                           isLeoModel={conversationContext.isLeoModel}
                           toolArtifacts={
                             i === group.length - 1 ? toolArtifacts : null
@@ -453,11 +467,11 @@ function ConversationEntries(props: { scrollToBottom: () => void }) {
                       />
                     )}
                     {firstEntryEdit.selectedText && (
-                      <div className={styles.selectedTextContext}>
-                        <ActionTypeLabel
-                          actionType={firstEntryEdit.actionType}
-                        />
-                        <Quote text={firstEntryEdit.selectedText} />
+                      <div className={styles.humanMessageBubble}>
+                        <div className={styles.humanTextRow}>
+                          {renderActionLabel(firstEntryEdit.actionType)}{' '}
+                          {firstEntryEdit.selectedText}
+                        </div>
                       </div>
                     )}
                     {showLongPageContentInfo
@@ -508,31 +522,26 @@ function ConversationEntries(props: { scrollToBottom: () => void }) {
               })}
           </div>
 
-          {!groupIsTask && (
-            <>
-              {isAIAssistant && showEditIndicator && (
-                <EditIndicator time={lastEditedTime} />
-              )}
-              {isAIAssistant
-                && conversationContext.isLeoModel
-                && !firstEntryEdit.selectedText
-                && !showEditInput && (
-                  <ContextActionsAssistant
-                    turnUuid={firstEntryEdit.uuid}
-                    turnModelKey={turnModelKey}
-                    turnNEARVerified={
-                      group.at(-1)?.nearVerificationStatus?.verified
-                    }
-                    onEditAnswerClicked={
-                      canEditEntry
-                        ? () => setEditInputId(entryNumber)
-                        : undefined
-                    }
-                    onCopyTextClicked={handleCopyText}
-                  />
-                )}
-            </>
+          {isAIAssistant && showEditIndicator && (
+            <EditIndicator time={lastEditedTime} />
           )}
+          {isAIAssistant
+            && (!conversationContext.isGenerating || !isActiveGroup)
+            && conversationContext.isLeoModel
+            && !firstEntryEdit.selectedText
+            && !showEditInput && (
+              <ContextActionsAssistant
+                turnUuid={firstEntryEdit.uuid}
+                turnModelKey={turnModelKey}
+                turnNEARVerified={
+                  group.at(-1)?.nearVerificationStatus?.verified
+                }
+                onEditAnswerClicked={
+                  canEditEntry ? () => setEditInputId(entryNumber) : undefined
+                }
+                onCopyTextClicked={handleCopyText}
+              />
+            )}
         </div>
       </div>
     )

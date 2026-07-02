@@ -9,8 +9,11 @@
 
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
+#include "base/json/json_writer.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected.h"
+#include "brave/components/ai_chat/core/browser/engine/oai_parsing.h"
 #include "brave/components/ai_chat/core/browser/utils.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/ai_chat/core/common/features.h"
@@ -32,6 +35,9 @@ namespace ai_chat {
 namespace {
 
 constexpr char kOHTTPRelayPathFormat[] = "v1/models/%s/relay";
+constexpr char kNEARToolResultKey[] = "nearai_tool_result";
+constexpr char kNEAROutputKey[] = "output";
+constexpr char kNEARToolCallIdKey[] = "tool_call_id";
 
 constexpr base::TimeDelta kRequestTimeout = base::Minutes(5);
 
@@ -177,7 +183,7 @@ void ObliviousHttpAPIClient::InnerClient::OnPipeDisconnected() {
 
 ObliviousHttpAPIClient::Request::Request(
     std::string model_name,
-    std::string request_body,
+    base::DictValue request_body,
     GenerationDataCallback data_received_callback,
     GenerationCompletedCallback completed_callback)
     : model_name(std::move(model_name)),
@@ -222,7 +228,16 @@ void ObliviousHttpAPIClient::PerformRequest(
 
   const bool is_streaming_enabled = IsStreamingEnabled(data_received_callback);
 
-  std::string request_body = CreateJSONRequestBody(
+  if (features::kNEARModelsEncryptionSearch.Get() && is_streaming_enabled) {
+    if (!oai_tool_definitions.has_value()) {
+      oai_tool_definitions = base::ListValue();
+    }
+    base::DictValue web_context_search_tool;
+    web_context_search_tool.Set("type", mojom::kWebContextSearchToolName);
+    oai_tool_definitions->Append(std::move(web_context_search_tool));
+  }
+
+  base::DictValue request_body = CreateJSONRequestBody(
       SerializeOAIMessages(std::move(messages)), is_streaming_enabled,
       leo_opts.name, std::move(oai_tool_definitions), stop_sequences);
 
@@ -292,8 +307,11 @@ void ObliviousHttpAPIClient::DispatchOHTTPRequest(
   ohttp_request->key_config = key_config_result.key_config;
   ohttp_request->resource_url = key_config_result.endpoint_url;
   ohttp_request->method = net::HttpRequestHeaders::kPostMethod;
+  request.request_body.Set("model", key_config_result.upstream_model_name);
+  std::string serialized_body;
+  base::JSONWriter::Write(request.request_body, &serialized_body);
   ohttp_request->request_body = network::mojom::ObliviousHttpRequestBody::New(
-      std::move(request.request_body), "application/json");
+      std::move(serialized_body), "application/json");
 
   // Build outer (relay) request headers. These are sent to the relay in the
   // clear and are NOT encapsulated in the encrypted bhttp inner request.
@@ -360,9 +378,18 @@ void ObliviousHttpAPIClient::OnInnerResponse(
   }
 
   const bool success = inner_response_code >= 200 && inner_response_code < 300;
+  const int response_code =
+      is_outer_response_code_bad ? outer_response_code : inner_response_code;
+
+  if (response_code == net::HTTP_UNAUTHORIZED) {
+    // Do this to avoid showing the BYOM API key error in the UI
+    std::move(request.completed_callback)
+        .Run(base::unexpected(mojom::APIError::ConnectionIssue));
+    return;
+  }
+
   OAIAPIClient::HandleCompletion(
-      std::move(request.completed_callback), success,
-      is_outer_response_code_bad ? outer_response_code : inner_response_code,
+      std::move(request.completed_callback), success, response_code,
       /*model_key=*/GetModelKey(request.model_name),
       /*is_near_verified=*/true, std::move(parsed_body));
 }
@@ -372,6 +399,42 @@ void ObliviousHttpAPIClient::OnChunkParsed(
     GenerationDataCallback data_received_callback,
     std::string model_name,
     base::Value value) {
+  if (!value.is_dict()) {
+    return;
+  }
+
+  const base::DictValue& response_dict = value.GetDict();
+  const base::DictValue* content_container =
+      GetOAIContentContainer(response_dict);
+  if (content_container) {
+    const base::DictValue* nearai_tool_result =
+        content_container->FindDict(kNEARToolResultKey);
+    if (nearai_tool_result) {
+      const std::string* output =
+          nearai_tool_result->FindString(kNEAROutputKey);
+      const std::string* tool_call_id =
+          nearai_tool_result->FindString(kNEARToolCallIdKey);
+      if (!output || !tool_call_id) {
+        return;
+      }
+      std::vector<mojom::ContentBlockPtr> output_blocks;
+      output_blocks.push_back(mojom::ContentBlock::NewTextContentBlock(
+          mojom::TextContentBlock::New(*output)));
+      auto tool_use_event = mojom::ToolUseEvent::New(
+          /*tool_name=*/"", *tool_call_id, /*arguments_json=*/"",
+          /*output=*/std::move(output_blocks),
+          /*artifacts=*/std::nullopt,
+          /*permission_challenge=*/nullptr,
+          /*is_server_result=*/true);
+      auto event = mojom::ConversationEntryEvent::NewToolUseEvent(
+          std::move(tool_use_event));
+      data_received_callback.Run(EngineConsumer::GenerationResultData(
+          std::move(event), GetModelKey(model_name),
+          /*is_near_verified=*/true));
+      return;
+    }
+  }
+
   OnQueryDataReceived(std::move(data_received_callback),
                       GetModelKey(model_name), /*is_near_verified=*/true,
                       base::ok(std::move(value)));

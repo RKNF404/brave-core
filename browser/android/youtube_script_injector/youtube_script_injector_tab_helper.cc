@@ -8,13 +8,13 @@
 #include <memory>
 #include <string>
 
+#include "base/android/android_info.h"
 #include "base/feature_list.h"
 #include "base/supports_user_data.h"
 #include "brave/browser/android/youtube_script_injector/brave_youtube_script_injector_native_helper.h"
 #include "brave/browser/android/youtube_script_injector/features.h"
 #include "brave/components/brave_shields/content/browser/brave_shields_util.h"
 #include "brave/components/constants/pref_names.h"
-#include "brave/content/public/browser/fullscreen_page_data.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "components/prefs/pref_service.h"
@@ -95,88 +95,188 @@ constexpr char16_t kYoutubePictureInPictureSupport[] =
 }());
 )";
 
+// Drives the YouTube player into fullscreen so the caller can follow up with
+// Picture in Picture. On a cold load the player and its controls hydrate
+// asynchronously, so the fullscreen button may be absent at injection time: the
+// script makes a couple of synchronous attempts, then retries as the subtree
+// hydrates. Retries prefer a MutationObserver scoped to the player container;
+// only when that container does not exist yet do we fall back to short-interval
+// polling, so we never observe the entire document. A find timeout stops the
+// retries outliving a broken page.
+//
+// Crucially, success is never inferred from the click or API call. A
+// fullscreenchange listener resolves only once the page is actually fullscreen,
+// and a short confirm timeout settles the promise as failed otherwise. This
+// keeps the reported result honest and guarantees the promise always settles,
+// which the browser relies on to clear its pending Picture in Picture request.
 constexpr char16_t kYoutubeFullscreen[] =
     uR"(
 (function() {
   return new Promise((resolve) => {
-    const videoPlaySelector = "video.html5-main-video";
-    const fullscreenSelector = "button.fullscreen-icon";
-    function triggerFullscreen() {
-      // Check if the video is not in fullscreen mode already.
-      if (!document.fullscreenElement) {
-        var fullscreenBtn = document.querySelector(fullscreenSelector);
-        var videoPlayer = document.querySelector(videoPlaySelector);
-        // Check if fullscreen button and video are available.
-        if (fullscreenBtn && videoPlayer) {
-         requestFullscreen(fullscreenBtn, resolve, videoPlayer);
-        } else {
-          // When fullscreen button is not available
-          // clicking the movie player resume the UI.
-          var playerContainer = document.getElementById("player-container-id");
-          if (videoPlayer && playerContainer) {
-            let observerTimeout;
-            // Create a MutationObserver to watch for changes in the DOM.
-            const observer = new MutationObserver(
-            (_mutationsList, observer) => {
-              var fullscreenBtn = document.querySelector(fullscreenSelector);
-              var videoPlayer = document.querySelector(videoPlaySelector);
-              if (fullscreenBtn && videoPlayer) {
-                clearTimeout(observerTimeout);
-                observer.disconnect()
-                requestFullscreen(fullscreenBtn, resolve, videoPlayer);
-              }
-            });
-            // Auto-disconnect the observer after 30 seconds,
-            // a reasonable duration picked after some testing.
-            observerTimeout = setTimeout(() => {
-              observer.disconnect();
-              resolve('timeout');
-            }, 30000);
-            // Start observing the DOM.
-            observer.observe(playerContainer, {
-              childList: true, subtree: true
-            });
-            // Make sure the player is in focus or responsive.
-            videoPlayer.click();
-          } else {
-            // No fullscreen elements found, resolve immediately
-            resolve('no_elements');
-          }
+    const videoSelector = "video.html5-main-video";
+    const fullscreenSelector = "button.fullscreen-icon, "
+        + "button.ytp-fullscreen-button, .ytp-fullscreen-button";
+    const playerSelector = "#movie_player, .html5-video-player";
+    const playerContainerSelector = "#player-container-id, ytm-player, #player";
+    // Wait for the player and its controls to hydrate before giving up on
+    // finding something to trigger fullscreen with.
+    const FIND_TIMEOUT_MS = 30000;
+    // Wait for fullscreen to actually engage once we have triggered it. Short,
+    // because a real transition lands almost immediately; this bounds how long
+    // the browser keeps a pending Picture in Picture request armed.
+    const CONFIRM_TIMEOUT_MS = 2000;
+    // How often to re-query for the player when no specific container exists to
+    // observe. Polling is only used as a fallback so we never watch the whole
+    // document; it stops as soon as a trigger fires or the find timeout
+    // elapses.
+    const POLL_INTERVAL_MS = 100;
+
+    let resolved = false;
+    let triggered = false;
+    let observer = null;
+    let findTimeoutId = 0;
+    let confirmTimeoutId = 0;
+    let pollIntervalId = 0;
+
+    function isFullscreen() {
+      const player = document.querySelector(playerSelector);
+      return !!document.fullscreenElement || !!player?.isFullscreen?.();
+    }
+
+    // Stop looking for something to trigger fullscreen with: tear down the
+    // observer or poll and the find timeout. Leaves the confirm timeout and
+    // fullscreenchange listener in place so success can still be observed.
+    function stopSearching() {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      clearInterval(pollIntervalId);
+      clearTimeout(findTimeoutId);
+    }
+
+    function cleanup() {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      stopSearching();
+      clearTimeout(confirmTimeoutId);
+    }
+
+    function resolveOnce(value) {
+      if (resolved) {
+        return;
+      }
+      resolved = true;
+      cleanup();
+      resolve(value);
+    }
+
+    // Single source of truth for success: report 'fullscreen_triggered' only
+    // once the page has actually entered fullscreen, never on the click or API
+    // call alone.
+    function onFullscreenChange() {
+      if (isFullscreen()) {
+        resolveOnce('fullscreen_triggered');
+      }
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    // Once a trigger has fired, stop searching and start a short clock: if
+    // fullscreen has not engaged by the time it expires, report failure. This
+    // guarantees the promise always settles, even when an API call silently
+    // does nothing or its promise rejects.
+    function armConfirmTimeout() {
+      if (triggered) {
+        return;
+      }
+      triggered = true;
+      stopSearching();
+      confirmTimeoutId = setTimeout(
+          () => resolveOnce('requestFullscreen_failed'), CONFIRM_TIMEOUT_MS);
+    }
+
+    // Fire a single fullscreen trigger if something is available to act on.
+    // Returns true once a trigger was fired (or we are already fullscreen) so
+    // the caller stops searching. Success is decided by onFullscreenChange, not
+    // by this return value.
+    function attempt() {
+      if (resolved || triggered) {
+        return true;
+      }
+      if (isFullscreen()) {
+        resolveOnce('already_fullscreen');
+        return true;
+      }
+      const btn = document.querySelector(fullscreenSelector);
+      const video = document.querySelector(videoSelector);
+      if (btn && video) {
+        if (video.readyState >= 3) {
+          video.click();
         }
-      } else {
-        // Already in fullscreen, resolve immediately
-        resolve('already_fullscreen');
+        btn.click();
+        armConfirmTimeout();
+        return true;
       }
-    }
-    // Attempts to request fullscreen mode for the given movie player element.
-    // Resolves with 'fullscreen_triggered' if successful, or
-    // 'requestFullscreen_failed' if the request fails.
-    function requestFullscreen(fullscreenBtn, resolve, videoPlayer) {
-      if (videoPlayer.readyState >= 3) {
-        videoPlayer.click();
-        clickFullscreenButton(fullscreenBtn, resolve);
-      } else {
-        videoPlayer.addEventListener("canplay", () => {
-          videoPlayer.click();
-          clickFullscreenButton(fullscreenBtn, resolve);
-        }, { once: true });
+      // Fallbacks when the button is not in the tree: YouTube's own toggle,
+      // then the standard element fullscreen API. Only one fires per run.
+      const player = document.querySelector(playerSelector);
+      if (player?.toggleFullscreen
+          && !player.classList.contains('ytp-fullscreen')) {
+        try {
+          player.toggleFullscreen();
+          armConfirmTimeout();
+          return true;
+        } catch (e) {}
       }
-    }
-    function clickFullscreenButton(fullscreenBtn, resolve) {
-      if (fullscreenBtn && !document.hidden) {
-        fullscreenBtn.click();
-        resolve('fullscreen_triggered');
-      } else {
-        resolve('requestFullscreen_failed');
+      const target = player
+          || document.querySelector(playerContainerSelector)
+          || video;
+      if (target?.requestFullscreen) {
+        try {
+          const request = target.requestFullscreen();
+          // Success is observed via fullscreenchange; a rejection fails fast.
+          if (request?.catch) {
+            request.catch(() => resolveOnce('requestFullscreen_failed'));
+          }
+          armConfirmTimeout();
+          return true;
+        } catch (e) {}
       }
+      return false;
     }
+
+    function start() {
+      if (attempt()) {
+        return;
+      }
+      // Tap to reveal controls that only render on first interaction.
+      (document.querySelector(videoSelector)
+          || document.querySelector(playerSelector)
+          || document.querySelector(playerContainerSelector))?.click();
+      if (attempt()) {
+        return;
+      }
+      // Retry as the button or player hydrates. Prefer a MutationObserver
+      // scoped to the player container so we watch a small subtree; if that
+      // container is not in the tree yet, fall back to short-interval polling
+      // rather than observing the entire document.
+      const root = document.querySelector(playerContainerSelector);
+      if (root) {
+        observer = new MutationObserver(() => {
+          attempt();
+        });
+        observer.observe(root, { childList: true, subtree: true });
+      } else {
+        pollIntervalId = setInterval(attempt, POLL_INTERVAL_MS);
+      }
+      // Only reached while nothing has been triggered yet: give up if the
+      // player never hydrates.
+      findTimeoutId = setTimeout(() => resolveOnce('timeout'), FIND_TIMEOUT_MS);
+    }
+
     if (document.readyState === "loading") {
-      // Loading hasn't finished yet.
-      document.addEventListener("DOMContentLoaded",
-      triggerFullscreen, { once: true });
+      document.addEventListener("DOMContentLoaded", start, { once: true });
     } else {
-      // `DOMContentLoaded` has already fired.
-      triggerFullscreen();
+      start();
     }
   });
 }());
@@ -191,6 +291,45 @@ bool IsBackgroundVideoPlaybackEnabled(content::WebContents* contents) {
           prefs->GetBoolean(kBackgroundVideoPlaybackEnabled));
 }
 
+// Mirrors the SDK gate that Java's PictureInPicture.isEnabled() applies before
+// any PiP entry attempt (see
+// chrome/android/java/src/.../media/PictureInPicture.java). PiP is
+// hard-disabled on Android < R to dodge a framework crash when entering PiP
+// immediately after exiting it.
+bool IsAndroidPictureInPictureSupported() {
+  return base::android::android_info::sdk_int() >=
+         base::android::android_info::SDK_VERSION_R;
+}
+
+// Only the address of this key identifies the user data; the string value is
+// incidental and never read. This follows the Chromium SupportsUserData key
+// idiom, e.g. kBackgroundSyncUserDataKey in
+// content/browser/background_sync/background_sync_manager.cc.
+const char kPictureInPictureRequestKey[] = "PictureInPictureRequest";
+
+// Marks a NavigationEntry as having a pending Picture-in-Picture request. The
+// state is attached to the NavigationEntry rather than the tab helper so its
+// lifetime matches the page the user acted on: same document navigations,
+// back/forward and reloads each carry their own entry, so a request can never
+// leak onto a different page. This is what keeps fullscreen and
+// Picture-in-Picture in lockstep across the async gap between injecting the
+// script and the media actually going fullscreen.
+// Callers pass the last committed NavigationEntry, which is contractually
+// non-null in WebContentsObserver callbacks once the FrameTree is initialized.
+void SetPictureInPictureRequested(content::NavigationEntry& entry,
+                                  bool requested) {
+  if (requested) {
+    entry.SetUserData(kPictureInPictureRequestKey,
+                      std::make_unique<base::SupportsUserData::Data>());
+  } else {
+    entry.RemoveUserData(kPictureInPictureRequestKey);
+  }
+}
+
+bool IsPictureInPictureRequested(content::NavigationEntry& entry) {
+  return entry.GetUserData(kPictureInPictureRequestKey);
+}
+
 }  // namespace
 
 YouTubeScriptInjectorTabHelper::YouTubeScriptInjectorTabHelper(
@@ -202,31 +341,40 @@ YouTubeScriptInjectorTabHelper::~YouTubeScriptInjectorTabHelper() {}
 
 void YouTubeScriptInjectorTabHelper::PrimaryPageChanged(content::Page& page) {
   script_injector_remote_.reset();
-  bound_rfh_id_ = {};
-  SetFullscreenRequested(false);
+}
+
+void YouTubeScriptInjectorTabHelper::RenderFrameHostChanged(
+    content::RenderFrameHost* old_host,
+    content::RenderFrameHost*) {
+  if (old_host && old_host->IsInPrimaryMainFrame()) {
+    script_injector_remote_.reset();
+  }
 }
 
 void YouTubeScriptInjectorTabHelper::RenderFrameDeleted(
     content::RenderFrameHost* rfh) {
-  if (rfh->GetGlobalId() == bound_rfh_id_) {
+  if (rfh->IsInPrimaryMainFrame()) {
     script_injector_remote_.reset();
-    bound_rfh_id_ = {};
-    SetFullscreenRequested(false);
   }
 }
 
 void YouTubeScriptInjectorTabHelper::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (navigation_handle->IsSameDocument() &&
-      navigation_handle->IsInMainFrame() && navigation_handle->HasCommitted()) {
-    SetFullscreenRequested(false);
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      navigation_handle->HasCommitted()) {
+    // A new entry committed in the main frame (cross document or same
+    // document). Drop the pipe bound to the previous document and clear any
+    // pending request up front, so a back/forward or same document navigation
+    // never re-enters Picture-in-Picture for a request that belonged to a
+    // different page.
+    script_injector_remote_.reset();
+    SetPictureInPictureRequested(
+        *web_contents()->GetController().GetLastCommittedEntry(), false);
   }
 }
 
 void YouTubeScriptInjectorTabHelper::PrimaryMainDocumentElementAvailable() {
-  SetFullscreenRequested(false);
   content::WebContents* contents = web_contents();
-  // Filter only YouTube videos.
   if (!IsYouTubeDomain()) {
     return;
   }
@@ -236,31 +384,31 @@ void YouTubeScriptInjectorTabHelper::PrimaryMainDocumentElementAvailable() {
         kYoutubeBackgroundPlayback, base::NullCallback());
   }
   if (base::FeatureList::IsEnabled(
-          ::preferences::features::kBravePictureInPictureForYouTubeVideos)) {
+          ::preferences::features::kBravePictureInPictureForYouTubeVideos) &&
+      IsAndroidPictureInPictureSupported()) {
     contents->GetPrimaryMainFrame()->ExecuteJavaScript(
         kYoutubePictureInPictureSupport, base::NullCallback());
   }
 }
 
-void YouTubeScriptInjectorTabHelper::MediaEffectivelyFullscreenChanged(
-    bool is_fullscreen) {
-  if (is_fullscreen && HasFullscreenBeenRequested()) {
-    SetFullscreenRequested(false);
-    if (web_contents()->GetVisibility() == content::Visibility::VISIBLE) {
-      ::youtube_script_injector::EnterPictureInPicture(web_contents());
-    }
-  }
-}
-
-void YouTubeScriptInjectorTabHelper::MaybeSetFullscreen() {
+void YouTubeScriptInjectorTabHelper::
+    MaybeSetFullScreenAndPictureInPictureMode() {
   content::RenderFrameHost* rfh = web_contents()->GetPrimaryMainFrame();
-  // Check if fullscreen has already been requested for this page.
-  if (!rfh || !rfh->IsRenderFrameLive() || HasFullscreenBeenRequested()) {
+  if (!rfh || !rfh->IsRenderFrameLive()) {
     return;
   }
 
-  // Mark fullscreen as requested for this page
-  SetFullscreenRequested(true);
+  // Arm the request against the page the user is looking at, then ask the
+  // renderer to go fullscreen. MediaEffectivelyFullscreenChanged() reads this
+  // back to decide whether to follow up with Picture-in-Picture.
+  //
+  // We deliberately do not block a repeated injection on an already armed
+  // request: the injected script is idempotent (it does nothing and resolves
+  // 'already_fullscreen' when the page is already fullscreen), so tapping again
+  // is safe, and not gating keeps the button working even if a prior request
+  // was left armed by an edge case we cannot observe here.
+  SetPictureInPictureRequested(
+      *web_contents()->GetController().GetLastCommittedEntry(), true);
   EnsureBound(rfh);
   script_injector_remote_->RequestAsyncExecuteScript(
       ISOLATED_WORLD_ID_BRAVE_INTERNAL, kYoutubeFullscreen,
@@ -268,7 +416,7 @@ void YouTubeScriptInjectorTabHelper::MaybeSetFullscreen() {
       blink::mojom::PromiseResultOption::kAwait,
       base::BindOnce(
           &YouTubeScriptInjectorTabHelper::OnFullscreenScriptComplete,
-          weak_factory_.GetWeakPtr(), rfh->GetGlobalFrameToken()));
+          weak_factory_.GetWeakPtr()));
 }
 
 bool YouTubeScriptInjectorTabHelper::IsYouTubeDomain(bool mobileOnly) const {
@@ -331,50 +479,72 @@ bool YouTubeScriptInjectorTabHelper::IsYouTubeVideo(bool mobileOnly) const {
   return !video_id.empty();
 }
 
-bool YouTubeScriptInjectorTabHelper::HasFullscreenBeenRequested() const {
-  content::NavigationEntry* entry =
-      web_contents()->GetController().GetLastCommittedEntry();
-  if (!entry) {
-    return false;
-  }
-
-  auto* data = static_cast<content::FullscreenPageData*>(
-      entry->GetUserData(content::kFullscreenPageDataKey));
-  return data && data->fullscreen_requested();
-}
-
-void YouTubeScriptInjectorTabHelper::SetFullscreenRequested(bool requested) {
-  content::NavigationEntry* entry =
-      web_contents()->GetController().GetLastCommittedEntry();
-  if (!entry) {
-    return;
-  }
-
-  auto* data = static_cast<content::FullscreenPageData*>(
-      entry->GetUserData(content::kFullscreenPageDataKey));
-  if (data) {
-    data->set_fullscreen_requested(requested);
-  } else {
-    entry->SetUserData(
-        content::kFullscreenPageDataKey,
-        std::make_unique<content::FullscreenPageData>(requested));
-  }
-}
-
 void YouTubeScriptInjectorTabHelper::OnFullscreenScriptComplete(
-    content::GlobalRenderFrameHostToken token,
     base::Value value) {
-  // If the tab is visible, the script result indicates fullscreen was
-  // triggered, and the callback is for the current main frame, return early
-  // without resetting the fullscreen state. This prevents unnecessary state
-  // changes when fullscreen was successfully entered.
-  if (web_contents()->GetVisibility() == content::Visibility::VISIBLE &&
-      value.is_string() && value.GetString() == "fullscreen_triggered" &&
-      token == web_contents()->GetPrimaryMainFrame()->GetGlobalFrameToken()) {
+  const std::string* result = value.GetIfString();
+  if (result && *result == "fullscreen_triggered") {
+    // Fullscreen is on its way; MediaEffectivelyFullscreenChanged() will pick
+    // up the request and enter Picture-in-Picture.
+    return;
+  }
+  if (result && *result == "already_fullscreen") {
+    // The page was already fullscreen when the script ran, so there is no
+    // fullscreen transition and MediaEffectivelyFullscreenChanged() never
+    // fires. The prerequisite for PiP is already met, so enter it directly
+    // here; otherwise the armed request would fall through to the failure path
+    // below and the user would get no PiP despite the page being fullscreen.
+    MaybeEnterPictureInPicture();
+    return;
+  }
+  // The script could not put the page into fullscreen (no player, timeout,
+  // etc.), so clear the request: PiP must not be entered, and the user is free
+  // to try again on the same page.
+  SetPictureInPictureRequested(
+      *web_contents()->GetController().GetLastCommittedEntry(), false);
+}
+
+void YouTubeScriptInjectorTabHelper::MediaEffectivelyFullscreenChanged(
+    bool is_fullscreen) {
+  if (!is_fullscreen) {
+    return;
+  }
+  // Fullscreen was reached, most likely off the back of our request. Enter PiP
+  // if a request is still armed for the page currently showing.
+  MaybeEnterPictureInPicture();
+}
+
+void YouTubeScriptInjectorTabHelper::MaybeEnterPictureInPicture() {
+  // Only act when a request is still armed for the page currently showing. If
+  // the user navigated in the meantime, the new entry carries no request and we
+  // leave it alone, keeping fullscreen and PiP consistent (both or neither).
+  content::NavigationEntry& entry =
+      *web_contents()->GetController().GetLastCommittedEntry();
+  if (!IsPictureInPictureRequested(entry)) {
     return;
   }
 
-  SetFullscreenRequested(false);
+  // Consume the request as we act on it. PiP here is a native Android activity
+  // mode, so the upstream MediaPictureInPictureChanged() signal never fires to
+  // clear it; clearing it here is what lets the button work again after
+  // returning from a PiP session.
+  SetPictureInPictureRequested(entry, false);
+
+  if (web_contents()->GetVisibility() == content::Visibility::VISIBLE) {
+    ::youtube_script_injector::EnterPictureInPicture(web_contents());
+  }
+}
+
+void YouTubeScriptInjectorTabHelper::MediaPictureInPictureChanged(
+    bool is_picture_in_picture) {
+  if (!is_picture_in_picture) {
+    return;
+  }
+  // Defensive backstop for the Web Picture-in-Picture path (video element /
+  // MediaSession PiP). The YouTube button uses native Android activity PiP,
+  // which does not route through here, so MediaEffectivelyFullscreenChanged()
+  // owns clearing the request in practice.
+  SetPictureInPictureRequested(
+      *web_contents()->GetController().GetLastCommittedEntry(), false);
 }
 
 bool YouTubeScriptInjectorTabHelper::IsPictureInPictureAvailable() const {
@@ -389,15 +559,9 @@ void YouTubeScriptInjectorTabHelper::EnsureBound(
   DCHECK(rfh);
   DCHECK(rfh->IsRenderFrameLive());
 
-  if (!script_injector_remote_.is_bound() ||
-      !script_injector_remote_.is_connected() ||
-      bound_rfh_id_ != rfh->GetGlobalId()) {
-    script_injector_remote_.reset();
-    bound_rfh_id_ = rfh->GetGlobalId();
-    rfh->GetRemoteAssociatedInterfaces()->GetInterface(
-        &script_injector_remote_);
-    script_injector_remote_.reset_on_disconnect();
-  }
+  script_injector_remote_.reset();
+  rfh->GetRemoteAssociatedInterfaces()->GetInterface(&script_injector_remote_);
+  script_injector_remote_.reset_on_disconnect();
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(YouTubeScriptInjectorTabHelper);

@@ -29,9 +29,6 @@ import {
 import { getLocale } from '../../../../common/locale'
 import { getEntitiesListFromEntityState } from '../../../utils/entities.utils'
 
-// hooks
-import { useOnClickOutside } from '../../../common/hooks/useOnClickOutside'
-
 // Selectors
 import { UISelectors, WalletSelectors } from '../../../common/selectors'
 import {
@@ -84,9 +81,6 @@ import { ShieldedLabel } from '../../shared/shielded_label/shielded_label'
 import {
   StyledWrapper,
   NameAndIcon,
-  AccountMenuWrapper,
-  AccountMenuButton,
-  AccountMenuIcon,
   AccountBalanceText,
   AccountNameWrapper,
   AccountButton,
@@ -154,23 +148,12 @@ export const AccountListItem = ({
   } = useGetRewardsInfoQuery()
 
   // state
-  const [showAccountMenu, setShowAccountMenu] = React.useState<boolean>(false)
   const [showShieldAccountModal, setShowShieldAccountModal] =
     React.useState<boolean>(false)
   const [addHiddenAccount] = useAddHiddenAccountMutation()
   const { data: canHideAccount = false } = useCanHideAccountQuery({
     accountId: account.accountId,
   })
-
-  // refs
-  const accountMenuRef = React.useRef<HTMLDivElement>(null)
-
-  // hooks
-  useOnClickOutside(
-    accountMenuRef,
-    () => setShowAccountMenu(false),
-    showAccountMenu,
-  )
 
   // methods
   const onSelectAccount = React.useCallback(() => {
@@ -209,7 +192,7 @@ export const AccountListItem = ({
         onRemoveAccount()
         return
       }
-      if (id === 'shield') {
+      if (id === 'shield' || id === 'resetBirthday') {
         setShowShieldAccountModal(true)
         return
       }
@@ -358,6 +341,12 @@ export const AccountListItem = ({
       && !zcashAccountInfo.accountShieldBirthday
     const canToggleHiddenAccount = canHideAccount
 
+    const canResetShieldedAccountBirthday =
+      isZCashShieldedTransactionsEnabled
+      && account.accountId.coin === BraveWallet.CoinType.ZEC
+      && zcashAccountInfo
+      && !!zcashAccountInfo.accountShieldBirthday
+
     let options = [...AccountButtonOptions]
     options = options.map((option) =>
       option.id === 'hide'
@@ -381,6 +370,9 @@ export const AccountListItem = ({
     }
     if (!canToggleHiddenAccount) {
       options = options.filter((option) => option.id !== 'hide')
+    }
+    if (!canResetShieldedAccountBirthday) {
+      options = options.filter((option) => option.id !== 'resetBirthday')
     }
     return options
   }, [
@@ -511,25 +503,16 @@ export const AccountListItem = ({
           </AccountButton>
 
           {!isDisconnectedRewardsAccount && (
-            <AccountMenuWrapper ref={accountMenuRef}>
-              <AccountMenuButton
-                onClick={() => setShowAccountMenu((prev) => !prev)}
-              >
-                <AccountMenuIcon />
-              </AccountMenuButton>
-              {showAccountMenu && (
-                <>
-                  {isRewardsAccount ? (
-                    <RewardsMenu />
-                  ) : (
-                    <AccountActionsMenu
-                      onClick={onClickButtonOption}
-                      options={buttonOptions}
-                    />
-                  )}
-                </>
+            <>
+              {isRewardsAccount ? (
+                <RewardsMenu />
+              ) : (
+                <AccountActionsMenu
+                  onClick={onClickButtonOption}
+                  options={buttonOptions}
+                />
               )}
-            </AccountMenuWrapper>
+            </>
           )}
         </Row>
         {isDisconnectedRewardsAccount && (

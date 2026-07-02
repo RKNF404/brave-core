@@ -4,4 +4,5 @@
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
 brave_browser_ui_views_side_panel_deps =
-    [ "//brave/browser/ui/sidebar/buildflags" ]
+    [ "//chrome/browser/ui:layout_constants" ]
+brave_browser_ui_views_side_panel_public_deps = []

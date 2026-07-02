@@ -6,15 +6,16 @@
 #ifndef BRAVE_COMPONENTS_AI_CHAT_CORE_BROWSER_ASSOCIATED_CONTENT_DELEGATE_H_
 #define BRAVE_COMPONENTS_AI_CHAT_CORE_BROWSER_ASSOCIATED_CONTENT_DELEGATE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "brave/components/ai_chat/core/browser/tools/tool.h"
 #include "brave/components/ai_chat/core/browser/types.h"
 #include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"
-#include "brave/components/ai_chat/core/common/mojom/common.mojom.h"
 #include "url/gurl.h"
 
 namespace ai_chat {
@@ -86,6 +87,12 @@ class AssociatedContentDelegate {
   virtual void GetScreenshots(
       mojom::ConversationHandler::GetScreenshotsCallback callback);
 
+  // Fetches the current set of content tools from the content. The default
+  // implementation calls |callback| with an empty list immediately.
+  using GetContentToolsCallback =
+      base::OnceCallback<void(std::vector<std::unique_ptr<Tool>>)>;
+  virtual void GetContentTools(GetContentToolsCallback callback);
+
   base::WeakPtr<AssociatedContentDelegate> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
@@ -100,6 +107,15 @@ class AssociatedContentDelegate {
 
   const std::u16string& title() const { return title_; }
   const GURL& url() const { return url_; }
+
+  // Whether tools provided by this content are enabled for the LLM. This is
+  // live-only state (it relies on the content's WebContents being live) and is
+  // not persisted. Content is attached when it is first found to expose tools,
+  // and can subsequently be overridden by the user.
+  bool tools_attached() const { return tools_attached_; }
+  void set_tools_attached(bool tools_attached) {
+    tools_attached_ = tools_attached;
+  }
 
   // Get current cache of content, if available. Do not perform any fresh
   // fetch for the content.
@@ -131,6 +147,7 @@ class AssociatedContentDelegate {
   std::u16string title_;
   GURL url_;
   PageContent cached_page_content_;
+  bool tools_attached_ = false;
 
   base::WeakPtrFactory<AssociatedContentDelegate> weak_ptr_factory_{this};
 };

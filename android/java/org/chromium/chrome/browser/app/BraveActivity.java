@@ -96,6 +96,7 @@ import org.chromium.brave_wallet.mojom.NetworkInfo;
 import org.chromium.brave_wallet.mojom.SignDataUnion;
 import org.chromium.brave_wallet.mojom.SolanaTxManagerProxy;
 import org.chromium.brave_wallet.mojom.TxService;
+import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.BraveAdFreeCalloutDialogFragment;
 import org.chromium.chrome.browser.BraveConstants;
@@ -131,6 +132,7 @@ import org.chromium.chrome.browser.browsing_data.BrowsingDataBridge;
 import org.chromium.chrome.browser.browsing_data.BrowsingDataType;
 import org.chromium.chrome.browser.browsing_data.TimePeriod;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerChrome;
+import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.crypto_wallet.BlockchainRegistryFactory;
 import org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy;
 import org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory;
@@ -144,9 +146,12 @@ import org.chromium.chrome.browser.customtabs.FullScreenCustomTabActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
-import org.chromium.chrome.browser.fullscreen.FullscreenManager;
+import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
+import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager;
 import org.chromium.chrome.browser.informers.BraveSyncAccountDeletedInformer;
+import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifetime.ApplicationLifetime;
+import org.chromium.chrome.browser.media.BraveYouTubePictureInPictureController;
 import org.chromium.chrome.browser.misc_metrics.MiscAndroidMetricsConnectionErrorHandler;
 import org.chromium.chrome.browser.misc_metrics.MiscAndroidMetricsFactory;
 import org.chromium.chrome.browser.multiwindow.BraveMultiWindowUtils;
@@ -224,7 +229,6 @@ import org.chromium.chrome.browser.vpn.utils.BraveVpnProfileUtils;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnUtils;
 import org.chromium.chrome.browser.vpn.wireguard.WireguardConfigUtils;
 import org.chromium.chrome.browser.widget.quickactionsearchandbookmark.promo.SearchWidgetPromoPanel;
-import org.chromium.chrome.browser.youtube_script_injector.BraveYouTubeScriptInjectorNativeHelper;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -237,7 +241,6 @@ import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.LoadUrlParams;
-import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.misc_metrics.mojom.MiscAndroidMetrics;
 import org.chromium.mojo.bindings.ConnectionErrorHandler;
@@ -292,8 +295,7 @@ public abstract class BraveActivity extends ChromeActivity
     public static final String OPEN_URL = "open_url";
     public static final String BRAVE_WEBCOMPAT_INFO_WIKI_URL =
             "https://github.com/brave/brave-browser/wiki/Web-compatibility-reports";
-    private static final String KEY_RESUME_MEDIA_SESSION =
-            "org.chromium.chrome.browser.app.KEY_RESUME_MEDIA_SESSION";
+    private static final String TAG = "BraveActivity";
 
     private static final int DAYS_4 = 4;
     private static final int DAYS_7 = 7;
@@ -348,15 +350,23 @@ public abstract class BraveActivity extends ChromeActivity
     private AppUpdateManager mAppUpdateManager;
     private boolean mWalletBadgeVisible;
     private boolean mSpoofCustomTab;
-    // Boolean flag that indicates if the media session must be resumed
-    // when switching in picture-in-picture mode.
-    private boolean mResumeMediaSession;
+
+    // Owns YouTube Picture-in-Picture session state and lifecycle.
+    // Lazily created the first time a hook needs it; never null after first access.
+    @MonotonicNonNull
+    private BraveYouTubePictureInPictureController mYouTubePictureInPictureController;
 
     private View mQuickSearchEnginesView;
 
     private SearchWidgetPromoPanel mSearchWidgetPromoPanel;
 
     private ApplicationStateListener mApplicationStateListener;
+    private IncognitoReauthController mIncognitoReauthController;
+    // Genuine cold start vs an in-process recreation (e.g. foldable fold/unfold). Set once in
+    // initializeState() and never mutated: several cold-start-only behaviors read it.
+    private boolean mIsColdStart;
+    // One-shot guard so the app-close shred notification fires at most once per cold start.
+    private boolean mAppCloseShredTriggered;
 
     /** Serves as a general exception for failed attempts to get BraveActivity. */
     public static class BraveActivityNotFoundException extends Exception {
@@ -370,16 +380,13 @@ public abstract class BraveActivity extends ChromeActivity
     @Override
     protected void onPostCreate() {
         super.onPostCreate();
-        final Bundle savedInstanceState = getSavedInstanceState();
-        if (savedInstanceState != null) {
-            mResumeMediaSession = savedInstanceState.getBoolean(KEY_RESUME_MEDIA_SESSION, false);
-        }
+        getYouTubePictureInPictureController().onPostCreate(getSavedInstanceState());
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putBoolean(KEY_RESUME_MEDIA_SESSION, mResumeMediaSession);
+        getYouTubePictureInPictureController().onSaveInstanceState(outState);
     }
 
     @Override
@@ -447,6 +454,7 @@ public abstract class BraveActivity extends ChromeActivity
             }
         }
 
+        getYouTubePictureInPictureController().onResume();
         Profile profile = mTabModelProfileSupplier.get();
         if (profile != null) {
             InAppPurchaseWrapper.getInstance()
@@ -467,7 +475,10 @@ public abstract class BraveActivity extends ChromeActivity
 
     @Override
     public boolean onMenuOrKeyboardAction(
-            int id, boolean fromMenu, @Nullable MotionEventInfo triggeringMotion) {
+            int id,
+            boolean fromMenu,
+            @Nullable Bundle menuItemData,
+            @Nullable MotionEventInfo triggeringMotion) {
         final Tab currentTab = getActivityTab();
         // Handle items replaced by Brave.
         if (id == R.id.info_menu_id && currentTab != null) {
@@ -496,7 +507,7 @@ public abstract class BraveActivity extends ChromeActivity
             return true;
         }
 
-        if (super.onMenuOrKeyboardAction(id, fromMenu, triggeringMotion)) {
+        if (super.onMenuOrKeyboardAction(id, fromMenu, menuItemData, triggeringMotion)) {
             return true;
         }
 
@@ -603,6 +614,7 @@ public abstract class BraveActivity extends ChromeActivity
         if (mAppUpdateManager != null) {
             mAppUpdateManager.unregisterListener(mInstallStateUpdatedListener);
         }
+        getYouTubePictureInPictureController().onDestroy();
         super.onDestroyInternal();
         cleanUpWalletNativeServices();
         cleanUpMiscAndroidMetrics();
@@ -611,40 +623,31 @@ public abstract class BraveActivity extends ChromeActivity
     @Override
     public void onPictureInPictureModeChanged(boolean inPicture, Configuration newConfig) {
         super.onPictureInPictureModeChanged(inPicture, newConfig);
-        if (mResumeMediaSession) {
-            mResumeMediaSession = false;
-            MediaSession mediaSession = MediaSession.fromWebContents(getCurrentWebContents());
-            if (mediaSession != null) {
-                mediaSession.resume();
+        BraveYouTubePictureInPictureController controller = getYouTubePictureInPictureController();
+        if (inPicture) {
+            if (controller.onEnterPictureInPictureMode()) {
+                // Adopting the same workaround adopted upstream, to check the full implementation
+                // see FullscreenVideoPictureInPictureController class.
+                // Post a delayed handler to update the Pip status, once things have had some
+                // time to settle. When switching into fullscreen mode sometimes the transition is
+                // called before relayout has happened, causing the source rectangle for the Pip
+                // transition to be wrong. This causes the Pip window to look like it moves to the
+                // wrong part of the screen and partially clipped before snapping to its normal
+                // place.
+                PostTask.postDelayedTask(
+                        TaskTraits.UI_BEST_EFFORT,
+                        () -> {
+                            try {
+                                setPictureInPictureParams(
+                                        new PictureInPictureParams.Builder().build());
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error setting PiP params", e);
+                            }
+                        },
+                        PIP_UPDATE_DELAY_MS);
             }
-            // Adopting the same workaround adopted upstream, to check the full implementation
-            // see FullscreenVideoPictureInPictureController class.
-            // Post a delayed handler to update the Pip status, once things have had some
-            // time to settle. When switching into fullscreen mode sometimes the transition is
-            // called before relayout has happened, causing the source rectangle for the Pip
-            // transition to be wrong. This causes the Pip window to look like it moves to the
-            // wrong part of the screen and partially clipped before snapping to its normal place.
-            PostTask.postDelayedTask(
-                    TaskTraits.UI_BEST_EFFORT,
-                    (Runnable)
-                            () ->
-                                    setPictureInPictureParams(
-                                            new PictureInPictureParams.Builder().build()),
-                    PIP_UPDATE_DELAY_MS);
-        }
-        if (!inPicture
-                && getCurrentWebContents() != null
-                && BraveYouTubeScriptInjectorNativeHelper.isPictureInPictureAvailable(
-                        getCurrentWebContents())) {
-            // PiP has been dismissed when watching a YT video, then pause it.
-            MediaSession mediaSession = MediaSession.fromWebContents(getCurrentWebContents());
-            if (mediaSession != null) {
-                mediaSession.suspend();
-            }
-            FullscreenManager fullscreenManager = getFullscreenManager();
-            if (fullscreenManager.getPersistentFullscreenMode()) {
-                fullscreenManager.exitPersistentFullscreenMode();
-            }
+        } else {
+            controller.onExitPictureInPictureMode();
         }
     }
 
@@ -1012,7 +1015,11 @@ public abstract class BraveActivity extends ChromeActivity
             mIsDeepLink = true;
             BraveOriginDeepLinkHandler.open(this);
         }
-        if (isNoRestoreState()) {
+        // Null savedInstanceState = real cold start; non-null = in-process recreation such as
+        // a fold/unfold. The app-exit behaviors below must run only on a real cold start,
+        // otherwise folding/unfolding wipes the live session.
+        mIsColdStart = getSavedInstanceState() == null;
+        if (isNoRestoreState() && mIsColdStart) {
             CommandLine.getInstance().appendSwitch(ChromeSwitches.NO_RESTORE_STATE);
         }
 
@@ -1207,16 +1214,6 @@ public abstract class BraveActivity extends ChromeActivity
 
         BraveVpnNativeWorker.getInstance().reloadPurchasedState();
 
-        // Restore Origin purchase from Google Play if the local pref is not set
-        // (e.g. after device change). This ensures prefs are populated before the user
-        // taps the Origin menu.
-        Profile profile = mTabModelProfileSupplier.get();
-        if (profile != null
-                && ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_ORIGIN)
-                && !BraveOriginSubscriptionPrefs.getIsSubscriptionActive(profile)) {
-            BraveOriginSubscriptionPrefs.verifyPurchase(profile);
-        }
-
         BraveHelper.maybeMigrateSettings();
 
         PrefChangeRegistrar mPrefChangeRegistrar = PrefServiceUtil.createFor(getCurrentProfile());
@@ -1369,12 +1366,30 @@ public abstract class BraveActivity extends ChromeActivity
                 && !BraveVpnPolicy.isDisabledByPolicy(mTabModelProfileSupplier.get())) {
             showLinkVpnSubscriptionDialog();
         }
-        if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_ORIGIN)) {
+        Profile profile = mTabModelProfileSupplier.get();
+        if (profile != null && ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_ORIGIN)) {
+            if (BraveOriginSubscriptionPrefs.getIsSubscriptionActive(profile)) {
+                // The subscription is active locally (Google Play purchase). If a prior session
+                // was killed mid-fetch (order ID never written), restart the credential fetch so
+                // the user isn't left permanently stuck on the "Disabling features" spinner.
+                BraveOriginSubscriptionPrefs.resumeCredentialFetchIfNeeded(profile);
+            }
             // Refresh the cached Skus credential summary so sync "is Origin active" readers
-            // (promo/engagement gates) see up-to-date status. Local-first; only hits the
-            // backend when credentials are past their expiry window.
+            // (promo/engagement gates) see up-to-date status. Local-first; only hits the backend
+            // when credentials are past their expiry window. The fresh result also decides whether
+            // to restore a Google Play purchase: only query Google Play when there is no local
+            // Play purchase AND no Origin SKU credentials, so a subscription purchased on desktop
+            // and linked to this account is never overridden by an unrelated account-wide Play
+            // purchase. Using the fresh result (not the cache) keeps this correct even on the very
+            // first restart right after linking.
             BraveOriginSubscriptionPrefs.requestCredentialSummary(
-                    mTabModelProfileSupplier.get(), null);
+                    profile,
+                    (isActive) -> {
+                        if (!BraveOriginSubscriptionPrefs.getIsSubscriptionActive(profile)
+                                && !isActive) {
+                            BraveOriginSubscriptionPrefs.verifyPurchase(profile);
+                        }
+                    });
         }
         if (isFirstInstall
                 && (OnboardingPrefManager.getInstance().isDormantUsersEngagementEnabled()
@@ -1516,7 +1531,10 @@ public abstract class BraveActivity extends ChromeActivity
 
         ContextUtils.getAppSharedPreferences().registerOnSharedPreferenceChangeListener(this);
 
-        if (isClearBrowsingDataOnExit()) {
+        // Clear only on a real cold start; otherwise a fold/unfold recreation would re-run
+        // this and wipe history/site data/cache mid-session. Use mIsColdStart (captured in
+        // initializeState()) since getSavedInstanceState() is already reset to null here.
+        if (isClearBrowsingDataOnExit() && mIsColdStart) {
             int[] dataTypesArray =
                     CollectionUtil.integerCollectionToIntArray(
                             Arrays.asList(
@@ -2340,11 +2358,61 @@ public abstract class BraveActivity extends ChromeActivity
     }
 
     /**
-     * Sets a flag to resume the currently active media session when entering picture-in-picture
-     * mode, so the user won't have to manually resume the video after the transition.
+     * @see BraveYouTubePictureInPictureController#onSessionRequested
      */
-    public void resumeMediaSession(final boolean resume) {
-        mResumeMediaSession = resume;
+    public void onYouTubePictureInPictureRequested(final WebContents webContents) {
+        getYouTubePictureInPictureController().onSessionRequested(webContents);
+    }
+
+    /**
+     * @see BraveYouTubePictureInPictureController#onSessionEnterFailed
+     */
+    public void onYouTubePictureInPictureEnterFailed() {
+        getYouTubePictureInPictureController().onSessionEnterFailed();
+    }
+
+    /**
+     * @see BraveYouTubePictureInPictureController#isActive
+     */
+    public boolean isYouTubePictureInPictureActive() {
+        return getYouTubePictureInPictureController().isActive();
+    }
+
+    /**
+     * @see BraveYouTubePictureInPictureController#onFullscreenInterrupted
+     */
+    public void onYouTubePictureInPictureFullscreenInterrupted() {
+        getYouTubePictureInPictureController().onFullscreenInterrupted();
+    }
+
+    /**
+     * @see BraveYouTubePictureInPictureController#onNewTabDuringPictureInPicture
+     */
+    public void onYouTubePictureInPictureNewTab() {
+        getYouTubePictureInPictureController().onNewTabDuringPictureInPicture();
+    }
+
+    /**
+     * Ensures the browsing layout is showing when a Brave-managed YouTube PiP session hands the UI
+     * back to the activity. The activity can be recreated into the tab switcher while the PiP
+     * window is up (e.g. a configuration change mid-session), and expanding the PiP must land the
+     * user on the video tab, not the switcher. Performs the same overview-to-browsing transition as
+     * upstream's {@code exitOverviewModeOnActorPiPExpand}, but implemented locally: that helper
+     * belongs to the actor (Glic) feature, which Brave keeps disabled, so depending on it would
+     * couple this flow to an API upstream may refactor away with the actor code.
+     */
+    public void exitOverviewModeForYouTubePictureInPicture() {
+        final LayoutManagerImpl layoutManager = getLayoutManagerSupplier().get();
+        if (isInOverviewMode() && layoutManager != null) {
+            layoutManager.showLayout(LayoutType.BROWSING, /* animate= */ false);
+        }
+    }
+
+    private BraveYouTubePictureInPictureController getYouTubePictureInPictureController() {
+        if (mYouTubePictureInPictureController == null) {
+            mYouTubePictureInPictureController = new BraveYouTubePictureInPictureController(this);
+        }
+        return mYouTubePictureInPictureController;
     }
 
     public static ChromeTabbedActivity getChromeTabbedActivity() {
@@ -2461,6 +2529,9 @@ public abstract class BraveActivity extends ChromeActivity
             dbUtil.cleanUpDbOperationRequest();
         }
         super.performPreInflationStartup();
+        mRootUiCoordinator
+                .getIncognitoReauthControllerSupplier()
+                .onAvailable(irc -> mIncognitoReauthController = irc);
     }
 
     @Override
@@ -2734,7 +2805,9 @@ public abstract class BraveActivity extends ChromeActivity
             final View rootView = requireViewById(android.R.id.content);
             rootView.post(
                     () -> {
-                        if (isActivityFinishingOrDestroyed()) {
+                        // Check again that mSearchWidgetPromoPanel is not null otherwise
+                        // it may cause NPE on some edge cases.
+                        if (isActivityFinishingOrDestroyed() || mSearchWidgetPromoPanel == null) {
                             return;
                         }
                         mSearchWidgetPromoPanel.showIfNeeded(
@@ -2822,6 +2895,30 @@ public abstract class BraveActivity extends ChromeActivity
         if (currentTab != null) {
             shredData(currentTab);
         }
+    }
+
+    @Override
+    public boolean isShredButtonVisible() {
+        return mIncognitoReauthController == null
+                || !mIncognitoReauthController.isIncognitoReauthPending();
+    }
+
+    @Override
+    public void setShredButtonVisibilityObserver(
+            IncognitoReauthManager.IncognitoReauthCallback callback) {
+        if (mIncognitoReauthController == null) {
+            return;
+        }
+        mIncognitoReauthController.addIncognitoReauthCallback(callback);
+    }
+
+    @Override
+    public void removeShredButtonVisibilityObserver(
+            IncognitoReauthManager.IncognitoReauthCallback callback) {
+        if (mIncognitoReauthController == null) {
+            return;
+        }
+        mIncognitoReauthController.removeIncognitoReauthCallback(callback);
     }
 
     private void shredData(Tab currentTab) {
@@ -3073,10 +3170,18 @@ public abstract class BraveActivity extends ChromeActivity
 
     @Override
     public void onTabStateInitializedHandler() {
+        // NO_RESTORE_STATE is a process-global sticky switch. Remove it here so a later
+        // fold/unfold recreation does not re-run ChromeTabbedActivity.clearState() and wipe
+        // the session. Safe: both readers (CTA#initializeState, which consumes it before the
+        // async onTabStateInitialized, and IncognitoRestoreAppLaunchDrawBlocker) run earlier.
+        CommandLine.getInstance().removeSwitch(ChromeSwitches.NO_RESTORE_STATE);
+
         Profile profile = getCurrentProfile();
-        if (profile != null) {
-            // Triggers current app state notification to make sure the first-party storage cleanup
-            // is scheduled on startup if needed.
+        if (profile != null && mIsColdStart && !mAppCloseShredTriggered) {
+            // Schedule the first-party storage cleanup only on a real cold start; on a
+            // fold/unfold recreation it would shred and close every APP_EXIT ("App close")
+            // tab mid-session. One-shot guard so it runs at most once per cold start.
+            mAppCloseShredTriggered = true;
             BraveFirstPartyStorageCleanerUtils.triggerCurrentAppStateNotification(profile);
         }
     }

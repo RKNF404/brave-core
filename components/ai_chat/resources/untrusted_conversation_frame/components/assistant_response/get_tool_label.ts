@@ -35,6 +35,19 @@ function getHistoryToolNameLabel(toolInput: any) {
   return getLocale(S.CHAT_UI_TOOL_LABEL_NAVIGATE_WEB_PAGE)
 }
 
+/**
+ * See history_search_tool.cc
+ * @param toolInput Expects { "query": string } but is not guaranteed.
+ */
+function getSemanticHistorySearchToolNameLabel(toolInput: any) {
+  if (typeof toolInput?.query === 'string' && toolInput.query.length > 0) {
+    return formatLocale(S.CHAT_UI_TOOL_LABEL_SEMANTIC_HISTORY_SEARCH, {
+      $1: toolInput.query as string,
+    })
+  }
+  return getLocale(S.CHAT_UI_TOOL_LABEL_SEMANTIC_HISTORY_SEARCH_GENERIC)
+}
+
 function getSearchToolNameLabel(toolInput: any) {
   // toolInput is parsed (possibly malformed) JSON, so it may be undefined and
   // its `query` field — confusingly named — may be missing or not actually be
@@ -78,6 +91,8 @@ export function getToolLabel(toolName: string, toolInput: any) {
       return getLocale(S.CHAT_UI_TOOL_LABEL_WAIT)
     case Mojom.CODE_EXECUTION_TOOL_NAME:
       return getLocale(S.CHAT_UI_TOOL_LABEL_CODE_EXECUTION)
+    case Mojom.SEMANTIC_HISTORY_SEARCH_TOOL_NAME:
+      return getSemanticHistorySearchToolNameLabel(toolInput)
     // <if expr="enable_ai_chat_tab_management_tool">
     case Mojom.TAB_MANAGEMENT_TOOL_NAME:
       return getLocale(S.CHAT_UI_TOOL_LABEL_TAB_MANAGEMENT)
@@ -92,6 +107,8 @@ export function getToolLabel(toolName: string, toolInput: any) {
     case Mojom.BRAVE_WEB_SEARCH_TOOL_NAME:
     case Mojom.BRAVE_FAQS_SEARCH_TOOL_NAME:
       return getSearchToolNameLabel(toolInput)
+    case Mojom.WEB_CONTEXT_SEARCH_TOOL_NAME:
+      return getLocale(S.CHAT_UI_SEARCH_GENERIC)
     default:
       return toolName
   }

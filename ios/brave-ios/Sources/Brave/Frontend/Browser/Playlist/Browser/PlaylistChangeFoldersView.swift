@@ -47,20 +47,22 @@ struct PlaylistChangeFoldersView: View {
             HStack {
               Image(braveSystemName: "leo.folder.open")
                 .foregroundColor(
-                  Color(folder.id == selectedFolderID ? .braveBlurpleTint : .braveLabel)
+                  folder.id == selectedFolderID
+                    ? Color(braveSystemName: .iconInteractive)
+                    : Color(braveSystemName: .textPrimary)
                 )
                 .frame(width: iconSize)
               VStack(alignment: .leading) {
                 Text(folder.title ?? "")
-                  .foregroundColor(Color(.braveLabel))
+                  .foregroundColor(Color(braveSystemName: .textPrimary))
                 Text(folderCountLabel(folder.playlistItems?.count ?? 0))
-                  .foregroundColor(Color(.secondaryBraveLabel))
+                  .foregroundColor(Color(braveSystemName: .textSecondary))
                   .font(.subheadline)
               }
               Spacer()
               if folder.id == selectedFolderID {
                 Image(braveSystemName: "leo.check.normal")
-                  .foregroundStyle(Color(.braveBlurpleTint))
+                  .foregroundStyle(Color(braveSystemName: .iconInteractive))
               }
             }
             .padding(.horizontal)
@@ -73,7 +75,7 @@ struct PlaylistChangeFoldersView: View {
         }
       }
     }
-    .background(Color(.braveBackground).ignoresSafeArea())
+    .background(Color(braveSystemName: .containerBackground).ignoresSafeArea())
     .navigationTitle(Strings.PlaylistFolders.playlistChangeFoldersTitle)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -88,11 +90,11 @@ struct PlaylistChangeFoldersView: View {
         } label: {
           Text(Strings.PlaylistFolders.playlistNewFolderButtonTitle)
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(Color(.braveBlurpleTint))
+            .foregroundColor(Color(braveSystemName: .textInteractive))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 2)
         }
-        .buttonStyle(BraveOutlineButtonStyle(size: .normal))
+        .buttonStyle(.outline)
       }
     }
     .onChange(of: selectedFolderID) { _, newValue in
@@ -152,13 +154,13 @@ private struct CreateFolderView: View {
           .padding(.horizontal, 16)
           .padding(.vertical, 8)
           .background(
-            Color(.secondaryBraveBackground)
+            Color(braveSystemName: .pageBackground)
           )
           .containerShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
       }
       .padding()
     }
-    .background(Color(.braveBackground).ignoresSafeArea())
+    .background(Color(braveSystemName: .containerBackground).ignoresSafeArea())
     .navigationTitle(Strings.PlaylistFolders.playlistNewFolderScreenTitle)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -180,16 +182,6 @@ struct PlaylistChangeFoldersContainerView: View {
       PlaylistChangeFoldersView(item: item)
     }
     .navigationViewStyle(.stack)
-    .introspectNavigationController { nc in
-      DispatchQueue.main.async {
-        let appearance = UIToolbarAppearance()
-        appearance.configureWithTransparentBackground()
-        appearance.backgroundColor = .braveBackground
-        nc.toolbar.standardAppearance = appearance
-        nc.toolbar.scrollEdgeAppearance = appearance
-        nc.toolbar.compactAppearance = appearance
-      }
-    }
     .environment(\.managedObjectContext, DataController.swiftUIContext)
   }
 }

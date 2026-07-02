@@ -36,6 +36,10 @@ public final class BravePreferenceKeys {
             "org.chromium.chrome.browser.Brave_Tab_Groups_Enabled";
     public static final String BRAVE_TAB_GROUPS_ENABLED_DEFAULT_VALUE =
             "org.chromium.chrome.browser.Brave_Tab_Groups_Enabled_Default_Value";
+    public static final String BRAVE_TAB_GROUPS_FEATURE_ENABLED =
+            "org.chromium.chrome.browser.Brave_Tab_Groups_Feature_Enabled";
+    public static final String BRAVE_TAB_GROUPS_BAR_ENABLED =
+            "org.chromium.chrome.browser.Brave_Tab_Groups_Bar_Enabled";
     public static final String BRAVE_DISABLE_SHARING_HUB =
             "org.chromium.chrome.browser.Brave_Disable_Sharing_Hub";
     public static final String BRAVE_NEWS_CHANGE_SOURCE = "brave_news_change_source";
@@ -128,6 +132,8 @@ public final class BravePreferenceKeys {
 
     public static final String BRAVE_ORIGIN_CREDENTIAL_SUMMARY_CACHED =
             "brave_origin_credential_summary_cached";
+
+    public static final String PREF_PULL_TO_REFRESH = "brave_pull_to_refresh";
 
     /*
      * Checks if preference key is used in Brave.

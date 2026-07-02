@@ -9,9 +9,10 @@ import { skipToken } from '@reduxjs/toolkit/query/react'
 
 // Selectors
 import {
-  useSafeUISelector, //
+  useSafeUISelector,
+  useSafeWalletSelector, //
 } from '../../../common/hooks/use-safe-selector'
-import { UISelectors } from '../../../common/selectors'
+import { UISelectors, WalletSelectors } from '../../../common/selectors'
 
 // Types
 import {
@@ -42,6 +43,7 @@ import {
   useCanHideAccountQuery,
   useGetDefaultFiatCurrencyQuery,
   useGetUserTokensRegistryQuery,
+  useGetZCashAccountInfoQuery,
 } from '../../../common/slices/api.slice'
 import {
   usePersistedTokenSpotPricesQuery, //
@@ -53,9 +55,6 @@ import {
   TokenBalancesRegistry, //
 } from '../../../common/slices/entities/token-balance.entity'
 import { querySubscriptionOptions60s } from '../../../common/slices/constants'
-
-// Hooks
-import { useOnClickOutside } from '../../../common/hooks/useOnClickOutside'
 
 // Components
 import {
@@ -76,7 +75,6 @@ import {
 import {
   MenuButton,
   MenuButtonIcon,
-  MenuWrapper,
   HorizontalDivider,
 } from './shared-card-headers.style'
 import { Row, Column, HorizontalSpace } from '../../shared/style'
@@ -99,6 +97,11 @@ export const AccountDetailsHeader = (props: Props) => {
   // routing
   const history = useHistory()
 
+  // redux
+  const isZCashShieldedTransactionsEnabled = useSafeWalletSelector(
+    WalletSelectors.isZCashShieldedTransactionsEnabled,
+  )
+
   // Queries
   const { userVisibleTokensInfo } = useGetUserTokensRegistryQuery(undefined, {
     selectFromResult: (result) => ({
@@ -109,19 +112,11 @@ export const AccountDetailsHeader = (props: Props) => {
   const { data: canHideAccount = false } = useCanHideAccountQuery({
     accountId: account.accountId,
   })
-
-  // state
-  const [showAccountDetailsMenu, setShowAccountDetailsMenu] =
-    React.useState<boolean>(false)
-
-  // refs
-  const accountDetailsMenuRef = React.useRef<HTMLDivElement>(null)
-
-  // hooks
-  useOnClickOutside(
-    accountDetailsMenuRef,
-    () => setShowAccountDetailsMenu(false),
-    showAccountDetailsMenu,
+  const { data: zcashAccountInfo } = useGetZCashAccountInfoQuery(
+    isZCashShieldedTransactionsEnabled
+      && account.accountId.coin === BraveWallet.CoinType.ZEC
+      ? account.accountId
+      : skipToken,
   )
 
   // Memos
@@ -189,9 +184,21 @@ export const AccountDetailsHeader = (props: Props) => {
     isLoadingSpotPrices,
   ])
 
+  const canResetShieldedAccountBirthday =
+    isZCashShieldedTransactionsEnabled
+    && account.accountId.coin === BraveWallet.CoinType.ZEC
+    && zcashAccountInfo
+    && !!zcashAccountInfo.accountShieldBirthday
+
   const menuOptions = React.useMemo((): AccountButtonOptionsObjectType[] => {
     let options = AccountDetailsMenuOptions
     const canToggleHiddenAccount = canHideAccount
+    if (!canResetShieldedAccountBirthday) {
+      options = options.filter(
+        (option: AccountButtonOptionsObjectType) =>
+          option.id !== 'resetBirthday',
+      )
+    }
     // We are not able to remove a Derived account
     // so we filter out this option.
     if (account.accountId.kind === BraveWallet.AccountKind.kDerived) {
@@ -240,7 +247,7 @@ export const AccountDetailsHeader = (props: Props) => {
         : option,
     )
     return options
-  }, [account, canHideAccount])
+  }, [account, canHideAccount, canResetShieldedAccountBirthday])
 
   const headerPadding = React.useMemo(() => {
     if (isMobileOrPanel) {
@@ -337,25 +344,20 @@ export const AccountDetailsHeader = (props: Props) => {
             <HorizontalSpace space='16px' />
           </>
         )}
-        <MenuWrapper ref={accountDetailsMenuRef}>
+        <AccountDetailsMenu
+          options={menuOptions}
+          onClickMenuOption={onClickMenuOption}
+        >
           {isMobileOrPanel ? (
-            <Button onClick={() => setShowAccountDetailsMenu((prev) => !prev)}>
+            <Button slot='anchor-content'>
               <ButtonIcon name='more-vertical' />
             </Button>
           ) : (
-            <MenuButton
-              onClick={() => setShowAccountDetailsMenu((prev) => !prev)}
-            >
+            <MenuButton slot='anchor-content'>
               <MenuButtonIcon name='more-vertical' />
             </MenuButton>
           )}
-          {showAccountDetailsMenu && (
-            <AccountDetailsMenu
-              options={menuOptions}
-              onClickMenuOption={onClickMenuOption}
-            />
-          )}
-        </MenuWrapper>
+        </AccountDetailsMenu>
       </Row>
     </Row>
   )

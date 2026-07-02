@@ -89,7 +89,7 @@ bool IsAIChatDetailedPageContentExtractionEnabled() {
 }
 
 BASE_FEATURE(kAIChatGlobalSidePanelEverywhere,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsAIChatGlobalSidePanelEverywhereEnabled() {
   return base::FeatureList::IsEnabled(
@@ -143,7 +143,7 @@ bool IsTabOrganizationEnabled() {
 #if BUILDFLAG(ENABLE_AI_CHAT_TAB_MANAGEMENT_TOOL)
 BASE_FEATURE(kTabManagementTool,
              "BraveTabManagementTool",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kNEARModels,
@@ -152,6 +152,9 @@ BASE_FEATURE(kNEARModels,
 
 const base::FeatureParam<bool> kNEARModelsEncryption{&kNEARModels, "encryption",
                                                      false};
+
+const base::FeatureParam<bool> kNEARModelsEncryptionSearch{
+    &kNEARModels, "encryption_search", false};
 
 bool IsNEARModelsEnabled() {
   return base::FeatureList::IsEnabled(features::kNEARModels);
@@ -205,5 +208,13 @@ BASE_FEATURE(kAIChatDeepResearch,
 bool IsAIChatDeepResearchEnabled() {
   return base::FeatureList::IsEnabled(features::kAIChatDeepResearch);
 }
+
+BASE_FEATURE(kBraveSyncAIChat, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsBraveSyncAIChatEnabled() {
+  return base::FeatureList::IsEnabled(features::kBraveSyncAIChat);
+}
+
+BASE_FEATURE(kAIChatConversationShare, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace ai_chat::features

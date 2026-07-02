@@ -9,13 +9,13 @@
 #include <memory>
 #include <optional>
 
+#include "base/callback_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "base/types/pass_key.h"
-#include "chrome/browser/ui/exclusive_access/fullscreen_observer.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "components/prefs/pref_member.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -32,6 +32,7 @@ class MenuRunner;
 
 class BraveNewTabButton;
 class BrowserView;
+class BrowserWindowInterface;
 class FullscreenController;
 class TabStyle;
 
@@ -40,7 +41,6 @@ class BraveVerticalTabStripRegionView : public views::View,
                                         public views::ResizeAreaDelegate,
                                         public views::AnimationDelegateViews,
                                         public views::WidgetObserver,
-                                        public FullscreenObserver,
                                         public views::ContextMenuController {
   METADATA_HEADER(BraveVerticalTabStripRegionView, views::View)
  public:
@@ -124,8 +124,7 @@ class BraveVerticalTabStripRegionView : public views::View,
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
   void OnWidgetDestroying(views::Widget* widget) override;
 
-  // FullscreenObserver:
-  void OnFullscreenStateChanged() override;
+  void OnFullscreenStateChanged();
 
   // views::ContextMenuController:
   void ShowContextMenuForViewImpl(
@@ -184,6 +183,10 @@ class BraveVerticalTabStripRegionView : public views::View,
 
   void OnMenuClosed();
 
+  // Subscription to `RegisterBrowserDidClose`. We use this event to handle the
+  // lifetime of `menu_runner_`.
+  void OnBrowserClosing(BrowserWindowInterface* browser);
+
   // Callback that is called when collapse animation ends. We update visibility
   // of this view if it's needed
   void OnCollapseAnimationEnded();
@@ -239,12 +242,16 @@ class BraveVerticalTabStripRegionView : public views::View,
   BooleanPrefMember show_toolbar_on_fullscreen_pref_;
 #endif
 
-  base::ScopedObservation<FullscreenController, FullscreenObserver>
-      fullscreen_observation_{this};
+  // Subscription to be notified when the browser window enters fullscreen.
+  base::CallbackListSubscription fullscreen_subscription_;
 
   BooleanPrefMember vertical_tab_on_right_;
 
   std::unique_ptr<views::MenuRunner> menu_runner_;
+
+  // A subscription to `Browser::RegisterBrowserDidClose`, to manage the
+  // lifetime of `menu_runner_`.
+  base::CallbackListSubscription browser_did_close_subscription_;
 
   base::WeakPtrFactory<BraveVerticalTabStripRegionView> weak_factory_{this};
 };

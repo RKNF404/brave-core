@@ -13,7 +13,9 @@ import {
   BitcoinTestnetKeyringIds,
   ZCashTestnetKeyringIds,
   CardanoTestnetKeyringIds,
+  PolkadotMainnetKeyringIds,
   PolkadotTestnetKeyringIds,
+  SupportedTestNetworks,
 } from '../constants/types'
 
 // constants
@@ -88,6 +90,29 @@ export const findAccountByAddress = (
   return undefined
 }
 
+// Polkadot parachains may encode an account's address with a different ss58
+// prefix than the keyring default stored in `account.address`. Given a map of
+// each account's chain-correct address (keyed by uniqueKey, see
+// `getPolkadotAddressesForNetwork`), match a recipient by its re-encoded
+// address so own-account recipients are recognized regardless of prefix.
+export const findAccountByPolkadotAddress = (
+  address: string,
+  accounts: EntityState<BraveWallet.AccountInfo> | undefined,
+  polkadotAddressesByUniqueKey: Record<string, string>,
+): BraveWallet.AccountInfo | undefined => {
+  if (!address || !accounts) return undefined
+  const lowerAddress = address.toLowerCase()
+  for (const id of accounts.ids) {
+    const account = accounts.entities[id]
+    const chainAddress =
+      account && polkadotAddressesByUniqueKey[account.accountId.uniqueKey]
+    if (chainAddress && chainAddress.toLowerCase() === lowerAddress) {
+      return account
+    }
+  }
+  return undefined
+}
+
 export const findAccountByAccountId = (
   accountId: Pick<BraveWallet.AccountId, 'uniqueKey'>,
   accounts: EntityState<BraveWallet.AccountInfo> | undefined,
@@ -102,6 +127,10 @@ export const findAccountByAccountId = (
 export const getAddressLabel = (
   address: string,
   accounts?: EntityState<BraveWallet.AccountInfo>,
+  // When provided, recipients are matched against accounts' chain-correct
+  // Polkadot addresses (see `findAccountByPolkadotAddress`) before falling back
+  // to the keyring-default address comparison.
+  polkadotAddressesByUniqueKey?: Record<string, string>,
 ): string => {
   if (!accounts) {
     return (
@@ -111,6 +140,13 @@ export const getAddressLabel = (
   }
   return (
     registry[address.toLowerCase() as keyof typeof registry]
+    ?? (polkadotAddressesByUniqueKey
+      ? findAccountByPolkadotAddress(
+          address,
+          accounts,
+          polkadotAddressesByUniqueKey,
+        )?.name
+      : undefined)
     ?? findAccountByAddress(address, accounts)?.name
     ?? reduceAddress(address)
   )
@@ -189,10 +225,21 @@ export const keyringIdForNewAccount = (
   }
 
   if (coin === BraveWallet.CoinType.DOT && chainId) {
-    if (chainId === BraveWallet.POLKADOT_MAINNET) {
+    if (
+      [
+        BraveWallet.POLKADOT_MAINNET,
+        BraveWallet.POLKADOT_MAINNET_ASSET_HUB,
+      ].includes(chainId)
+    ) {
       return BraveWallet.KeyringId.kPolkadotMainnet
     }
-    if (chainId === BraveWallet.POLKADOT_TESTNET) {
+    if (
+      [
+        BraveWallet.POLKADOT_TESTNET,
+        BraveWallet.POLKADOT_TESTNET_ASSET_HUB,
+        BraveWallet.POLKADOT_PASEO_ASSET_HUB,
+      ].includes(chainId)
+    ) {
       return BraveWallet.KeyringId.kPolkadotTestnet
     }
   }
@@ -281,6 +328,17 @@ export const getAccountsForNetwork = (
     return accounts.filter(
       (account) =>
         account.accountId.keyringId === BraveWallet.KeyringId.kFilecoinTestnet,
+    )
+  }
+  // Polkadot accounts are portable across every parachain and the relay chain,
+  // so an account belongs to a network purely by its keyring (mainnet vs
+  // testnet) rather than by chainId.
+  if (network.coin === BraveWallet.CoinType.DOT) {
+    const polkadotKeyringIds = SupportedTestNetworks.includes(network.chainId)
+      ? PolkadotTestnetKeyringIds
+      : PolkadotMainnetKeyringIds
+    return accounts.filter((account) =>
+      polkadotKeyringIds.includes(account.accountId.keyringId),
     )
   }
   return accounts.filter((account) => account.accountId.coin === network.coin)

@@ -79,8 +79,6 @@ class ConversationHandler : public mojom::ConversationHandler,
 
   class Observer : public base::CheckedObserver {
    public:
-    ~Observer() override {}
-
     // Called when the conversation history changess
     virtual void OnRequestInProgressChanged(ConversationHandler* handler,
                                             bool in_progress) {}
@@ -89,10 +87,10 @@ class ConversationHandler : public mojom::ConversationHandler,
         mojom::ConversationTurnPtr& entry,
         std::optional<PageContents> associated_content_value) {}
     virtual void OnConversationEntryRemoved(ConversationHandler* handler,
-                                            std::string turn_uuid) {}
+                                            const std::string& turn_uuid) {}
 
     virtual void OnToolUseEventOutput(ConversationHandler* handler,
-                                      std::string_view entry_uuid,
+                                      const std::string& entry_uuid,
                                       size_t event_order,
                                       mojom::ToolUseEventPtr tool_use) {}
 
@@ -182,6 +180,8 @@ class ConversationHandler : public mojom::ConversationHandler,
   void PauseTask() override;
   void ResumeTask() override;
   void StopTask() override;
+  void SetToolsAttached(mojom::AssociatedContentPtr content,
+                        bool tools_attached) override;
   void RateMessage(bool is_liked,
                    const std::string& turn_uuid,
                    RateMessageCallback callback) override;
@@ -342,6 +342,24 @@ class ConversationHandler : public mojom::ConversationHandler,
                            UpdateOrCreateLastAssistantEntry_NotDelta);
   FRIEND_TEST_ALL_PREFIXES(ConversationHandlerUnitTest,
                            UpdateOrCreateLastAssistantEntry_NotDeltaWithSearch);
+  FRIEND_TEST_ALL_PREFIXES(
+      ConversationHandlerUnitTest,
+      UpdateOrCreateLastAssistantEntry_DeltaWithInterleavedInlineSearch);
+  FRIEND_TEST_ALL_PREFIXES(
+      ConversationHandlerUnitTest,
+      UpdateOrCreateLastAssistantEntry_NotDeltaWithInterleavedInlineSearch);
+  FRIEND_TEST_ALL_PREFIXES(
+      ConversationHandlerUnitTest,
+      UpdateOrCreateLastAssistantEntry_ToolUseSplitsCompletion);
+  FRIEND_TEST_ALL_PREFIXES(
+      ConversationHandlerUnitTest,
+      UpdateOrCreateLastAssistantEntry_CompletionMergesAcrossNonSplitting);
+  FRIEND_TEST_ALL_PREFIXES(
+      ConversationHandlerUnitTest,
+      UpdateOrCreateLastAssistantEntry_ToolUseArgsMergeAcrossNonSplitting);
+  FRIEND_TEST_ALL_PREFIXES(
+      ConversationHandlerUnitTest,
+      UpdateOrCreateLastAssistantEntry_CompletionSplitsToolUse);
   FRIEND_TEST_ALL_PREFIXES(ConversationHandlerUnitTest,
                            OnGetStagedEntriesFromContent);
   FRIEND_TEST_ALL_PREFIXES(ConversationHandlerUnitTest,
@@ -445,8 +463,6 @@ class ConversationHandler : public mojom::ConversationHandler,
       const std::optional<std::vector<mojom::UploadedFilePtr>>& uploaded_files,
       const std::optional<std::string>& intended_model_key = std::nullopt);
 
-  std::unique_ptr<AssociatedContentManager> associated_content_manager_;
-
   std::string model_key_;
   // Chat conversation entries
   std::vector<mojom::ConversationTurnPtr> chat_history_;
@@ -492,6 +508,12 @@ class ConversationHandler : public mojom::ConversationHandler,
   // ToolProvider can obtain its base::WeakPtr<Tool> instances from elsewhere
   // (e.g. a KeyedService, or global singleton).
   std::vector<std::unique_ptr<ToolProvider>> tool_providers_;
+
+  // Pointer into one of the entries in `tool_providers_` above. Declared after
+  // `tool_providers_` so that it is destroyed first — otherwise the unique_ptr
+  // owning the AssociatedContentManager is freed before this raw_ptr,
+  // triggering BackupRefPtr's dangling-pointer check.
+  raw_ptr<AssociatedContentManager> associated_content_manager_;
 
   // Data store UUID for conversation
   raw_ptr<mojom::Conversation> metadata_;

@@ -19,28 +19,31 @@
 #include "base/test/scoped_feature_list.h"
 #include "brave/app/brave_command_ids.h"
 #include "brave/browser/ui/browser_commands.h"
-#include "brave/browser/ui/sidebar/buildflags/buildflags.h"
-#include "brave/browser/ui/sidebar/features.h"
 #include "brave/browser/ui/sidebar/sidebar_controller.h"
 #include "brave/browser/ui/sidebar/sidebar_model.h"
 #include "brave/browser/ui/sidebar/sidebar_service_factory.h"
 #include "brave/browser/ui/sidebar/sidebar_utils.h"
 #include "brave/browser/ui/sidebar/sidebar_web_panel_controller.h"
+#include "brave/browser/ui/tabs/brave_tab_prefs.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_contents_view_util.h"
 #include "brave/browser/ui/views/frame/split_view/brave_contents_container_view.h"
 #include "brave/browser/ui/views/frame/split_view/brave_multi_contents_view.h"
 #include "brave/browser/ui/views/frame/split_view/brave_multi_contents_view_mini_toolbar.h"
-#include "brave/browser/ui/views/side_panel/side_panel_resize_widget.h"
+#include "brave/browser/ui/views/side_panel/brave_side_panel_header.h"
+#include "brave/browser/ui/views/side_panel/brave_side_panel_resize_area.h"
+#include "brave/browser/ui/views/side_panel/side_panel_utils.h"
 #include "brave/browser/ui/views/sidebar/sidebar_container_view.h"
 #include "brave/browser/ui/views/sidebar/sidebar_control_view.h"
+#include "brave/browser/ui/views/sidebar/sidebar_item_view.h"
 #include "brave/browser/ui/views/sidebar/sidebar_items_contents_view.h"
 #include "brave/browser/ui/views/sidebar/sidebar_items_scroll_view.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/browser/ui/views/toolbar/brave_toolbar_view.h"
 #include "brave/browser/ui/views/toolbar/side_panel_button.h"
 #include "brave/common/pref_names.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
+#include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/brave_talk/buildflags/buildflags.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/constants/brave_switches.h"
@@ -53,17 +56,21 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
@@ -77,27 +84,31 @@
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/compositor/layer.h"
 #include "ui/display/screen.h"
 #include "ui/display/test/test_screen.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/animation/ink_drop.h"
+#include "ui/views/layout/layout_provider.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget_utils.h"
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #include "brave/components/ai_chat/core/common/features.h"
 #endif
 
-#if BUILDFLAG(ENABLE_PLAYLIST)
-#include "brave/components/playlist/core/common/features.h"
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+#include "brave/components/brave_news/common/features.h"
 #endif
 
-#if BUILDFLAG(ENABLE_SIDEBAR_V2)
-#include "brave/browser/ui/views/side_panel/brave_side_panel_header.h"
-#include "brave/browser/ui/views/side_panel/brave_side_panel_resize_area.h"
+#if BUILDFLAG(ENABLE_PLAYLIST)
+#include "brave/components/playlist/core/common/features.h"
 #endif
 
 using ::testing::Eq;
@@ -117,6 +128,12 @@ class SidebarBrowserTest : public InProcessBrowserTest {
  public:
   SidebarBrowserTest() = default;
   ~SidebarBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    animation_resetter_ = gfx::AnimationTestApi::SetRichAnimationRenderMode(
+        gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+  }
 
   void PreRunTestOnMainThread() override {
     InProcessBrowserTest::PreRunTestOnMainThread();
@@ -144,14 +161,6 @@ class SidebarBrowserTest : public InProcessBrowserTest {
   views::View* GetVerticalTabsContainer() const {
     auto* view = BrowserView::GetBrowserViewForBrowser(browser());
     return static_cast<BraveBrowserView*>(view)->vertical_tab_strip_host_view_;
-  }
-
-  views::Widget* GetSidePanelResizeWidget() {
-#if BUILDFLAG(ENABLE_SIDEBAR_V2)
-    NOTREACHED() << "No resize widget in v2";
-#else
-    return GetSidePanel()->resize_widget_->GetWidget();
-#endif
   }
 
   raw_ptr<SidebarItemsContentsView> GetSidebarItemsContentsView(
@@ -191,8 +200,11 @@ class SidebarBrowserTest : public InProcessBrowserTest {
     sidebar_items_contents_view->OnItemPressed(item, event);
 
     if (model()->GetAllSidebarItems()[index].open_in_panel) {
-      WaitUntil(base::BindLambdaForTesting(
-          [&]() { return model()->active_index() == index; }));
+      auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+      WaitUntil(base::BindLambdaForTesting([&]() {
+        return (model()->active_index() == index &&
+                panel_ui->IsSidePanelShowing());
+      }));
     }
   }
 
@@ -204,32 +216,16 @@ class SidebarBrowserTest : public InProcessBrowserTest {
     return static_cast<SidebarContainerView*>(controller()->sidebar());
   }
 
-  void CheckOperationFromActiveTabChangedFlagCleared() const {
-    EXPECT_FALSE(GetSidebarContainerView()->operation_from_active_tab_change_);
-  }
-
-  SidePanel* GetSidePanel() const {
-    return GetSidebarContainerView()->side_panel_;
-  }
+  SidePanel* GetSidePanel() { return browser_view()->side_panel(); }
 
   bool IsSidebarUIOnLeft() const {
-    if (IsV2Enabled()) {
-      return GetSidebarContainerView()->sidebar_on_left_ &&
-             GetSidebarControlView()->sidebar_on_left_;
-    }
-
     return GetSidebarContainerView()->sidebar_on_left_ &&
-           !GetSidePanel()->IsRightAligned() &&
            GetSidebarControlView()->sidebar_on_left_;
   }
 
-  void ShowSidebar(bool show_side_panel) {
-    GetSidebarContainerView()->ShowSidebar(show_side_panel);
-  }
+  void ShowSidebar() { GetSidebarContainerView()->ShowSidebar(); }
 
-  void HideSidebar(bool hide_sidebar_control) {
-    GetSidebarContainerView()->HideSidebar(hide_sidebar_control);
-  }
+  void HideSidebar() { GetSidebarContainerView()->HideSidebar(); }
 
   void WaitUntil(base::RepeatingCallback<bool()> condition) {
     if (condition.Run()) {
@@ -313,6 +309,13 @@ class SidebarBrowserTest : public InProcessBrowserTest {
     }
 #endif
 
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+    if (!base::FeatureList::IsEnabled(
+            brave_news::features::kBraveNewsSidebar)) {
+      item_count -= 1;
+    }
+#endif
+
 #if !BUILDFLAG(ENABLE_BRAVE_WALLET)
     item_count -= 1;
 #endif
@@ -334,54 +337,18 @@ class SidebarBrowserTest : public InProcessBrowserTest {
     return std::distance(items.cbegin(), iter);
   }
 
-  // ===== V2-aware helpers =====
-
-  bool IsV2Enabled() const {
-    return base::FeatureList::IsEnabled(sidebar::features::kSidebarV2);
+  BraveBrowserView* browser_view() {
+    return BraveBrowserView::From(
+        BrowserView::GetBrowserViewForBrowser(browser()));
   }
 
   raw_ptr<views::View, DanglingUntriaged> item_added_bubble_anchor_ = nullptr;
   std::unique_ptr<base::RunLoop> run_loop_;
+  gfx::AnimationTestApi::RenderModeResetter animation_resetter_;
   base::WeakPtrFactory<SidebarBrowserTest> weak_factory_{this};
 };
 
-// Parameterized test fixture to test both Sidebar V1 and V2.
-// Test parameter: bool - false = V1 (default), true = V2 (kSidebarV2 enabled)
-//
-// Tests using this fixture fall into three categories:
-//
-// Category A: Tests that work in both V1 and V2 without changes
-//   - Tests UI/model/controller logic that's identical across versions
-//   - No conditional logic needed (runs same assertions for both V1 and V2)
-//
-// Category B: Mixed tests with version-specific sections
-//   - Tests behavior that differs between V1 and V2
-//   - Uses if (IsV2Enabled()) conditionals to handle version-specific
-//     assertions
-//
-// Category C: V1-only tests (skip in V2)
-//   - Tests V1-specific functionality that doesn't exist in V2
-//   - Uses GTEST_SKIP() to skip when IsV2Enabled() is true
-//
-// This parameterized test will be removed when V2 is enabled by default.
-class SidebarBrowserTestV1AndV2 : public SidebarBrowserTest,
-                                  public testing::WithParamInterface<bool> {
- public:
-  SidebarBrowserTestV1AndV2() {
-    if (GetParam()) {  // true = Enable V2
-      scoped_features_.InitAndEnableFeature(sidebar::features::kSidebarV2);
-    } else {  // false = V1 (default behavior)
-      scoped_features_.InitAndDisableFeature(sidebar::features::kSidebarV2);
-    }
-  }
-  ~SidebarBrowserTestV1AndV2() override = default;
-
- private:
-  base::test::ScopedFeatureList scoped_features_;
-};
-
-// Category B: Mixed test (panel-specific sections guarded with conditionals)
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, BasicTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, BasicTest) {
   EXPECT_TRUE(!!GetSidePanelToolbarButton()->context_menu_controller());
 
   // Initially, active index is not set.
@@ -390,22 +357,24 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, BasicTest) {
   // Check sidebar UI is initalized properly.
   EXPECT_TRUE(!!controller()->sidebar());
 
-  // IDC_TOGGLE_SIDEBAR command doesn't work for V2 now.
-  // In V1, SidebarContainerView listens panel open/close event.
-  // In V2, SidebarController will do that.
-  if (!IsV2Enabled()) {
-    browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
-    WaitUntil(base::BindLambdaForTesting(
-        [&]() { return !!model()->active_index(); }));
-    // Check active index is non-null.
-    EXPECT_THAT(model()->active_index(), Ne(std::nullopt));
+  // `active_index()` is updated synchronously when the panel is shown/closed,
+  // but `IsSidePanelShowing()` only flips once the entry finishes loading
+  // asynchronously. Toggling again before the panel is actually showing makes
+  // SidePanelCoordinator::Toggle() re-show instead of close, so wait on both.
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
+  WaitUntil(base::BindLambdaForTesting([&]() {
+    return !!model()->active_index() && panel_ui->IsSidePanelShowing();
+  }));
+  // Check active index is non-null.
+  EXPECT_THAT(model()->active_index(), Ne(std::nullopt));
 
-    browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
-    WaitUntil(
-        base::BindLambdaForTesting([&]() { return !model()->active_index(); }));
-    // Check active index is null.
-    EXPECT_THAT(model()->active_index(), Eq(std::nullopt));
-  }
+  browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
+  WaitUntil(base::BindLambdaForTesting([&]() {
+    return !model()->active_index() && !panel_ui->IsSidePanelShowing();
+  }));
+  // Check active index is null.
+  EXPECT_THAT(model()->active_index(), Eq(std::nullopt));
 
   auto expected_count = GetDefaultItemCount();
   EXPECT_EQ(expected_count, model()->GetAllSidebarItems().size());
@@ -415,12 +384,8 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, BasicTest) {
   const auto& first_panel_item =
       controller()->model()->GetAllSidebarItems()[first_panel_item_index];
 
-  if (IsV2Enabled()) {
-    controller()->ActivateItemAt(
-        model()->GetIndexOf(first_panel_item.built_in_item_type));
-  } else {
-    controller()->ActivatePanelItem(first_panel_item.built_in_item_type);
-  }
+  controller()->ActivateItemAt(
+      model()->GetIndexOf(first_panel_item.built_in_item_type));
   WaitUntil(
       base::BindLambdaForTesting([&]() { return !!model()->active_index(); }));
   EXPECT_THAT(model()->active_index(), Optional(first_panel_item_index));
@@ -438,22 +403,12 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, BasicTest) {
   }
   EXPECT_THAT(model()->active_index(), Optional(active_item_index));
 
-  // Setting std::nullopt means deactivate current active tab.
-  if (IsV2Enabled()) {
-    controller()->ActivateItemAt(std::nullopt);
-  } else {
-    controller()->DeactivateCurrentPanel();
-  }
+  controller()->DeactivateCurrentPanel();
   WaitUntil(
       base::BindLambdaForTesting([&]() { return !model()->active_index(); }));
   EXPECT_THAT(model()->active_index(), Eq(std::nullopt));
 
-  if (IsV2Enabled()) {
-    controller()->ActivateItemAt(
-        model()->GetIndexOf(first_panel_item.built_in_item_type));
-  } else {
-    controller()->ActivatePanelItem(first_panel_item.built_in_item_type);
-  }
+  controller()->ActivatePanelItem(first_panel_item.built_in_item_type);
   WaitUntil(
       base::BindLambdaForTesting([&]() { return !!model()->active_index(); }));
   EXPECT_THAT(model()->active_index(), Optional(active_item_index));
@@ -498,8 +453,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, BasicTest) {
               Optional(browser_view->children().size() - 1));
 }
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, WebTypePanelTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, WebTypePanelTest) {
   auto expected_count = GetDefaultItemCount();
   EXPECT_EQ(expected_count, model()->GetAllSidebarItems().size());
 
@@ -545,8 +499,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, WebTypePanelTest) {
 }
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, IterateBuiltInWebTypeTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, IterateBuiltInWebTypeTest) {
   // Click builtin wallet item and it's loaded at current active tab.
   const auto items = model()->GetAllSidebarItems();
   const auto wallet_item_iter =
@@ -616,47 +569,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, IterateBuiltInWebTypeTest) {
 }
 #endif  // BUILDFLAG(ENABLE_BRAVE_WALLET)
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
-                       BookmarksPanelShownAfterReadingListTest) {
-  if (IsV2Enabled()) {
-    controller()->ActivateItemAt(
-        model()->GetIndexOf(SidebarItem::BuiltInItemType::kReadingList));
-  } else {
-    auto* panel_ui = browser()->GetFeatures().side_panel_ui();
-    panel_ui->Show(SidePanelEntryId::kReadingList);
-  }
-
-  // Check reading list panel is activated.
-  auto reading_list_item_index =
-      model()->GetIndexOf(SidebarItem::BuiltInItemType::kReadingList);
-  ASSERT_TRUE(reading_list_item_index.has_value());
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return controller()->IsActiveIndex(reading_list_item_index); }));
-
-  // Check bookmarks panel is activated.
-  if (IsV2Enabled()) {
-    controller()->ActivateItemAt(
-        model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks));
-  } else {
-    auto* panel_ui = browser()->GetFeatures().side_panel_ui();
-    panel_ui->Show(SidePanelEntryId::kBookmarks);
-  }
-
-  auto bookmarks_item_index =
-      model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks);
-  ASSERT_TRUE(bookmarks_item_index.has_value());
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return controller()->IsActiveIndex(bookmarks_item_index); }));
-}
-
-// Category C:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
-                       PRE_LastlyUsedSidePanelItemTest) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Panel state persistence is V1-specific";
-  }
-
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PRE_LastlyUsedSidePanelItemTest) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   panel_ui->Show(SidePanelEntryId::kBookmarks);
 
@@ -671,12 +584,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
   EXPECT_TRUE(controller()->IsActiveIndex(bookmark_item_index));
 }
 
-// Category C:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, LastlyUsedSidePanelItemTest) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Panel state persistence is V1-specific";
-  }
-
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, LastlyUsedSidePanelItemTest) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   panel_ui->Toggle();
 
@@ -691,12 +599,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, LastlyUsedSidePanelItemTest) {
   EXPECT_TRUE(controller()->IsActiveIndex(bookmark_item_index));
 }
 
-// Category C:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, DefaultEntryTest) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Default panel entry testing is V1-specific";
-  }
-
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, DefaultEntryTest) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   auto bookmark_item_index =
       model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks);
@@ -723,31 +626,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, DefaultEntryTest) {
   EXPECT_NE(SidePanelEntryId::kBookmarks, panel_ui->GetCurrentEntryId());
 }
 
-// Category A:
-// Test sidebar's initial horizontal option is set properly.
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
-                       PRE_InitialHorizontalOptionTest) {
-  auto* prefs = browser()->profile()->GetPrefs();
-
-  // Check default horizontal option is right-sided.
-  EXPECT_TRUE(prefs->GetBoolean(prefs::kSidePanelHorizontalAlignment));
-  EXPECT_FALSE(IsSidebarUIOnLeft());
-
-  // Set left-sided for next testing.
-  prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
-}
-
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, InitialHorizontalOptionTest) {
-  auto* prefs = browser()->profile()->GetPrefs();
-
-  // Check horizontal option is right-sided.
-  EXPECT_FALSE(prefs->GetBoolean(prefs::kSidePanelHorizontalAlignment));
-  EXPECT_TRUE(IsSidebarUIOnLeft());
-}
-
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, ItemDragIndicatorCalcTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemDragIndicatorCalcTest) {
   auto sidebar_items_contents_view = GetSidebarItemsContentsView(controller());
   gfx::Rect contents_view_rect = sidebar_items_contents_view->GetLocalBounds();
   views::View::ConvertRectToScreen(sidebar_items_contents_view,
@@ -777,7 +656,7 @@ class SidebarBrowserWithSplitViewTest
   }
 
   void NewSplitTab() {
-    chrome::NewSplitTab(browser(),
+    chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                         split_tabs::SplitTabCreatedSource::kTabContextMenu);
   }
 
@@ -843,7 +722,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithSplitViewTest,
   prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
 
   // Hide sidebar.
-  HideSidebar(true);
+  HideSidebar();
   EXPECT_FALSE(sidebar_container->IsSidebarVisible());
 
   // Set mouse position inside the mouse hover area to check sidebar UI is shown
@@ -855,7 +734,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithSplitViewTest,
   EXPECT_TRUE(sidebar_container->IsSidebarVisible());
 
   // Hide sidebar.
-  HideSidebar(true);
+  HideSidebar();
   EXPECT_FALSE(sidebar_container->IsSidebarVisible());
 
   // Check with the space between window border and contents.
@@ -867,7 +746,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithSplitViewTest,
   EXPECT_TRUE(sidebar_container->IsSidebarVisible());
 
   // Hide sidebar.
-  HideSidebar(true);
+  HideSidebar();
   EXPECT_FALSE(sidebar_container->IsSidebarVisible());
 
   // Test with split view.
@@ -892,7 +771,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithSplitViewTest,
   EXPECT_TRUE(sidebar_container->IsSidebarVisible());
 
   // Hide sidebar.
-  HideSidebar(true);
+  HideSidebar();
   EXPECT_FALSE(sidebar_container->IsSidebarVisible());
 
   // Check right split view's left hot corner doesn't handle.
@@ -923,11 +802,6 @@ class SidebarBrowserWithWebPanelTest
 
   BraveMultiContentsView* GetBraveMultiContentsView() {
     return browser_view()->GetBraveMultiContentsView();
-  }
-
-  BraveBrowserView* browser_view() {
-    return BraveBrowserView::From(
-        BrowserView::GetBrowserViewForBrowser(browser()));
   }
 
   bool IsWebPanelEnabled() const {
@@ -1079,7 +953,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
   // Check tab contents test with split view.
   // Create split view with tab at 1.
   tab_strip_model->ActivateTabAt(1);
-  chrome::NewSplitTab(browser(),
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kTabContextMenu);
   EXPECT_EQ(2, tab_strip_model->active_index());
   EXPECT_TRUE(tab_strip_model->GetTabAtIndex(1)->IsSplit());
@@ -1114,8 +988,7 @@ INSTANTIATE_TEST_SUITE_P(
     SidebarBrowserWithWebPanelTest,
     ::testing::Bool());
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, HideSidebarUITest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, HideSidebarUITest) {
   auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
   auto* sidebar_container = GetSidebarContainerView();
 
@@ -1126,7 +999,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, HideSidebarUITest) {
       [&]() { return sidebar_container->width() == 0; }));
 
   // Ask to show sidebar ui and check it's shown.
-  ShowSidebar(false);
+  ShowSidebar();
   const int target_control_view_width =
       GetSidebarControlView()->GetPreferredSize().width();
   EXPECT_GT(target_control_view_width, 0);
@@ -1135,14 +1008,12 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, HideSidebarUITest) {
   }));
 
   // Ask to hide sidebar ui and check it's not shown.
-  HideSidebar(true);
+  HideSidebar();
   WaitUntil(base::BindLambdaForTesting(
       [&]() { return sidebar_container->width() == 0; }));
 }
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
-                       ItemAddedBubbleAnchorViewTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemAddedBubbleAnchorViewTest) {
   auto* sidebar_service =
       SidebarServiceFactory::GetForProfile(browser()->profile());
   auto sidebar_items_contents_view = GetSidebarItemsContentsView(controller());
@@ -1180,8 +1051,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
             sidebar_items_contents_view->children()[lastly_added_item_index]);
 }
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, ItemActivatedScrollTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemActivatedScrollTest) {
   // To prevent item added bubble launching.
   auto* prefs = browser()->profile()->GetPrefs();
   prefs->SetInteger(sidebar::kSidebarItemAddedFeedbackBubbleShowCount, 3);
@@ -1203,15 +1073,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, ItemActivatedScrollTest) {
   EXPECT_TRUE(NeedScrollForItemAt(*bookmark_item_index, scroll_view));
 
   // Open bookmark panel.
-  if (IsV2Enabled()) {
-    // Use panel->Show() when V2 is enabled by default.
-    // Item should be responded by panel activation.
-    controller()->ActivateItemAt(
-        model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks));
-  } else {
-    browser()->GetFeatures().side_panel_ui()->Show(
-        SidePanelEntryId::kBookmarks);
-  }
+  browser()->GetFeatures().side_panel_ui()->Show(SidePanelEntryId::kBookmarks);
 
   // Wait till bookmarks item is visible.
   WaitUntil(base::BindLambdaForTesting([&]() {
@@ -1220,8 +1082,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, ItemActivatedScrollTest) {
   EXPECT_TRUE(controller()->IsActiveIndex(bookmark_item_index));
 }
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, ItemAddedScrollTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemAddedScrollTest) {
   // To prevent item added bubble launching.
   auto* prefs = browser()->profile()->GetPrefs();
   prefs->SetInteger(sidebar::kSidebarItemAddedFeedbackBubbleShowCount, 3);
@@ -1260,16 +1121,14 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, ItemAddedScrollTest) {
   EXPECT_TRUE(NeedScrollForItemAt(0, scroll_view));
 }
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, PRE_PrefsMigrationTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PRE_PrefsMigrationTest) {
   // Prepare temporarily changed condition.
   auto* prefs = browser()->profile()->GetPrefs();
   prefs->SetBoolean(sidebar::kSidebarAlignmentChangedTemporarily, true);
   prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, true);
 }
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, PrefsMigrationTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PrefsMigrationTest) {
   // Check all prefs are changed to default.
   auto* prefs = browser()->profile()->GetPrefs();
   EXPECT_TRUE(prefs->FindPreference(prefs::kSidePanelHorizontalAlignment)
@@ -1278,190 +1137,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, PrefsMigrationTest) {
                   ->IsDefaultValue());
 }
 
-// Category C: V1-only test (skip in V2)
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, SidePanelResizeTest) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Panel resize is V1-specific (V2 doesn't manage panel in "
-                    "sidebar container)";
-  }
-
-  auto* prefs = browser()->profile()->GetPrefs();
-  EXPECT_EQ(kDefaultSidePanelWidth,
-            prefs->GetInteger(sidebar::kSidePanelWidth));
-
-  browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
-
-  int expected_panel_width = kDefaultSidePanelWidth;
-
-  // Wait till sidebar animation ends.
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->width() == expected_panel_width; }));
-
-  // Test smaller panel width than default(minimum) and check smaller than
-  // default is not applied. Positive offset value is for reducing width in
-  // right-sided sidebar.
-  GetSidePanel()->OnResize(30, true);
-  // Check panel width is not changed.
-  EXPECT_EQ(expected_panel_width, prefs->GetInteger(sidebar::kSidePanelWidth));
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->width() == kDefaultSidePanelWidth; }));
-
-  // On right-side sidebar position, side panel's x and resize widget's x is
-  // same.
-  EXPECT_EQ(GetSidePanel()->GetBoundsInScreen().x(),
-            GetSidePanelResizeWidget()->GetWindowBoundsInScreen().x());
-
-  // Increase panel width and check resize handle widget's position.
-  // Negative offset value is for increasing width in right-sided
-  // sidebar.
-  GetSidePanel()->OnResize(-20, true);
-  expected_panel_width += 20;
-  EXPECT_EQ(expected_panel_width, prefs->GetInteger(sidebar::kSidePanelWidth));
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->width() == expected_panel_width; }));
-  EXPECT_EQ(GetSidePanel()->GetBoundsInScreen().x(),
-            GetSidePanelResizeWidget()->GetWindowBoundsInScreen().x());
-
-  // Set sidebar on left side.
-  prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
-  EXPECT_EQ(GetSidePanel()->GetBoundsInScreen().right(),
-            GetSidePanelResizeWidget()->GetWindowBoundsInScreen().right());
-
-  // Increase panel width and check width and resize handle position.
-  // Positive offset value is for increasing width in left-sided sidebar.
-  GetSidePanel()->OnResize(20, true);
-  expected_panel_width += 20;
-  EXPECT_EQ(expected_panel_width, prefs->GetInteger(sidebar::kSidePanelWidth));
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->width() == expected_panel_width; }));
-  EXPECT_EQ(GetSidePanel()->GetBoundsInScreen().right(),
-            GetSidePanelResizeWidget()->GetWindowBoundsInScreen().right());
-
-  // Close side panel.
-  browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return !GetSidePanel()->GetVisible(); }));
-
-  // Re-open side panel and check it's opened as wide as lastly used width.
-  browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->width() == expected_panel_width; }));
-}
-
-// Category C: V1-only (unmanaged panel entry test)
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, UnManagedPanelEntryTest) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Unmanaged panel entry testing is V1-specific";
-  }
-
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
-
-  // Show bookmarks entry and it has active index.
-  panel_ui->Show(SidePanelEntryId::kBookmarks);
-  // Wait till sidebar show ends.
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->width() == kDefaultSidePanelWidth; }));
-  EXPECT_TRUE(model()->active_index().has_value());
-
-  // Cache bookmarks entry index to remove it later.
-  const auto bookmark_item_index = model()->active_index().value();
-
-  // Close panel and wait till panel closing animation ends. Panel is hidden
-  // when closing completes.
-  panel_ui->Close();
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return !GetSidePanel()->GetVisible(); }));
-  EXPECT_FALSE(!!panel_ui->GetCurrentEntryId());
-
-  // Remove bookmarks and check it's gone.
-  SidebarServiceFactory::GetForProfile(browser()->profile())
-      ->RemoveItemAt(bookmark_item_index);
-  EXPECT_FALSE(!!model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks));
-
-  // Show bookmarks entry again and wait till sidebar panel gets visible
-  panel_ui->Show(SidePanelEntryId::kBookmarks);
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->GetVisible(); }));
-  EXPECT_EQ(SidePanelEntryId::kBookmarks, panel_ui->GetCurrentEntryId());
-}
-
-#if BUILDFLAG(ENABLE_BRAVE_WALLET)
-// Category C: V1-only (unmanaged panel after item deletion)
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
-                       OpenUnManagedPanelAfterDeletingDefaultWebTypeItem) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Unmanaged panel testing is V1-specific";
-  }
-
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
-  const auto items = model()->GetAllSidebarItems();
-  const auto wallet_item_iter =
-      std::ranges::find(items, SidebarItem::BuiltInItemType::kWallet,
-                        &SidebarItem::built_in_item_type);
-  ASSERT_NE(wallet_item_iter, items.cend());
-  const int wallet_item_index = std::distance(items.cbegin(), wallet_item_iter);
-  SidebarServiceFactory::GetForProfile(browser()->profile())
-      ->RemoveItemAt(wallet_item_index);
-  EXPECT_FALSE(!!model()->GetIndexOf(SidebarItem::BuiltInItemType::kWallet));
-
-  // Test with upstream's side panel that runs only with chrome://new-tab-page.
-  ASSERT_TRUE(
-      ui_test_utils::NavigateToURL(browser(), GURL("chrome://new-tab-page/")));
-  panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->GetVisible(); }));
-}
-#endif  // BUILDFLAG(ENABLE_BRAVE_WALLET)
-
-// Category C: V1-only (tab-specific vs global panels)
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
-                       TabSpecificAndGlobalPanelsTest) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Tab-specific vs global panel testing is V1-specific";
-  }
-
-  // Create another tab.
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
-
-  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
-
-  // Open contextual panel to tab at 0.
-  tab_model()->ActivateTabAt(0);
-  ASSERT_TRUE(
-      ui_test_utils::NavigateToURL(browser(), GURL("chrome://new-tab-page/")));
-
-  panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->GetVisible(); }));
-
-  // No panel when activated tab at 1 because we don't open any global panel.
-  tab_model()->ActivateTabAt(1);
-  EXPECT_FALSE(panel_ui->IsSidePanelShowing());
-
-  // Open global panel when active tab index is 1.
-  panel_ui->Show(SidePanelEntryId::kBookmarks);
-  WaitUntil(base::BindLambdaForTesting([&]() {
-    return panel_ui->GetCurrentEntryId() == SidePanelEntryId::kBookmarks;
-  }));
-
-  // Contextual panel should be set when activate tab at 0.
-  tab_model()->ActivateTabAt(0);
-  WaitUntil(base::BindLambdaForTesting([&]() {
-    return panel_ui->GetCurrentEntryId() == SidePanelEntryId::kCustomizeChrome;
-  }));
-
-  // Global panel should be set when activate tab at 1.
-  tab_model()->ActivateTabAt(1);
-  WaitUntil(base::BindLambdaForTesting([&]() {
-    return panel_ui->GetCurrentEntryId() == SidePanelEntryId::kBookmarks;
-  }));
-}
-
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, DisabledItemsTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, DisabledItemsTest) {
   auto* guest_browser = CreateGuestBrowser();
   auto* controller = guest_browser->GetFeatures().sidebar_controller();
   auto* model = controller->model();
@@ -1598,7 +1274,8 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestWithkSidebarShowAlwaysOnStable,
   testing::Mock::VerifyAndClearExpectations(&observer_);
 
   panel_ui->Close();
-  EXPECT_FALSE(panel_ui->IsSidePanelShowing());
+  WaitUntil(base::BindLambdaForTesting(
+      [&]() { return !panel_ui->IsSidePanelShowing(); }));
 
   // Check one shot panel is not opened anymore.
   EXPECT_CALL(observer_, OnActiveIndexChanged(testing::_, testing::_)).Times(0);
@@ -1660,17 +1337,26 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithPlaylist, Incognito) {
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
 
-class SidebarBrowserTestWithAIChat : public SidebarBrowserTest {
+// Fixture for the tab-scoped (non-global) AI Chat sidebar panel. The
+// TabSpecific tests below rely on the AI Chat sidebar item being a tab-specific
+// entry, which only happens when kAIChatGlobalSidePanelEverywhere is disabled —
+// with the global side panel feature on, AI Chat is registered as a global
+// entry.
+class SidebarBrowserTestWithTabSpecificAIChat : public SidebarBrowserTest {
  public:
-  SidebarBrowserTestWithAIChat() {
-    feature_list_.InitAndEnableFeature(ai_chat::features::kAIChat);
+  SidebarBrowserTestWithTabSpecificAIChat() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{ai_chat::features::kAIChat},
+        /*disabled_features=*/
+        {ai_chat::features::kAIChatGlobalSidePanelEverywhere});
   }
-  ~SidebarBrowserTestWithAIChat() override = default;
+  ~SidebarBrowserTestWithTabSpecificAIChat() override = default;
 
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat, TabSpecificPanel) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithTabSpecificAIChat,
+                       TabSpecificPanel) {
   // Collect item indexes for test
   constexpr auto kGlobalItemType = SidebarItem::BuiltInItemType::kBookmarks;
   constexpr auto kTabSpecificItemType = SidebarItem::BuiltInItemType::kChatUI;
@@ -1708,8 +1394,6 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat, TabSpecificPanel) {
 
   // Open a "global" panel from Tab 0
   tab_model()->ActivateTabAt(0);
-  // Tab changed flag should be cleared after ActivateTabAt() executed.
-  CheckOperationFromActiveTabChangedFlagCleared();
   SimulateSidebarItemClickAt(global_item_index.value());
   // Open a "tab specific" panel from Tab 1
   tab_model()->ActivateTabAt(1);
@@ -1724,7 +1408,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat, TabSpecificPanel) {
   EXPECT_EQ(model()->active_index(), global_item_index);
 }
 
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat,
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithTabSpecificAIChat,
                        TabSpecificPanelAndUnManagedPanel) {
   // Collect item indexes for test and remove global item.
   constexpr auto kGlobalItemType = SidebarItem::BuiltInItemType::kBookmarks;
@@ -1753,8 +1437,10 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat,
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   panel_ui->Show(SidePanelEntryId::kBookmarks);
   // Wait till sidebar show ends.
-  WaitUntil(base::BindLambdaForTesting(
-      [&]() { return GetSidePanel()->width() == kDefaultSidePanelWidth; }));
+  WaitUntil(base::BindLambdaForTesting([&]() {
+    return GetSidePanel()->width() >=
+           SidePanelEntry::kSidePanelDefaultContentWidth;
+  }));
   // Unmanaged entry becomes managed when its panel is shown
   // and it becomes active item.
   EXPECT_TRUE(model()->active_index().has_value());
@@ -1798,7 +1484,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat,
             browser2_model->GetIndexOf(SidebarItem::BuiltInItemType::kChatUI));
 }
 
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat,
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithTabSpecificAIChat,
                        TabSpecificPanelIdxChange) {
   // Collect item indexes for test
   constexpr auto kGlobalItemType = SidebarItem::BuiltInItemType::kBookmarks;
@@ -1840,13 +1526,13 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithAIChat,
 
 #endif  // BUILDFLAG(ENABLE_AI_CHAT)
 
-// Category A:
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, SidebarRightSideTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarRightSideTest) {
   // Sidebar is on right by default
   EXPECT_FALSE(IsSidebarUIOnLeft());
 
   brave::ToggleVerticalTabStrip(browser());
-  ASSERT_TRUE(tabs::utils::ShouldShowBraveVerticalTabs(browser()));
+  ASSERT_TRUE(VerticalTabController::FromBrowser(browser())
+                  ->ShouldShowBraveVerticalTabs());
 
   auto* prefs = browser()->profile()->GetPrefs();
   auto* vertical_tabs_container = GetVerticalTabsContainer();
@@ -1879,163 +1565,85 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, SidebarRightSideTest) {
   EXPECT_TRUE(prefs->GetBoolean(prefs::kSidePanelHorizontalAlignment));
 }
 
-// Category C: V1-only (SidebarContainerView observation test)
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2,
-                       SidebarContainerDoesNotObserveToolbarHeightEntry) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "SidebarContainerView observation is V1-specific";
-  }
-
-  // This test verifies that SidebarContainerView doesn't observe
-  // SidePanelEntry with kToolbar type, as it only observes kContent type
-  // entries per AddSidePanelEntryObservation() implementation.
-
-  auto* sidebar_container = GetSidebarContainerView();
-
-  // Get the tab registry and create a kToolbar type entry
-  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
-  ASSERT_TRUE(registry);
-
-  // Create a kToolbar type SidePanelEntry
-  std::unique_ptr<SidePanelEntry> toolbar_entry =
-      std::make_unique<SidePanelEntry>(
-          SidePanelType::kToolbar,
-          SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
-          base::BindRepeating([](SidePanelEntryScope&) {
-            return std::make_unique<views::View>();
-          }),
-          /*default_content_width_callback=*/base::NullCallback());
-
-  auto* toolbar_entry_ptr = toolbar_entry.get();
-  registry->Register(std::move(toolbar_entry));
-
-  // Show the toolbar entry
-  auto* coordinator = SidePanelCoordinator::From(browser());
-  coordinator->SetNoDelaysForTesting(true);
-  coordinator->Show(SidePanelEntry::Id::kAboutThisSite);
-
-  // Verify that SidebarContainerView is NOT observing the kToolbar entry.
-  EXPECT_FALSE(toolbar_entry_ptr->IsBeingObservedBy(sidebar_container));
-}
-
-// Category B:
-// Tests that sidebar container, side panel, control view, and contents
-// container are positioned correctly in RTL mode.
-//
 // Three fixes work together:
-//   - SetMirrored(false) on SidebarContainerView/SidebarControlView prevents
+//   - SetMirrored(false) on SidebarControlView prevents
 //     the Views framework from flipping internal layout in RTL.
 //   - SetFlipCanvasOnPaintForRTLUI(false) on buttons prevents icon flipping.
-//   - GetMirroredRect(contents_bounds) in BraveBrowserViewLayout ensures the
-//     contents container is placed correctly next to the sidebar in RTL.
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, SidebarLayoutInRTLTest) {
+//   - BraveBrowserViewTabbedLayoutImpl flips the alignment pref into a
+//     leading-edge boolean in stored coordinates (IsSideBarLeading), so the
+//     sidebar renders on the visual side the user chose in RTL.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarLayoutInRTLTest) {
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* sidebar_container = GetSidebarContainerView();
-  auto* control_view = GetSidebarControlView();
+  auto* panel = GetSidePanel();
+  panel->DisableAnimationsForTesting();
   auto* contents_view = browser_view->contents_container();
+  auto* prefs = browser()->profile()->GetPrefs();
+
+  // --- Right-aligned sidebar ---
+  prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, true);
+  ASSERT_FALSE(IsSidebarUIOnLeft());
 
   // Needs invalidation to apply RTL mode layout.
   base::i18n::ScopedRTLForTesting scoped_rtl(/*rtl=*/true);
   browser_view->InvalidateLayout();
   RunScheduledLayouts();
 
-  // --- Right-aligned sidebar (default) ---
-  ASSERT_FALSE(IsSidebarUIOnLeft());
-
-  // As we set mirrored rect for sidebar and contents during the layout,
-  // Each views' mirrored bounds are what we're seeing in RTL mode.
+  // Mirrored bounds are the visual positions in RTL: the sidebar must stay on
+  // the visual right, matching the user's alignment pref.
   EXPECT_LE(contents_view->GetMirroredBounds().right(),
             sidebar_container->GetMirroredBounds().x());
 
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Below panel position observation is V1-specific";
-  }
-
-  // Open the side panel to verify panel/control positioning within the
-  // sidebar container.
+  // Open the side panel to verify panel/control positioning.
   browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
   RunScheduledLayouts();
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return GetSidePanel()->width() == kDefaultSidePanelWidth; }));
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    // panel can have border insets.
+    return panel->width() >= SidePanelEntry::kSidePanelDefaultContentWidth;
+  }));
 
-  // As container disabled mirroring(SetMirrored(false)),
-  // their bounds are what we're seeing.
-  EXPECT_LE(GetSidePanel()->bounds().right(), control_view->bounds().x());
+  // Mirrored bounds are the visual positions in RTL:
+  // panel must stay on the visual left.
+  EXPECT_LE(panel->GetMirroredBounds().right(),
+            sidebar_container->GetMirroredBounds().x());
 
   // --- Left-aligned sidebar in RTL mode ---
-  auto* prefs = browser()->profile()->GetPrefs();
   prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
   ASSERT_TRUE(IsSidebarUIOnLeft());
   RunScheduledLayouts();
 
-  // As container disabled mirroring(SetMirrored(false)),
-  // their bounds are what we're seeing.
-  EXPECT_LE(control_view->bounds().right(), GetSidePanel()->bounds().x());
+  // Mirrored bounds are the visual positions in RTL:
+  // panel must stay on the visual right.
+  EXPECT_LE(sidebar_container->GetMirroredBounds().right(),
+            panel->GetMirroredBounds().x());
 
-  // As we set mirrored rect for sidebar and contents during the layout,
-  // Each views' mirrored bounds are what we're seeing in RTL mode.
+  // Mirrored bounds are the visual positions in RTL: the sidebar must stay on
+  // the visual left, matching the user's alignment pref.
   EXPECT_LE(sidebar_container->GetMirroredBounds().right(),
             contents_view->GetMirroredBounds().x());
 }
 
-// Category C: V1-only (Panel test)
-// Tests that side panel resize direction is correct in RTL mode.
-// The OnResize sign convention is flipped in RTL compared to LTR because the
-// drag direction on screen is reversed.
-IN_PROC_BROWSER_TEST_P(SidebarBrowserTestV1AndV2, SidePanelResizeInRTLTest) {
-  if (IsV2Enabled()) {
-    GTEST_SKIP() << "Panel resize test is V1-specific";
-  }
+using views::ShapeContextTokensOverride::kRoundedCornersBorderRadius;
+using views::ShapeContextTokensOverride::
+    kRoundedCornersBorderRadiusAtWindowCorner;
 
-  // Open side panel (right-aligned by default).
-  browser()->command_controller()->ExecuteCommand(IDC_TOGGLE_SIDEBAR);
-  RunScheduledLayouts();
-  int expected_width = kDefaultSidePanelWidth;
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return GetSidePanel()->width() == expected_width; }));
-
-  // In LTR with right-aligned sidebar: negative resize_amount increases width.
-  GetSidePanel()->OnResize(-20, true);
-  expected_width += 20;
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return GetSidePanel()->width() == expected_width; }));
-
-  // Enable RTL mode.
-  base::i18n::ScopedRTLForTesting scoped_rtl(/*rtl=*/true);
-  BrowserView::GetBrowserViewForBrowser(browser())->InvalidateLayout();
-  RunScheduledLayouts();
-
-  // In RTL with right-aligned sidebar: positive resize_amount increases width
-  // (sign is flipped because screen drag direction reverses in RTL).
-  GetSidePanel()->OnResize(20, true);
-  expected_width += 20;
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return GetSidePanel()->width() == expected_width; }));
-}
-
-// Instantiate parameterized tests for both V1 and V2
-INSTANTIATE_TEST_SUITE_P(
-    /* no prefix */,
-    SidebarBrowserTestV1AndV2,
-    ::testing::Bool(),  // false = V1, true = V2
-    [](const testing::TestParamInfo<bool>& info) {
-      return info.param ? "V2" : "V1";
-    });
-
-#if BUILDFLAG(ENABLE_SIDEBAR_V2)
-// In V2 the upstream side panel is a direct child of browser_view, positioned
+// The upstream side panel is a direct child of browser_view, positioned
 // by CalculateSideBarLayout.  Verify that when the panel is open it sits
 // between the contents container and the sidebar control, NOT outside it.
-// Covers both the default right-side and the explicitly set left-side layouts.
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2PanelPositionTest) {
+// Covers: right-side, left-side, and VT+sidebar on the same side (regression
+// for the vtab_width gap bug fixed in ComputeAdjustedPanelBounds).
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelPositionTest) {
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* panel = browser_view->side_panel();
   panel->DisableAnimationsForTesting();
   SidebarContainerView* sidebar = GetSidebarContainerView();
   auto* prefs = browser()->profile()->GetPrefs();
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
 
   browser()->GetFeatures().side_panel_ui()->Toggle();
   RunScheduledLayouts();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
 
   ASSERT_TRUE(panel->GetVisible());
   ASSERT_TRUE(sidebar->IsSidebarVisible());
@@ -2047,16 +1655,14 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2PanelPositionTest) {
 
   // Panel sits immediately left of the sidebar control:
   //   [contents] [panel] [sidebar_control]
-  EXPECT_EQ(panel->bounds().right(), sidebar->bounds().x())
-      << "panel=" << panel->bounds().ToString()
-      << " sidebar=" << sidebar->bounds().ToString();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return panel->bounds().right() == sidebar->bounds().x(); }));
 
   // Panel top must align with the contents container — the upstream layout
   // offsets the panel -1px to overlap the toolbar separator; Brave removes
   // that offset so the separator is fully visible.
-  EXPECT_EQ(panel->bounds().y(), contents->bounds().y())
-      << "panel y=" << panel->bounds().y()
-      << " contents y=" << contents->bounds().y();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return panel->bounds().y() == contents->bounds().y(); }));
 
   // --- Sidebar on left (kSidePanelHorizontalAlignment = false)
   prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
@@ -2073,17 +1679,56 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2PanelPositionTest) {
   EXPECT_EQ(panel->bounds().y(), contents->bounds().y())
       << "panel y=" << panel->bounds().y()
       << " contents y=" << contents->bounds().y();
+
+  // --- VT and sidebar on the same left side (VT left by default, sidebar
+  // left). Before the fix, the panel was misplaced by vtab_width, leaving a gap
+  // between the panel and the contents container.
+  prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
+  brave::ToggleVerticalTabStrip(browser());
+  ASSERT_TRUE(VerticalTabController::FromBrowser(browser())
+                  ->ShouldShowBraveVerticalTabs());
+  // VT defaults to left (kVerticalTabsOnRight = false).
+  ASSERT_FALSE(
+      VerticalTabController::FromBrowser(browser())->IsVerticalTabOnRight());
+  RunScheduledLayouts();
+
+  ASSERT_TRUE(sidebar->sidebar_on_left());
+
+  // Panel sits immediately right of the sidebar control; no gap to contents.
+  //   [VT] [sidebar_control] [panel] [contents]
+  EXPECT_EQ(sidebar->bounds().right(), panel->bounds().x())
+      << "sidebar=" << sidebar->bounds().ToString()
+      << " panel=" << panel->bounds().ToString();
+  EXPECT_EQ(panel->bounds().y(), contents->bounds().y())
+      << "panel y=" << panel->bounds().y()
+      << " contents y=" << contents->bounds().y();
+
+  // --- VT and sidebar on the same right side (VT right, sidebar right).
+  prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, true);
+  prefs->SetBoolean(brave_tabs::kVerticalTabsOnRight, true);
+  ASSERT_TRUE(
+      VerticalTabController::FromBrowser(browser())->IsVerticalTabOnRight());
+  RunScheduledLayouts();
+
+  ASSERT_FALSE(sidebar->sidebar_on_left());
+
+  // Panel sits immediately left of the sidebar control; no gap to contents.
+  //   [contents] [panel] [sidebar_control] [VT]
+  EXPECT_EQ(panel->bounds().right(), sidebar->bounds().x())
+      << "panel=" << panel->bounds().ToString()
+      << " sidebar=" << sidebar->bounds().ToString();
+  EXPECT_EQ(panel->bounds().y(), contents->bounds().y())
+      << "panel y=" << panel->bounds().y()
+      << " contents y=" << contents->bounds().y();
 }
 
 // Verify that the sidebar item active state in SidebarModel is updated:
 // - When clicking a panel item via the sidebar UI.
 // - When the side panel is opened or closed via the side panel UI directly
 //   (e.g. toolbar toggle button), which bypasses SidebarController.
-//   In V1, SidebarContainerView monitors panel show/hide events and asks
-//   SidebarController to update the active state. In V2,
-//   SidebarContainerView does not do that, so BraveSidePanelCoordinator
-//   handles it in Show() and Close().
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ActiveItemStateSync) {
+//   SidebarContainerView does not monitor panel show/hide events, so
+//   BraveSidePanelCoordinator updates the active state in Show() and Close().
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarActiveItemStateSync) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   panel_ui->DisableAnimationsForTesting();
 
@@ -2134,7 +1779,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ActiveItemStateSync) {
 
 // Verify the Brave-styled side panel header is attached for reading list and
 // bookmarks and absent for other entries.
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2BraveHeaderTest) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, BraveSidePanelHeaderTest) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* side_panel = browser_view->side_panel();
@@ -2169,13 +1814,190 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2BraveHeaderTest) {
       << "BraveSidePanelHeader should not be attached for CustomizeChrome";
 }
 
-// Verify that the resize area is positioned correctly for both border states.
-// With border: the resize area sits inside the border inset strip (its width
-// equals the border inset and it starts at x=0).
-// Without border: the resize area is a narrow kNoBorderResizeAreaWidth strip
-// placed at the inner edge facing the web content.
+namespace {
+
+// Asserts layer-backed content children carry the expected corner radii.
+// Children without compositor layers (the typical WebView holder path) are
+// silently skipped; their corners can't be observed via public API.
+void ExpectContentChildLayerCorners(SidePanel* panel,
+                                    const gfx::RoundedCornersF& expected,
+                                    const base::Location& loc = FROM_HERE) {
+  SCOPED_TRACE(loc.ToString());
+  for (const auto child : panel->GetContentParentView()->children()) {
+    if (child->layer()) {
+      EXPECT_EQ(expected, child->layer()->rounded_corner_radii());
+    }
+  }
+}
+
+}  // namespace
+
+// Verify that content corner radii stay correct across three triggers:
+//   (a) panel type change (header ↔ no-header entry),
+//   (b) rounded-corners pref toggle while the panel is open,
+//   (c) panel reopened after the pref changed while it was closed.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
-                       SidebarV2ResizeAreaPositionMatchesBorderState) {
+                       PanelContentCornersUpdateOnStateChange) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* side_panel =
+      BrowserView::GetBrowserViewForBrowser(browser())->side_panel();
+  auto* prefs = browser()->profile()->GetPrefs();
+  side_panel->DisableAnimationsForTesting();
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+
+  const int r = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+      kRoundedCornersBorderRadius);
+  const gfx::RoundedCornersF flat_top(0, 0, r, r);
+  const gfx::RoundedCornersF all_round(r);
+  const gfx::RoundedCornersF none;
+
+  auto wait_for_entry = [&](SidePanelEntryId id,
+                            const base::Location& loc = FROM_HERE) {
+    SCOPED_TRACE(loc.ToString());
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return panel_ui->IsSidePanelEntryShowing(SidePanelEntry::Key(id));
+    }));
+  };
+
+  // (a) Panel type change -----------------------------------------------
+
+  // Bookmarks has a Brave header → top corners must be flat.
+  panel_ui->Show(SidePanelEntryId::kBookmarks);
+  wait_for_entry(SidePanelEntryId::kBookmarks);
+  EXPECT_NE(nullptr, side_panel->GetHeaderView<views::View>());
+  EXPECT_EQ(flat_top, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, flat_top);
+
+  // CustomizeChrome has no Brave header → all corners must be round.
+  panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
+  wait_for_entry(SidePanelEntryId::kCustomizeChrome);
+  EXPECT_EQ(nullptr, side_panel->GetHeaderView<views::View>());
+  EXPECT_EQ(all_round, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, all_round);
+
+  // Back to bookmarks → flat top again.
+  panel_ui->Show(SidePanelEntryId::kBookmarks);
+  wait_for_entry(SidePanelEntryId::kBookmarks);
+  EXPECT_NE(nullptr, side_panel->GetHeaderView<views::View>());
+  EXPECT_EQ(flat_top, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, flat_top);
+
+  // (b) Pref change while panel is open ---------------------------------
+
+  // Pref OFF: no corners regardless of header (UpdateBorder() path).
+  prefs->SetBoolean(kWebViewRoundedCorners, false);
+  EXPECT_EQ(none, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, none);
+
+  // Pref ON again: flat top (bookmarks has header).
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+  EXPECT_EQ(flat_top, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, flat_top);
+
+  // (c) Panel reopened after pref changed while closed ------------------
+
+  panel_ui->Close();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !side_panel->GetVisible(); }));
+
+  // Toggle pref while the panel is hidden.
+  prefs->SetBoolean(kWebViewRoundedCorners, false);
+
+  // Reopen — Open() must re-apply corners with the new pref value.
+  panel_ui->Show(SidePanelEntryId::kBookmarks);
+  wait_for_entry(SidePanelEntryId::kBookmarks);
+  EXPECT_EQ(none, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, none);
+}
+
+// Verify that toggling the sidebar UI's visibility while a panel is open
+// re-applies the panel's content corners. SidebarContainerView runs a
+// visibility-changed callback (wired to BraveBrowserView::UpdateBorder() on the
+// panel), so the inner bottom corner flips between the regular radius (sidebar
+// visible) and the window-corner radius (sidebar hidden, panel flush with the
+// window edge) without any other trigger. The inner bottom corner is the
+// lower-right for a right-aligned panel and the lower-left for a left-aligned
+// panel, so the cycle is exercised under both alignments. Each step checks both
+// the helper's computed corners and the corners actually applied to the content
+// child layers.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
+                       PanelContentCornersFollowSidebarVisibility) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* side_panel = browser_view()->side_panel();
+  auto* prefs = browser()->profile()->GetPrefs();
+  auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
+  side_panel->DisableAnimationsForTesting();
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+
+  const int r = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+      kRoundedCornersBorderRadius);
+  const int rw = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+      kRoundedCornersBorderRadiusAtWindowCorner);
+
+  // Open a panel with a Brave header, so the top corners are flat and only the
+  // inner bottom corner varies with sidebar visibility.
+  panel_ui->Show(SidePanelEntryId::kBookmarks);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  }));
+
+  // Asserts both the computed corners and the corners applied to content
+  // layers.
+  auto expect_corners = [&](const gfx::RoundedCornersF& expected,
+                            const base::Location& loc = FROM_HERE) {
+    SCOPED_TRACE(loc.ToString());
+    EXPECT_EQ(expected, brave::GetPanelContentsRoundedCorners(browser_view()));
+    ExpectContentChildLayerCorners(side_panel, expected);
+  };
+
+  // Sidebar visible: the inner bottom corner uses the regular radius regardless
+  // of alignment.
+  const gfx::RoundedCornersF visible(0, 0, r, r);
+  struct Case {
+    bool right_aligned;
+    gfx::RoundedCornersF hidden;  // inner bottom corner is the window corner.
+  };
+  const Case cases[] = {
+      {true, gfx::RoundedCornersF(0, 0, rw, r)},   // right → lower-right.
+      {false, gfx::RoundedCornersF(0, 0, r, rw)},  // left  → lower-left.
+  };
+
+  for (const auto& c : cases) {
+    SCOPED_TRACE(c.right_aligned ? "right-aligned" : "left-aligned");
+    prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, c.right_aligned);
+
+    // Sidebar visible (kShowAlways): regular radius.
+    service->SetSidebarShowOption(
+        SidebarService::ShowSidebarOption::kShowAlways);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return browser_view()->IsSidebarVisible(); }));
+    expect_corners(visible);
+
+    // Hide the sidebar UI: the callback must drive UpdateBorder() so the inner
+    // bottom corner becomes the window-corner radius.
+    service->SetSidebarShowOption(
+        SidebarService::ShowSidebarOption::kShowNever);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return !browser_view()->IsSidebarVisible(); }));
+    expect_corners(c.hidden);
+
+    // Show the sidebar UI again: back to the regular radius.
+    service->SetSidebarShowOption(
+        SidebarService::ShowSidebarOption::kShowAlways);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return browser_view()->IsSidebarVisible(); }));
+    expect_corners(visible);
+  }
+}
+
+// Verify that the resize area is positioned correctly for both border states.
+// In both cases the strip starts at the panel's outer edge with width
+// kResizeStripWidth. Border state only affects z-order: without rounded
+// corners the strip is reordered to the top so it wins the hit-test over
+// the overlapping content edge.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
+                       PanelResizeAreaPositionMatchesBorderState) {
   auto* panel_ui = browser()->GetFeatures().side_panel_ui();
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* side_panel = browser_view->side_panel();
@@ -2191,48 +2013,43 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
   auto* resize_area = side_panel->resize_area_for_testing();
   ASSERT_TRUE(resize_area);
 
-  // --- Border case (rounded corners ON) ---
-  prefs->SetBoolean(kWebViewRoundedCorners, true);
-  RunScheduledLayouts();
-  EXPECT_GT(side_panel->GetInsets().width(), 0)
-      << "panel should have left/right insets";
-
-  // In the bordered case the resize strip sits in the gap between the panel
-  // edge and the content, at the left edge (panel is on the right in LTR).
-  // Check resize area and panel's screen bounds.origin().
-  EXPECT_EQ(resize_area->GetBoundsInScreen().origin(),
-            side_panel->GetBoundsInScreen().origin())
-      << "Bordered resize area right edge should align with content origin";
-  EXPECT_EQ(resize_area->width(), side_panel->GetInsets().left())
-      << "Bordered resize area width should match the left border inset";
-  EXPECT_EQ(side_panel->GetIndexOf(resize_area),
-            side_panel->children().size() - 1)
-      << "resize area should be the top-most view";
-
-  // --- No-border case (rounded corners OFF) ---
-  prefs->SetBoolean(kWebViewRoundedCorners, false);
-  RunScheduledLayouts();
-  EXPECT_EQ(0, side_panel->GetInsets().width());
-
-  // Shared assertions for the no-border state after a panel switch.
-  auto verify_no_border_state = [&](const base::Location& loc) {
+  // Verifies resize strip position, width, z-order, and panel insets for the
+  // given border mode. Panel is on the right in LTR, so the content-facing
+  // edge is left and the outer edge is right.
+  auto verify_state = [&](bool rounded_corners,
+                          const base::Location& loc = FROM_HERE) {
     SCOPED_TRACE(loc.ToString());
-    EXPECT_EQ(0, side_panel->GetInsets().width())
-        << "Border insets' width should stay empty after switching panels "
-           "(border OFF)";
+    if (rounded_corners) {
+      EXPECT_EQ(0, side_panel->GetInsets().left())
+          << "rounded: no content-side inset (content view owns its margin)";
+      EXPECT_EQ(kRoundedCornersContentsViewMargin,
+                side_panel->GetInsets().right())
+          << "rounded: outer-side gap for visual separation from window chrome";
+    } else {
+      EXPECT_EQ(1, side_panel->GetInsets().left())
+          << "plain: 1px separator on the content-facing side";
+      EXPECT_EQ(0, side_panel->GetInsets().right())
+          << "plain: no outer-side inset";
+    }
     EXPECT_EQ(resize_area->GetBoundsInScreen().origin(),
               side_panel->GetBoundsInScreen().origin())
-        << "No-border resize area should be placed at the inner edge of "
-           "content";
+        << "resize strip should sit at the panel's outer edge";
     EXPECT_EQ(resize_area->width(),
-              views::BraveSidePanelResizeArea::kNoBorderResizeAreaWidth)
-        << "No-border resize area width should equal kNoBorderResizeAreaWidth";
+              views::BraveSidePanelResizeArea::kResizeStripWidth)
+        << "resize strip width should equal kResizeStripWidth";
     EXPECT_EQ(side_panel->GetIndexOf(resize_area),
               side_panel->children().size() - 1)
-        << "resize area should be the top-most view";
+        << "resize strip should be the top-most child view";
   };
 
-  // --- Panel-switch: border OFF must survive switching panels ---
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+  RunScheduledLayouts();
+  verify_state(true);
+
+  prefs->SetBoolean(kWebViewRoundedCorners, false);
+  RunScheduledLayouts();
+  verify_state(false);
+
   // Switch to another panel that has brave panel header.
   panel_ui->Show(SidePanelEntryId::kBookmarks);
   ASSERT_TRUE(base::test::RunUntil([&]() {
@@ -2240,7 +2057,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
         SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
   }));
   RunScheduledLayouts();
-  verify_no_border_state(FROM_HERE);
+  verify_state(false);
 
   // Switch to another panel that doesn't have brave panel header.
   panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
@@ -2249,16 +2066,96 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
         SidePanelEntry::Key(SidePanelEntryId::kCustomizeChrome));
   }));
   RunScheduledLayouts();
-  verify_no_border_state(FROM_HERE);
+  verify_state(false);
 }
 
-// Regression test: the top container separator must remain visible when a side
-// panel opens. Upstream suppresses it (suppress_top_separator=true) when the
-// side panel is shown and GetTopSeparatorType() returns kTopContainer.
-// BraveBrowserViewTabbedLayoutImpl::CalculateTopContainerLayoutImpl resets the
-// flag to false for that case so the separator stays shown.
-// Rounded corners must be disabled: GetTopSeparatorType() only returns
-// kTopContainer (instead of kNone) when rounded corners are off.
+// Verify that the panel border insets follow the sidebar's horizontal
+// alignment, in both LTR and RTL. Flipping kSidePanelHorizontalAlignment runs
+// through BraveBrowserView::UpdateSideBarHorizontalAlignment(), and toggling
+// kWebViewRoundedCorners runs through UpdateRoundedCornersUI(); both end up in
+// SidePanel::UpdateBorder(). The content-facing edge owns the separator/margin
+// and the outer edge owns the rounded-corner gap.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelBorderInsetsFollowAlignment) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* side_panel = browser_view->side_panel();
+  side_panel->DisableAnimationsForTesting();
+  auto* prefs = browser()->profile()->GetPrefs();
+
+  panel_ui->Toggle();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return side_panel->GetVisible(); }));
+
+  // Border insets live in the panel's stored (pre-mirror) coordinate space, so
+  // they track the leading edge rather than the visual side: the web contents
+  // sit on the panel's high-X (right) stored side when the sidebar is leading,
+  // and on the low-X (left) side when it is trailing. browser_view
+  // mirror-paints the panel in RTL, so the separator still renders against the
+  // contents visually. This mirrors SidePanel::UpdateBorder()'s own
+  // is_sidebar_leading = (IsRightAligned() == IsRTL()) logic.
+  auto verify_state = [&](bool right_aligned, bool rounded_corners,
+                          const base::Location& loc = FROM_HERE) {
+    SCOPED_TRACE(loc.ToString());
+    const bool is_sidebar_leading = (right_aligned == base::i18n::IsRTL());
+    const gfx::Insets insets = side_panel->GetInsets();
+    const int content_side =
+        is_sidebar_leading ? insets.right() : insets.left();
+    const int outer_side = is_sidebar_leading ? insets.left() : insets.right();
+    if (rounded_corners) {
+      EXPECT_EQ(0, content_side)
+          << "rounded: no content-side inset (content view owns its margin)";
+      EXPECT_EQ(kRoundedCornersContentsViewMargin, outer_side)
+          << "rounded: outer-side gap for visual separation from window chrome";
+    } else {
+      EXPECT_EQ(1, content_side)
+          << "plain: 1px separator on the content-facing side";
+      EXPECT_EQ(0, outer_side) << "plain: no outer-side inset";
+    }
+  };
+
+  // Exercises every (alignment x rounded) combination, transitioning one pref
+  // at a time so each step fires OnPreferenceChanged -> UpdateBorder(). Both
+  // alignment directions (right->left and left->right) are covered. The matrix
+  // ends at right-aligned + plain, so the first step of a second call (a
+  // rounded change) is always a real change that recomputes the border.
+  auto run_matrix = [&]() {
+    prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, true);
+    prefs->SetBoolean(kWebViewRoundedCorners, true);
+    RunScheduledLayouts();
+    ASSERT_TRUE(side_panel->IsRightAligned());
+    verify_state(/*right_aligned=*/true, /*rounded_corners=*/true);
+
+    prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
+    RunScheduledLayouts();
+    ASSERT_FALSE(side_panel->IsRightAligned());
+    verify_state(/*right_aligned=*/false, /*rounded_corners=*/true);
+
+    prefs->SetBoolean(kWebViewRoundedCorners, false);
+    RunScheduledLayouts();
+    verify_state(/*right_aligned=*/false, /*rounded_corners=*/false);
+
+    prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, true);
+    RunScheduledLayouts();
+    ASSERT_TRUE(side_panel->IsRightAligned());
+    verify_state(/*right_aligned=*/true, /*rounded_corners=*/false);
+  };
+
+  // LTR.
+  run_matrix();
+
+  // RTL: the same stored-space expectations map to the mirror-image visual
+  // sides. The first step inside the scope is a rounded-corners change, so the
+  // border is recomputed with IsRTL() == true.
+  {
+    base::i18n::ScopedRTLForTesting scoped_rtl(/*rtl=*/true);
+    run_matrix();
+  }
+}
+
+// Regression test: the top container separator must remain visible when a
+// side panel opens. Upstream's CalculateSeparatorInfo() would clear
+// `top_container_separator` in this case, but
+// BraveBrowserViewTabbedLayoutImpl::CalculateSeparatorInfo() promotes it back
+// to true when rounded corners are off, so the separator stays shown.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
                        TopContainerSeparatorVisibleWhenPanelOpens) {
   browser()->profile()->GetPrefs()->SetBoolean(kWebViewRoundedCorners, false);
@@ -2340,8 +2237,7 @@ class MockSidePanelUI : public SidePanelUI {
 
 // Verify suppress_animations is false when opening from a closed state and
 // true when switching panels while one is already active.
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
-                       SidebarV2ActivatePanelItemSuppressAnimation) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ActivatePanelItemSuppressAnimation) {
   MockSidePanelUI mock_ui;
   ScopedSidePanelUIForTesting scoped_ui(controller(), &mock_ui);
 
@@ -2364,12 +2260,12 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
   controller()->ActivatePanelItem(SidebarItem::BuiltInItemType::kReadingList);
 }
 
-// In V2, the toolbar SidePanelButton acts as a "temporal pin" for the sidebar
+// The toolbar SidePanelButton acts as a "temporal pin" for the sidebar
 // control view: clicking it toggles a session-only pinned state that forces
 // the sidebar visible regardless of show option. The pinned state must reset
 // when the show option changes. The button is hidden under kShowAlways
 // because the sidebar is already always visible.
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ToolbarButtonPinning) {
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ToolbarButtonPinning) {
   auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
   auto* sidebar_container = GetSidebarContainerView();
   auto* button = GetSidePanelToolbarButton();
@@ -2399,11 +2295,9 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ToolbarButtonPinning) {
         << "Precondition: pinned=false before pin";
     ASSERT_FALSE(sidebar_container->IsSidebarVisible())
         << "Precondition: sidebar hidden before pin";
-    ASSERT_FALSE(button_highlighted())
-        << "Precondition: button not highlighted before pin";
 
     // Pin: sidebar snaps visible, button highlights (fade-in).
-    controller()->ToggleSidebarPinning();
+    button->button_controller()->NotifyClick();
     EXPECT_TRUE(controller()->sidebar_pinned()) << "Pin should set pinned=true";
     EXPECT_TRUE(sidebar_container->IsSidebarVisible())
         << "Pin should force sidebar visible regardless of show option";
@@ -2412,7 +2306,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ToolbarButtonPinning) {
 
     // Unpin: pinned flips immediately; button highlight + sidebar visibility
     // unwind asynchronously (animations).
-    controller()->ToggleSidebarPinning();
+    button->button_controller()->NotifyClick();
     EXPECT_FALSE(controller()->sidebar_pinned())
         << "Unpin should set pinned=false";
     ASSERT_TRUE(base::test::RunUntil([&]() { return !button_highlighted(); }))
@@ -2446,7 +2340,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ToolbarButtonPinning) {
   // Pin again, then change the show option → pinned must reset to false and
   // the sidebar must follow the new option (kShowOnMouseOver, mouse parked
   // outside sidebar → hidden).
-  controller()->ToggleSidebarPinning();
+  button->button_controller()->NotifyClick();
   ASSERT_TRUE(controller()->sidebar_pinned())
       << "Pinning again should set pinned=true (precondition for reset test)";
   ASSERT_TRUE(sidebar_container->IsSidebarVisible())
@@ -2480,6 +2374,235 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarV2ToolbarButtonPinning) {
       << "Pinned state must remain false after returning to kShowAlways";
 }
 
-#endif  // BUILDFLAG(ENABLE_SIDEBAR_V2)
+// Verifies that pinning the sidebar highlights the toolbar button and that the
+// highlight survives theme changes (regression test for when OnThemeChanged()
+// was clearing the ink-drop highlight state).
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
+                       ButtonHighlightPersistedAfterThemeChange) {
+  auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
+  auto* theme_service =
+      ThemeServiceFactory::GetForProfile(browser()->profile());
+  auto* button = GetSidePanelToolbarButton();
+  ASSERT_TRUE(button);
+
+  // Set initial theme.
+  theme_service->SetBrowserColorScheme(
+      ThemeService::BrowserColorScheme::kLight);
+
+  auto button_highlighted = [&]() {
+    return views::InkDrop::Get(button)->GetHighlighted();
+  };
+
+  // Switch to kShowNever so the toolbar button is visible.
+  service->SetSidebarShowOption(SidebarService::ShowSidebarOption::kShowNever);
+  ASSERT_TRUE(button->GetVisible());
+
+  // Pin the sidebar — button should become highlighted.
+  button->button_controller()->NotifyClick();
+  ASSERT_TRUE(controller()->sidebar_pinned());
+  ASSERT_TRUE(base::test::RunUntil([&]() { return button_highlighted(); }))
+      << "Button should be highlighted after pinning";
+
+  // Switch to dark theme — this previously cleared the ink-drop highlight.
+  theme_service->SetBrowserColorScheme(ThemeService::BrowserColorScheme::kDark);
+  EXPECT_TRUE(button_highlighted())
+      << "Button highlight should be preserved after switching to dark theme";
+
+  // Switch back to light theme — highlight must survive this change too.
+  theme_service->SetBrowserColorScheme(
+      ThemeService::BrowserColorScheme::kLight);
+  EXPECT_TRUE(button_highlighted())
+      << "Button highlight should be preserved after switching to light theme";
+}
+
+// Exercises the side-panel drop shadow (BraveSidePanelShadowOverlayView):
+//   * it is shown only while the panel is open AND rounded corners are enabled,
+//   * it stacks directly below the panel (so the panel paints over its inner
+//     part),
+//   * it paints into a clipped, non-opaque layer clamped to the browser view,
+//     and
+//   * its shadow shape tracks the panel's visible (inset) rounded area.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelShadow) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* side_panel = browser_view()->side_panel();
+  side_panel->DisableAnimationsForTesting();
+  auto* prefs = browser()->profile()->GetPrefs();
+
+  views::View* overlay =
+      browser_view()->side_panel_shadow_overlay_for_testing();
+  ASSERT_TRUE(overlay) << "Overlay should be created for the sidebar";
+
+  // Hidden while the panel is closed.
+  EXPECT_FALSE(overlay->GetVisible());
+
+  // Open the panel with rounded corners on: the shadow shows.
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+  panel_ui->Toggle();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return side_panel->GetVisible(); }));
+  RunScheduledLayouts();
+  ASSERT_TRUE(overlay->GetVisible())
+      << "Shadow should show when the panel is open and corners are rounded";
+
+  // It stacks directly below the panel; both are children of the browser view.
+  const auto overlay_index = browser_view()->GetIndexOf(overlay);
+  const auto panel_index = browser_view()->GetIndexOf(side_panel);
+  ASSERT_TRUE(overlay_index.has_value());
+  ASSERT_TRUE(panel_index.has_value());
+  EXPECT_EQ(overlay_index.value() + 1, panel_index.value())
+      << "overlay must be the child directly below the side panel";
+
+  // It paints into a clipped, non-opaque layer clamped to the browser view, so
+  // the blurred shadow never draws outside the window.
+  ASSERT_TRUE(overlay->layer());
+  EXPECT_FALSE(overlay->layer()->fills_bounds_opaquely());
+  EXPECT_TRUE(overlay->layer()->GetMasksToBounds());
+  EXPECT_TRUE(browser_view()->GetLocalBounds().Contains(overlay->bounds()))
+      << "overlay " << overlay->bounds().ToString() << " should fit within "
+      << browser_view()->GetLocalBounds().ToString();
+
+  // The shadow shape (the overlay's sole child view) hugs the panel's *visible*
+  // rounded area: inset by the panel's border insets on the content/outer/
+  // bottom edges, but flush with the panel's top since the header shares the
+  // rounded top. side_panel and the overlay are both children of the browser
+  // view, so convert the shape into that shared coordinate space.
+  ASSERT_EQ(1u, overlay->children().size());
+  gfx::Rect shape_bounds = overlay->children()[0]->bounds();
+  shape_bounds.Offset(overlay->bounds().OffsetFromOrigin());
+  gfx::Insets shape_insets = side_panel->GetInsets();
+  shape_insets.set_top(0);
+  gfx::Rect expected_shape = side_panel->bounds();
+  expected_shape.Inset(shape_insets);
+  EXPECT_EQ(shape_bounds, expected_shape)
+      << "shadow shape " << shape_bounds.ToString()
+      << " should match the panel's visible area " << expected_shape.ToString();
+
+  // Disabling rounded corners hides the shadow even while the panel is open.
+  // This drives the pref callback -> UpdateRoundedCornersUI() ->
+  // UpdateSidebarBorder() -> UpdateShadowVisibility() path.
+  prefs->SetBoolean(kWebViewRoundedCorners, false);
+  RunScheduledLayouts();
+  EXPECT_FALSE(overlay->GetVisible())
+      << "Shadow should hide when rounded corners are disabled";
+
+  // Re-enable corners, then close the panel: the shadow hides again (driven by
+  // the panel-visibility observer).
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+  RunScheduledLayouts();
+  ASSERT_TRUE(overlay->GetVisible());
+  panel_ui->Toggle();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !side_panel->GetVisible(); }));
+  RunScheduledLayouts();
+  EXPECT_FALSE(overlay->GetVisible())
+      << "Shadow should hide when the panel is closed";
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarItemHighlightState) {
+  auto* panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto* side_panel = browser_view()->side_panel();
+  auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
+  auto items_contents_view = GetSidebarItemsContentsView(controller());
+  SidebarContainerView* sidebar = GetSidebarContainerView();
+
+  side_panel->DisableAnimationsForTesting();
+
+  // Start with sidebar hidden so we can drive visibility entirely through
+  // ToggleSidebarPinning below.
+  service->SetSidebarShowOption(SidebarService::ShowSidebarOption::kShowNever);
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !sidebar->IsSidebarVisible(); }));
+
+  // Open a panel to establish an active sidebar item whose ink drop we can
+  // inspect. The sidebar must still be hidden afterwards (kShowNever).
+  panel_ui->Toggle();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
+  RunScheduledLayouts();
+  EXPECT_FALSE(sidebar->IsSidebarVisible());
+  const auto active_index = model()->active_index();
+  EXPECT_TRUE(active_index);
+
+  // Show the sidebar and verify the active item's ink drop is highlighted.
+  // This was broken: ShowSidebar() didn't re-sync item state, and
+  // SetActiveState() short-circuited when active_ hadn't changed, so the ink
+  // drop remained HIDDEN even though the item was active.
+  controller()->ToggleSidebarPinning();
+  EXPECT_TRUE(sidebar->IsSidebarVisible());
+  auto* active_item_view = views::AsViewClass<SidebarItemView>(
+      items_contents_view->children()[*active_index].get());
+  ASSERT_TRUE(active_item_view);
+  auto* ink_drop = views::InkDrop::Get(active_item_view)->GetInkDrop();
+  EXPECT_EQ(views::InkDropState::ACTIVATED, ink_drop->GetTargetInkDropState());
+
+  // Hide and re-show to confirm the fix holds across multiple toggle cycles.
+  controller()->ToggleSidebarPinning();
+  EXPECT_FALSE(sidebar->IsSidebarVisible());
+  EXPECT_EQ(views::InkDropState::HIDDEN, ink_drop->GetTargetInkDropState());
+
+  controller()->ToggleSidebarPinning();
+  EXPECT_TRUE(sidebar->IsSidebarVisible());
+  EXPECT_EQ(views::InkDropState::ACTIVATED, ink_drop->GetTargetInkDropState());
+}
+
+// Verify that SidebarControlView::UpdateBorder() applies a negative inset on
+// the content-facing side equal to -kRoundedCornersContentsViewMargin when
+// rounded corners is on, so the control view overlaps the margin already owned
+// by the contents/panel and avoids a double gap. When rounded corners is off
+// the margin is 0, so the border insets are all zero.
+//
+// Also verifies the relationship between kSidebarButtonSize, kMargin, and the
+// control view's preferred width: the FlexLayout adds border insets to the max
+// child width, so a negative border shrinks the preferred width by the overlap
+// margin.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ControlViewBorderOverlapGap) {
+  auto* prefs = browser()->profile()->GetPrefs();
+  auto* control_view = GetSidebarControlView();
+  const int button_width =
+      SidebarButtonView::kSidebarButtonSize + SidebarButtonView::kMargin * 2;
+
+  // Default: sidebar on right (kSidePanelHorizontalAlignment = true).
+  ASSERT_FALSE(IsSidebarUIOnLeft());
+
+  // Rounded corners off: no overlap needed, all insets should be zero and the
+  // control view's preferred width equals exactly the button width.
+  prefs->SetBoolean(kWebViewRoundedCorners, false);
+  RunScheduledLayouts();
+  {
+    const gfx::Insets insets = control_view->GetBorder()->GetInsets();
+    EXPECT_EQ(0, insets.left()) << "rounded corners off: no left inset";
+    EXPECT_EQ(0, insets.right()) << "rounded corners off: no right inset";
+    EXPECT_EQ(button_width, control_view->GetPreferredSize().width())
+        << "no border: control view preferred width equals button width";
+  }
+
+  // Rounded corners on, sidebar on right: content-facing side is left, so the
+  // left inset should be -kRoundedCornersContentsViewMargin. The negative
+  // border reduces the preferred width by the overlap margin.
+  prefs->SetBoolean(kWebViewRoundedCorners, true);
+  RunScheduledLayouts();
+  {
+    const gfx::Insets insets = control_view->GetBorder()->GetInsets();
+    EXPECT_EQ(-kRoundedCornersContentsViewMargin, insets.left())
+        << "sidebar on right: left inset overlaps into content margin";
+    EXPECT_EQ(0, insets.right());
+    EXPECT_EQ(button_width - kRoundedCornersContentsViewMargin,
+              control_view->GetPreferredSize().width())
+        << "rounded corners on: preferred width narrows by the overlap margin";
+  }
+
+  // Flip to left-aligned: content-facing side becomes right.
+  prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
+  RunScheduledLayouts();
+  ASSERT_TRUE(IsSidebarUIOnLeft());
+  {
+    const gfx::Insets insets = control_view->GetBorder()->GetInsets();
+    EXPECT_EQ(0, insets.left());
+    EXPECT_EQ(-kRoundedCornersContentsViewMargin, insets.right())
+        << "sidebar on left: right inset overlaps into content margin";
+    EXPECT_EQ(button_width - kRoundedCornersContentsViewMargin,
+              control_view->GetPreferredSize().width())
+        << "rounded corners on: preferred width narrows by the overlap margin";
+  }
+}
 
 }  // namespace sidebar

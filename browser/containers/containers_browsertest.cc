@@ -69,6 +69,8 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/menu/menu_controller.h"
 #include "ui/views/test/button_test_api.h"
@@ -117,6 +119,7 @@ class ContainersBrowserTest : public InProcessBrowserTest {
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
+    SetContainersEnabled(true, browser()->profile()->GetPrefs());
   }
 
   // JavaScript helper to set a cookie
@@ -1291,6 +1294,14 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ContainersBrowserTest, ShouldShowTabAccent) {
+  // ShouldShowLargeAccentIcon() depends on the tab's current width. Opening a
+  // tab animates its bounds, and RunScheduledLayouts() only flushes a layout
+  // pass without completing the in-progress bounds animation, so the width can
+  // intermittently still be mid-animation when asserted. Disable rich
+  // animations so tab bounds settle to their final values synchronously, as the
+  // sibling accent-icon tests already do.
+  auto animation_resetter = gfx::AnimationTestApi::SetRichAnimationRenderMode(
+      gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
   auto* tab_strip_model = browser()->tab_strip_model();
   auto* tab_strip =
       browser()->GetBrowserView().horizontal_tab_strip_for_testing();

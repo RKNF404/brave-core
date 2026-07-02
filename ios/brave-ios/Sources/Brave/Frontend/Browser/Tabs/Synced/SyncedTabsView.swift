@@ -132,8 +132,6 @@ struct SyncedTabsView: View {
           }
         }
       }
-      .scrollContentBackground(.hidden)
-      .background(Color(uiColor: .braveGroupedBackground))
       .overlay {
         Group {
           if !syncEnabled.value {
@@ -221,11 +219,9 @@ private struct SessionDisclosureGroup<Content: View>: View {
         dimension[.leading]
       }
       .listRowInsets(.zero)
-      .listRowBackground(Color(uiColor: .secondaryBraveGroupedBackground))
       if !isCollapsed {
         ForEach(session.tabs, id: \.tabId) { tab in
           content(tab)
-            .listRowBackground(Color(uiColor: .secondaryBraveGroupedBackground))
             .listRowInsets(.zero)
         }
       }
@@ -295,7 +291,7 @@ private struct NoSessionTabsView: View {
       } label: {
         Text(Strings.OpenTabs.openSyncSettingsButtonTitle)
       }
-      .buttonStyle(BraveFilledButtonStyle(size: .normal))
+      .buttonStyle(.filled)
     }
   }
 }
@@ -323,7 +319,7 @@ private struct SyncDisabledView: View {
       } label: {
         Text(Strings.OpenTabs.syncChainStartButtonTitle)
       }
-      .buttonStyle(BraveFilledButtonStyle(size: .normal))
+      .buttonStyle(.filled)
     }
   }
 }
@@ -352,7 +348,7 @@ private struct OpenTabSyncDisabled: View {
         } label: {
           Text(Strings.OpenTabs.tabSyncEnableButtonTitle)
         }
-        .buttonStyle(BraveFilledButtonStyle(size: .normal))
+        .buttonStyle(.filled)
         Text(Strings.OpenTabs.noSyncSessionPlaceHolderViewAdditionalDescription)
           .foregroundStyle(Color(braveSystemName: .textTertiary))
           .font(.footnote)

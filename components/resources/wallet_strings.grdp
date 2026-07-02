@@ -49,11 +49,7 @@
   <message name="IDS_WALLET_SEND_TRANSACTION_TO_INVALID" desc="Transaction data is not validated">Transaction data 'to' must be a valid address when specified</message>
   <message name="IDS_WALLET_NOT_AUTHED" desc="Method or account not authorized">The requested method and/or account has not been authorized by the user.</message>
   <message name="IDS_BRAVE_WALLET_SEARCH_TEXT" desc="Search bar placeholder">Search</message>
-  <message name="IDS_BRAVE_WALLET_SIDE_NAV_CRYPTO" desc="Crypto side nav button">Crypto</message>
-  <message name="IDS_BRAVE_WALLET_SIDE_NAV_REWARDS" desc="Rewards side nav button">Rewards</message>
-  <message name="IDS_BRAVE_WALLET_SIDE_NAV_CARDS" desc="Cards side nave button">Cards</message>
   <message name="IDS_BRAVE_WALLET_TOP_NAV_PORTFOLIO" desc="Portfolio top nav button">Portfolio</message>
-  <message name="IDS_BRAVE_WALLET_TOP_TAB_PRICES" desc="Prices top nav button">Prices</message>
   <message name="IDS_BRAVE_WALLET_TOP_NAV_N_F_T_S" desc="NFTs top nav button">NFTs</message>
   <message name="IDS_BRAVE_WALLET_TOP_NAV_ACCOUNTS" desc="Accounts top nav button">Accounts</message>
   <message name="IDS_BRAVE_WALLET_TOP_NAV_MARKET" desc="Accounts top nav button">Market</message>
@@ -730,8 +726,8 @@
   <message name="IDS_BRAVE_WALLET_ZEC_TESTNET_ACCOUNT_DESCRIPTION" desc="ZCash testnet account description" translateable="false">Zcash Testnet</message>
   <message name="IDS_BRAVE_WALLET_CARDANO_ACCOUNT_DESCRIPTION" desc="Cardano account description" translateable="false">Cardano Mainnet</message>
   <message name="IDS_BRAVE_WALLET_CARDANO_TESTNET_ACCOUNT_DESCRIPTION" desc="Cardano testnet account description" translateable="false">Cardano Testnet</message>
-  <message name="IDS_BRAVE_WALLET_POLKADOT_MAINNET_ACCOUNT_DESCRIPTION" desc="Polkadot account description" translateable="false">Polkadot mainnet</message>
-  <message name="IDS_BRAVE_WALLET_POLKADOT_TESTNET_ACCOUNT_DESCRIPTION" desc="Polkadot testnet account description" translateable="false">Polkadot Westend</message>
+  <message name="IDS_BRAVE_WALLET_POLKADOT_MAINNET_ACCOUNT_DESCRIPTION" desc="Polkadot account description" translateable="false">Polkadot Mainnet</message>
+  <message name="IDS_BRAVE_WALLET_POLKADOT_TESTNET_ACCOUNT_DESCRIPTION" desc="Polkadot testnet account description" translateable="false">Polkadot Testnet</message>
   <message name="IDS_BRAVE_WALLET_POLKADOT_INVALID_PREFIX" desc="Polkadot invalid prefix error">Invalid prefix</message>
   <message name="IDS_BRAVE_WALLET_SHOW_NETWORK_LOGO_ON_NFTS_TITLE" desc="Show network logo filter title">Network Logo</message>
   <message name="IDS_BRAVE_WALLET_SHOW_NETWORK_LOGO_ON_NFTS_DESCRIPTION" desc="Show network logo filter description">Show network logo on NFTs</message>
@@ -1251,6 +1247,8 @@
   <message name="IDS_BRAVE_WALLET_SYNC_STARTED_MESSAGE" desc="Sync started message on sync dialog.">Please don’t close this window until sync finishes.</message>
   <message name="IDS_BRAVE_WALLET_CONTINUE_USING_WALLET" desc="Continue using wallet button label on sync dialog. ">Continue using wallet in a new tab</message>
   <message name="IDS_BRAVE_WALLET_SHIELDED_ACCOUNT_BIRTHDAY_BLOCK" desc="Shielded account birthday block input label">Shielded account birthday block</message>
+  <message name="IDS_BRAVE_WALLET_RESET_SHIELDED_ACCOUNT_BIRTHDAY" desc="Reset shielded account birthday button label">Reset account birthday</message>
+  <message name="IDS_BRAVE_WALLET_RESET_SHIELDED_ACCOUNT_BIRTHDAY_DESCRIPTION" desc="Reset shielded account birthday description">Resetting your account birthday will require a full resync. Enter a new birthday block and click "Reset account birthday" to continue.</message>
   <message name="IDS_BRAVE_WALLET_ACCOUNT_BIRTHDAY_TOO_LOW" desc="Account birthday to low error">Account birthday must be greater than <ph name="BLOCK_NUMBER">$1<ex>1687104</ex></ph></message>
   <message name="IDS_BRAVE_WALLET_ACCOUNT_BIRTHDAY_TOO_HIGH" desc="Account birthday to high error">Account birthday must be less than <ph name="BLOCK_NUMBER">$1<ex>7687104</ex></ph></message>
   <message name="IDS_BRAVE_WALLET_BLOCKS_BEHIND" desc="Blocks behind label for Zcash account sync"><ph name="BLOCKS">$1<ex>12,568</ex></ph> blocks behind</message>

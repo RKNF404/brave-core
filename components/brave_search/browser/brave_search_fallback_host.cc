@@ -43,8 +43,10 @@ GURL BraveSearchFallbackHost::GetBackupResultURL(const GURL& baseURL,
                                                  int page_index) {
   GURL url = baseURL;
   url = net::AppendQueryParameter(url, "q", query);
-  url =
-      net::AppendQueryParameter(url, "start", base::NumberToString(page_index));
+  if (page_index > 0) {
+    url = net::AppendQueryParameter(url, "start",
+                                    base::NumberToString(page_index));
+  }
   if (!lang.empty()) {
     url = net::AppendQueryParameter(url, "hl", lang);
   }
@@ -88,7 +90,8 @@ void BraveSearchFallbackHost::FetchBackupResults(
   backup_results_service_->FetchBackupResults(
       url, headers,
       base::BindOnce(&BraveSearchFallbackHost::OnResultsAvailable,
-                     weak_factory_.GetWeakPtr(), std::move(callback)));
+                     weak_factory_.GetWeakPtr(), std::move(callback)),
+      /*low_latency_required=*/true);
 }
 
 void BraveSearchFallbackHost::OnResultsAvailable(

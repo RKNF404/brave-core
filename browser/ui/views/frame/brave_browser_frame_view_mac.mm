@@ -7,10 +7,14 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
+#include "base/memory/raw_ref.h"
+#include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
 #include "brave/browser/ui/views/frame/brave_window_frame_graphic.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -25,6 +29,25 @@
 #include "ui/gfx/geometry/outsets_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/scoped_canvas.h"
+
+class BraveBrowserFrameViewMac::ScopedFocusModeDisable {
+ public:
+  explicit ScopedFocusModeDisable(FocusModeController* controller)
+      : controller_(CHECK_DEREF(controller)),
+        was_enabled_(controller->IsEnabled()) {
+    controller_->SetEnabled(false);
+  }
+
+  ~ScopedFocusModeDisable() {
+    if (was_enabled_) {
+      controller_->SetEnabled(true);
+    }
+  }
+
+ private:
+  const raw_ref<FocusModeController> controller_;
+  bool was_enabled_;
+};
 
 BraveBrowserFrameViewMac::BraveBrowserFrameViewMac(
     BrowserWidget* browser_widget,
@@ -47,6 +70,12 @@ BraveBrowserFrameViewMac::BraveBrowserFrameViewMac(
             &BraveBrowserFrameViewMac::UpdateWindowTitleVisibility,
             base::Unretained(this)));
   }
+
+  compact_horizontal_tabs_.Init(
+      brave_tabs::kCompactHorizontalTabs, g_browser_process->local_state(),
+      base::BindRepeating(
+          &BraveBrowserFrameViewMac::UpdateWindowTitleAndControls,
+          base::Unretained(this)));
 }
 
 BraveBrowserFrameViewMac::~BraveBrowserFrameViewMac() = default;
@@ -104,8 +133,6 @@ int BraveBrowserFrameViewMac::GetTopInset(bool restored) const {
 BrowserFrameViewMac::BoundsAndMargins
 BraveBrowserFrameViewMac::GetCaptionButtonBounds() const {
   auto bounds_and_margins = BrowserFrameViewMac::GetCaptionButtonBounds();
-  bounds_and_margins.bounds.set_y(bounds_and_margins.bounds.y() +
-                                  tabs::GetHorizontalTabButtonYOffset());
   // Compact: zero the caption button vertical margins so the leading
   // exclusion collapses around the buttons themselves, letting the shorter
   // tab strip sit centred against the traffic lights.
@@ -194,6 +221,27 @@ gfx::Size BraveBrowserFrameViewMac::GetMinimumSize() const {
   }
 
   return BrowserFrameViewMac::GetMinimumSize();
+}
+
+void BraveBrowserFrameViewMac::OnFullscreenStateChanged() {
+  // When entering fullscreen ensure that focus mode is disabled. Focus mode and
+  // immersive fullscreen on MacOS have conflicting presentation requirements,
+  // and both modes want to move the tabstrip into different parent views.
+  // Disabling focus mode before immersive mode is enabled ensures that the
+  // tabstrip view is returned to the expected placement before the immersive
+  // controller attempts to reparent it.
+  if (GetBrowserView()->IsFullscreen()) {
+    if (!scoped_focus_mode_disable_) {
+      auto* browser = GetBrowserView()->browser();
+      if (auto* controller = browser->GetFeatures().focus_mode_controller()) {
+        scoped_focus_mode_disable_ =
+            std::make_unique<ScopedFocusModeDisable>(controller);
+      }
+    }
+  } else {
+    scoped_focus_mode_disable_.reset();
+  }
+  BrowserFrameViewMac::OnFullscreenStateChanged();
 }
 
 bool BraveBrowserFrameViewMac::ShouldHideTopUIInFullscreen() const {

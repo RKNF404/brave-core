@@ -21,11 +21,11 @@ public class BraveClassAdapter {
         chain = new BraveCustomTabActivityClassAdapter(chain);
         chain = new BraveCustomTabToolbarButtonsViewBinderClassAdapter(chain);
         chain = new BraveApplicationImplBaseClassAdapter(chain);
-        chain = new BraveAutocompleteCoordinatorClassAdapter(chain);
         chain = new BraveAutocompleteEditTextClassAdapter(chain);
         chain = new BraveAutocompleteMediatorBaseClassAdapter(chain);
         chain = new BraveAutocompleteMediatorClassAdapter(chain);
         chain = new BraveAutofillClientProviderUtilsClassAdapter(chain);
+        chain = new BraveAutofillOptionsFragmentBaseClassAdapter(chain);
         chain = new BraveAutofillPaymentMethodsFragmentBaseClassAdapter(chain);
         chain = new BraveBookmarkActivityClassAdapter(chain);
         chain = new BraveBookmarkBridgeClassAdapter(chain);
@@ -98,6 +98,7 @@ public class BraveClassAdapter {
         chain = new BraveMultiInstanceManagerApi31ClassAdapter(chain);
         chain = new BraveMultiInstanceOrchestratorImplClassAdapter(chain);
         chain = new BraveMultiWindowUtilsClassAdapter(chain);
+        chain = new BraveNewBackgroundTabAnimationDataClassAdapter(chain);
         chain = new BraveNewTabPageClassAdapter(chain);
         chain = new BraveNewTabPageCoordinatorClassAdapter(chain);
         chain = new BraveNewTabPageLayoutClassAdapter(chain);
@@ -108,6 +109,7 @@ public class BraveClassAdapter {
         chain = new BraveNotificationPlatformBridgeClassAdapter(chain);
         chain = new BraveNullAccountManagerDelegateAdapter(chain);
         chain = new BraveOmniboxResourceProviderClassAdapter(chain);
+        chain = new BraveOmniboxViewHolderFactoryClassAdapter(chain);
         chain = new BravePartialCustomTabBottomSheetStrategyClassAdapter(chain);
         chain = new BravePasswordManagerHelperClassAdapter(chain);
         chain = new BravePasswordsPreferenceClassAdapter(chain);
@@ -135,6 +137,7 @@ public class BraveClassAdapter {
         chain = new BraveStrictPreferenceKeyCheckerClassAdapter(chain);
         chain = new BraveSwipeRefreshHandlerClassAdapter(chain);
         chain = new BraveTabGroupUiCoordinatorClassAdapter(chain);
+        chain = new BraveTabListFaviconProviderClassAdapter(chain);
         chain = new BraveTabSwitcherPaneBaseClassAdapter(chain);
         chain = new BraveTabbedActivityClassAdapter(chain);
         chain = new BraveTabbedAdaptiveToolbarBehaviorClassAdapter(chain);

@@ -80,7 +80,7 @@ struct SubmitReportView: View {
                   }
                   Spacer()
                   Image(systemName: "chevron.up.chevron.down")
-                    .foregroundColor(Color(.secondaryBraveLabel))
+                    .foregroundColor(Color(braveSystemName: .textSecondary))
                 }
               }
             )
@@ -164,9 +164,15 @@ struct SubmitReportView: View {
       .overlay {
         if isSubmittingReport {
           ProgressView()
-            .progressViewStyle(.braveCircular(size: .normal, tint: .braveBlurpleTint))
+            .progressViewStyle(
+              .braveCircular(
+                size: .normal,
+                tint:
+                  UIColor(braveSystemName: .iconInteractive)
+              )
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.braveBackground).opacity(0.5).ignoresSafeArea())
+            .background(Color(braveSystemName: .containerBackground).opacity(0.5).ignoresSafeArea())
             .transition(.opacity.animation(.default))
         }
       }
@@ -225,7 +231,8 @@ struct SubmitReportView: View {
         category: selectedCategory?.value,
         details: additionalDetails,
         contact: contactDetails,
-        cookiePolicy: Preferences.Privacy.blockAllCookies.value ? "block" : nil,
+        cookiePolicy: tab?.profile.prefs.boolean(forPath: kBlockAllCookiesEnabled) == true
+          ? "block" : nil,
         blockScripts: String(isBlockScriptsEnabled),
         adBlockComponentsVersion: nil,
         screenshotPng: nil,

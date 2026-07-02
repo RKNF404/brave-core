@@ -8,19 +8,22 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/scoped_observation.h"
 #include "base/version.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
-#include "chrome/common/extensions/webstore_install_result.h"
 #include "extensions/browser/extension_prefs_observer.h"
 #include "extensions/browser/extension_registry_observer.h"
+#include "extensions/browser/webstore_install_result.h"
 
 class Profile;
 
 namespace extensions_mv2 {
+
+class ExtensionManifestV2Installer;
 
 class ExtensionsManifestV2Migrator
     : public KeyedService,
@@ -52,8 +55,15 @@ class ExtensionsManifestV2Migrator
 
   void BackupExtensionSettings(
       const extensions::ExtensionId& webstore_extension_id);
+  void OnBackupSettingsCompleted(
+      const extensions::ExtensionId& webstore_extension_id,
+      const base::Version& version);
   void OnSettingsImported(
       const extensions::ExtensionId& brave_hosted_extension_id);
+  void OnSilentInstall(const extensions::ExtensionId& extension_id,
+                       bool success,
+                       const std::string& error,
+                       extensions::webstore_install::Result result);
 
   const raw_ptr<Profile> profile_ = nullptr;
   base::ScopedObservation<extensions::ExtensionPrefs,
@@ -62,6 +72,7 @@ class ExtensionsManifestV2Migrator
   base::ScopedObservation<extensions::ExtensionRegistry,
                           extensions::ExtensionRegistryObserver>
       registry_observation_{this};
+  std::vector<std::unique_ptr<ExtensionManifestV2Installer>> silent_installers_;
 
   base::WeakPtrFactory<ExtensionsManifestV2Migrator> weak_factory_{this};
 };

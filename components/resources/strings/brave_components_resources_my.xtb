@@ -106,7 +106,6 @@
 <translation id="8890516388109605451">ရင်းမြစ်များ</translation>
 <translation id="5158129253322921540"><ph name="PUBLISHER_NAME"/> မှာပါဝင်တဲ့ အကြောင်းအရာများကို ပိတ်ပါ</translation>
 <translation id="3189348785087463371">ကြော်ငြာခဲ့သည်</translation>
-<translation id="4541978218358617681">ကြော်ငြာ</translation>
 <translation id="1776831331757823105">နာရီ</translation>
 <translation id="7791543448312431591">ထည့်ခြင်း</translation>
 <translation id="6216996674668969227">ကိုယ်ရေးအချက်အလက်လုံခြုံရေး ထိပါးမှုမရှိသော ကြော်ငြာများကို ကြည့်ပြီး တိုကင်များ ရယူလိုက်ပါ။</translation>
@@ -377,7 +376,6 @@
 <translation id="1430915738399379752">ထုတ်ပေးပါက်</translation>
 <translation id="2600847485413879104">သိမ်းဆည်းရန်  အားပါးမှု ဘတ်ထရီ</translation>
 <translation id="3439853736976204026">bitFlyer</translation>
-<translation id="8533411848724153701">Gemini</translation>
 <translation id="6569877533335686968">Uphold</translation>
 <translation id="6011108706830742093">ZebPay</translation>
 <translation id="5390923430722428146">Solana</translation>
@@ -438,6 +436,7 @@
 <translation id="412480955826088549">Components ကို Download လုပ်နေဆဲ...</translation>
 <translation id="4894106830958548828">နားလည်ပါတယ်</translation>
 <translation id="2729085694451916573">စမ်းသက်ရန် စာသားရိုက်ပါ place-holder တွင် For holders of <ph name="PART_ONE"/> and<ph name="PART_ONE_END"/> the; <ph name="PART_TWO"/>မေးစမ်းကြည့်ရန် Learn more<ph name="PART_TWO_END"/></translation>
+<translation id="6705666103672654256">သင်၏ ရှာဖွေမှုများနှင့် စာမျက်နှာအကြောင်းအရာများကို ဤ device ပေါ်တွင် လုပ်ဆောင်ပါသည်။ Brave သို့ မည်သည့်အရာမျှ ပေးပို့မထားပါ၊ လူသား စစ်ဆေးသူများလည်း မြင်တွေ့မည် မဟုတ်ပါ။ ဤအရာသည် စမ်းသပ်အင်္ဂါရပ်တစ်ခုဖြစ်ပြီး အမြဲတမ်း မှန်ကန်မည် မဟုတ်ပါ။</translation>
 <translation id="7534079972563542000">Unstoppable Domains</translation>
 <translation id="4492298165410552103">ws:confirm_shutdown_confirm_dialog_disable_opt_in_heading</translation>
 <translation id="5015092481905019948">Brave သည် <ph name="DOMAIN_PROVIDER_NAME"/> ပေါ်ရှိ <ph name="DOMAIN_LIST"/> ဒိုမိန်းအမည်များကို ဖြေရှင်းရန် <ph name="PROVIDER_NAME"/> ကို အသုံးပြုပါမည်။ Brave သည် သင့် IP လိပ်စာကို ဝှက်ထားပေးသည်။ ဤခွင့်ပြုချက်ကို ဖွင့်ထားလျှင်၊ <ph name="PROVIDER_NAME"/> တွင် ယင်းဒိုမိန်းများကို တစ်စုံတစ်ယောက်က လည်ပတ်ဖို့ ကြိုးစားနေကြောင်းသာ မြင်နိုင်ပြီး အခြားသောအချက်အလက်များ မမြင်နိုင်ပါ။ <ph name="PROVIDER_NAME"/> ၏ <ph name="BEGIN_PROVIDER_TOU_LINK"/>အသုံးပြုခြင်းစည်းမျဉ်းများ<ph name="END_PROVIDER_TOU_LINK"/> နှင့် <ph name="BEGIN_PROVIDER_PRIVACY_LINK"/>ကိုယ်ရေးကာကွယ်မှုမူဝါဒ<ph name="END_PROVIDER_PRIVACY_LINK"/> ကိုကြည့်ပါ။</translation>
@@ -726,9 +725,9 @@
 <translation id="8251969358165471584">Web3 ပိုက်ဆံအိတ်</translation>
 <translation id="7160424977552599351">သင်၏ Web3 ပိုက်ဆံအိတ် အသုံးပြုပါ</translation>
 <translation id="6369571967625114920">သင့် နယ်မြေတွင် Brave Private ကြော်ငြာ ကို မှန်ကန်မော့လုပ်၍မရသေးပါ။</translation>
-<translation id="5309155375926073606">Brave ရှာဖွေရေး ပိုကောင်းလာစေရန် ထည့်ဝင်ပံ့ပိုးလိုသကဲ့သို့ <ph name="LINK_BEGIN"/>ဝက်ဘ်ရှာဖွေစူးစမ်းရေး ပရောဂျက်<ph name="LINK_END"/>တွင်လည်း ပါဝင်လိုပါသည်။</translation>
-<translation id="4622826307953794521">ဝက်ဘ်ရှာဖွေစူးစမ်းရေး ပရောဂျက်တွင် ပါဝင်ပြီး Brave ရှာဖွေရေး ပိုကောင်းလာစေရန် အမည်မဖော်သော ရှာဖွေရေးဒေတာနှင့် ရှာဖွေကြည့်ရှုမှု ဒေတာအချို့ကို ထည့်ဝင်ပံ့ပိုးပေးပါ။ အများရယူသုံးစွဲခွင့် အပြည့်အဝပေးထားသော ပရောဂျက်ဖြစ်ပါသည်။</translation>
-<translation id="4174337572777167894">ဝက်ဘ်ရှာဖွေစူးစမ်းရေး ပရောဂျက်</translation>
+<translation id="5309155375926073606">ဟုတ်ကဲ့၊ ကျွန်ုပ်သည် Brave ရှာဖွေရေးသို့လည်း ပံ့ပိုးကူညီလို၍ <ph name="LINK_BEGIN"/>Web Discovery Project<ph name="LINK_END"/> တွင်ပါဝင်လိုပါသည်။</translation>
+<translation id="4622826307953794521">Web Discovery Project ဖြင့် Brave ရှာဖွေရေးကို ပြန်လည်ပြုပြင်ရန် အမည်ဖျောက်ရှာဖွေမှုနှင့် ဘရောက်ဆာဒေတာအချို့ကို ပံ့ပိုးကူညီပါ။ ၎င်းသည် လုံးဝ open-source ဖြစ်ပါသည်။</translation>
+<translation id="4174337572777167894">Web Discovery Project</translation>
 <translation id="9034669711835382440">အဖွဲ့ဝင်</translation>
 <translation id="845020633253356720">Store ကြည့်ပါ</translation>
 <translation id="7777123407058400802">အာရုံစိုက်မှုအတွက်ပေးသောတိုကင် – BAT</translation>
@@ -738,7 +737,6 @@
 <translation id="1288078776976153868">ကွန်ရက်</translation>
 <translation id="1148827340205946630">ဤအမှာကို သုံးရှုံးခြင်းခဲ့သည်။</translation>
 <translation id="2403819048476450281">မမှန်ကန်သော ပလီလွင်များ</translation>
-<translation id="3849003816301348130">ဆံ့နယ်ဝင်တဲ့လိပ်စာ ပါရှိသည်။</translation>
 <translation id="3955144560853195652">ကွင်းဆက် <ph name="VALUE"/> ကို မထည့်သွင်းရသေးပါ</translation>
 <translation id="1875861420974447980">ဤကြိုးတစ်ထုကို လက်ရှိအသုံးပါ၏</translation>
 <translation id="167698752210114155">အတွင်းမှား ဖြစ်ခဲ့သည်</translation>
@@ -852,11 +850,12 @@
 <translation id="3751611888003301070">လမ်းကြောင်းများ</translation>
 <translation id="3799091982455573025"><ph name="NETWORK_NAME"/> မှ <ph name="EXCHANGE_NAME"/> တွင် လက်နှိပ်ပါ</translation>
 <translation id="5136093123841570193"><ph name="FRIST_NETWORK_NAME"/> မှ <ph name="SECOND_NETWORK_NAME"/> သို့ ကိုက်ညီသည်</translation>
-<translation id="5962276579291287541">{SWAP_EXCHANGE_STEPS, plural,
-      =1 {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} step}
-      other {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} steps}
+<translation id="4419195975736642805">{SWAP_EXCHANGE_STEPS, plural,
+      =1 {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} step)}
+      other {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} steps)}
     }</translation>
 <translation id="8621264173374071200"><ph name="EXCHANGE_NAME"/> မှ <ph name="PROVIDER_NAME"/></translation>
+<translation id="7214440235486032620"><ph name="DESTINATION_TOKEN"/> ← <ph name="SOURCE_TOKEN"/> မှတဆင့်</translation>
 <translation id="646023614746251785">ဖလှယ်မှုကိုအတည်ပြုပါ</translation>
 <translation id="6264944956989873014">တံတားချမှုကိုအတည်ပြုပါ</translation>
 <translation id="7067917728851842589">ပေးပို့မှုကိုအတည်ပြုပါ</translation>
@@ -937,6 +936,7 @@
 <translation id="1108298724135935307">ချိတ်ဆက်ထားသောဆိုက်များ</translation>
 <translation id="5716350339763180836">လက်ကျန်ငွေ</translation>
 <translation id="5538251867290702601">ကရပ်</translation>
+<translation id="8123016618655108594">ဖြန့်ဝေမှု</translation>
 <translation id="352407037922720467">NFTs tab</translation>
 <translation id="163697698769819510">သင်၏ ပိုင်ဆိုင်မှုများကို ကာကွယ်ပါ နှင့် အခြားအတွေ့အကြုံများမှာ ဝင်ရောက်၍ မသိမ်းမျှတော့မရှိပါ</translation>
 <translation id="1018806299114415224">အခုတော်တော်မှန်းပါ</translation>
@@ -992,6 +992,9 @@
 <translation id="6720675936326555106">ရွေးချယ်ထားသည့်ဖိုင်</translation>
 <translation id="5891811606602061966">အကောင့်တင်သွင်း၍ မရရှိဘူး၊ ထပ်လည်ကြိုးစားပါ။</translation>
 <translation id="6566535583781706170">အကောင့်တင်သွင်းရန်</translation>
+<translation id="8079448455682522748">အခြား wallet မှ တင်သွင်းလိုသော အကောင့်အတွက် သီးသန့်ကီးကို ကူးယူပါ။</translation>
+<translation id="8475326612689436917">အခြား wallet မှ သီးသန့်ကီးကို JSON ဖိုင်တစ်ခုသို့ တင်ပို့ပြီး ဤနေရာတွင် တင်ပါ။</translation>
+<translation id="5733063593286221597">JSON ဖိုင်ကို တင်ပါ</translation>
 <translation id="5051929972046200722">သင့် hardware wallet ဖြစ်စဉ်ကို ရွေးပါ</translation>
 <translation id="5745936663807461565">သင့်ဆီက <ph name="HARDWARE_DEVICE"/> wallet ကိုဆိုက်တစ်ခုနှင့်တိုက်ရိုက်ချိတ်ဆက်ပါ။</translation>
 <translation id="4350216031085285578">Device ကို unlock လုပ်ပြီး <ph name="BLOCKCHAIN_NETWORK"/> app ကိုရွေးချယ်ပါ။</translation>
@@ -1037,9 +1040,10 @@
 <translation id="7657130382217527063">မှတ်ချက်: သီးသန့်သော key သည် သီးသန့် key နဲ့ ပရိုတိုကော အချက်အလက်များ ပါဝင်သော hex-encoded JSON အနေနဲ့ ပေးဖို့ လိုအပ်ပါတယ်။ <ph name="LINK_START"/>ပိုမိုလေ့လာရန် <ph name="LINK_END"/></translation>
 <translation id="4482913669726886926">မှတ်ချက်: <ph name="FORMAT"/> တိုးချဲ့ထားသော key များလောက်သာ ပံ့ပိုးသည်။</translation>
 <translation id="6457746820359933716">Polkadot.js သို့မဟုတ် သင့်အသုံးပြုနိုင်သည့် ပိုက်ဆံအိတ်မှ တင်ပို့သည့် JSON ဖိုင်ကို အသုံးပြု၍ တင်သည်။ တင်ပို့မှုကို စာဝှက်ရန်အသုံးပြုသည့် စကားဝှက်ကို ထည့်သွင်းပါ။</translation>
-<translation id="9133762451347918196">Testnet account များ</translation>
+<translation id="7285350832506166367">Testnet အကောင့်များကို ရှာဖွေနေပါသလား။</translation>
 <translation id="42126664696688958">တင်ပို့ရန်</translation>
 <translation id="1366855498335432549">ငွေသွင်းရန်</translation>
+<translation id="3852653589653889099">အကောင့်ဝှက်ရန်</translation>
 <translation id="790104325876206743">အကောင့် ဆက်တင်များ</translation>
 <translation id="8856844353253421399">နောက်ဆုံးအသစ် <ph name="TIME_AGO"/> အရှေ့ဖက်</translation>
 <translation id="6322030314101903925">အသုံးပြုနိုင်သော ပိုင်ဆိုင်မှုမရှိပါ</translation>
@@ -1160,12 +1164,12 @@
 <translation id="4324239559624557455">အချိန် ၂၄ နာရီ</translation>
 <translation id="9139452553033760558">အပတ် ၁ ပတ်</translation>
 <translation id="1658834457013045127">စမြဲ</translation>
-<translation id="5571630233760536706"><ph name="DEVICE_NAME"/> ချိတ်ဆက်ထားသည်</translation>
-<translation id="7058480232601314508"><ph name="DEVICE_NAME"/> ချိတ်ဆက်မှု ပြတ်တောက်</translation>
+<translation id="620344059960827012"><ph name="ACCOUNT_NAME"/> သည် <ph name="DEVICE_NAME"/> သို့ ချိတ်ဆက်ထားသည်</translation>
+<translation id="4403794623379243396"><ph name="ACCOUNT_NAME"/> ချိတ်ဆက်မှု ပြတ်တောက်နေသည်</translation>
 <translation id="434328838837168401">ညွန်ကြားချက်များ ကြည့်ရှုရန်</translation>
-<translation id="6739517232898494646">ဆက်လက်ရန် သင့်ခွင့်အား <ph name="DEVICE_NAME"/> ချိတ်ဆက်ပါ</translation>
+<translation id="13670155462680755">ဆက်လက်ဆောင်ရွက်ရန် သင်၏ <ph name="ACCOUNT_NAME"/> ကို ချိတ်ဆက်ပါ</translation>
 <translation id="6941881257520473899">Hardware ပိုက်ဆံအိတ်သည် စက်ပေါ်တွင် အတည်ပြုချက် လိုအပ်သည်။</translation>
-<translation id="2288190100157580461">Hardware ပိုက်ဆံအိတ်သည် <ph name="DEVICE_NAME"/> တွင် <ph name="NETWORK"/> App ကို ဖွင့်ထားသည့်အခြေအနေတုံ အတည်ပြုချက် လိုသည်။</translation>
+<translation id="4108619287854657806">Hardware wallet သည် <ph name="ACCOUNT_NAME"/> တွင် <ph name="NETWORK"/> App ဖွင့်ထားရန် လိုအပ်သည်</translation>
 <translation id="8687869982094542529">ပို့ဆောင်ပြီး</translation>
 <translation id="5013754027092416509">လက်ခံပြီး</translation>
 <translation id="5867988533873716616">Block explorer URL မရနိုင်ပါ။</translation>
@@ -1341,6 +1345,12 @@
 <translation id="3067168166931605141">အကောင့်အမည်</translation>
 <translation id="1213870770696612739">အနိမ့်ဆုံးပမာဏ: <ph name="AMOUNT"/></translation>
 <translation id="3041074161036535192">အမြင့်ဆုံးပမာဏ: <ph name="AMOUNT"/></translation>
+<translation id="3419957337495393511">အကောင့်ကို အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ</translation>
+<translation id="7444985841455466546">အကောင့်ကို အောင်မြင်စွာ တင်သွင်းပြီးပါပြီ</translation>
+<translation id="6775224295382583896">{ACCOUNTS, plural,
+      =1 {hardware wallet အကောင့်ကို အောင်မြင်စွာ ချိတ်ဆက်ပြီးပါပြီ}
+      other {hardware wallet အကောင့် {ACCOUNTS} ခုကို အောင်မြင်စွာ ချိတ်ဆက်ပြီးပါပြီ}
+    }</translation>
 <translation id="8528916244724490964">အားလုံးပြရန်</translation>
 <translation id="7721139939763655123">လျော့နည်းမှမြင့်</translation>
 <translation id="5458608274117818139">မြင့်မှလျော့နည်း</translation>
@@ -1351,6 +1361,7 @@
 <translation id="8491675129455635799">Assets များကို Group by ကို အသုံးပြုပါ</translation>
 <translation id="5331775401966766526">Filter နှင့် Display ဆက်တင်များ</translation>
 <translation id="5332541468425943610">NFT display settings</translation>
+<translation id="1539149309756422999">ပိုင်ဆိုင်မှုများ ဖြန့်ဝေမှု</translation>
 <translation id="886032538431162695">Assets များကို စီစဉ်ပါ</translation>
 <translation id="6080181976198929758">fiat တန်ဖိုး သို့မဟုတ် နာမည်ဖြင့် စီစဉ်ပါ</translation>
 <translation id="2563815561570398537">လက် ကျန်ငွေများကို ဖျောက်ထားပါ</translation>
@@ -1362,6 +1373,7 @@
 <translation id="1257387162647804035">Primary networks</translation>
 <translation id="8323674164587854512">Ethereum + EVM Chains</translation>
 <translation id="1398414935371867469">Solana + SVM Chains</translation>
+<translation id="6498449512528552760">prefix မမှန်ကန်ပါ</translation>
 <translation id="7058248670699639973">Network โลဂို</translation>
 <translation id="4378208228955237306">NFTများပေါ်တွင် network logo ပြပါ</translation>
 <translation id="5472199803712163015">Spam NFTs</translation>
@@ -1594,6 +1606,9 @@
 <translation id="5882719778740918116">ဒီနောက်ပြည့်တိုးနောင့်လမ်း <ph name="VALUE"/> တွင် ရှိသော အစေ့နှင့်မှန်သားတွေ ပေးပို့ပါ</translation>
 <translation id="6885009592653876601">၂၀၀ ကျော်သော ခရစ်တိုအရင်းအမြစ်များ ကုန်ဆင်းပါ၊ ပေးပို့ပါနှင့် အပြောင်းအလဲပြုပါ</translation>
 <translation id="8716223552348254401">ဘရူဇာစ်တစ်ခုရဲ့ မကွဲပဲ့လဲသသောချိတ်ဆက်မှုများ မရှိပါ။</translation>
+<translation id="1198271701881992799">စတင်ကြပါစို့</translation>
+<translation id="7904301836463577071">သင်၏ ပထမဆုံး crypto ကို credit သို့မဟုတ် debit card ဖြင့် ဝယ်ယူပါ</translation>
+<translation id="3721561070667360112">အခြား wallet သို့မဟုတ် exchange မှ crypto ထည့်သွင်းပါ</translation>
 <translation id="4559901986238865734">မည်သည့်မ်ပေါင်းကြံပြီးရှိသောပုံစံများဖြည့်စွှားပါ။ &amp; NFTs</translation>
 <translation id="296101411136980896">ဖျော့ဖွယ်နိုးလှည့်ရန် နှိပ်ပါ</translation>
 <translation id="753655478253155745">၁၂</translation>
@@ -1628,7 +1643,7 @@
 <translation id="1353726744456297797">သေးစားရာ ဇ်ဘယ့်</translation>
 <translation id="4543171429371680949">ရှေးမရှိ အမစ်</translation>
 <translation id="1026825928738055872">"<ph name="ACCOUNT_NAME"/>" ကို ဖျောက်ချိည်ဖြစ်ပါမည်လား</translation>
-<translation id="3910551537328657217">မျှော်စီး</translation>
+<translation id="2220529011494928058">ပြဿနာကို အစီရင်ခံပါ</translation>
 <translation id="7657322905916621147">ဖမ်းဆီးမတ်စေစိ</translation>
 <translation id="5026874946691314267">နောက်ထပ်မပြပါနဲ့</translation>
 <translation id="434502623875309667">သတ်မှတ်ပါ</translation>
@@ -1741,6 +1756,7 @@
 <translation id="8549067157732633185">ဤ token သည် အတည်ခံခဲ့သည်</translation>
 <translation id="2130170065617939165">ဤတိုကင်ကို <ph name="NUMBER_OF_LISTS"/> စာရင်းများတွင် အတည်ပြုထားပါသည်။</translation>
 <translation id="1554316484739382186">အသုံးပြုသူ: <ph name="ADDRESS"/></translation>
+<translation id="8533411848724153701">Gemini</translation>
 <translation id="4265415116535094892">Zebpay</translation>
 <translation id="3026353765778463291"><ph name="PROVIDER"/> အကောင့်</translation>
 <translation id="5360752485622434494"><ph name="PROVIDER"/> တွင် Brave ဆုလက်ဆောင် အတွက် BAT</translation>
@@ -2058,6 +2074,7 @@
 <translation id="7294510764127771956">မြင့်မားသူများ၊ မပါတ်သူတို့ကို ဖွင့်ရန်</translation>
 <translation id="4186334830839439230">အမြင်ကောင်းမွန်သော စက်ရုပ်စည်းများမြင်ဘူးသောသူတွေ</translation>
 <translation id="1094277301241124207">စာထည့်</translation>
+<translation id="5101042277149003567">စာအမှတ်အသားအားလုံးကို ဖွင့်ပါ</translation>
 <translation id="8283515796576236471">မှတ်ချက် ထဲသို့ ပြန်လည်ဝင်ခြင်း</translation>
 <translation id="5271773791943587595">အသင်းဝင် ဖြုတ်ခြင်း</translation>
 <translation id="2748975346534113286">အစွင့်နှင်းဖွင့်ရန်</translation>
@@ -2135,13 +2152,16 @@
 <translation id="6459036216700972269">Tabများကိုဆင်ခြင်ခြင်း</translation>
 <translation id="4235382917338421035">Tab ဖလှြပောင်းခြင်း</translation>
 <translation id="4288085058450834672">အကောက်ခွန်ပြရန်</translation>
+<translation id="4750337523930607658">Focus Mode အသုံးပြုခလုတ်</translation>
 <translation id="4144468798716165316">လက်တမ်း ကမ်းရှင်းမှုများ</translation>
 <translation id="3617523374417810198">Split View အသစ်</translation>
 <translation id="8571323456914890254">Split View အနေဖြင့် ဖွင့်ပြီးပိတ်ပါ</translation>
 <translation id="5329136173514538969">Tab များကိုအသစ်ပြောင်းနေခြင်း</translation>
 <translation id="7595612919377246359">Tab များကို ပြန်ဖလှြပောင်းခြင်း</translation>
 <translation id="2367972762794486313">အကောက်ခွန်ပြရန်</translation>
+<translation id="3142853026316054951">focus mode အသုံးပြုခလုတ်</translation>
 <translation id="3468387898712904997">အီးမေးလ် လိပ်စာ အသစ်</translation>
+<translation id="2796584247246518451">ယာယီ container အသစ်</translation>
 <translation id="8591883849678260674">မူရင်းကို ကြည့်ရန်</translation>
 <translation id="1969654232209826429">မိနစ်. အောက်ပိုင်း ဖတ်ရည်နှုန်း</translation>
 <translation id="4101707289420716287">Speedreader ကို ပိတ်ပါ</translation>
@@ -2185,6 +2205,7 @@
 <translation id="5923170497201832190">အုပ်စုပင်ကို အောက်ထိဆွဲခြင်း</translation>
 <translation id="6219262425964000211">ဖိုင်များအား ဤနေရာတွင် သွားသည်</translation>
 <translation id="4313763911013851687">စကားဝိုင်းသို့ထည့်ရန် ဤနေရာတွင် ဖိုင်ကိုချပါ</translation>
+<translation id="8206915760129310348">အချို့သော ဖိုင်များကို ဖတ်၍မရသဖြင့် ပူးတွဲမထားနိုင်ပါ</translation>
 <translation id="4524675003624341892">မေးခွန်းများ အကြံပြုပါ...</translation>
 <translation id="4567071417854988869">ဤဗီဒီယိုကို အကျဉ်းချုပ်ပါ</translation>
 <translation id="4264902191243445258">{PAGE_COUNT, plural, =1 {ဤစာမျက်နှာအတွက် အတိုချုပ်ပြရန်} other {ဤစာမျက်နှာများအတွက် အတိုချုပ်ပြရန်}}</translation>
@@ -2192,7 +2213,9 @@
 <translation id="7932221068776853847">ဤစာမျက်နှာ အကြောင်းအရာကို Leo သို့ပေးပို့မည့်အစီအစဉ်ကို ပိတ်လိုက်ပါ၊ မြို့နယ်အသစ်စတင်ရန်</translation>
 <translation id="8743383817154663379">မင်းရဲ့တောင်းဆိုချက်ကို ပ procedimiento လုပ်စဉ်မှာ တစ်စုံတစ်ခုမှားယွင်းနေပါသည်။ နောက်မှထပ်ကြိုးစားပါ။</translation>
 <translation id="2712650703044366764">ဤပုံစံတွင်အမှားရှိသည်။ သင်၏ဖွဲ့စည်းခြင်းကိုစစ်ဆေးပြီးထပ်မံကြိုးစားပါ။</translation>
-<translation id="1167803637855350748">Leo သို့ ချိတ်ဆက်နေစဉ်ကွန်ရက်ပြဿနာတစ်ခုառաջလာသည်သောကြောင့်, သင်၏ ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။</translation>
+<translation id="7092656392206649236">Leo နှင့် ဆက်သွယ်နေစဉ် တစ်စုံတစ်ရာ မှားယွင်းခဲ့သည်။ ထပ်မံကြိုးစားပါ။</translation>
+<translation id="3552709750512842961">Status code: <ph name="STATUS_CODE"/>, error code: <ph name="ERROR_CODE"/></translation>
+<translation id="9215978379284690246">Status code: <ph name="STATUS_CODE"/></translation>
 <translation id="1996126325390835277">သင်သည် ပရီးမံစနစ်၏ အမြင့်ဆုံးကန့်သတ်ချက်ကို ရောက်ရှိပြီးဖြစ်သည်။ နာရီအနည်းငယ်အတွင်း ထပ်မံကြိုးစားပါ။</translation>
 <translation id="3683964919745779766">ရောက်ရှိမှုခွင့်အလိုအလျောက်ဆက်လက်ပြုလုပ်ရန်ခဲ့သည်။ ခဏစောင့်မှတ်ပြီးထပ်မံကြိုးစားပါ။</translation>
 <translation id="7692501701960747469">ကြူမြတ်အတွက်ဖော်ပြသည့် API key မှားယွင်းနေသည်။ သင်၏စနစ်ကိုစစ်ဆေးပေးကာလက်ခံပါနေ့။</translation>
@@ -2202,6 +2225,7 @@
 <translation id="1238020084128916796">ဟိုင်း, ငါက လီယို က။ ငါ့မှာ Brave က အိုင်အေ အရာရှိ AI။ ငါ Llama 3.1 8B သည် Meta မှဖန်တီးသည့် မော်ဒယ်ဖြစ်၍ စွမ်းဆောင်ရည်မြင့်မားပြီး အမျိုးမျိုးသော အသုံးပြုမှုရပ်ကွက်များတွင် အသုံးပြုနိုင်သည်။ Llama သည် Brave ၏ကိုယ်ပိုင်လုံခြုံရေးအဆောက်အအုံတွင် ဟော့စ်ထားသည်။<ph name="LINK_BEFORE"/>ဆက်လက်သိရှိရန်<ph name="LINK_AFTER"/></translation>
 <translation id="3852808100039989429">ဟိုင်း, ငါက လီယို က။ ငါ့မှာ Brave က အိုင်အေ အရာရှိ AI။ ငါ Qwen VL 30B သည် Alibaba Cloud မှဖန်တီးသည့် မော်ဒယ်ဖြစ်၍ စွမ်းဆောင်ရည်မြင့်ပြီး အသုံးပြုမှုအများအပြားအတွက် အလွယ်တကူအသုံးပြုနိုင်သည်။ Qwen သည် Brave ၏ကိုယ်ပိုင်လုံခြုံရေးအဆောက်အအုံတွင် ဟော့စ်ထားသည်။<ph name="LINK_BEFORE"/>ပိုမိုသိရှိရန်<ph name="LINK_AFTER"/></translation>
 <translation id="3812564134126884433">ဟိုင်း, ငါက လီယို က။ ငါ့မှာ Brave က AI အထောက်အကူပြုသူပင်ဖြစ်သည်။ ငါ GLM-5 တွင် အားကောင်းသော စွမ်းဆောင်ရည်ဖြင့်ဖန်တီးထားသည့် မော်ဒယ်ဖြစ်ပြီး Zhipu AI မှ ဖန်တီးထားပြီး အသုံးပြုမှုအမျိုးမျိုးအတွက်သင့်လျော်သည်။ GLM-5 သည်သူတို့၏ လုံခြုံရေးအဆောက်အုံကို မှန်ကန်စွာအတည်ပြုနိုင်သောပုံစံဖြင့် NEAR မှ ဟော့စ်ထားသည်။<ph name="LINK_BEFORE"/>ပိုမိုသိရှိရန်<ph name="LINK_AFTER"/></translation>
+<translation id="784931275560506522">ဟိုင်း, ငါက လီယို က။ ငါ့မှာ Brave က AI အထောက်အကူပြုသူပင်ဖြစ်သည်။ ငါ GLM-5.1 တွင် အားကောင်းသော စွမ်းဆောင်ရည်ဖြင့်ဖန်တီးထားသည့် မော်ဒယ်ဖြစ်ပြီး Zhipu AI မှ ဖန်တီးထားပြီး အသုံးပြုမှုအမျိုးမျိုးအတွက်သင့်လျော်သည်။ GLM-5.1 သည်သူတို့၏ လုံခြုံရေးအဆောက်အုံကို မှန်ကန်စွာအတည်ပြုနိုင်သောပုံစံဖြင့် NEAR မှ ဟော့စ်ထားသည်။<ph name="LINK_BEFORE"/>ပိုမိုသိရှိရန်<ph name="LINK_AFTER"/></translation>
 <translation id="8932568551552504373">မင်္ဂလာပါ။ ကျွန်ုပ်မှာ Leo ဖြစ်ပြီး Brave မှဖန်တီးထားသော AI အင်္ဂင်ဖြစ်ပါသည်။ ဤကိရိယာသည် Anthropic မှထုတ်လွှင့်သော Claude Instant စံနမူနာဖြစ်ပြီး စကားပြောခြင်းနှင့်စာသားအုပ်စုများကဲ့သို့သော တုံ့ပြန်မှု လုပ်ငန်းများတွင်အသုံးပြုပါသည်။ Claude Instant ကို Brave ဝန်ဆောင်မှုမှတဆင့် လုံခြုံစွာအိမ်ရှေ့မှတ်ထားထားသည်။<ph name="LINK_BEFORE"/>ပိုမိုသိရှိရန်<ph name="LINK_AFTER"/></translation>
 <translation id="3789772321824682783">ဟိုင်း, ငါက လီယို က။ ငါ့မှာ Brave က အိုင်အေ အရာရှိ AI။ ငါ Claude Haiku သည် Anthropic မှဖန်တီးသည့် မော်ဒယ်ဖြစ်ပြီး စကားပြောနှင့် စာဖတ်ခြင်း အလုပ်များကို အင်အားပေးသည်။ Claude Haiku သည် Brave ၏ကိုယ်ပိုင်လုံခြုံရေးအဆောက်အအုံတွင် ဟော့စ်ထားသည်။<ph name="LINK_BEFORE"/>ဆက်လက်သိရှိရန်<ph name="LINK_AFTER"/></translation>
 <translation id="1778885220602472158">ဟိုင်း, ငါက လီယို က။ ငါ့မှာ Brave က အိုင်အေ အရာရှိ AI။ ငါ Claude Sonnet သည် Anthropic မှ ဖန်တီးသည့် မော်ဒယ်ဖြစ်ပြီး စကားပြောနှင့် စာဖတ်ခြင်း အလုပ်များကို အင်အားပေးသည်။ Claude Sonnet သည် Brave ၏ကိုယ်ပိုင်လုံခြုံရေးအဆောက်အအုံတွင် ဟော့စ်ထားသည်။<ph name="LINK_BEFORE"/>ဆက်လက်သိရှိရန်<ph name="LINK_AFTER"/></translation>
@@ -2319,8 +2343,8 @@
 <translation id="4592293425457329338">ပြုလုပ်နေတဲ့ စကားဝိုင်းအကြောင်း context တစ်စွန့်တော့ပျောက်သွားနိုင်ပါတယ်။ Leo သည် စကားဝိုင်းလက်တွေ့ပေါင်းများစွာ၏ <ph name="PERCENTAGE"/> ကို မျှင်နိုင်ပြီ။</translation>
 <translation id="8501106061098623831">Too many images were captured from the page. Leo was able to use <ph name="PERCENTAGE"/> of the available visual content.</translation>
 <translation id="4370698775470316661">ဤစကားဝိုင်းမှာ အသေးစိတ်များနေပြီး ဆက်လက်စကားပြောသွားမရဘူး။ Leo သည် အထွေအထူး အချောမြရေးအတွက် စိမ်းနီမလို့ ဖြစ်နိုင်ပါတယ်။ အခြား Model များစွာ ရှိလို့ Leo ၏ စကားဝိုင်းကို ထိန်းရှိရေးအတွက် မိမိတို့သည် ဆက်လက်စွမ်းဆောင်နိုင်ဖြစ်ပါတယ်။</translation>
-<translation id="5719170755629028558">Brave ရှာဖွေမှုနှင့် သင့်ဖျန်ကိုအလှူတန်ရှိနေစေမည်...</translation>
-<translation id="5794962229997281366">လေ့လာစစ်ဆေးမှုတွေ ဖြစ်စေခြင်းအတွက် <ph name="SEARCH_TERMS"/> ကို ရှာဖွေပြီး တိုးတက်မှုပေးနေဆီ...</translation>
+<translation id="4744144453035015075">အင်တာနက်ကို ရှာဖွေနေသည်</translation>
+<translation id="8548351747582087191"><ph name="SEARCH_TERMS"/> အတွက် အင်တာနက်ကို ရှာဖွေနေသည်။</translation>
 <translation id="7307396647043599949"><ph name="COUNT"/> ထပ်မံ...</translation>
 <translation id="8103700533980268469">ဤစာရင်းကိုပိတ်ပါ</translation>
 <translation id="3417835166382867856">တက်ဘ်များကို ရှာပါ</translation>
@@ -2391,8 +2415,8 @@
 <translation id="2370739752330685659">နောက်မှလုပ်ရန်</translation>
 <translation id="983013125018250242">Leo tools</translation>
 <translation id="7623223587478473368">ပံ့ပိုးမှု</translation>
-<translation id="3777121685517940177">ဖိုင်တင်ပါ...</translation>
-<translation id="6739516910850820220">ဖိုင်တင်နေဆဲ...</translation>
+<translation id="3728603231003977269">ဖိုင်တွဲထည့်ရန်...</translation>
+<translation id="7899721102369502629">ဖိုင်တွဲထည့်နေဆဲ...</translation>
 <translation id="9088751620363630236">ဓာတ်ပုံကိုရယူပါ...</translation>
 <translation id="4250229828105606438">စကရင်ရှော့</translation>
 <translation id="7949596341600215809">အားလုံးအင်တို့ကို</translation>
@@ -2440,10 +2464,12 @@
 <translation id="7607002721634913082">ရပ်ဆိုင်းထားသည်</translation>
 <translation id="4773299976671772492">ရပ်နားထားသည်</translation>
 <translation id="6946722113367118030">စဉ်းစားနေသည်</translation>
+<translation id="7918928051723770926">အလုပ်ပြီးမြောက်သည်</translation>
 <translation id="2113810663179257944">ကုဒ်အကောင်အထည်ဖော်ခြင်း</translation>
-<translation id="6338250692384725496">အင်္ဂါရပ်တွင် သင့်သောတစ်ခြောက်အတွက်ကူညီရန် sandbox ရှိ code ကိုလုပ်ဆောင်ခဲ့သည်</translation>
+<translation id="4838375634693651776">သင့်တောင်းဆိုမှုကို ကူညီရန်အတွက် sandbox တွင် ကုဒ်ကို လုပ်ဆောင်နေသည်</translation>
 <translation id="4379566111233326721">ကုဒ်-</translation>
 <translation id="3542130965673205258">အထွက်-</translation>
+<translation id="6911817209337314910">သင်ရွေးချယ်ရန်အတွက် ရွေးချယ်စရာအချို့ကို ဖန်တီးနေသည်</translation>
 <translation id="5382076391290708074">သင့်၏Tab များကို ပြန်လည်စီစဉ်ခြင်း</translation>
 <translation id="3862123464576147769">ဤကို ခွင့်ပြုခြင်းသည် သင့်ဖွင့်ထားသည့် Tab အားလုံး၏ <ph name="URL_FORMAT_START"/>URL<ph name="URL_FORMAT_END"/> နှင့် <ph name="TITLE_FORMAT_START"/>ခေါင်းစီးခွင့်<ph name="TITLE_FORMAT_END"/> အားလုံးကို Brave AI သို့ ပေးပို့ပြီး Brave AI ကို ၎င်းတို့ကို ပြန်လည်စီစဉ်လိုက်ခွင့်ပြုလိုက်ဆိုတာဖြစ်သည်။ ဤခွင့်ပြုချက်သည် ဤစကားဝိုင်းအတွက်သာ ကျေးဇူးပြုသည်။</translation>
 <translation id="396165714586708444">နက်ရှိုင်းသောသုတေသန</translation>
@@ -2475,7 +2501,9 @@
 <translation id="5663901348199429994">သင့် အီးမေးလ်ထောက်ခံမဲ့များ</translation>
 <translation id="9046133327037621173">အီးမေးလ် လိပ်စာ အသစ်</translation>
 <translation id="3768606658230902536">သင့် inbox သို့ ယိုလာမည့် အသေးစိထုတ်ဖြင့် တစ်ကိုယ်ရေး အီးမေးလ် လိပ်စာကို ကာကွယ်ပြီး မှီခိုဖို့ random အီးမေးလ်လိပ်စာ ဖန်တီးပါ။</translation>
-<translation id="6887156107256264506">သင့် ၅ ခု အခမဲ့ အီးမေးလ် လိပ်စာ နှင့်ရောက် ၊ 'Manage' ကို နှိပ်ပြီး လိပ်စာ ချထားသည်။</translation>
+<translation id="4452721050684632493">Alias အကန့်အသတ်သို့ ရောက်ရှိနေသည်</translation>
+<translation id="2912191433415590080">သင်၏ email alias <ph name="MAX_ALIASES"/> ခုလုံးကို အသုံးပြုပြီးပါပြီ။ အသစ်တစ်ခု ဖန်တီးရန် ရှိပြီးသား alias တစ်ခုကို ဖျက်ပါ။</translation>
+<translation id="3847337908410945070">သင်၏ alias များ (<ph name="CURRENT"/> / <ph name="MAX"/>)</translation>
 <translation id="1104500750724567895">လာမဲ့</translation>
 <translation id="8072910658503112482">အခြားအီးမေးလ် အထောက်ခံရန် ညွှန်းကြားပါ</translation>
 <translation id="7710361355427562228">အသစ် လာမဲ့နေဆဲ...</translation>
@@ -2492,6 +2520,7 @@
 <translation id="646524615209870492"><ph name="ALIAS"/> ကို ထုတ်လိုက်ပါက သင့်အတွက် အီးမေးလ်များလဲ ဖြစ်မည်။</translation>
 <translation id="8133100642915054515">အီးမေးလ် နာမည်ဖျက်ခြင်း မရဖြစ်ပါ။</translation>
 <translation id="8465742443901727718">ဤလုပ်ဆောင်ချက်မှာ အတည်မဲ့ဖြစ်ပါသည်။ ဆက်လက်လိုချင်သည်ဆိုပါက အသေးစိတ်အချက်ပြပါ။</translation>
+<translation id="6402052536605772735">ကျွန်ုပ်တို့၏ server များမှ အီးမေးလ်အမည်ပြောင်းများကို ထုတ်ယူရာတွင် အမှားအယွင်းဖြစ်ပွားသည်။ သင့်အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပါ။</translation>
 <translation id="9162685486229945876">Brave အကောင့်သို့ဝင်ရောက်သည်သို့မဟုတ်အကောင့်ဖန်တီးပါ</translation>
 <translation id="1335007417599138852">Brave အကောင့်သည်သင့်ကို Brave ထုတ်ကုန်အချို့ကို ဝင်ရောက်နိုင်စေပြီးသင့်ပစ္စည်းများကို ကိုယ်ပိုင်ကွန်ပျူတာအားလုံးတွင် လွယ်လပ်စွာ ပေါင်းစပ်နိုင်စေမည်ဖြစ်သည်။</translation>
 <translation id="2133391407495495735">အထောက်ခံမှု ရွေးပါ</translation>
@@ -2518,6 +2547,8 @@
 <translation id="2991633563551889054">အဖော်ကြီးကတ်ကို ဖျောက်ပွန်းရန်</translation>
 <translation id="5355776323718420036">top sites ကို ဖျောက်ထားပါ</translation>
 <translation id="1689504141194856995">VPN ကတ်ကို ဖျောက်ပွန်းရန်</translation>
+<translation id="2919329118360099847">Brave ကို ပုံမှန် windows များတွင် လိပ်စာဘားရှိ search engine အဖြစ် အသုံးပြုပါမည်။</translation>
+<translation id="6792837540759934892">Brave ကို မူရင်း search engine အဖြစ် သတ်မှတ်မလား။</translation>
 <translation id="8262911270872215147">သတင်းများစီမံ</translation>
 <translation id="3884037897537157986">သတင်းများကို ပိတ်သည်</translation>
 <translation id="7847477075635510673">သတင်းများကို ဖျောက်သည်</translation>
@@ -2657,7 +2688,7 @@
 <translation id="2273851479262317744">Brave ကို ပင်တိုင်သုံး ဘရောက်ဇာအဖြစ် သတ်မှတ်ရန်</translation>
 <translation id="5037676449506322593">အားလုံးကိုရွေးပါ</translation>
 <translation id="5148943178722443958">Brave သုံးစွဲမှုပိုင်း ပိုကောင်းလာစေရန် ကူညီပေးပါ။</translation>
-<translation id="479535542793009168">တည်ဆောက်မှုနှင့် အလေ့အကျင့်ပရောဂရမ်</translation>
+<translation id="8874748598814587364">တည်ငြိမ်မှု</translation>
 <translation id="1097073572755862978">သုံးနေရင်း ပိတ်သွားခြင်း သို့မဟုတ် ရပ်တန့်သွားခြင်း ကြုံလျှင် ကျားသွင်းချက်အစီရင်ခံစာများ ပို့ရန်။ <ph name="LINK_BEFORE"/>ပိုမိုလေ့လာပါ.<ph name="LINK_AFTER"/></translation>
 <translation id="6629244688368006959">Brave သုံးစွဲသူများက ဘယ်လုပ်ဆောင်ချက်များကို သုံးနေသည်ဆိုတာ ပုဂ္ဂိုလ်ရေးနှင့်အမည်မဖော်သော ထုတ်ကုန်အတွင်းပိုင်း အချက်အလက်များကို မျှဝေပေးပါ။ <ph name="LINK_BEFORE"/>ပိုမိုလေ့လာပါ.<ph name="LINK_AFTER"/></translation>
 <translation id="7415454883318062233">စတင်ရန်ပြင်ဆင်မှုကိုပြီးမြောက်သည်</translation>
@@ -2670,7 +2701,7 @@
 <translation id="4117637339509843559">အမှောင်အပြည့်အဝမျက်နှာပြင်</translation>
 <translation id="6302485303316397682">ပိုကောင်းသော ရှာဖွေရေး ရလဒ်များကို ရလိုပါသလား။</translation>
 <translation id="7014699001826714920">ဤလှုပ်ရှားမှုတွင်ပါဝင်ပြီး Brave ရှာဖွေရေး ပိုကောင်းလာအောင် ထည့်ဝင်ပံ့ပိုးပေးလိုက်ပါ။</translation>
-<translation id="6821108091726602352">Brave ၏ ဝက်ဘ်ရှာဖွေစူးစမ်းရေး ပရောဂျက်တွင် ပါဝင်ပြီး ဝက်ဘ်သုံးစွဲမှု ပိုကောင်းလာအောင် လုပ်ဆောင်ပေးရာ၌ အထောက်အကူပြုပေးပါ။ လုံးဝအမည်ဖော်၍မရသော ရှာဖွေရေး အချက်အလက်များကို မျှဝေပေးခြင်းဖြင့် Brave ၏ ရှာဖွေရေး အချက်အလက်စာရင်း ပိုကျယ်ပြန့်လာစေရန် ကူညီပေးနိုင်ပါသည်။</translation>
+<translation id="6821108091726602352">Brave ၏ Web Discovery Project တွင် ပါဝင်ခြင်းဖြင့် ကျွန်ုပ်တို့ ဝဘ်ကို ပြုပြင်ရန် ကူညီပါ။ လုံးဝ အမည်မဖော်သော ရှာဖွေမှု အချက်ပြများကို မျှဝေခြင်းဖြင့်၊ Brave ၏ ရှာဖွေမှု အညွှန်းကို ကြီးထွားလာစေရန် ကူညီနိုင်ပါသည်။</translation>
 <translation id="6764845498618413165">ပိုမိုလေ့လာရန်။</translation>
 <translation id="7818938154803162778">ကူညီပေးလိုပါသည်</translation>
 <translation id="7207456302801184289">Brave မှ ကြိုဆိုပါသည်</translation>
@@ -2783,6 +2814,10 @@ brave://setting/systemတွင် WireGuard ပြန်ပြောင်း�
 <translation id="1602850501393095406">ကမ်းခြေလှ ခြိမ်းခြောက်မှု</translation>
 <translation id="8367705492654390392">မေးလိုသောအရာတစ်ခုခု</translation>
 <translation id="8525248723479742219">နောက်မှဖွင့်ရန်</translation>
+<translation id="1751249301761991853">ပုဂ္ဂိုလ်ရေး</translation>
+<translation id="1122068467107743258">အလုပ်</translation>
+<translation id="8372721116225477180">လူမှုရေး</translation>
+<translation id="1539343118617844331">ကျောင်း</translation>
 <translation id="2935698011275148880">Brave Origin</translation>
 <translation id="3983844925615091103">Brave Origin သို့ ကြိုဆိုပါသည်။ ဆက်လက်ရန် Brave Origin ဝယ်ယူခြင်း သို့မဟုတ် ပြန်လည်ရယူခြင်းကို လုပ်ဆောင်ပါ။</translation>
 <translation id="4801175670604644729">ဤအီန်တरနက်ဘရောင်ဇာကိုအသုံးပြုရန် သင့်သည် လှုပ်ရှားနေသည့် Brave Origin ဝယ်ယူမှုတစ်ခုဆိုင်ရာလိုအပ်သည်။</translation>
@@ -2798,4 +2833,66 @@ brave://setting/systemတွင် WireGuard ပြန်ပြောင်း�
 <translation id="5816720995022674532">Origin သည် Linux ကိရိယာများပေါ်တွင် အ​တ​ည​ခြင်း လွတ်လပ်စွာ အ​သုံးပြုနိုင်သည်၊ သို့သော် အ​ဘိ​ဓါ​နကို အ​ခ​ေ​တ​်​အ​ဖ​စ​ခွင့်​ရ​ခြင်း​အ​လုံ့အ​တွင်း Brave ​အ​ကျ​ာ​အ​ယူ​မြ့​ခွင့်​ရ​ခြင်း​အ​လုံ့​နှ့​ုံ <ph name="BEGIN_LINK"/>ဝယ်ယူခွင့်​အ​လုံ့​အ​တွင်း​ရ​ခြ​ည​<ph name="END_LINK"/>။ ​ဝယ်ယူခြင်း​တစ်ခုသည် Android၊ iOS၊ macOS နှင့် Windows ​ကိရိယာများပေါ်တွင် Origin ကို အ​သုံးပြုလုပ်ခွင့်ကို ​ပ​ြ​ည့​မြ့​ခွင့်​ရ​ခြ​ည​။</translation>
 <translation id="3065220545261045367">Origin ကို ​ဝယ်ယူခြင်း​မှ Brave ​အ​ကျ​ာ​အ​ယူ​မြ့​ခွင့်​ရ​ခြည​</translation>
 <translation id="2069499076031488636">Origin ​အ​လုံ့​အ​တွင်း Linux ​ပေါ်တွင် အ​တ​ည​ခြင်း ​ဆ​က်​လ​က်​ခွင့်​ရ​ခြည​</translation>
+<translation id="5713644099811900409">Brave အကောင့်</translation>
+<translation id="2906576968270573525">Brave အကောင့်ဝင်ပါ သို့မဟုတ် အကောင့်ဖန်တီးပါ</translation>
+<translation id="6972754398087986839">စတင်ရန်</translation>
+<translation id="5378207817582281342">နီးပြီ!</translation>
+<translation id="3750210661641549834">သင်၏ အကောင့်ပြုလုပ်ရန် သင့်အီးမေးလ်လိပ်စာကို အတည်ပြုပါ။</translation>
+<translation id="4129813507847680661">စာရင်းသွင်းကုဒ်ထည့်ပါ</translation>
+<translation id="1672793037892810340">သင် ထည့်သွင်းရမည့်ကုဒ်ပါသော အီးမေးလ်တစ်စောင်ကို လက်ခံရရှိထားသင့်ပါသည်။</translation>
+<translation id="4821255729182569254">အတည်ပြုအီးမေးလ်ကို ပြန်ပို့ပါ</translation>
+<translation id="5837679375142747484">အီးမေးလ်ကို မမြင်ရဘူးလား။ သင်၏ spam folder ကို စစ်ဆေးပါ သို့မဟုတ် <ph name="BEGIN_LINK"/>ပြန်ပို့<ph name="END_LINK"/> ပါ။</translation>
+<translation id="1080588816740959885">အီးမေးလ်ကို မမြင်ရဘူးလား။ သင်၏ spam folder ကို စစ်ဆေးပါ သို့မဟုတ် ပြန်ပို့ပါ။</translation>
+<translation id="1020730839570724178">စာရင်းသွင်းခြင်းကို ပယ်ဖျက်ပါ</translation>
+<translation id="4869737930995549965">Logout လုပ်ပါ</translation>
+<translation id="5538654494923870167">သင်၏ Brave အကောင့်ဖြင့် စတင်လိုက်ပါ</translation>
+<translation id="1544145635547515689">Brave အကောင့်တစ်ခု ပြုလုပ်ပါ</translation>
+<translation id="3828644479849256404">အကောင့်ရှိပြီးပြီလား။ Log in လုပ်ပါ</translation>
+<translation id="6624553071240278643">သင်၏ အကောင့်ကို ပြုလုပ်ပါ</translation>
+<translation id="6505120968393722022">Brave အကောင့်ဖန်တီးရန် @bravealias.com လိပ်စာများကို မသုံးနိုင်ပါ။ မတူညီသော domain ဖြင့် ထပ်စမ်းကြည့်ပါ။</translation>
+<translation id="8248460961680233459">စကားဝှက်ဖန်တီးပါ</translation>
+<translation id="552339301062636488">ဆက်လုပ်ရန် အလွန်အားနည်းသည်</translation>
+<translation id="8433528931936107676">လမ်းကြောင်းမှန်နေသည်</translation>
+<translation id="4324743471050874155">လုံလောက်စွာ အားကောင်းသည်</translation>
+<translation id="5585552203448068294">အလွန်အားကောင်းသည်</translation>
+<translation id="5486261815000869482">စကားဝှက်ကို အတည်ပြုပါ</translation>
+<translation id="7345706641791090287">သင်၏ စကားဝှက်ကို အတည်ပြုပါ</translation>
+<translation id="7114054701490058191">စကားဝှက်များ မကိုက်ညီပါ</translation>
+<translation id="1293857704520741614">သင်၏အကောင့်ကို Log in လုပ်ပါ</translation>
+<translation id="118617366439356381">စကားဝှက်ကို မေ့သွားပါသလား။</translation>
+<translation id="5183159033908953146">သင်၏ Brave အကောင့်အီးမေးလ်ကို အတည်ပြုပါ၊ ထို့နောက် စကားဝှက်ပြန်လည်သတ်မှတ်ရန် link တစ်ခုကို လက်ခံရရှိမည်။ link သည် 30 မိနစ်အတွင်းသာ အကျုံးဝင်ပါသည်။</translation>
+<translation id="3997368361371298873">သတိ - ဤ device တွင် သင် log in ဝင်ထားခြင်းမရှိသောကြောင့် စကားဝှက်ပြန်လည်သတ်မှတ်ခြင်းသည် server ပေါ်ရှိ <ph name="BEGIN_BOLD"/>သင်၏ဒေတာအားလုံးကို ဖျက်ပစ်မည်<ph name="END_BOLD"/>။ သင် log in ဝင်ထားသော အခြား device တစ်ခုရှိပါက စကားဝှက်ပြန်လည်သတ်မှတ်မည့်အစား ထို device မှ စကားဝှက်ပြောင်းပါ။</translation>
+<translation id="3674472551471103443">သင်၏ စကားဝှက်ကို ပြန်လည်သတ်မှတ်ပါ</translation>
+<translation id="2755539422340788311">သင်၏ အီးမေးလ်ကို အတည်ပြုပါ</translation>
+<translation id="6641436078676327508">အတိုကောက်ကုဒ်ပါသော အီးမေးလ်တစ်စောင်ကို လက်ခံရရှိထားသင့်ပါသည်။ ဆက်လုပ်ရန် ဤနေရာတွင် ထည့်ပါ။</translation>
+<translation id="7228810962389847249">ကုဒ်ကို ဤနေရာတွင် ထည့်ပါ</translation>
+<translation id="4683390091376980486">ကုဒ်ကို အတည်ပြုပါ</translation>
+<translation id="3970028678400797622">အီးမေးလ်ကုဒ်ကို ပြန်ပို့ပါ</translation>
+<translation id="2475982808118771221">အမှားတစ်ခု ဖြစ်ပေါ်ခဲ့သည်</translation>
+<translation id="5430795854491041407">အမှားပေါ်ပေါက်</translation>
+<translation id="2232323423357029857">browser တွင် မမျှော်လင့်ထားသော အမှားတစ်ခု <ph name="ERROR_CODE"/> တွေ့ရှိခဲ့သည်။ browser ကို ပြန်စပြီး ထပ်စမ်းကြည့်ပါ။</translation>
+<translation id="7167650060829320707">အတွင်းပိုင်း server အမှား (<ph name="STATUS_CODE"/><ph name="ERROR_CODE"/>)။ နောက်မှ ထပ်စမ်းကြည့်ပါ။</translation>
+<translation id="2387645930330673048">ဤအကောင့်သည် အီးမေးလ်အတည်ပြုခြင်းကို စောင့်ဆိုင်းနေပါသည်။</translation>
+<translation id="2199962270601714404">ထိုအီးမေးလ်လိပ်စာအတွက် အကောင့်တွေ့ရှိမှု မရှိပါ။ ထပ်စမ်းကြည့်ပါ၊ သို့မဟုတ် အကောင့်အသစ်တစ်ခု ပြုလုပ်ပါ။</translation>
+<translation id="8130611002720478693">စကားဝှက်မှားနေသည်။ ထပ်စမ်းကြည့်ပါ။</translation>
+<translation id="7144067487084094749">ဤအီးမေးလ်လိပ်စာအတွက် အကောင့်တစ်ခု ရှိပြီးသားဖြစ်ပါသည်။ အကောင့်ပြုလုပ်မည့်အစား log in လုပ်ကြည့်ပါ။</translation>
+<translation id="5288951359968156008">ဤအီးမေးလ်လိပ်စာ၏ domain ကို မပံ့ပိုးပါ။ မတူညီသော အီးမေးလ်လိပ်စာတစ်ခုကို သုံးပါ။</translation>
+<translation id="7625678607509255072">အီးမေးလ် အတည်ပြုခြင်း ကန့်သတ်ချက် ကျော်လွန်ပါပြီ။ ထပ်စမ်းမည်ဆိုပါက 30 မိနစ်စောင့်ပါ။</translation>
+<translation id="4582421696414628320">အတည်ပြုခြင်း သက်တမ်းကုန်ပါပြီ။ စာရင်းသွင်းခြင်းကို ပြန်စပါ။</translation>
+<translation id="8439543211004394821">မှားယွင်းသောကုဒ်များ အကြိမ်များစွာ ထည့်ခဲ့ပါပြီ။ စာရင်းသွင်းခြင်းကို ပြန်စပါ။</translation>
+<translation id="3229986152760633988">ကုဒ်မှားနေသည်၊ ထပ်စမ်းကြည့်ပါ။</translation>
+<translation id="818783632689113711">ဤအီးမေးလ်လိပ်စာအတွက် အကောင့်တစ်ခု တောင်းဆိုပြီးဖြစ်သည်။ သင့်အီးမေးလ်ကို စစ်ဆေးပါ သို့မဟုတ် မိနစ် ၃၀ အကြာတွင် ထပ်မံကြိုးစားပါ။</translation>
+<translation id="4178004989875422946">Brave အကောင့်တစ်ခုက Brave ဝန်ဆောင်မှုများကို လွယ်ကူစွာ ဝင်ရောက်နိုင်စေပါသည်။</translation>
+<translation id="4902897635127068510"><ph name="SUGGESTION"/> ကို ဆိုလိုသလား။</translation>
+<translation id="8314772463905284467">Caps Lock ဖွင့်ထားသည်</translation>
+<translation id="7044608453949401443">စကားဝှက်၏ အစ သို့မဟုတ် အဆုံးတွင် နေရာလွတ်များ မထည့်ရပါ။</translation>
+<translation id="2939492377741553693">အတည်ပြုအီးမေးလ် ပြန်ပို့ပြီးပါပြီ။</translation>
+<translation id="2112559299194052697">ပြန်ပို့၍မရပါ</translation>
+<translation id="7932611814134267012">အတည်ပြုအီးမေးလ်များကို အကြိမ်များစွာ ပို့ပြီးပါပြီ။ သင်၏ spam folder ကို စစ်ဆေးပါ။</translation>
+<translation id="1364223093800750401">အီးမေးလ်ကို အတည်ပြုပြီးပါပြီ။</translation>
+<translation id="3353844160742960162">ကိုယ်ရေးကိုယ်တာ ဆက်တင်များ ညှိနှိုင်းခြင်း</translation>
+<translation id="528205534230423181">ဤ website သည် Brave က သင့်အတွက် အလိုအလျောက် ညှိနိုင်သော ကိုယ်ရေးကိုယ်တာ ဆက်တင်များကို ပေးပါသည်။ ကျွန်ုပ်တို့ အကြံပြုသည်မှာ -</translation>
+<translation id="1063227610401477317">ပြောင်းလဲမှုများကို လျှောက်ထားပါ</translation>
+<translation id="5539769255716491933">မအောင်မြင်သော အဆင့်များကို သတင်းပို့ပါ</translation>
+<translation id="7562163394445060270">အလုပ်ပြီးမြောက်မှု မအောင်မြင်ပါ</translation>
 </translationbundle>

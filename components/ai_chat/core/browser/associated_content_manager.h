@@ -19,6 +19,8 @@
 #include "base/scoped_multi_source_observation.h"
 #include "brave/components/ai_chat/core/browser/associated_archive_content.h"
 #include "brave/components/ai_chat/core/browser/associated_content_delegate.h"
+#include "brave/components/ai_chat/core/browser/tools/tool.h"
+#include "brave/components/ai_chat/core/browser/tools/tool_provider.h"
 #include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"
 #include "brave/components/ai_chat/core/common/mojom/common.mojom.h"
 
@@ -35,7 +37,8 @@ using PageContentsMap = base::flat_map<std::string, PageContents>;
 // - Loading archived content
 // - Archiving content as the user navigates aways
 // - Managing whether content should be used as part of the context
-class AssociatedContentManager : public AssociatedContentDelegate::Observer {
+class AssociatedContentManager : public ToolProvider,
+                                 public AssociatedContentDelegate::Observer {
  public:
   explicit AssociatedContentManager(ConversationHandler* conversation);
   ~AssociatedContentManager() override;
@@ -72,6 +75,11 @@ class AssociatedContentManager : public AssociatedContentDelegate::Observer {
   // delegates.
   void RemoveContent(std::string_view content_uuid, bool notify_updated = true);
 
+  // Sets whether the tools exposed by the content with |content_uuid| are
+  // attached (available to the LLM). Reflects an explicit user choice, e.g.
+  // detaching via the tools pill.
+  void SetToolsAttached(std::string_view content_uuid, bool tools_attached);
+
   // Clears all content from the conversation.
   void ClearContent();
 
@@ -84,6 +92,7 @@ class AssociatedContentManager : public AssociatedContentDelegate::Observer {
 
   // Gets the content for this conversation.
   void GetContent(base::OnceClosure callback);
+
   void GetScreenshots(
       mojom::ConversationHandler::GetScreenshotsCallback callback);
   void GetStagedEntriesFromContent(GetStagedEntriesCallback callback);
@@ -110,6 +119,10 @@ class AssociatedContentManager : public AssociatedContentDelegate::Observer {
   // The number of content delegates.
   size_t GetContentDelegateCount() const;
 
+  // ToolProvider:
+  void UpdateToolsForNewGenerationLoop(base::OnceClosure on_updated) override;
+  std::vector<base::WeakPtr<Tool>> GetTools() override;
+
   // AssociatedContentDelegate::Observer:
   void OnRequestArchive(AssociatedContentDelegate* delegate) override;
   void OnDestroyed(AssociatedContentDelegate* delegate) override;
@@ -122,8 +135,15 @@ class AssociatedContentManager : public AssociatedContentDelegate::Observer {
  private:
   void DetachContent();
 
+  // Attaches |delegate| when the tools it exposes are non-empty (and detaches
+  // it otherwise), so its tools are surfaced (via the tools pill) before any
+  // generation occurs. Invoked with the result of GetContentTools().
+  void OnContentToolsDetected(base::WeakPtr<AssociatedContentDelegate> delegate,
+                              std::vector<std::unique_ptr<Tool>> tools);
+
   raw_ptr<ConversationHandler> conversation_;
 
+  std::vector<std::unique_ptr<Tool>> tools_;
   std::vector<AssociatedContentDelegate*> content_delegates_;
   base::flat_map<std::string, std::string> content_uuid_to_conversation_turns_;
 

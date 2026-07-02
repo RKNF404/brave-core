@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/functional/callback_helpers.h"
+#include "base/json/json_reader.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
@@ -39,6 +40,7 @@ namespace ai_chat {
 namespace {
 
 constexpr char kTestModelName[] = "test-model";
+constexpr char kTestUpstreamModelName[] = "upstream-test-model";
 
 // JSON body for a non-streaming OAI completion response.
 constexpr char kNonStreamingResponseBody[] =
@@ -96,7 +98,8 @@ class ObliviousHttpAPIClientUnitTest : public testing::Test,
                            ObliviousHttpConfigManager::KeyConfigCallback cb) {
           std::move(cb).Run(ObliviousHttpConfigManager::KeyConfigResult{
               /*key_config=*/"test-key-config-bytes",
-              /*endpoint_url=*/GURL("https://endpoint.test/inner")});
+              /*endpoint_url=*/GURL("https://endpoint.test/inner"),
+              /*upstream_model_name=*/kTestUpstreamModelName});
         });
     client_->SetConfigManagerForTesting(std::move(config_manager));
   }
@@ -140,10 +143,7 @@ class ObliviousHttpAPIClientUnitTest : public testing::Test,
     if (enable_data_received_callback) {
       data_received_callback = base::BindLambdaForTesting(
           [&](EngineConsumer::GenerationResultData data) {
-            if (data.event->is_completion_event()) {
-              received_chunks_ +=
-                  data.event->get_completion_event()->completion;
-            }
+            received_chunks_.push_back(std::move(data.event));
           });
     }
 
@@ -182,7 +182,7 @@ class ObliviousHttpAPIClientUnitTest : public testing::Test,
   std::unique_ptr<base::RunLoop> run_loop_;
   EngineConsumer::GenerationResult result_ =
       base::unexpected(mojom::APIError::None);
-  std::string received_chunks_;
+  std::vector<mojom::ConversationEntryEventPtr> received_chunks_;
   network::mojom::ObliviousHttpRequestPtr last_request_;
   mojo::Remote<network::mojom::ObliviousHttpClient> completion_client_;
   mojo::Remote<network::mojom::ObliviousHttpChunkClient> chunk_client_;
@@ -216,7 +216,11 @@ TEST_F(ObliviousHttpAPIClientUnitTest,
   CompleteWithInnerResponse(net::HTTP_OK, "");
   run_loop_->Run();
 
-  EXPECT_EQ("part1part2", received_chunks_);
+  ASSERT_EQ(2u, received_chunks_.size());
+  ASSERT_TRUE(received_chunks_[0]->is_completion_event());
+  EXPECT_EQ("part1", received_chunks_[0]->get_completion_event()->completion);
+  ASSERT_TRUE(received_chunks_[1]->is_completion_event());
+  EXPECT_EQ("part2", received_chunks_[1]->get_completion_event()->completion);
 
   ASSERT_TRUE(result_.has_value());
   ASSERT_TRUE(result_->event->is_completion_event());
@@ -239,7 +243,13 @@ TEST_F(ObliviousHttpAPIClientUnitTest,
   CompleteWithInnerResponse(net::HTTP_OK, "");
   run_loop_->Run();
 
-  EXPECT_EQ("good1good2good3", received_chunks_);
+  ASSERT_EQ(3u, received_chunks_.size());
+  ASSERT_TRUE(received_chunks_[0]->is_completion_event());
+  EXPECT_EQ("good1", received_chunks_[0]->get_completion_event()->completion);
+  ASSERT_TRUE(received_chunks_[1]->is_completion_event());
+  EXPECT_EQ("good2", received_chunks_[1]->get_completion_event()->completion);
+  ASSERT_TRUE(received_chunks_[2]->is_completion_event());
+  EXPECT_EQ("good3", received_chunks_[2]->get_completion_event()->completion);
 }
 
 TEST_F(ObliviousHttpAPIClientUnitTest,
@@ -269,13 +279,69 @@ TEST_F(ObliviousHttpAPIClientUnitTest, PerformRequest_Streaming_BadStatusCode) {
   EXPECT_EQ(mojom::APIError::ConnectionIssue, result_.error());
 }
 
+TEST_F(ObliviousHttpAPIClientUnitTest,
+       PerformRequest_InnerUnauthorized_ReturnsConnectionIssue) {
+  PerformRequest();
+  CompleteWithInnerResponse(net::HTTP_UNAUTHORIZED, "");
+  run_loop_->Run();
+  ASSERT_FALSE(result_.has_value());
+  EXPECT_EQ(mojom::APIError::ConnectionIssue, result_.error());
+}
+
+TEST_F(ObliviousHttpAPIClientUnitTest,
+       PerformRequest_Streaming_ToolCallAndNearAIResult) {
+  PerformRequest(/*enable_data_received_callback=*/true);
+
+  ASSERT_FALSE(last_request_.is_null());
+  EXPECT_TRUE(last_request_->enable_chunking);
+
+  // Emit a web_context_search tool call request.
+  EmitRawChunk(
+      "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{"
+      "\"id\":\"call_abc\","
+      "\"function\":{\"name\":\"web_context_search\","
+      "\"arguments\":\"{\\\"query\\\":\\\"brave browser\\\"}\"}"
+      "}]}}]}\n");
+
+  // Emit a nearai server tool result for the same tool call.
+  EmitRawChunk(
+      "data: {\"choices\":[{\"delta\":{\"nearai_tool_result\":{"
+      "\"tool_call_id\":\"call_abc\","
+      "\"output\":\"Brave is a privacy-focused browser.\""
+      "}}}]}\n");
+
+  CompleteWithInnerResponse(net::HTTP_OK, "");
+  run_loop_->Run();
+
+  ASSERT_EQ(2u, received_chunks_.size());
+
+  // First event: tool call request.
+  ASSERT_TRUE(received_chunks_[0]->is_tool_use_event());
+  const auto& tool_call = received_chunks_[0]->get_tool_use_event();
+  EXPECT_EQ("web_context_search", tool_call->tool_name);
+  EXPECT_EQ("call_abc", tool_call->id);
+  EXPECT_EQ("{\"query\":\"brave browser\"}", tool_call->arguments_json);
+  EXPECT_FALSE(tool_call->is_server_result);
+
+  // Second event: nearai server tool result.
+  ASSERT_TRUE(received_chunks_[1]->is_tool_use_event());
+  const auto& tool_result = received_chunks_[1]->get_tool_use_event();
+  EXPECT_EQ("call_abc", tool_result->id);
+  EXPECT_TRUE(tool_result->is_server_result);
+  ASSERT_TRUE(tool_result->output.has_value());
+  ASSERT_EQ(1u, tool_result->output->size());
+  ASSERT_TRUE((*tool_result->output)[0]->is_text_content_block());
+  EXPECT_EQ("Brave is a privacy-focused browser.",
+            (*tool_result->output)[0]->get_text_content_block()->text);
+}
+
 TEST_F(ObliviousHttpAPIClientUnitTest, PerformRequest_BadOuterResponseCode) {
   const struct {
     int response_code;
     mojom::APIError expected_error;
   } kCases[] = {
       {net::HTTP_INTERNAL_SERVER_ERROR, mojom::APIError::ConnectionIssue},
-      {net::HTTP_UNAUTHORIZED, mojom::APIError::InvalidAPIKey},
+      {net::HTTP_UNAUTHORIZED, mojom::APIError::ConnectionIssue},
       {net::HTTP_TOO_MANY_REQUESTS, mojom::APIError::RateLimitReached},
   };
 
@@ -294,6 +360,20 @@ TEST_F(ObliviousHttpAPIClientUnitTest, PerformRequest_BadOuterResponseCode) {
     ASSERT_FALSE(result_.has_value());
     EXPECT_EQ(c.expected_error, result_.error());
   }
+}
+
+TEST_F(ObliviousHttpAPIClientUnitTest, PerformRequest_UsesUpstreamModelName) {
+  PerformRequest();
+
+  ASSERT_FALSE(last_request_.is_null());
+  ASSERT_TRUE(last_request_->request_body);
+
+  auto parsed = base::JSONReader::Read(last_request_->request_body->content,
+                                       base::JSON_PARSE_RFC);
+  ASSERT_TRUE(parsed.has_value() && parsed->is_dict());
+  const std::string* model = parsed->GetDict().FindString("model");
+  ASSERT_TRUE(model);
+  EXPECT_EQ(kTestUpstreamModelName, *model);
 }
 
 }  // namespace ai_chat

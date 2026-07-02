@@ -17,8 +17,6 @@ public struct CredentialListView: View {
 
   public init(model: CredentialListModel) {
     self.model = model
-
-    UIView.applyAppearanceDefaults()
   }
 
   private struct CredentialButton: View {
@@ -94,7 +92,6 @@ public struct CredentialListView: View {
               Text(Strings.CredentialProvider.emptySuggestions)
                 .font(.footnote)
                 .foregroundStyle(Color(braveSystemName: .textTertiary))
-                .listRowBackground(Color(uiColor: .secondaryBraveGroupedBackground))
             } else {
               ForEach(
                 model.suggestedCredentials.sorted(by: { $0.rank < $1.rank }),
@@ -103,7 +100,6 @@ public struct CredentialListView: View {
                 CredentialButton(model: model, credential: cred) {
                   credentialDetails = cred
                 }
-                .listRowBackground(Color(uiColor: .secondaryBraveGroupedBackground))
               }
             }
           } header: {
@@ -118,7 +114,6 @@ public struct CredentialListView: View {
             CredentialButton(model: model, credential: cred) {
               credentialDetails = cred
             }
-            .listRowBackground(Color(uiColor: .secondaryBraveGroupedBackground))
           }
           if allCredentials.isEmpty && !filter.isEmpty {
             Text(
@@ -129,7 +124,6 @@ public struct CredentialListView: View {
             )
             .font(.footnote)
             .foregroundStyle(Color(braveSystemName: .textTertiary))
-            .listRowBackground(Color(uiColor: .secondaryBraveGroupedBackground))
           }
         } header: {
           Text(Strings.CredentialProvider.otherLogins)
@@ -159,8 +153,6 @@ public struct CredentialListView: View {
         prompt: Text(Strings.CredentialProvider.searchBarPrompt)
       )
       .listStyle(.insetGrouped)
-      .scrollContentBackground(.hidden)
-      .background(Color(uiColor: .braveGroupedBackground))
       .toolbar {
         ToolbarItemGroup(placement: .cancellationAction) {
           Button(Strings.CredentialProvider.cancelButtonTitle) {

@@ -11,12 +11,14 @@
 #include "brave/components/commander/common/buildflags/buildflags.h"
 #include "brave/components/containers/buildflags/buildflags.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
+#include "brave/components/psst/buildflags/buildflags.h"
 #include "brave/components/tor/buildflags/buildflags.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/events/event_constants.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -61,7 +63,8 @@ void CopySanitizedURL(BrowserWindowInterface* browser, const GURL& url);
 // - Debouncer (potentially debouncing many levels)
 // - Query filter
 // - URLSanitizerService
-void CopyLinkWithStrictCleaning(Browser* browser, const GURL& url);
+void CopyLinkWithStrictCleaning(BrowserWindowInterface* browser,
+                                const GURL& url);
 
 void ToggleWindowTitleVisibilityForVerticalTabs(Browser* browser);
 void ToggleVerticalTabStrip(Browser* browser);
@@ -192,6 +195,12 @@ void CreateTemporaryContainerAndOpenUrl(BrowserWindowInterface* browser_window,
 // container.
 void OpenContainerMenuOnPageActionView(BrowserWindowInterface* browser,
                                        ::actions::ActionItem* item);
+#endif
+
+#if BUILDFLAG(ENABLE_PSST)
+void OpenPsstMenuOnPageActionView(BrowserWindowInterface* browser_window,
+                                  actions::ActionItem* item,
+                                  int event_flags = ui::EF_NONE);
 #endif
 
 }  // namespace brave

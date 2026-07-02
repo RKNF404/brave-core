@@ -5,27 +5,35 @@
 
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
 #include "brave/browser/ui/brave_browser_window.h"
 #include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "brave/browser/ui/focus_mode/focus_mode_utils.h"
+#include "brave/browser/ui/screenshot/screenshot_controller.h"
 #include "brave/browser/ui/sidebar/sidebar_controller.h"
 #include "brave/browser/ui/sidebar/sidebar_utils.h"
-#include "brave/browser/ui/tabs/brave_browser_tab_menu_model_delegate.h"
-#include "brave/browser/ui/tabs/tree_tab_session_observer.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
+#include "brave/browser/ui/tabs/tree_tab_session_manager.h"
 #include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
 #include "brave/browser/ui/views/page_info/brave_shields_ui_contents_cache.h"
+#include "brave/browser/ui/views/workspaces/workspaces_bubble_controller.h"
+#include "brave/browser/workspaces/features.h"
 #include "brave/components/brave_rewards/core/buildflags/buildflags.h"
 #include "brave/components/brave_vpn/common/buildflags/buildflags.h"
 #include "brave/components/email_aliases/buildflags/buildflags.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "printing/buildflags/buildflags.h"
+#include "ui/gfx/native_ui_types.h"
 
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
 #include "brave/browser/brave_rewards/rewards_service_factory.h"
@@ -34,6 +42,11 @@
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 #include "brave/browser/ui/brave_vpn/brave_vpn_controller.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+#include "brave/browser/screenshot/print_preview_extractor_factory.h"
+#include "chrome/browser/ui/webui/print_preview/print_preview_ui.h"
 #endif
 
 #if !BUILDFLAG(ENABLE_BRAVE_REWARDS)
@@ -93,19 +106,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   brave_shields_ui_contents_cache_ =
       std::make_unique<BraveShieldsUIContentsCache>();
 
-  // Replace the original tab menu model delegate with our own.
-  tab_menu_model_delegate_ =
-      std::make_unique<brave::BraveBrowserTabMenuModelDelegate>(
-          browser->GetSessionID(), profile, app_browser_controller_.get(),
-          tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile),
-          browser);
-
   brave_non_client_hit_test_helper_ =
       std::make_unique<BraveNonClientHitTestHelper>();
 
   if (base::FeatureList::IsEnabled(tabs::kBraveTreeTab) &&
       browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL) {
-    tree_tab_session_observer_ = std::make_unique<TreeTabSessionObserver>(
+    tree_tab_session_manager_ = std::make_unique<TreeTabSessionManager>(
         profile, browser->GetTabStripModel(), browser->GetSessionID());
   }
 }
@@ -145,12 +151,51 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   brave_vpn_controller_ = std::make_unique<BraveVPNController>(browser_view);
 #endif
 
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+  {
+    auto extractor = screenshot::CreatePrintPreviewExtractor(
+        base::BindRepeating(
+            []() -> base::IDMap<printing::mojom::PrintPreviewUI*>& {
+              return printing::PrintPreviewUI::GetPrintPreviewUIIdMap();
+            }),
+        base::BindRepeating([]() -> base::flat_map<int, int>& {
+          return printing::PrintPreviewUI::GetPrintPreviewUIRequestIdMap();
+        }));
+    screenshot_controller_ = std::make_unique<screenshot::ScreenshotController>(
+        browser_view->GetProfile(),
+        base::BindRepeating(
+            [](BrowserView* bv) -> gfx::NativeWindow {
+              return bv->GetNativeWindow();
+            },
+            browser_view),
+        std::move(extractor));
+  }
+#else
+  screenshot_controller_ = std::make_unique<screenshot::ScreenshotController>(
+      browser_view->GetProfile(), base::BindRepeating(
+                                      [](BrowserView* bv) -> gfx::NativeWindow {
+                                        return bv->GetNativeWindow();
+                                      },
+                                      browser_view));
+#endif
+
+  vertical_tab_controller_ = std::make_unique<VerticalTabController>(
+      browser_view->browser()->GetType(),
+      browser_view->GetProfile()->GetPrefs());
+
+  if (base::FeatureList::IsEnabled(features::kWorkspaces) &&
+      browser_->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL) {
+    workspaces_bubble_controller_ =
+        std::make_unique<WorkspacesBubbleController>();
+  }
+
   BrowserWindowFeatures_ChromiumImpl::InitPostBrowserViewConstruction(
       browser_view);
 }
 
 void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   BrowserWindowFeatures_ChromiumImpl::TearDownPreBrowserWindowDestruction();
+  screenshot_controller_.reset();
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
   brave_vpn_controller_.reset();
 #endif

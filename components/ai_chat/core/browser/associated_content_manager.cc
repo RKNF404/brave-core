@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,6 +28,10 @@
 #include "brave/components/ai_chat/core/browser/model_service.h"
 
 namespace ai_chat {
+
+namespace {
+constexpr size_t kMaxToolsPerContent = 30;
+}
 
 AssociatedContentManager::AssociatedContentManager(
     ConversationHandler* conversation)
@@ -146,6 +151,12 @@ void AssociatedContentManager::AddContent(AssociatedContentDelegate* delegate,
 
     content_delegates_.push_back(delegate);
     content_observations_.AddObservation(delegate);
+
+    // Discover whether this content exposes tools so it can be attached and
+    // surfaced in the tools pill without waiting for a generation loop.
+    delegate->GetContentTools(
+        base::BindOnce(&AssociatedContentManager::OnContentToolsDetected,
+                       weak_ptr_factory_.GetWeakPtr(), delegate->GetWeakPtr()));
   }
 
   if (notify_updated) {
@@ -198,6 +209,39 @@ void AssociatedContentManager::RemoveContent(std::string_view content_uuid,
   if (it != content_delegates_.end()) {
     RemoveContent(*it, notify_updated);
   }
+}
+
+void AssociatedContentManager::SetToolsAttached(std::string_view content_uuid,
+                                                bool tools_attached) {
+  DVLOG(1) << __func__;
+
+  auto it = std::ranges::find_if(content_delegates_,
+                                 [&content_uuid](const auto& delegate) {
+                                   return delegate->uuid() == content_uuid;
+                                 });
+  if (it == content_delegates_.end() ||
+      (*it)->tools_attached() == tools_attached) {
+    return;
+  }
+
+  (*it)->set_tools_attached(tools_attached);
+  conversation_->OnAssociatedContentUpdated();
+}
+
+void AssociatedContentManager::OnContentToolsDetected(
+    base::WeakPtr<AssociatedContentDelegate> delegate,
+    std::vector<std::unique_ptr<Tool>> tools) {
+  // Attach content when it exposes any tools, detach it otherwise. The user
+  // can subsequently override this via SetToolsAttached.
+  if (!delegate) {
+    return;
+  }
+  bool tools_attached = !tools.empty();
+  if (delegate->tools_attached() == tools_attached) {
+    return;
+  }
+  delegate->set_tools_attached(tools_attached);
+  conversation_->OnAssociatedContentUpdated();
 }
 
 void AssociatedContentManager::ClearContent() {
@@ -267,6 +311,8 @@ AssociatedContentManager::GetAssociatedContent() const {
     if (it != content_uuid_to_conversation_turns_.end()) {
       content->conversation_turn_uuid = it->second;
     }
+
+    content->tools_attached = delegate->tools_attached();
 
     result.push_back(std::move(content));
     total_consumed_chars += content_length;
@@ -475,6 +521,50 @@ void AssociatedContentManager::OnTitleChanged(
   DVLOG(1) << __func__;
 
   conversation_->OnAssociatedContentUpdated();
+}
+
+void AssociatedContentManager::UpdateToolsForNewGenerationLoop(
+    base::OnceClosure on_updated) {
+  tools_.clear();
+  // Only load tools from content the user has attached.
+  std::vector<AssociatedContentDelegate*> attached_delegates;
+  for (auto* content : content_delegates_) {
+    if (content->tools_attached()) {
+      attached_delegates.push_back(content);
+    }
+  }
+
+  if (attached_delegates.empty()) {
+    std::move(on_updated).Run();
+    return;
+  }
+
+  auto barrier =
+      base::BarrierClosure(attached_delegates.size(), std::move(on_updated));
+  for (auto* content : attached_delegates) {
+    content->GetContentTools(base::BindOnce(
+        [](base::WeakPtr<AssociatedContentManager> self,
+           base::RepeatingClosure done,
+           std::vector<std::unique_ptr<Tool>> tools) {
+          if (self) {
+            std::move(
+                tools.begin(),
+                tools.begin() + std::min(tools.size(), kMaxToolsPerContent),
+                std::back_inserter(self->tools_));
+          }
+          done.Run();
+        },
+        weak_ptr_factory_.GetWeakPtr(), barrier));
+  }
+}
+
+std::vector<base::WeakPtr<Tool>> AssociatedContentManager::GetTools() {
+  std::vector<base::WeakPtr<Tool>> tool_ptrs;
+  tool_ptrs.reserve(tools_.size());
+  for (const auto& tool : tools_) {
+    tool_ptrs.push_back(tool->GetWeakPtr());
+  }
+  return tool_ptrs;
 }
 
 void AssociatedContentManager::DetachContent() {

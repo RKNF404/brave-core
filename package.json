@@ -1,16 +1,16 @@
 {
   "name": "brave-core",
-  "version": "1.93.11",
+  "version": "1.94.31",
   "description": "Brave browser for Android, iOS, Linux, macOS, and Windows",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "help": "node ./build/commands/scripts/commands.js --help",
     "audit_deps": "node ./build/commands/scripts/audit.js -- --audit_dev_deps",
-    "cibuild": "node ./build/commands/scripts/commands.js cibuild",
     "init": "cd ../../ && npm run --prefix src/brave sync -- --init",
     "delete_string_translations": "node ./build/commands/scripts/commands.js delete_string_translations",
     "create_dist": "node ./build/commands/scripts/commands.js build --target=create_dist",
-    "sync": "node ./build/commands/scripts/sync.js",
+    "sync": "npm install --no-save --no-fund --no-audit && node ./build/commands/scripts/sync.js",
     "gclient": "node ./build/commands/scripts/gclient.js",
     "build": "node ./build/commands/scripts/commands.js build",
     "build_chromium_release": "node ./build/commands/scripts/commands.js build_chromium_release",
@@ -32,17 +32,13 @@
     "test": "node ./build/commands/scripts/commands.js test",
     "list_affected_tests": "node ./build/commands/scripts/commands.js list_affected_tests",
     "test:scripts": "node ./build/commands/scripts/testScripts.ts",
-    "tslint": "npm run eslint",
     "eslint": "eslint --quiet .",
-    "pep8": "pycodestyle --max-line-length 120 -r script",
-    "web-ui-gen-grd": "node components/webpack/gen-webpack-grd",
-    "web-ui-gen-tsconfig": "node build/commands/scripts/genTsConfig",
-    "web-ui": "webpack --config components/webpack/webpack.config.js",
+    "web-ui-gen-grd": "node build/webpack/gen-webpack-grd",
+    "web-ui": "webpack --disable-interpret --config build/webpack/webpack.config.ts",
     "build-storybook": "npm run build -- --target=brave:storybook && storybook build -c .storybook -o .storybook-out",
     "storybook": "storybook dev",
     "test-unit": "jest",
     "test-unit:wallet": "jest --coverage=false components/brave_wallet_ui",
-    "test-python-scripts": "npm run pep8 && PYTHONPATH=./script python -m unittest discover -s ./script/test",
     "update_symlink": "node ./build/commands/scripts/commands.js update_symlink",
     "build_fuzzer": "node ./build/commands/scripts/commands.js build_fuzzer",
     "fuzzer": "node ./build/commands/scripts/commands.js run_fuzzer",
@@ -54,6 +50,8 @@
     "update_brave_tools_crates": "node ./build/commands/scripts/updateBraveToolsCrates.js",
     "update_wasm_resources": "node ./build/commands/scripts/updateWasmResources.js",
     "coverage_report": "node ./build/commands/scripts/commands.js coverage_report",
+    "ai-chat-shared-conversation-lib-dev": "webpack serve --disable-interpret --config components/ai_chat/resources/shared_conversation_lib/webpack.config.ts --mode=development",
+    "ai-chat-shared-conversation-lib-prod": "webpack --disable-interpret --config components/ai_chat/resources/shared_conversation_lib/webpack.config.ts --mode=production",
     "generate_about_credits": "node ./build/commands/scripts/generateAboutCredits.js"
   },
   "repository": {
@@ -76,7 +74,7 @@
     "projects": {
       "chrome": {
         "dir": "src",
-        "tag": "149.0.7827.23",
+        "tag": "150.0.7871.63",
         "repository": {
           "url": "https://chromium.googlesource.com/chromium/src.git"
         },
@@ -134,6 +132,7 @@
     "buffer": "6.0.3",
     "chalk": "4.1.2",
     "commander": "14.0.3",
+    "copy-webpack-plugin": "14.0.0",
     "crypto-browserify": "3.12.0",
     "css-loader": "5.2.7",
     "csstype": "2.6.21",
@@ -198,12 +197,13 @@
     "typescript-plugin-css-modules": "5.1.0",
     "typescript-plugin-styled-components": "3.0.0",
     "webpack": "5.105.0",
-    "webpack-cli": "5.1.4"
+    "webpack-cli": "5.1.4",
+    "webpack-dev-server": "5.2.5"
   },
   "dependencies": {
     "@brave/brave-ui": "0.40.6",
-    "@brave/leo": "github:brave/leo#e4af287f27ef5bb412a57a057d0edbbc81326168",
-    "@brave/leo-sf-symbols": "github:brave/leo-sf-symbols#c4f018ef347db5792dabba0c2a7e3a678099c3d3",
+    "@brave/leo": "github:brave/leo#171b814b205217d651a76080a0c50a80d1b0c257",
+    "@brave/leo-sf-symbols": "github:brave/leo-sf-symbols#2a1970d89bdefd92a6ad0a8f3fc61bf3c0047f87",
     "@brave/wallet-standard-brave": "0.0.16",
     "@dnd-kit/core": "6.0.5",
     "@dnd-kit/sortable": "7.0.1",
@@ -243,18 +243,13 @@
     "webext-redux": "2.1.9"
   },
   "overrides": {
-    "@zondax/ledger-filecoin": "2.0.4",
     "axios": "1.16.0",
     "elliptic": "6.6.1",
-    "esbuild": "0.25.0",
-    "js-yaml": "4.1.1",
+    "esbuild": "0.28.1",
     "prismjs": "1.30.0",
-    "protobufjs": "7.5.6",
-    "serialize-javascript": "7.0.3",
+    "protobufjs": "7.6.3",
     "tiny-secp256k1": "1.1.7",
-    "flatted": "3.4.2",
-    "yaml@1": "1.10.3",
-    "yaml@2": "2.8.3",
-    "uuid": "14.0.0"
+    "uuid": "14.0.0",
+    "http-proxy-middleware": "2.0.10"
   }
 }

@@ -28,6 +28,7 @@ if (!is_android) {
     "//brave/browser/ui/browser_window/internal",
     "//brave/browser/ui/tabs:tabs_public",
     "//brave/browser/ui/webui/brave_new_tab_page_refresh",
+    "//brave/browser/ui/webui/brave_welcome_page",
     "//brave/browser/ui/webui/side_panel/customize_chrome",
     "//brave/browser/ui/tabs:tab_strip",
   ]
@@ -36,8 +37,10 @@ if (!is_android) {
         [ "//brave/browser/ui/webui/brave_education" ]
   }
   if (enable_brave_news) {
-    brave_ui_allow_circular_includes_from +=
-        [ "//brave/browser/ui/webui/brave_news_internals" ]
+    brave_ui_allow_circular_includes_from += [
+      "//brave/browser/ui/webui/brave_news",
+      "//brave/browser/ui/webui/brave_news_internals",
+    ]
   }
 }
 if (is_android) {
@@ -57,6 +60,7 @@ if (toolkit_views) {
     "//brave/browser/ui/views/location_bar",
     "//brave/browser/ui/views/page_info",
     "//brave/browser/ui/views/side_panel:side_panel_impl",
+    "//brave/browser/ui/views/workspaces",
   ]
 
   if (enable_ai_chat) {

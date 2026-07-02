@@ -10,79 +10,11 @@ import SwiftUI
 import UIKit
 import Web
 
-enum QuickViewActionButton {
-  case shield
-  case playlist
-  case readerMode
-  case translate
-  case refresh
-  case close
-  case back
-  case forward
-  case share
-  case openTab
-}
-
-@Observable
-class QuickViewToolbarModel {
-  var url: URL
-  var secondaryTopButton: QuickViewActionButton?
-  var isShieldDisabled: Bool = false
-  var isBackDisabled: Bool = true
-  var isForwardDisabled: Bool = true
-  var isLoading: Bool = true
-  var loadingProgress: Double = 0.0
-  var onActionButton: ((QuickViewActionButton) -> Void)?
-
-  init(
-    url: URL,
-    secondaryTopButton: QuickViewActionButton? = nil,
-    onActionButton: ((QuickViewActionButton) -> Void)? = nil
-  ) {
-    self.url = url
-    self.secondaryTopButton = secondaryTopButton
-    self.onActionButton = onActionButton
-  }
-}
-
-extension QuickViewToolbarModel: TabObserver {
-  func tabDidUpdateURL(_ tab: some TabState) {
-    if let url = tab.visibleURL {
-      self.url = url
-    }
-  }
-
-  func tabDidStartLoading(_ tab: some TabState) {
-    isLoading = true
-  }
-
-  func tabDidStopLoading(_ tab: some TabState) {
-    isLoading = false
-  }
-
-  func tabDidChangeLoadProgress(_ tab: some TabState) {
-    loadingProgress = tab.estimatedProgress
-  }
-
-  func tabDidChangeBackForwardState(_ tab: some TabState) {
-    if let forwardListItem = tab.backForwardList?.forwardList.first,
-      forwardListItem.url.isInternalURL(for: .readermode)
-    {
-      isForwardDisabled = true
-    } else {
-      isForwardDisabled = !tab.canGoForward
-    }
-
-    isBackDisabled = !tab.canGoBack
-  }
-
-  func tabWillBeDestroyed(_ tab: some TabState) {
-    tab.removeObserver(self)
-  }
-}
-
 struct QuickViewToolbarView: View {
   let viewModel: QuickViewToolbarModel
+  /// An invisible `UIView` background lives in SwiftUI for UIKit API to reference later
+  var shieldBackgroundView: InvisibleUIView = .init()
+  var shareBackgroundView: InvisibleUIView = .init()
 
   var body: some View {
     VStack(spacing: 0) {
@@ -100,10 +32,10 @@ struct QuickViewToolbarView: View {
       Label {
         Text(Strings.quickViewShieldAccessibilityLabel)
       } icon: {
-        viewModel.isShieldDisabled
-          ? Image(sharedName: "brave.logo.greyscale") : Image(sharedName: "brave.logo")
+        Image(sharedName: viewModel.isShieldEnabled ? "brave.logo" : "brave.logo.greyscale")
       }
     }
+    .disabled(viewModel.readerModeState == .active)
   }
 
   @ViewBuilder
@@ -118,6 +50,9 @@ struct QuickViewToolbarView: View {
             Strings.quickViewPlaylistAccessibilityLabel,
             braveSystemImage: "leo.product.playlist-add"
           )
+          .tint(
+            Color(braveSystemName: viewModel.isPlaylistEnabled ? .iconInteractive : .iconDefault)
+          )
         }
       case .readerMode:
         Button {
@@ -127,6 +62,10 @@ struct QuickViewToolbarView: View {
             Strings.quickViewReaderModeAccessibilityLabel,
             braveSystemImage: "leo.product.speedreader"
           )
+          .tint(
+            viewModel.readerModeState == .active
+              ? Color(braveSystemName: .iconInteractive) : Color(braveSystemName: .iconDefault)
+          )
         }
       case .translate:
         Button {
@@ -135,6 +74,10 @@ struct QuickViewToolbarView: View {
           Label(
             Strings.quickViewTranslateAccessibilityLabel,
             braveSystemImage: "leo.product.translate"
+          )
+          .tint(
+            viewModel.isTranslateEnabled
+              ? Color(braveSystemName: .iconInteractive) : Color(braveSystemName: .iconDefault)
           )
         }
       default:
@@ -148,6 +91,7 @@ struct QuickViewToolbarView: View {
       viewModel.onActionButton?(.refresh)
     } label: {
       Label(Strings.quickViewRefreshAccessibilityLabel, braveSystemImage: "leo.browser.refresh")
+        .tint(Color(braveSystemName: .iconDefault))
     }
   }
 
@@ -170,6 +114,7 @@ struct QuickViewToolbarView: View {
   private var topRow: some View {
     HStack(alignment: .top, spacing: 8) {
       shieldButton
+        .background(shieldBackgroundView)
 
       VStack(spacing: 12) {
         addressView
@@ -200,7 +145,7 @@ struct QuickViewToolbarView: View {
     } label: {
       Label(Strings.quickViewBackAccessibilityLabel, braveSystemImage: "leo.browser.back")
     }
-    .disabled(viewModel.isBackDisabled)
+    .disabled(!viewModel.canGoBack)
   }
 
   private var forwardButton: some View {
@@ -241,10 +186,11 @@ struct QuickViewToolbarView: View {
 
       Spacer()
 
-      if viewModel.isForwardDisabled {
-        shareButton
-      } else {
+      if viewModel.canGoForward {
         forwardButton
+      } else {
+        shareButton
+          .background(shareBackgroundView)
       }
 
       Spacer()
@@ -263,7 +209,6 @@ private struct QuickViewToolbarLabelTopIconStyle: LabelStyle {
   func makeBody(configuration: Configuration) -> some View {
     configuration.icon
       .font(.headline)
-      .tint(Color(braveSystemName: .iconDefault))
       .accessibilityRepresentation {
         configuration.title
       }

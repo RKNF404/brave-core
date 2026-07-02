@@ -41,7 +41,8 @@ import {
 
 // Queries
 import {
-  useGetDefaultFiatCurrencyQuery, //
+  useGetDefaultFiatCurrencyQuery,
+  useGetPolkadotAddressForNetworkQuery,
 } from '../../../common/slices/api.slice'
 import {
   usePersistedTokenSpotPricesQuery, //
@@ -49,13 +50,7 @@ import {
 import { querySubscriptionOptions60s } from '../../../common/slices/constants'
 
 // Styled Components
-import {
-  StyledWrapper,
-  AccountMenuWrapper,
-  AccountMenuButton,
-  AccountMenuIcon,
-  AccountButton,
-} from './style'
+import { StyledWrapper, AccountButton } from './style'
 import {
   BraveRewardsIndicator,
   VerticalSpacer,
@@ -93,11 +88,9 @@ export const PortfolioAccountItem = (props: Props) => {
   const onClickViewOnBlockExplorer = useExplorer(selectedNetwork)
 
   // State
-  const [showAccountMenu, setShowAccountMenu] = React.useState<boolean>(false)
   const [showDepositModal, setShowDepositModal] = React.useState<boolean>(false)
 
   // Refs
-  const accountMenuRef = React.useRef<HTMLDivElement>(null)
   const depositModalRef = React.useRef<HTMLDivElement>(null)
 
   // Memos & Computed
@@ -128,6 +121,14 @@ export const PortfolioAccountItem = (props: Props) => {
     querySubscriptionOptions60s,
   )
 
+  const { data: polkadotAddress } = useGetPolkadotAddressForNetworkQuery(
+    account.accountId.coin === BraveWallet.CoinType.DOT
+      ? { accountId: account.accountId, chainId: asset.chainId }
+      : skipToken,
+  )
+
+  const displayAddress = polkadotAddress ?? account.address
+
   const fiatBalance: Amount = React.useMemo(() => {
     return computeFiatAmount({
       spotPrices,
@@ -152,17 +153,7 @@ export const PortfolioAccountItem = (props: Props) => {
     [account.address, onClickViewOnBlockExplorer],
   )
 
-  const onHideAccountMenu = React.useCallback(() => {
-    setShowAccountMenu(false)
-  }, [])
-
-  const onShowDepositModal = () => {
-    setShowDepositModal(true)
-    setShowAccountMenu(false)
-  }
-
   // Hooks
-  useOnClickOutside(accountMenuRef, onHideAccountMenu, showAccountMenu)
   useOnClickOutside(
     depositModalRef,
     () => setShowDepositModal(false),
@@ -200,14 +191,14 @@ export const PortfolioAccountItem = (props: Props) => {
                   </BraveRewardsIndicator>
                 </>
               )}
-              {account.address && !isRewardsAccount && (
+              {displayAddress && !isRewardsAccount && (
                 <Text
                   textSize='12px'
                   isBold={false}
                   textColor='primary'
                   textAlign='left'
                 >
-                  {reduceAddress(account.address)}
+                  {reduceAddress(displayAddress)}
                 </Text>
               )}
             </Column>
@@ -239,34 +230,21 @@ export const PortfolioAccountItem = (props: Props) => {
             </WithHideBalancePlaceholder>
           </Column>
         </AccountButton>
-        <AccountMenuWrapper ref={accountMenuRef}>
-          <AccountMenuButton
-            onClick={() => setShowAccountMenu((prev) => !prev)}
-          >
-            <AccountMenuIcon />
-          </AccountMenuButton>
-          {showAccountMenu && (
-            <>
-              {isRewardsAccount ? (
-                <RewardsMenu />
-              ) : (
-                <PortfolioAccountMenu
-                  onClickViewOnExplorer={
-                    blockExplorerSupported
-                      ? onViewAccountOnBlockExplorer
-                      : undefined
-                  }
-                  onClickSell={
-                    isSellSupported && !isAssetsBalanceZero
-                      ? showSellModal
-                      : undefined
-                  }
-                  onClickDeposit={onShowDepositModal}
-                />
-              )}
-            </>
-          )}
-        </AccountMenuWrapper>
+        {isRewardsAccount ? (
+          <RewardsMenu />
+        ) : (
+          <PortfolioAccountMenu
+            onClickViewOnExplorer={
+              blockExplorerSupported ? onViewAccountOnBlockExplorer : undefined
+            }
+            onClickSell={
+              isSellSupported && !isAssetsBalanceZero
+                ? showSellModal
+                : undefined
+            }
+            onClickDeposit={() => setShowDepositModal(true)}
+          />
+        )}
       </StyledWrapper>
 
       {showDepositModal && (

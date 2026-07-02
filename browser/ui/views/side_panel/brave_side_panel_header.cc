@@ -8,9 +8,12 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "brave/ui/color/nala/nala_color_id.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/label.h"
@@ -24,7 +27,6 @@ namespace {
 
 constexpr int kHeaderInteriorMargin = 16;
 constexpr int kHeaderButtonSize = 20;
-constexpr int kHeaderHeight = 60;
 constexpr int kSeparatorHorizontalSpacing = 12;
 
 }  // namespace
@@ -33,7 +35,17 @@ BraveSidePanelHeader::BraveSidePanelHeader(std::unique_ptr<Delegate> delegate)
     : delegate_(std::move(delegate)) {
   CHECK(delegate_);
 
-  SetBackground(views::CreateSolidBackground(nala::kColorPageBackground));
+  // Paint to a layer so the header composites above the layer-backed side-panel
+  // shadow overlay (BraveSidePanelShadowOverlayView). Without its own layer the
+  // header paints into the browser-view root layer, beneath the overlay, so the
+  // shadow's blur is drawn over the header instead of behind it. The content
+  // web view is already layer-backed for the same reason. FillsBoundsOpaquely
+  // is false because the background has rounded (transparent) top corners.
+  SetPaintToLayer();
+  layer()->SetFillsBoundsOpaquely(false);
+  layer()->SetIsFastRoundedCorner(true);
+
+  UpdateHeader();
   SetLayoutManager(std::make_unique<views::FlexLayout>())
       ->SetOrientation(views::LayoutOrientation::kHorizontal)
       .SetInteriorMargin(gfx::Insets(kHeaderInteriorMargin))
@@ -59,18 +71,35 @@ BraveSidePanelHeader::BraveSidePanelHeader(std::unique_ptr<Delegate> delegate)
   }
 
   AddChildView(delegate_->CreateCloseButton());
+
+  // Safe: `delegate_` is owned by this view and destroyed before `this`, so
+  // the callback cannot outlive `this`.
+  delegate_->SetUpdateHeaderCallback(base::BindRepeating(
+      &BraveSidePanelHeader::UpdateHeader, base::Unretained(this)));
 }
 
 BraveSidePanelHeader::~BraveSidePanelHeader() = default;
+
+void BraveSidePanelHeader::UpdateHeader() {
+  const int top_radius = delegate_->GetTopRadius();
+  SetBackground(views::CreateRoundedRectBackground(nala::kColorPageBackground,
+                                                   top_radius, 0, 0));
+  // Keep the layer clip in sync with the rounded background so the top corners
+  // match the panel and the shadow shows through them.
+  if (layer()) {
+    layer()->SetRoundedCornerRadius(
+        gfx::RoundedCornersF(top_radius, top_radius, 0, 0));
+  }
+}
 
 void BraveSidePanelHeader::Layout(PassKey) {
   LayoutSuperclass<views::View>(this);
 
   // Need to set bounds as parent view(SidePanel) uses FillLayout.
   const gfx::Rect contents_bounds = parent()->GetContentsBounds();
-  SetBoundsRect(gfx::Rect(contents_bounds.x(),
-                          contents_bounds.y() - kHeaderHeight,
-                          contents_bounds.width(), kHeaderHeight));
+  SetBoundsRect(gfx::Rect(
+      contents_bounds.x(), contents_bounds.y() - GetPreferredSize().height(),
+      contents_bounds.width(), GetPreferredSize().height()));
 }
 
 BEGIN_METADATA(BraveSidePanelHeader)

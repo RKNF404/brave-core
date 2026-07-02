@@ -10,16 +10,13 @@
 #include <vector>
 
 #include "base/numerics/byte_conversions.h"
-#include "base/sys_byteorder.h"
-#include "base/test/gtest_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/values_test_util.h"
-#include "brave/components/brave_wallet/browser/simple_hash_client.h"
 #include "brave/components/brave_wallet/browser/solana_account_meta.h"
 #include "brave/components/brave_wallet/browser/solana_instruction.h"
 #include "brave/components/brave_wallet/browser/solana_instruction_builder.h"
 #include "brave/components/brave_wallet/browser/solana_test_utils.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
-#include "brave/components/brave_wallet/common/brave_wallet_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace brave_wallet {
@@ -250,8 +247,8 @@ TEST(SolanaMessageUnitTest, GetUniqueAccountMetas) {
   SolanaAccountMeta account2_non_signer_readonly(account2, std::nullopt, false,
                                                  false);
   SolanaInstruction instruction1(program1, {account2_non_signer_readonly}, {});
-  SolanaMessage::GetUniqueAccountMetas(account1, {instruction1, instruction1},
-                                       &unique_account_metas);
+  unique_account_metas = SolanaMessage::GetUniqueAccountMetas(
+      account1, {instruction1, instruction1});
   // fee payer at first, and no duplicate account pubkeys.
   std::vector<SolanaAccountMeta> expected_account_metas = {
       account1_fee_payer, program1_non_signer_readonly,
@@ -272,9 +269,8 @@ TEST(SolanaMessageUnitTest, GetUniqueAccountMetas) {
   SolanaInstruction instruction2(
       program1, {account3_non_signer_read_write, account4_signer_readonly}, {});
   SolanaInstruction instruction3(program2, {account5_signer_read_write}, {});
-  SolanaMessage::GetUniqueAccountMetas(
-      account1, {instruction1, instruction2, instruction3},
-      &unique_account_metas);
+  unique_account_metas = SolanaMessage::GetUniqueAccountMetas(
+      account1, {instruction1, instruction2, instruction3});
   expected_account_metas = {
       account1_fee_payer,           account5_signer_read_write,
       account4_signer_readonly,     account3_non_signer_read_write,
@@ -305,8 +301,8 @@ TEST(SolanaMessageUnitTest, GetUniqueAccountMetas) {
       {account4_non_signer_read_write, account5_signer_read_write,
        account3_non_signer_read_write, account2_signer_read_write},
       {});
-  SolanaMessage::GetUniqueAccountMetas(account1, {instruction1, instruction2},
-                                       &unique_account_metas);
+  unique_account_metas = SolanaMessage::GetUniqueAccountMetas(
+      account1, {instruction1, instruction2});
   expected_account_metas = {account1_fee_payer,
                             account5_signer_read_write,
                             account2_signer_read_write,
@@ -314,9 +310,6 @@ TEST(SolanaMessageUnitTest, GetUniqueAccountMetas) {
                             account3_non_signer_read_write,
                             program1_non_signer_readonly};
   EXPECT_EQ(unique_account_metas, expected_account_metas);
-
-  EXPECT_DCHECK_DEATH(
-      SolanaMessage::GetUniqueAccountMetas(account1, {instruction1}, nullptr));
 }
 
 TEST(SolanaMessageUnitTest, ToSolanaTxData) {
@@ -758,6 +751,58 @@ TEST(SolanaMessageUnitTest, ContainsCompressedNftTransfer) {
 
   message1.SetInstructionsForTesting(instructions);
   EXPECT_TRUE(message1.ContainsCompressedNftTransfer());
+}
+
+TEST(SolanaMessageUnitTest, DeserializeAsV1_TestVector) {
+  auto* hex_bytes =
+      "81"        // VersionByte
+      "010001"    // Legacy header
+      "00000000"  // TransactionConfigMask
+      "99026cfe2bf5dc185a3fa3dc4bda725f2437b5c82cedad1b8ae6e10caefd49c3"
+      "01"  // NumInstructions
+      "02"  // NumAddresses
+      "658cda1407e9e8e1ab1da85dd3d469a0c43cc92c458b2f9f20f96c221965f53c"
+      "0000000000000000000000000000000000000000000000000000000000000000"
+      // ConfigValues: (none – mask popcount = 0)
+      "01020c00"  // InstructionHeader
+      "0000"      // InstructionPayload[0].InstructionAccountIndexes
+      "0200000040420f0000000000";  // InstructionPayload[0].InstructionData
+
+  std::vector<uint8_t> valid_bytes;
+  ASSERT_TRUE(base::HexStringToBytes(hex_bytes, &valid_bytes));
+  EXPECT_TRUE(SolanaMessage::DeserializeAsV1(valid_bytes));
+
+  // Invalid version byte.
+  {
+    std::vector<uint8_t> bytes = valid_bytes;
+    EXPECT_EQ(bytes[0], 0x81);
+    bytes[0] = 0x80;
+    EXPECT_FALSE(SolanaMessage::DeserializeAsV1(bytes));
+  }
+
+  // Invalid NumInstructions.
+  {
+    std::vector<uint8_t> bytes = valid_bytes;
+    EXPECT_EQ(bytes[40], 0x01);
+    bytes[40] = 3;
+    EXPECT_FALSE(SolanaMessage::DeserializeAsV1(bytes));
+  }
+
+  // Invalid NumAddresses.
+  {
+    std::vector<uint8_t> bytes = valid_bytes;
+    EXPECT_EQ(bytes[41], 0x02);
+    bytes[41] = 3;
+    EXPECT_FALSE(SolanaMessage::DeserializeAsV1(bytes));
+  }
+
+  // Invalid InstructionHeader.
+  {
+    std::vector<uint8_t> bytes = valid_bytes;
+    EXPECT_EQ(bytes[108], 0x0c);
+    bytes[108] = 0x0e;
+    EXPECT_FALSE(SolanaMessage::DeserializeAsV1(bytes));
+  }
 }
 
 }  // namespace brave_wallet

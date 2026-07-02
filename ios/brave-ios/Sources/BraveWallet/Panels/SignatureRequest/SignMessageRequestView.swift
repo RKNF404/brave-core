@@ -36,7 +36,7 @@ struct SignMessageRequestView: View {
       if let network {
         Text(network.chainName)
           .font(.callout)
-          .foregroundColor(Color(.braveLabel))
+          .foregroundColor(Color(braveSystemName: .textPrimary))
       }
       Spacer()
       if requestCount > 1 {
@@ -57,15 +57,15 @@ struct SignMessageRequestView: View {
         VStack(spacing: 4) {
           Text(account.name)
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(Color(.braveLabel))
+            .foregroundColor(Color(braveSystemName: .textPrimary))
           Text(account.address.truncatedAddress)
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(Color(.secondaryBraveLabel))
+            .foregroundColor(Color(braveSystemName: .textSecondary))
         }
       }
       Text(originInfo: request.originInfo)
         .font(.caption)
-        .foregroundColor(Color(.braveLabel))
+        .foregroundColor(Color(braveSystemName: .textPrimary))
         .multilineTextAlignment(.center)
     }
     .accessibilityElement(children: .combine)
@@ -81,7 +81,7 @@ struct SignMessageRequestView: View {
 
           Text(Strings.Wallet.signatureRequestSubtitle)
             .font(.headline)
-            .foregroundColor(Color(.bravePrimary))
+            .foregroundColor(Color(braveSystemName: .textPrimary))
         }
         .padding(.vertical, 32)
 
@@ -104,7 +104,7 @@ struct SignMessageRequestView: View {
       }
       .padding()
     }
-    .foregroundColor(Color(.braveLabel))
+    .foregroundColor(Color(braveSystemName: .textPrimary))
     .overlay(alignment: .bottom) {
       if sizeCategory.isAccessibilityCategory {
         buttonsContainer
@@ -113,9 +113,9 @@ struct SignMessageRequestView: View {
           .background(
             LinearGradient(
               stops: [
-                .init(color: Color(.braveGroupedBackground).opacity(0), location: 0),
-                .init(color: Color(.braveGroupedBackground).opacity(1), location: 0.05),
-                .init(color: Color(.braveGroupedBackground).opacity(1), location: 1),
+                .init(color: Color(.systemGroupedBackground).opacity(0), location: 0),
+                .init(color: Color(.systemGroupedBackground).opacity(1), location: 0.05),
+                .init(color: Color(.systemGroupedBackground).opacity(1), location: 1),
               ],
               startPoint: .top,
               endPoint: .bottom
@@ -153,7 +153,8 @@ struct SignMessageRequestView: View {
       } label: {
         Text(Strings.Wallet.continueButtonTitle)
       }
-      .buttonStyle(BraveFilledButtonStyle(size: .large))
+      .buttonStyle(.filled)
+      .controlSize(.large)
     } else {
       cancelButton
       Button {  // approve
@@ -162,7 +163,8 @@ struct SignMessageRequestView: View {
         Label(Strings.Wallet.sign, braveSystemImage: "leo.key")
           .imageScale(.large)
       }
-      .buttonStyle(BraveFilledButtonStyle(size: .large))
+      .buttonStyle(.filled)
+      .controlSize(.large)
       .disabled(requestIndex != 0)
     }
   }
@@ -174,7 +176,8 @@ struct SignMessageRequestView: View {
       Label(Strings.cancelButtonTitle, systemImage: "xmark")
         .imageScale(.large)
     }
-    .buttonStyle(BraveOutlineButtonStyle(size: .large))
+    .buttonStyle(.outline)
+    .controlSize(.large)
     .disabled(requestIndex != 0)
   }
 }
@@ -197,7 +200,7 @@ struct NextIndexButton: View {
       } label: {
         Text(Strings.Wallet.next)
           .fontWeight(.semibold)
-          .foregroundColor(Color(.braveBlurpleTint))
+          .foregroundColor(Color(braveSystemName: .textInteractive))
       }
     }
   }

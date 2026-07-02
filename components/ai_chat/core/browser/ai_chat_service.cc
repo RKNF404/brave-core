@@ -444,7 +444,8 @@ void AIChatService::MaybeInitStorage() {
   OnStateChanged();
 }
 
-void AIChatService::OnOsCryptAsyncReady(os_crypt_async::Encryptor encryptor) {
+void AIChatService::OnOsCryptAsyncReady(
+    scoped_refptr<os_crypt_async::Encryptor> encryptor) {
   CHECK(features::IsAIChatHistoryEnabled());
   // Pref might have changed since we started this process
   if (!profile_prefs_->GetBoolean(prefs::kBraveChatStorageEnabled)) {
@@ -998,7 +999,7 @@ void AIChatService::HandleNewEntry(
 }
 
 void AIChatService::OnConversationEntryRemoved(ConversationHandler* handler,
-                                               std::string entry_uuid) {
+                                               const std::string& entry_uuid) {
   // Persist the removal
   if (ai_chat_db_ && !handler->GetIsTemporary()) {
     ai_chat_db_
@@ -1008,7 +1009,7 @@ void AIChatService::OnConversationEntryRemoved(ConversationHandler* handler,
 }
 
 void AIChatService::OnToolUseEventOutput(ConversationHandler* handler,
-                                         std::string_view entry_uuid,
+                                         const std::string& entry_uuid,
                                          size_t event_order,
                                          mojom::ToolUseEventPtr tool_use) {
   // Persist the tool use event
@@ -1254,7 +1255,8 @@ void AIChatService::AssociateOwnedContent(
 void AIChatService::DisassociateContent(
     const mojom::AssociatedContentPtr& content,
     const std::string& conversation_uuid) {
-  // Note: This will only work if the conversation is already loaded.
+  // Note: This will only work if the conversation is already loaded, which is
+  // fine because the content needs to be live to have associated tools.
   auto* conversation = GetConversation(conversation_uuid);
   if (!conversation) {
     return;

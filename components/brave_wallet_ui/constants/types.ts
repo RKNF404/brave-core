@@ -108,15 +108,6 @@ export type PanelTypes =
   | 'activity' // Transactions
   | 'transactionStatus'
 
-export type NavTypes = 'crypto' | 'rewards' | 'cards'
-
-export type TopTabNavTypes =
-  | 'portfolio'
-  | 'nfts'
-  | 'accounts'
-  | 'market'
-  | 'activity'
-
 export type AddAccountNavTypes = 'create' | 'import' | 'hardware'
 
 export type AccountSettingsNavTypes = 'details' | 'privateKey'
@@ -124,13 +115,6 @@ export type AccountSettingsNavTypes = 'details' | 'privateKey'
 export type AddCustomAssetFormNavTypes = 'token' | 'nft'
 
 export type HardwareAccountSettingsNavTypes = 'details'
-
-export type BuySendSwapTypes =
-  | 'buy'
-  | 'send'
-  | 'swap'
-  | 'deposit'
-  | 'transactions'
 
 export type ChartTimelineType =
   | '5MIN'
@@ -140,30 +124,6 @@ export type ChartTimelineType =
   | '3Months'
   | '1Year'
   | 'AllTime'
-
-export interface BuySendSwapObjectType {
-  name: string
-  id: BuySendSwapTypes
-}
-
-export type TabNavTypes =
-  | TopTabNavTypes
-  | AddAccountNavTypes
-  | AccountSettingsNavTypes
-  | HardwareAccountSettingsNavTypes
-  | AddCustomAssetFormNavTypes
-
-export interface TopTabNavObjectType {
-  name: string
-  id: TabNavTypes
-}
-
-export interface NavObjectType {
-  name: string
-  primaryIcon: string
-  secondaryIcon: string
-  id: NavTypes
-}
 
 export interface ChartTimelineObjectType {
   abr: string
@@ -394,15 +354,6 @@ export type SerializableTransactionInfo = Omit<
 export type TransactionInfo =
   | BraveWallet.TransactionInfo
   | SerializableTransactionInfo
-
-export type BuySendSwapViewTypes =
-  | 'swap'
-  | 'buy'
-  | 'send'
-  | 'acounts'
-  | 'networks'
-  | 'assets'
-  | 'currencies'
 
 export type OrderTypes = 'market' | 'limit'
 
@@ -704,6 +655,8 @@ export const SupportedTestNetworks = [
   BraveWallet.Z_CASH_TESTNET,
   BraveWallet.CARDANO_TESTNET,
   BraveWallet.POLKADOT_TESTNET,
+  BraveWallet.POLKADOT_TESTNET_ASSET_HUB,
+  BraveWallet.POLKADOT_PASEO_ASSET_HUB,
 ]
 
 export const SupportedTestNetworkEntityIds: EntityId[] = [
@@ -721,6 +674,8 @@ export const SupportedTestNetworkEntityIds: EntityId[] = [
   BraveWallet.Z_CASH_TESTNET,
   BraveWallet.CARDANO_TESTNET,
   BraveWallet.POLKADOT_TESTNET,
+  BraveWallet.POLKADOT_TESTNET_ASSET_HUB,
+  BraveWallet.POLKADOT_PASEO_ASSET_HUB,
 ]
 
 export const DAppSupportedCoinTypes = [
@@ -755,6 +710,11 @@ export const BitcoinTestnetKeyringIds = [
 export const ZCashTestnetKeyringIds = [BraveWallet.KeyringId.kZCashTestnet]
 
 export const CardanoTestnetKeyringIds = [BraveWallet.KeyringId.kCardanoTestnet]
+
+export const PolkadotMainnetKeyringIds = [
+  BraveWallet.KeyringId.kPolkadotMainnet,
+  BraveWallet.KeyringId.kPolkadotImport,
+]
 
 export const PolkadotTestnetKeyringIds = [
   BraveWallet.KeyringId.kPolkadotTestnet,
@@ -863,6 +823,7 @@ export type AccountModalTypes =
   | 'buy'
   | 'explorer'
   | 'shield'
+  | 'resetBirthday'
 
 export interface AccountButtonOptionsObjectType {
   name: string

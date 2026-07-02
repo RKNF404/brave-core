@@ -30,7 +30,7 @@
   },
   # This file is generated during the build.
   "<(SHARED_INTERMEDIATE_DIR)/brave/browser/resources/settings/brave_settings_resources.grd": {
-    "META": {"sizes": {"includes": [20]}},
+    "META": {"sizes": {"includes": [25]}},
     "includes": [53100],
   },
   "brave/app/brave_generated_resources.grd": {
@@ -172,6 +172,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-brave_news_internals/brave_news_internals.grd": {
     "META": {"sizes": {"includes": [10]}},
     "includes": [53780],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-brave_news_sidebar/brave_news_sidebar.grd": {
+    "META": {"sizes": {"includes": [9]}},
+    "includes": [53790],
   },
   # This file is generated during the build.
   "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-line_chart_display/line_chart_display.grd": {

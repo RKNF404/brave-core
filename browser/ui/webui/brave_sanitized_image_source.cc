@@ -13,16 +13,18 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "brave/brave_domains/service_domains.h"
+#include "brave/components/brave_private_cdn/headers.h"
 #include "brave/components/brave_private_cdn/private_cdn_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/common/url_constants.h"
 #include "net/base/url_util.h"
+#include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
@@ -32,12 +34,12 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_operations.h"
+#include "url/url_constants.h"
 #include "url/url_util.h"
 
 namespace {
 constexpr char kUrlKey[] = "url";
 constexpr char kTargetSizeKey[] = "target_size";
-constexpr char kChromeUIBraveImageURL[] = "chrome://brave-image/";
 constexpr char kChromeUIBraveImageHost[] = "brave-image";
 
 std::map<std::string, std::string> ParseParams(std::string_view param_string) {
@@ -141,8 +143,11 @@ void BraveSanitizedImageSource::StartDataRequest(
 
   std::string_view image_url_or_params = url.query();
 
-  if (url !=
-      GURL(base::StrCat({kChromeUIBraveImageURL, "?", image_url_or_params}))) {
+  std::string_view scheme = serve_untrusted_ ? content::kChromeUIUntrustedScheme
+                                             : content::kChromeUIScheme;
+  if (url != GURL(base::StrCat({scheme, url::kStandardSchemeSeparator,
+                                kChromeUIBraveImageHost, "/?",
+                                image_url_or_params}))) {
     std::move(callback).Run(nullptr);
     return;
   }
@@ -188,15 +193,19 @@ void BraveSanitizedImageSource::StartDataRequest(
   StartImageDownload(std::move(request_attributes), std::move(callback));
 }
 
-BraveSanitizedImageSource::BraveSanitizedImageSource(Profile* profile)
+BraveSanitizedImageSource::BraveSanitizedImageSource(Profile* profile,
+                                                     bool serve_untrusted)
     : BraveSanitizedImageSource(profile,
                                 profile->GetDefaultStoragePartition()
-                                    ->GetURLLoaderFactoryForBrowserProcess()) {}
+                                    ->GetURLLoaderFactoryForBrowserProcess(),
+                                serve_untrusted) {}
 
 BraveSanitizedImageSource::BraveSanitizedImageSource(
     Profile* profile,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
-    : url_loader_factory_(url_loader_factory) {
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    bool serve_untrusted)
+    : serve_untrusted_(serve_untrusted),
+      url_loader_factory_(url_loader_factory) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
@@ -204,6 +213,11 @@ bool BraveSanitizedImageSource::AllowCaching() {
   return false;
 }
 std::string BraveSanitizedImageSource::GetSource() {
+  if (serve_untrusted_) {
+    return base::StrCat({content::kChromeUIUntrustedScheme,
+                         url::kStandardSchemeSeparator, kChromeUIBraveImageHost,
+                         "/"});
+  }
   return kChromeUIBraveImageHost;
 }
 
@@ -248,6 +262,17 @@ void BraveSanitizedImageSource::StartImageDownload(
   auto request = std::make_unique<network::ResourceRequest>();
   request->url = request_attributes.image_url;
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+
+  // Lazily initialize the pcdn domain
+  if (pcdn_domain_.empty()) {
+    pcdn_domain_ = brave_domains::GetServicesDomain("pcdn");
+  }
+
+  if (request_attributes.image_url.host() == pcdn_domain_) {
+    for (const auto& entry : brave::private_cdn_headers) {
+      request->headers.SetHeader(entry.first, entry.second);
+    }
+  }
   request->headers.SetHeader("Accept",
                              blink::network_utils::ImageAcceptHeader());
 

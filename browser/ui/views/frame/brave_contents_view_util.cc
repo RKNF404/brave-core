@@ -7,13 +7,14 @@
 
 #include "base/check.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
-#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_widget_delegate_view.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/split_tabs/split_tab_id.h"
@@ -86,14 +87,14 @@ gfx::RoundedCornersF BraveContentsViewUtil::GetRoundedCornersForContentsView(
 
   bool show_vertical_tab = tabs::utils::ShouldShowBraveVerticalTabs(
       browser_window_interface->GetBrowserForMigrationOnly());
-  auto* vertical_tab_strip_widget_delegate_view =
-      browser_view->vertical_tab_strip_widget_delegate_view();
+  auto* vertical_tab_strip_container_view =
+      browser_view->vertical_tab_strip_container_view();
 
   // When hide completely is on, we think vertical tab is invisible
   // except it's expanded.
-  if (show_vertical_tab && vertical_tab_strip_widget_delegate_view) {
-    auto* vtsr_view = vertical_tab_strip_widget_delegate_view
-                          ->vertical_tab_strip_region_view();
+  if (show_vertical_tab && vertical_tab_strip_container_view) {
+    auto* vtsr_view =
+        vertical_tab_strip_container_view->vertical_tab_strip_region_view();
     CHECK(vtsr_view);
     if (tabs::utils::ShouldHideVerticalTabsCompletelyWhenCollapsed(
             browser_window_interface->GetBrowserForMigrationOnly())) {
@@ -116,7 +117,15 @@ gfx::RoundedCornersF BraveContentsViewUtil::GetRoundedCornersForContentsView(
     }
   }
 
-  if (browser_view->IsSidebarVisible()) {
+  // Checking the sidebar UI alone is not sufficient because the panel can be
+  // visible on its own.
+  // TODO(https://github.com/brave/brave-browser/issues/56248): Rethink the
+  // naming convention. Some names are inaccurate: the panel is separated from
+  // the container view, so IsSidebarVisible() reflects only the sidebar control
+  // UI and not a panel that is visible alone.
+  if (browser_view->IsSidebarVisible() ||
+      (browser_view->side_panel() &&
+       browser_view->side_panel()->GetVisible())) {
     if (browser_window_interface->GetProfile()->GetPrefs()->GetBoolean(
             prefs::kSidePanelHorizontalAlignment)) {
       has_right_side_ui = true;

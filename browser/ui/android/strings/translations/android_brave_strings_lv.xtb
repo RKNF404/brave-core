@@ -126,7 +126,6 @@
 <translation id="3405580543478883040">Iegūst Feeds...</translation>
 <translation id="7461899062138731833">AVOTI</translation>
 <translation id="6150420917380577651">Nav atrasta neviena plūsma <ph name="SEARCH_URL"/></translation>
-<translation id="4541978218358617681">Reklāma</translation>
 <translation id="7823038307453615214">Rādīt Brave News</translation>
 <translation id="6527303717912515753">Kopīgot</translation>
 <translation id="1654539412343893324">Uzzināt vairāk par saviem datiem</translation>
@@ -135,7 +134,6 @@
 <translation id="2014017248518069982">Atspējot saturu no <ph name="PUBLISHER"/></translation>
 <translation id="6332791358521956870"><ph name="PUBLISHER"/> atspējots</translation>
 <translation id="1276592121036104130">Ielādēt jaunu saturu</translation>
-<translation id="3189348785087463371">Popularizēts</translation>
 <translation id="7554145152551782675">Vairāk Brave piedāvājumu</translation>
 <translation id="254100925533869330">Nav satura</translation>
 <translation id="7172792761509429092">Brave News nav satura, ko rādīt.</translation>
@@ -156,8 +154,8 @@
 <translation id="1680858055899097121">Nesaglabāt cilnes pārlūkošanas sesiju starplaikos</translation>
 <translation id="7142548388914389999">Atļaut privātuma nodrošināšanas produktu analīzi (P3A)</translation>
 <translation id="5254037869598726291">Anonimizēta P3A informācija palīdz Brave noteikt vispārējo lietošanas apmēru un ļauj uzlabot populāras funkcijas.</translation>
-<translation id="4174337572777167894">Tīmekļa atklāšanas projekts</translation>
-<translation id="8659271182272561965">Sniedziet anonīmus meklēšanas un pārlūkošanas datus, lai Brave meklēšana kļūtu labāka.</translation>
+<translation id="4174337572777167894">Web Discovery Project</translation>
+<translation id="8659271182272561965">Sniedziet daļu anonīmu meklēšanas un pārlūkošanas datu, lai uzlabotu Brave meklēšanu.</translation>
 <translation id="933652931229970927">Automātiski nosūtīt diagnostikas ziņojumus</translation>
 <translation id="5987838417172370108">Palīdziet uzlabot Brave\u2019s produktu stabilitāti, automātiski nosūtot diagnostikas ziņojumus, kad Brave pārlūks avarē vai pārstāj darboties.</translation>
 <translation id="7977176350719484850">Apr. ietaupītie\ndati</translation>
@@ -194,20 +192,12 @@
 <translation id="6587448235155023666">Šīs izmaiņas tiks piemērotas nākamajā reizē, kad atvērsiet programmu Brave</translation>
 <translation id="8701563696941209024">ATVĒRT TAGAD</translation>
 <translation id="834487290629916192">VĒLĀK</translation>
-<translation id="4117451092682672487">Privātums. Vienkārši.</translation>
-<translation id="7909375417585209817">Ja Brave būs noklusējuma pārlūks, visas saites, kam pieskaraties, tiks atvērtas ar Brave privātuma aizsardzību.</translation>
 <translation id="763369711159699222">Palīdziet uzlabot Brave</translation>
 <translation id="8025937231644975408">Paziņojiet mums, kuras funkcijas jums patīk visvairāk.</translation>
-<translation id="6718362830686703942">Sūtiet diagnostikas ziņojumus, ja programma avarē vai sastingst.</translation>
-<translation id="8616157231067364693">Kopīgojiet privātus un anonīmus viedokļus par produktiem un par to, kādas funkcijas izmanto Brave lietotāji.</translation>
 <translation id="2888496576732880897">Atbalstiet Brave meklēšanas izaugsmi</translation>
 <translation id="7198716519700700181">Bloķējiet traucējumus, kad pārraidāt saturu</translation>
-<translation id="7044431516245362795">Pievienojieties Tīmekļa izpētes projektam, lai palīdzētu mums paplašināt indeksu un uzlabot meklēšanas rezultātus. <ph name="LEARN_MORE_START"/>Uzzināt vairāk.<ph name="LEARN_MORE_END"/></translation>
+<translation id="7095369065154683007">Pievienojieties projektam „Web Discovery“, lai palīdzētu paplašināt indeksu un uzlabot meklēšanas rezultātus. <ph name="LEARN_MORE_START"/>Uzzināt vairāk<ph name="LEARN_MORE_END"/>.</translation>
 <translation id="4847979153841887006">Brave logotips</translation>
-<translation id="1389386068457132299">Onboarding fons</translation>
-<translation id="5101985748360228609">Augšējā lapas dekorācija</translation>
-<translation id="5270920361877570459">Apakšējā lapas dekorācija</translation>
-<translation id="4021716437419160885">Ritināt uz leju</translation>
 <translation id="4767173360729868049">Palīgs Brave Search ilustrācijai</translation>
 <translation id="8241918461631453498">Bloķēt traucējumus ilustrācijai</translation>
 <translation id="8213310572767907663">Padarīt Brave labāku ilustrācijai</translation>
@@ -223,7 +213,6 @@
 <translation id="7256200875155794202"><ph name="BIG_TECH"/> un citas reklāmas, un izsekotāji ir bloķēti</translation>
 <translation id="3092683655478890840">Bloķētas <ph name="TRACKER_COUNT"/> reklāmas un izsekotāji</translation>
 <translation id="8281886186245836920">Izlaist</translation>
-<translation id="6165508094623778733">Uzziniet vairāk</translation>
 <translation id="986879628471635371">Traucējummeklēšanas pievienošana</translation>
 <translation id="5806601733251372221">Brave aizsargi</translation>
 <translation id="8537217141725709400">Nopelniet <ph name="TOKEN"/></translation>
@@ -373,7 +362,7 @@ Vai tiešām vēlaties to darīt?</translation>
 <translation id="944340256927461196">Neatstājiet pārlūkošanas pēdas savā ierīcē</translation>
 <translation id="2063044449012253966">Inkognito logos apmeklētās vietnes neparādās jūsu pārlūkošanas vēsturē. Pēc inkognito logu aizvēršanas sīkfaili, ievadītie dati veidlapās un vietņu dati tiek dzēsti.</translation>
 <translation id="7395764193745523646">Pārlūkošanas redzamība</translation>
-<translation id="8670344404057978375">Ņemiet vērā, ka pat inkognito režīmā jūsu pārlūkošanas darbības var vēl aizvien būt redzamas jūsu ISP, tīkla novērotājiem vai jūsu darba devējam (ja lietojat darba ierīci/tīklu).</translation>
+<translation id="8435098045013317895">Ņemiet vērā, ka pat inkognito režīmā jūsu pārlūkošanas darbības var vēl aizvien būt redzamas jūsu ISP, tīkla novērotājiem vai jūsu darba devējam (ja lietojat darba ierīci/tīklu).</translation>
 <translation id="1413177583895309156">Brave VPN šifrē un aizsargā jūsu tiešsaistē veiktās darbības pat ārpus Brave pārlūka.</translation>
 <translation id="3974348661685061050">Izmēģiniet 7 dienas bez maksas</translation>
 <translation id="5789441016350810005">Nosūtītās Brave reklāmas, kamēr pārlūkprogramma darbojas fonā</translation>
@@ -449,8 +438,15 @@ Vai tiešām vēlaties to darīt?</translation>
 <translation id="9140049656798805345">Iznīcināt vietnes datus tūlīt</translation>
 <translation id="6795622376590884449">Auto iznīcināšana</translation>
 <translation id="7961015016161918242">Nekad</translation>
+<translation id="3200744626782631683">Pārlūkošanas dati nekad netiek automātiski izdzēsti</translation>
 <translation id="1991004083507807299">Vietnes cilne aizvērta</translation>
+<translation id="2917925984754303958">Pārlūkošanas dati tiek automātiski izdzēsti, kad tiek aizvērtas visas atvērtās cilnes, kurās ir atvērta konkrētā vietne</translation>
 <translation id="5827277414420724690">Lietotnes aizvēršana</translation>
+<translation id="2036389684543586068">Pārlūkošanas dati tiek automātiski izdzēsti, kad „Brave“ lietotne tiek aizvērta vai pārstartēta</translation>
+<translation id="4279349293084858577">Iznīcināt</translation>
+<translation id="2997451887458851244">Atjauniniet funkciju „Auto Shred“ un norādiet, kādi dati ir jāizdzēš</translation>
+<translation id="363903976200491771">Automātiski izdzēst pārlūkošanas datus</translation>
+<translation id="1028873002018537235">Dzēst pārlūkošanas vēsturi</translation>
 <translation id="1209739344687072997">Ziņot par bojātu vietni</translation>
 <translation id="8510478288840333677">Paziņojiet Brave izstrādātājiem, kad šī vietne ar aizsargiem nedarbojas pareizi:</translation>
 <translation id="1653405824851871276">Paldies, ka palīdzat padarīt Brave labāku. Šajā ziņojumā būs tikai tā informācija, kas nepieciešama, lai mēs šo vietni salabotu.<ph name="LEARN_MORE"/></translation>
@@ -518,6 +514,7 @@ Vai tiešām vēlaties to darīt?</translation>
 <translation id="2718046830255553131">Privātuma ziņojumu dati notīrīti.</translation>
 <translation id="8376263745431603066">Iespējot "Nakts režīmu" (eksperimentāls)</translation>
 <translation id="1383876407941801731">Meklēt</translation>
+<translation id="6165508094623778733">Uzziniet vairāk</translation>
 <translation id="13296465911709339">Jūsu teksts ir iekopēts starpliktuvē.</translation>
 <translation id="2735834606413553397">Publiskā adrese ir iekopēta starpliktuvē.</translation>
 <translation id="2977461003134694205">Konfidencialitātes statistika</translation>
@@ -978,23 +975,21 @@ Ja šo pieprasījumu nepieņemsiet, savienojums ar VPN netiks atkārtoti izveido
 <translation id="7659483790930268440">Adreses meklēšanas tabulas rādītājs:</translation>
 <translation id="5494920125229734069">Atlasīt visu</translation>
 <translation id="2361906291514218784">Leo MI</translation>
+<translation id="2935698011275148880">Brave Origin</translation>
 <translation id="944736176598169208">Atlīdzības</translation>
 <translation id="1199170151481311646">Privātuma saglabāšanas analītika</translation>
 <translation id="1706715315466634757">E-pasta aizstājvārdi</translation>
-<translation id="738840791756723657">AI</translation>
 <translation id="6709133671862442373">Ziņas</translation>
 <translation id="5990642573624858459">Statistikas ziņošana</translation>
 <translation id="7705524343798198388">VPN</translation>
 <translation id="2441719842399509963">Atiestatīt noklusējuma iestatījumus</translation>
-<translation id="4922034974043704366">Šī funkcija ir iespējota, jo esat to izvēlējies.</translation>
 <translation id="2587535830241068901">Pielāgojiet savu pārlūkprogrammu, vienlaikus atbalstot Brave</translation>
-<translation id="7235314227387539944">Brave Origin ir apmaksāta pārlūka versija lietotājiem, kuriem nav nepieciešami visi Brave biznesa modeļa atbalstošie līdzekļi, taču joprojām vēlas privātumu, ko piedāvā tikai Brave. Origin lietotāji turpinās gūt labumu no mūsu nozarē vadošās privātuma aizsardzības, reklāmu bloķēšanas un ātruma (izmantojot Brave vairogi), kā arī regulāru programmatūras atjauninājumu, Chromium labojumu un drošības un privātuma uzlabojumu. Origin noņems lielāko daļu citu līdzekļu no pārlūka.</translation>
-<translation id="7941943775131052130">Ņemiet vērā, ka Brave Origin pirkums ietvers arī piekļuvi Brave meklēšana Premium, jo Origin noņems reklāmas no Brave meklēšanas rezultātu lapas.</translation>
+<translation id="123297831435065577">Brave Origin ir maksas pārlūka versija lietotājiem, kuriem nav nepieciešami visi Brave biznesa modeli atbalstošie līdzekļi, taču joprojām vēlas privātumu, ko piedāvā tikai Brave. Origin lietotāji turpinās gūt labumu no mūsu nozarē vadošās privātuma aizsardzības, reklāmu bloķēšanas un ātruma (izmantojot Vairogi), kā arī regulāru programmatūras atjauninājumu, Chromium labojumu un drošības un privātuma uzlabojumu.</translation>
 <translation id="2573819149217596923">Mainīgas Brave funkcijas</translation>
 <translation id="7415416427817229128">Brave funkcijas iespējošana vai atspējošana prasa pārlūka restartēšanu, lai izmaiņas tiktu piemērotas. Vai vēlaties restartēt tagad?</translation>
 <translation id="2256115617011615191">Restartēt tagad</translation>
 <translation id="2160089182263405907">Funkcijas tiek atspējotas</translation>
-<translation id="3362364767724670721">Lai iespējotu vai atspējotu Brave funkciju, nepieciešams pārstartēt pārlūkprogrammu, lai piemērotu izmaiņas. Lūdzu, nospiediet <ph name="BEGIN_BOLD"/>Restartēt tūlīt<ph name="END_BOLD"/>, kad Origin ir beidzis atjaunināšanu.</translation>
+<translation id="7530313002494358590">Lai iespējotu vai atspējotu Brave funkciju, nepieciešams pārstartēt pārlūkprogrammu, lai piemērotu izmaiņas. Lūdzu, nospiediet <ph name="BEGIN_BOLD"/>Restartēt tūlīt<ph name="END_BOLD"/>, kad Brave Origin ir beidzis atjaunināšanu.</translation>
 <translation id="1028940738207645746">Vai tiešām vēlaties atiestatīt visus iestatījumus uz noklusējuma?</translation>
 <translation id="5939518447894949180">Atiestatīt</translation>
 <translation id="8554205386170195281">Pirkt</translation>
@@ -1125,9 +1120,9 @@ Ja šo pieprasījumu nepieņemsiet, savienojums ar VPN netiks atkārtoti izveido
 <translation id="6261139507111008244">Atbalstiet mūsu misiju &amp; atvērtā koda darbu</translation>
 <translation id="6073373503121903099">Minimālistiskais pārlūka interfeiss, kas centrēts uz Brave vairogi</translation>
 <translation id="2267973897341040743">Saglabāt galveno adblock, konfidencialitāti, &amp; ātrumu</translation>
-<translation id="3339535734679532460">Vienreizējs pirkums, bez papildu abonēšanas maksas</translation>
-<translation id="2805615640226281689">Vienreizējs pirkums</translation>
-<translation id="261433018299584676">Saņemt pieteikšanās kodu</translation>
+<translation id="4059093523966730868">Vienreizēju pirkumu var aktivizēt vairākas reizes visās jūsu ierīcēs</translation>
+<translation id="7006681677649762716">Vienreizējs pirkums</translation>
+<translation id="8707617004598499947">Pārbaudīt Brave Origin pirkumu</translation>
 <translation id="1943432128510653496">Paroļu saglabāšana</translation>
 <translation id="2100273922101894616">Automātiski pierakstīties</translation>
 <translation id="363596933471559332">Automātiski pierakstīties vietnēs, izmantojot saglabātos akreditācijas datus. Ja funkcija ir izslēgta, verifikācija būs jāveic ikreiz, kad pierakstīsieties vietnē.</translation>
@@ -1190,12 +1185,17 @@ Ja šo pieprasījumu nepieņemsiet, savienojums ar VPN netiks atkārtoti izveido
 <translation id="7400418766976504921">URL</translation>
 <translation id="6410668567036790476">Pievienot meklēšanas programmu</translation>
 <translation id="6289878295410648689">Ierakstiet meklēšanas URL un nomainiet vaicājumu ar <ph name="SPECIAL_SYMBOL"/>.</translation>
-<translation id="8943582268084103903">Piemēram: https://youtube.com/search?q=<ph name="SPECIAL_SYMBOL"/>. Ja vietne atbalsta OpenSearch, opcija automātiskai pievienošanai tiks piedāvāta, rediģējot šo lauku.</translation>
+<translation id="1298325705808878139">Piemēram: https://youtube.com/search?q=<ph name="SPECIAL_SYMBOL"/>.</translation>
 <translation id="8706939021136180678">URL ir nederīgs.</translation>
-<translation id="6528099556282059181">Meklēšanas programma jau ir pievienota.</translation>
+<translation id="5144960943371551167">Nosaukums var saturēt tikai burtus, ciparus un atstarpes.</translation>
+<translation id="7361775378755455309">Meklētājprogramma ar šo atslēgvārdu jau pastāv.</translation>
 <translation id="463451857046640291">Neizdevās pievienot meklēšanas programmu.</translation>
 <translation id="1229671956956864948">Neizdevās atjaunināt meklēšanas programmu.</translation>
 <translation id="1462771969120037152">Neizdevās dzēst meklēšanas programmu. Meklēšanas programma, kuru mēģināt dzēst, var būt iestatīta kā noklusējuma.</translation>
 <translation id="1079140196216383600">Dzēst pielāgotu meklēšanas programmu</translation>
 <translation id="525276572490219787">Vai esat pārliecināts, ka vēlaties dzēst "<ph name="SEARCH_ENGINE_NAME"/>"? Šo darbību nevar atsaukt.</translation>
+<translation id="6406506848690869874">Sinhronizācija</translation>
+<translation id="1850594249589065646">Atrašanās vietas precizitāte</translation>
+<translation id="2403474027143565107">Precīzs</translation>
+<translation id="4042597221652780603">Aptuveni</translation>
 </translationbundle>

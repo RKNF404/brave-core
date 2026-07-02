@@ -82,7 +82,6 @@ def AddBraveCredits(root, prune_paths, special_cases, prune_dirs,
 
         # Rust crates that are references to upstream crates and should have
         # licenses in upstream //third_party/rust.
-        os.path.join('brave', 'third_party', 'rust', 'aho_corasick'),
         os.path.join('brave', 'third_party', 'rust', 'anyhow'),
         os.path.join('brave', 'third_party', 'rust', 'base64'),
         os.path.join('brave', 'third_party', 'rust', 'bitflags'),
@@ -136,6 +135,7 @@ def AddBraveCredits(root, prune_paths, special_cases, prune_dirs,
 
         # Brave overrides to third-party code, also covered by main notice.
         os.path.join('brave', 'third_party', 'blink'),
+        os.path.join('brave', 'third_party', 'ffmpeg'),
         os.path.join('brave', 'third_party', 'libaddressinput'),
         os.path.join('brave', 'patches', 'third_party'),
         os.path.join('brave', 'third_party', 'polymer'),
@@ -176,6 +176,13 @@ def AddBraveCredits(root, prune_paths, special_cases, prune_dirs,
         os.path.join('brave', 'vendor', 'omaha', 'omaha', 'scons-out'),
         os.path.join('brave', 'third_party', 'libdmg-hfsplus'),
         os.path.join('brave', 'tools', 'crates', 'vendor'),
+
+        # ast-grep is used only by plaster, and it is not part of the final
+        # binary.
+        os.path.join('brave', 'third_party', 'ast-grep'),
+
+        # Node.js for tooling, and not shipped with the browser.
+        os.path.join('brave', 'third_party', 'node'),
 
         # plaster .toml file location should be skipped.
         os.path.join('brave', 'rewrite', 'third_party'),
@@ -266,12 +273,6 @@ def AddBraveCredits(root, prune_paths, special_cases, prune_dirs,
             "URL": "https://github.com/EngFlow/reclient-configs",
             "License": "Apache-2.0",
             "License File": ["/brave/third_party/reclient_configs/src/LICENSE"],
-        },
-        os.path.join('brave', 'vendor', 'python-patch'): {
-            "Name": "Python Patch",
-            "URL": "https://github.com/brave/python-patch",
-            "License": "MIT",
-            "License File": ["/brave/vendor/python-patch/doc/LICENSE"],
         },
         os.path.join('brave', 'vendor', 'sparkle'): {
             "Name": "Sparkle",

@@ -110,9 +110,9 @@ class AIChatService : public KeyedService,
       mojom::ConversationTurnPtr& entry,
       std::optional<PageContents> maybe_associated_content) override;
   void OnConversationEntryRemoved(ConversationHandler* handler,
-                                  std::string entry_uuid) override;
+                                  const std::string& entry_uuid) override;
   void OnToolUseEventOutput(ConversationHandler* handler,
-                            std::string_view entry_uuid,
+                            const std::string& entry_uuid,
                             size_t event_order,
                             mojom::ToolUseEventPtr tool_use) override;
   void OnClientConnectionChanged(ConversationHandler* handler) override;
@@ -269,7 +269,7 @@ class AIChatService : public KeyedService,
 
   void MaybeInitStorage();
   // Called when the database encryptor is ready.
-  void OnOsCryptAsyncReady(os_crypt_async::Encryptor encryptor);
+  void OnOsCryptAsyncReady(scoped_refptr<os_crypt_async::Encryptor> encryptor);
   void LoadConversationsLazy(ConversationMapCallback callback);
   void OnLoadConversationsLazyData(
       std::vector<mojom::ConversationPtr> conversations);

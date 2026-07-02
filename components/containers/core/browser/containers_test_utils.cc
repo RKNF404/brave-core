@@ -7,6 +7,8 @@
 
 #include <utility>
 
+#include "brave/components/containers/core/browser/pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -15,12 +17,21 @@ namespace containers {
 MockContainersServiceDelegate::MockContainersServiceDelegate() {
   ON_CALL(*this, GetReferencedContainerIds(testing::_))
       .WillByDefault([this](OnReferencedContainerIdsReadyCallback callback) {
+        if (defer_referenced_container_ids_callback_) {
+          deferred_referenced_container_ids_callback_ = std::move(callback);
+          return;
+        }
         std::move(callback).Run(referenced_container_ids_);
       });
   ON_CALL(*this, DeleteContainerStorage(testing::_, testing::_))
       .WillByDefault([this](const std::string& id,
                             DeleteContainerStorageCallback callback) {
         delete_requests_.push_back(id);
+        if (defer_delete_container_storage_callback_) {
+          deferred_delete_container_storage_callbacks_[id] =
+              std::move(callback);
+          return;
+        }
         std::move(callback).Run(delete_result_);
       });
 }
@@ -41,6 +52,10 @@ void ExpectContainer(const mojom::ContainerPtr& container,
                      SkColor color) {
   ASSERT_TRUE(container);
   EXPECT_THAT(*container, testing::FieldsAre(id, name, icon, color));
+}
+
+void SetContainersEnabled(bool enabled, PrefService* prefs) {
+  prefs->SetBoolean(prefs::kContainersEnabled, enabled);
 }
 
 }  // namespace containers

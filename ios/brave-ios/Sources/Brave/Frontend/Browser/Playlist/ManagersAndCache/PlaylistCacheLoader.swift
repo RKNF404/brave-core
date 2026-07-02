@@ -41,14 +41,15 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
       initialConfiguration = WKWebViewConfiguration().then {
         $0.preferences = WKPreferences()
         $0.preferences.javaScriptCanOpenWindowsAutomatically = false
-        $0.websiteDataStore = .nonPersistent()
         $0.allowsInlineMediaPlayback = true
         $0.ignoresViewportScaleLimits = true
       }
     }
+    // Use the user's regular profile so pageSrc re-resolution sees login or consent cookies
+    // Note that this load is visible to the site as a visit.
     let tab = TabStateFactory.create(
       with: .init(
-        profile: profile.offTheRecordProfile,
+        profile: profile,
         initialConfiguration: initialConfiguration
       )
     )
@@ -351,7 +352,8 @@ extension LivePlaylistWebLoader: TabPolicyDecider {
       {
         let ruleLists = await AdBlockGroupsManager.shared.ruleLists(
           isBraveShieldsEnabled: true,
-          shieldLevel: .aggressive
+          shieldLevel: .aggressive,
+          isBlockAllCookiesEnabled: tab.profile.prefs.boolean(forPath: kBlockAllCookiesEnabled)
         )
         tab.contentBlocker?.set(ruleLists: ruleLists)
       }
@@ -359,7 +361,7 @@ extension LivePlaylistWebLoader: TabPolicyDecider {
       // Cookie Blocking code below
       tab.browserData?.setScript(
         script: .cookieBlocking,
-        enabled: Preferences.Privacy.blockAllCookies.value
+        enabled: tab.profile.prefs.boolean(forPath: kBlockAllCookiesEnabled)
       )
     }
     return .allow

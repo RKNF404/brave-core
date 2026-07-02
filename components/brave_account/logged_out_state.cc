@@ -11,12 +11,9 @@
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/types/expected.h"
-#include "brave/components/brave_account/brave_account_service_constants.h"
 #include "brave/components/brave_account/brave_account_utils.h"
 #include "brave/components/brave_account/endpoint_client/with_headers.h"
-#include "brave/components/brave_account/endpoints/verify_delete.h"
 #include "brave/components/brave_account/state_internal.h"
-#include "net/http/http_status_code.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace brave_account {
@@ -28,8 +25,6 @@ using endpoints::LoginInit;
 using endpoints::PasswordFinalize;
 using endpoints::PasswordInit;
 using endpoints::VerifyComplete;
-using endpoints::VerifyDelete;
-using endpoints::VerifyResend;
 using internal::MakeClientError;
 using internal::MakeRequest;
 using internal::MakeServerError;
@@ -95,19 +90,16 @@ void LoggedOutState::RegisterVerify(const std::string& code,
                                     RegisterVerifyCallback callback) {
   CHECK(!code.empty());
 
-  const auto encrypted_verification_token =
-      account_state_prefs_->GetVerificationToken(
-          mojom::LoggedOutVerificationIntent::kRegistration);
-  CHECK(!encrypted_verification_token.empty());
-  const auto verification_token = Decrypt(encrypted_verification_token);
-  if (verification_token.empty()) {
-    return std::move(callback).Run(base::unexpected(MakeClientError<
-                                                    mojom::RegisterError>(
-        mojom::RegisterClientErrorCode::kVerificationTokenDecryptionFailed)));
+  auto verification_token = GetDecryptedVerificationToken<mojom::RegisterError>(
+      mojom::VerificationIntent::NewLoggedOutIntent(
+          mojom::LoggedOutVerificationIntent::kRegistration));
+  if (!verification_token.has_value()) {
+    return std::move(callback).Run(
+        base::unexpected(std::move(verification_token).error()));
   }
 
   auto request = MakeRequest<WithHeaders<VerifyComplete::Request>>();
-  SetBearerToken(request, verification_token);
+  SetBearerToken(request, *verification_token);
   request.body.code = code;
 
   SendStateOwnedRequest<VerifyComplete>(
@@ -116,52 +108,30 @@ void LoggedOutState::RegisterVerify(const std::string& code,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void LoggedOutState::ResendConfirmationEmail(
-    ResendConfirmationEmailCallback callback) {
-  const auto encrypted_verification_token =
-      account_state_prefs_->GetVerificationToken(
-          mojom::LoggedOutVerificationIntent::kRegistration);
-  CHECK(!encrypted_verification_token.empty());
-  const auto verification_token = Decrypt(encrypted_verification_token);
-  if (verification_token.empty()) {
-    return std::move(callback).Run(
-        base::unexpected(MakeClientError<mojom::ResendConfirmationEmailError>(
-            mojom::ResendConfirmationEmailClientErrorCode::
-                kVerificationTokenDecryptionFailed)));
-  }
-
-  auto request = MakeRequest<WithHeaders<VerifyResend::Request>>();
-  SetBearerToken(request, verification_token);
-  // Server side will determine locale based on the Accept-Language request
-  // header (which is included automatically by upstream).
-  request.body.locale = "";
-  request.timeout_duration = kVerifyResendTimeout;
-
-  SendStateOwnedRequest<VerifyResend>(
-      std::move(request),
-      base::BindOnce(&LoggedOutState::OnResendConfirmationEmail,
-                     weak_factory_.GetWeakPtr(), std::move(callback)));
+void LoggedOutState::ResetPasswordVerifyInit(
+    const std::string& email,
+    ResetPasswordVerifyInitCallback callback) {
+  reset_password_.VerifyInit(email, std::move(callback));
 }
 
-void LoggedOutState::CancelRegistration() {
-  // Best-effort notification to the server, since server side will clean up
-  // verification tokens automatically (currently after 30 minutes).
-  // Not adopted into the state's in-flight bag:
-  // best-effort with no callback that touches state.
-  const auto encrypted_verification_token =
-      account_state_prefs_->GetVerificationToken(
-          mojom::LoggedOutVerificationIntent::kRegistration);
-  CHECK(!encrypted_verification_token.empty());
-  if (const auto verification_token = Decrypt(encrypted_verification_token);
-      !verification_token.empty()) {
-    auto request = MakeRequest<WithHeaders<VerifyDelete::Request>>();
-    SetBearerToken(request, verification_token);
+void LoggedOutState::ResetPasswordVerifyComplete(
+    const std::string& code,
+    ResetPasswordVerifyCompleteCallback callback) {
+  reset_password_.VerifyComplete(code, std::move(callback));
+}
 
-    SendUnownedRequest<VerifyDelete>(std::move(request));
-  }
+void LoggedOutState::ResetPasswordPasswordInit(
+    const std::string& blinded_message,
+    ResetPasswordPasswordInitCallback callback) {
+  reset_password_.PasswordInit(blinded_message, std::move(callback));
+}
 
-  // LoggedOutWithVerification ==> LoggedOut (no state swap)
-  account_state_prefs_->SetLoggedOut();
+void LoggedOutState::ResetPasswordPasswordFinalize(
+    const std::string& serialized_record,
+    const std::string& email,
+    ResetPasswordPasswordFinalizeCallback callback) {
+  reset_password_.PasswordFinalize(serialized_record, email,
+                                   std::move(callback));
 }
 
 void LoggedOutState::LoginInitialize(mojom::Service initiating_service,
@@ -230,7 +200,8 @@ void LoggedOutState::OnRegisterInitialize(RegisterInitializeCallback callback,
           .and_then([&](auto success_body)
                         -> base::expected<mojom::RegisterInitializeResultPtr,
                                           mojom::RegisterErrorPtr> {
-            if (success_body.verification_token.empty() ||
+            if (!success_body.verification_token ||
+                success_body.verification_token->empty() ||
                 success_body.serialized_response.empty()) {
               return base::unexpected(MakeServerError<mojom::RegisterError>(
                   status_code,
@@ -238,7 +209,7 @@ void LoggedOutState::OnRegisterInitialize(RegisterInitializeCallback callback,
             }
 
             std::string encrypted_verification_token =
-                Encrypt(success_body.verification_token);
+                Encrypt(*success_body.verification_token);
             if (encrypted_verification_token.empty()) {
               return base::unexpected(MakeClientError<mojom::RegisterError>(
                   mojom::RegisterClientErrorCode::
@@ -288,9 +259,10 @@ void LoggedOutState::OnRegisterFinalize(
   std::move(callback).Run(std::move(result));
 
   if (success) {
-    account_state_prefs_->SetLoggedOutWithVerification(
+    account_state_prefs_->AddVerification(
         encrypted_verification_token,
-        mojom::LoggedOutVerificationIntent::kRegistration);
+        mojom::VerificationIntent::NewLoggedOutIntent(
+            mojom::LoggedOutVerificationIntent::kRegistration));
   }
 }
 
@@ -321,14 +293,16 @@ void LoggedOutState::OnRegisterVerify(RegisterVerifyCallback callback,
           .and_then([&](auto success_body)
                         -> base::expected<mojom::RegisterVerifyResultPtr,
                                           mojom::RegisterErrorPtr> {
-            if (success_body.auth_token.empty() || success_body.email.empty()) {
+            if (!success_body.auth_token.is_string() ||
+                success_body.auth_token.GetString().empty() ||
+                success_body.email.empty()) {
               return base::unexpected(MakeServerError<mojom::RegisterError>(
                   status_code,
                   mojom::RegisterServerErrorCode::kInvalidResponse));
             }
 
             if (encrypted_authentication_token =
-                    Encrypt(success_body.auth_token);
+                    Encrypt(success_body.auth_token.GetString());
                 encrypted_authentication_token.empty()) {
               return base::unexpected(MakeClientError<mojom::RegisterError>(
                   mojom::RegisterClientErrorCode::
@@ -350,26 +324,6 @@ void LoggedOutState::OnRegisterVerify(RegisterVerifyCallback callback,
     CHECK(!encrypted_authentication_token.empty());
     account_state_prefs_->SetLoggedIn(email, encrypted_authentication_token);
   }
-}
-
-void LoggedOutState::OnResendConfirmationEmail(
-    ResendConfirmationEmailCallback callback,
-    VerifyResend::Response response) {
-  if (response.status_code == net::HTTP_NO_CONTENT) {
-    return std::move(callback).Run(mojom::ResendConfirmationEmailResult::New());
-  }
-
-  if (!response.body || response.body->has_value()) {
-    return std::move(callback).Run(
-        base::unexpected(MakeServerError<mojom::ResendConfirmationEmailError>(
-            response.status_code.value_or(response.net_error),
-            mojom::ResendConfirmationEmailServerErrorCode::kInvalidResponse)));
-  }
-
-  std::move(callback).Run(
-      base::unexpected(MakeServerError<mojom::ResendConfirmationEmailError>(
-          CHECK_DEREF(response.status_code),
-          std::move(response.body->error()))));
 }
 
 void LoggedOutState::OnLoginInitialize(LoginInitializeCallback callback,

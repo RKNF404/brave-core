@@ -4845,16 +4845,6 @@ extension Strings {
         comment: "The title for the toast button when an item was added to playlist"
       )
 
-    public static let toastExitingItemPlaylistTitle =
-      NSLocalizedString(
-        "playList.toastExitingItemPlaylistTitle",
-        tableName: "BraveShared",
-        bundle: .module,
-        value: "View in Brave Playlist",
-        comment:
-          "The title for the toast that shows up on a page when an item that has already been added, was updated."
-      )
-
     public static let urlBarButtonOptionTitle =
       NSLocalizedString(
         "playlist.urlBarButtonOptionTitle",
@@ -6453,6 +6443,20 @@ extension Strings {
       bundle: .module,
       value: "Automatically focus the address bar when creating a new tab",
       comment: "The description of the toggle for user to turn on auto-open keyboard when creating a new tab."
+    )
+    public static let openLinkInQuickViewModeTitle = NSLocalizedString(
+      "tabs.settings.openLinkInQuickViewModeTitle",
+      tableName: "BraveShared",
+      bundle: .module,
+      value: "Enable Quickview Tabs",
+      comment: "The title of the toggle for user to turn on open link in quick view mode."
+    )
+    public static let openLinkInQuickViewModeDescription = NSLocalizedString(
+      "tabs.settings.openLinkInQuickViewModeDescription",
+      tableName: "BraveShared",
+      bundle: .module,
+      value: "Open links from Ask Brave and Brave Search in preview tabs",
+      comment: "The description of the toggle for user to turn on open link in quick view mode."
     )
   }
 }
@@ -9433,6 +9437,29 @@ extension Strings {
       bundle: .module,
       value: "Please authenticate to manage your passwords.",
       comment: "The reason string shown in the biometric/passcode authentication prompt when the user tries to access autofill management."
+    )
+    public static let managePasswordDetailAddCredentialTitle =
+      NSLocalizedString(
+        "autofill.managePasswords.passwordDetail.addCredentialTitle",
+        tableName: "BraveShared",
+        bundle: .module,
+        value: "Add Password",
+        comment: "Navigation title when creating a new saved login from password management"
+      )
+    public static let managePasswordDetailDeleteConfirmMessage = NSLocalizedString(
+      "autofill.managePasswords.passwordDetail.deleteConfirmMessage",
+      tableName: "BraveShared",
+      bundle: .module,
+      value: "This password will be removed from your sync chain and your device.",
+      comment:
+        "Alert message warning the user that deleting the password will remove it from their sync chain and device"
+    )
+    public static let managePasswordsDeleteCredentialConfirmButtonTitle = NSLocalizedString(
+      "autofill.managePasswords.deleteManagePasswordConfrimButtonTitle",
+      tableName: "BraveShared",
+      bundle: .module,
+      value: "Delete Password",
+      comment: "Label for the button used to confirm delete action for the current password."
     )
   }
 }

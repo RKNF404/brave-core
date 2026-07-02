@@ -46,11 +46,40 @@ class MockBraveAccountAuthentication : public mojom::Authentication {
               (override));
 
   MOCK_METHOD(void,
-              ResendConfirmationEmail,
-              (ResendConfirmationEmailCallback callback),
+              ResendVerificationEmail,
+              (mojom::VerificationIntentPtr intent,
+               ResendVerificationEmailCallback callback),
               (override));
 
-  MOCK_METHOD(void, CancelRegistration, (), (override));
+  MOCK_METHOD(void,
+              CancelVerification,
+              (mojom::VerificationIntentPtr intent),
+              (override));
+
+  MOCK_METHOD(void,
+              ResetPasswordVerifyInit,
+              (const std::string& email,
+               ResetPasswordVerifyInitCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              ResetPasswordVerifyComplete,
+              (const std::string& code,
+               ResetPasswordVerifyCompleteCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              ResetPasswordPasswordInit,
+              (const std::string& blinded_message,
+               ResetPasswordPasswordInitCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              ResetPasswordPasswordFinalize,
+              (const std::string& serialized_record,
+               const std::string& email,
+               ResetPasswordPasswordFinalizeCallback callback),
+              (override));
 
   MOCK_METHOD(void,
               LoginInitialize,
@@ -65,6 +94,30 @@ class MockBraveAccountAuthentication : public mojom::Authentication {
               (const std::string& encrypted_login_token,
                const std::string& client_mac,
                LoginFinalizeCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              ChangePasswordVerifyInit,
+              (const std::string& email,
+               ChangePasswordVerifyInitCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              ChangePasswordVerifyComplete,
+              (const std::string& code,
+               ChangePasswordVerifyCompleteCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              ChangePasswordPasswordInit,
+              (const std::string& blinded_message,
+               ChangePasswordPasswordInitCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              ChangePasswordPasswordFinalize,
+              (const std::string& serialized_record,
+               ChangePasswordPasswordFinalizeCallback callback),
               (override));
 
   MOCK_METHOD(void, LogOut, (), (override));

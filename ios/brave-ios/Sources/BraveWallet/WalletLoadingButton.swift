@@ -30,9 +30,11 @@ struct WalletLoadingButton<Label: View>: View {
       ZStack {
         label
           .opacity(isLoading ? 0 : 1)
-        ProgressView()
-          .tint(Color(braveSystemName: .schemesOnPrimary))
-          .opacity(isLoading ? 1 : 0)
+          .overlay {
+            ProgressView()
+              .tint(Color(braveSystemName: .schemesOnPrimary))
+              .opacity(isLoading ? 1 : 0)
+          }
       }
     }
   }
@@ -51,7 +53,7 @@ struct WalletLoadingButton_Previews: PreviewProvider {
           Text("Preview")
         }
       )
-      .buttonStyle(BraveFilledButtonStyle(size: .normal))
+      .buttonStyle(.filled)
       .disabled(true)
       .frame(maxWidth: .infinity)
       WalletLoadingButton(
@@ -63,7 +65,7 @@ struct WalletLoadingButton_Previews: PreviewProvider {
           Text("Preview")
         }
       )
-      .buttonStyle(BraveFilledButtonStyle(size: .normal))
+      .buttonStyle(.filled)
       .disabled(false)
       .frame(maxWidth: .infinity)
     }

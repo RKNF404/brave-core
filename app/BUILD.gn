@@ -122,6 +122,9 @@ source_set("unit_tests") {
   if (!is_android) {
     sources += [ "command_utils_unittest.cc" ]
   }
+  if (enable_brave_vpn_v2_apps) {
+    sources += [ "vpn_apps_branding_unittest.cc" ]
+  }
   deps = [
     "//base",
     "//base/test:test_support",
@@ -148,6 +151,7 @@ source_set("unit_tests") {
     "//components/embedder_support",
     "//components/enterprise/connectors/core",
     "//components/feature_engagement/public:feature_constants",
+    "//components/feed:feature_list",
     "//components/heap_profiling/in_process",
     "//components/history_clusters/core",
     "//components/history_embeddings/content",
@@ -156,6 +160,7 @@ source_set("unit_tests") {
     "//components/manta",
     "//components/metrics",
     "//components/metrics/private_metrics:private_metrics_features",
+    "//components/metrics/private_metrics/private_insights",
     "//components/metrics/structured:structured_metrics_features",
     "//components/multistep_filter/core:features",
     "//components/network_time",
@@ -167,6 +172,7 @@ source_set("unit_tests") {
     "//components/passage_embeddings/core",
     "//components/performance_manager",
     "//components/permissions",
+    "//components/personal_context/core:features",
     "//components/plus_addresses/core/common:features",
     "//components/privacy_sandbox",
     "//components/safe_browsing/core/common",
@@ -174,6 +180,7 @@ source_set("unit_tests") {
     "//components/segmentation_platform/public",
     "//components/shared_highlighting/core/common",
     "//components/signin/public/base:signin_buildflags",
+    "//components/skills:features",
     "//components/subresource_filter/core/common",
     "//components/sync/base:features",
     "//components/user_education/common",
@@ -189,6 +196,7 @@ source_set("unit_tests") {
     deps += [
       "//android_webview/common",
       "//chrome/browser/flags:flags_android",
+      "//components/feed:feature_list",
       "//components/password_manager/core/common:features",
       "//components/security_interstitials/core",
     ]
@@ -206,6 +214,12 @@ source_set("unit_tests") {
       "//extensions/common",
       "//ui/accessibility:ax_base",
     ]
+  }
+  if (is_win) {
+    deps += [ "//chrome/browser/startup" ]
+  }
+  if (enable_brave_vpn_v2_apps) {
+    deps += [ "//brave/components/brave_vpn/app/v2/shared" ]
   }
 }
 

@@ -62,11 +62,6 @@ class PolkadotWalletService : public mojom::PolkadotWalletService,
   NetworkManager& GetNetworkManager();
   PolkadotSubstrateRpc* GetPolkadotRpc();
 
-  // Get the name of the chain currently pointed to by the current network
-  // configuration.
-  void GetNetworkName(mojom::AccountIdPtr account_id,
-                      GetNetworkNameCallback callback) override;
-
   void GetCompatibleNetworks(mojom::AccountIdPtr account_id,
                              GetCompatibleNetworksCallback callback) override;
 
@@ -77,6 +72,12 @@ class PolkadotWalletService : public mojom::PolkadotWalletService,
   void GetAccountBalance(mojom::AccountIdPtr account,
                          const std::string& chain_id,
                          GetAccountBalanceCallback callback) override;
+
+  void GetAssetAccountBalances(
+      mojom::AccountIdPtr account_id,
+      const std::vector<uint32_t>& asset_ids,
+      const std::string& chain_id,
+      GetAssetAccountBalancesCallback callback) override;
 
   void ValidateAddressForTransaction(
       const std::string& chain_id,

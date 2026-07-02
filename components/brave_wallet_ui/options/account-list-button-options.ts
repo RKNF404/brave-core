@@ -22,7 +22,7 @@ export const AccountButtonOptions: AccountButtonOptionsObjectType[] = [
   {
     id: 'details',
     name: 'braveWalletAllowSpendDetailsButton',
-    icon: 'eye-on',
+    icon: 'info-outline',
   },
   {
     id: 'edit',
@@ -49,5 +49,10 @@ export const AccountButtonOptions: AccountButtonOptionsObjectType[] = [
     id: 'shield',
     name: 'braveWalletSwitchToShieldedAccount',
     icon: 'shield-done',
+  },
+  {
+    id: 'resetBirthday',
+    name: 'braveWalletResetShieldedAccountBirthday',
+    icon: 'calendar',
   },
 ]

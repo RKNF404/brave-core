@@ -121,30 +121,33 @@ JSEthereumProvider::JSEthereumProvider(content::RenderFrame* render_frame)
 
 JSEthereumProvider::~JSEthereumProvider() = default;
 
-void JSEthereumProvider::OnDestruct() {}
+void JSEthereumProvider::Cleanup() {
+  // No longer need that provider object. Reset mojo connection, clean bound v8
+  // references, stop tracking the render frame.
+
+  receiver_.reset();
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  Dispose();
+}
+
+void JSEthereumProvider::OnDestruct() {
+  Cleanup();
+}
 
 void JSEthereumProvider::WillReleaseScriptContext(v8::Local<v8::Context>,
                                                   int32_t world_id) {
   if (world_id != content::ISOLATED_WORLD_ID_GLOBAL) {
     return;
   }
-  // Close mojo connection from browser to renderer.
-  receiver_.reset();
-  script_context_released_ = true;
+
+  Cleanup();
 }
 
 void JSEthereumProvider::DidDispatchDOMContentLoadedEvent() {
-  if (script_context_released_) {
-    return;
-  }
   ConnectEvent();
 }
 
 void JSEthereumProvider::DidFinishLoad() {
-  if (script_context_released_) {
-    return;
-  }
-
   // These used to be called synchronously by `JSEthereumProvider::Install`
   // which appeared to cause rare crashes with certain extensions' behavior. See
   // https://github.com/brave/brave-browser/issues/45694 for details.
@@ -275,7 +278,28 @@ JSEthereumProvider::MetaMask::MetaMask(content::RenderFrame* render_frame)
     : RenderFrameObserver(render_frame) {}
 JSEthereumProvider::MetaMask::~MetaMask() = default;
 
-void JSEthereumProvider::MetaMask::OnDestruct() {}
+void JSEthereumProvider::MetaMask::Cleanup() {
+  // No longer need that object. Reset mojo connection, clean bound v8
+  // references, stop tracking the render frame.
+
+  ethereum_provider_.reset();
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  Dispose();
+}
+
+void JSEthereumProvider::MetaMask::OnDestruct() {
+  Cleanup();
+}
+
+void JSEthereumProvider::MetaMask::WillReleaseScriptContext(
+    v8::Local<v8::Context>,
+    int32_t world_id) {
+  if (world_id != content::ISOLATED_WORLD_ID_GLOBAL) {
+    return;
+  }
+
+  Cleanup();
+}
 
 gin::ObjectTemplateBuilder
 JSEthereumProvider::MetaMask::GetObjectTemplateBuilder(v8::Isolate* isolate) {
@@ -308,10 +332,10 @@ v8::Local<v8::Promise> JSEthereumProvider::MetaMask::IsUnlocked(
       v8::Global<v8::Context>(isolate, isolate->GetCurrentContext()));
   auto promise_resolver(
       v8::Global<v8::Promise::Resolver>(isolate, resolver.ToLocalChecked()));
-  auto context(v8::Global<v8::Context>(isolate, isolate->GetCurrentContext()));
-  ethereum_provider_->IsLocked(base::BindOnce(
-      &JSEthereumProvider::MetaMask::OnIsUnlocked, base::Unretained(this),
-      std::move(global_context), std::move(promise_resolver), isolate));
+  ethereum_provider_->IsLocked(
+      base::BindOnce(&JSEthereumProvider::MetaMask::OnIsUnlocked,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(global_context),
+                     std::move(promise_resolver), isolate));
 
   return resolver.ToLocalChecked()->GetPromise();
 }

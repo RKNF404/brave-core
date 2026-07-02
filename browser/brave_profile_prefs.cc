@@ -43,6 +43,7 @@
 #include "brave/components/debounce/core/browser/debounce_service.h"
 #include "brave/components/global_privacy_control/pref_names.h"
 #include "brave/components/ipfs/ipfs_prefs.h"
+#include "brave/components/local_ai/buildflags/buildflags.h"
 #include "brave/components/ntp_background_images/browser/view_counter_service.h"
 #include "brave/components/ntp_background_images/buildflags/buildflags.h"
 #include "brave/components/ntp_background_images/common/view_counter_pref_registry.h"
@@ -65,6 +66,7 @@
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/embedder_support/pref_names.h"
 #include "components/gcm_driver/gcm_buildflags.h"
+#include "components/history/core/common/pref_names.h"
 #include "components/ntp_tiles/tile_type.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -160,11 +162,15 @@ using extensions::FeatureSwitch;
 #endif
 
 #if BUILDFLAG(ENABLE_PSST)
-#include "brave/components/psst/common/pref_names.h"
+#include "brave/components/psst/core/browser/pref_names.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
 #include "brave/components/brave_wallet/browser/pref_names.h"
+#endif
+
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+#include "brave/components/local_ai/core/pref_names.h"
 #endif
 
 namespace brave {
@@ -176,14 +182,14 @@ void OverrideDefaultPrefValues(user_prefs::PrefRegistrySyncable* registry) {
   // Clear default popular sites
   registry->SetDefaultPrefValue(ntp_tiles::prefs::kPopularSitesJsonPref,
                                 base::Value(base::Value::Type::LIST));
-  // Disable NTP suggestions
-  // On Android we want to have enable_feed_v2 parameter enabled to
-  // provide linking with feed::FetchRssLinks at
-  // BraveNewsTabHelper::DOMContentLoaded, but kEnableSnippets and
-  // kArticlesListVisible must be defaulted to false to avoid failed assertion
-  // at BraveNewTabPage.initializeMainView. So override
+  // Disable NTP suggestions.
+  // On Android we want to have the enable_feed_v2 parameter enabled so the
+  // upstream feed prefs are registered (Brave News uses its own
+  // `brave_news::FetchRssLinks` for RSS discovery), but kEnableSnippets and
+  // kArticlesListVisible must default to false to avoid a failed assertion
+  // in BraveNewTabPage.initializeMainView. So override
   // feed::prefs::RegisterFeedSharedProfilePrefs for Android only. Related
-  // Chromium's commit: d3500b942cde04737bc13021173b6ffa11aaf1b9.
+  // Chromium commit: d3500b942cde04737bc13021173b6ffa11aaf1b9.
   registry->SetDefaultPrefValue(feed::prefs::kEnableSnippets,
                                 base::Value(false));
   registry->SetDefaultPrefValue(feed::prefs::kArticlesListVisible,
@@ -342,6 +348,10 @@ void RegisterProfilePrefsForMigration(
 #if defined(TOOLKIT_VIEWS)
   registry->RegisterBooleanPref(sidebar::kSidebarAlignmentChangedTemporarily,
                                 false);
+
+  // Added 2026-06
+  // Upstream handles panel width from sidebar v2.
+  registry->RegisterIntegerPref(sidebar::kSidePanelWidth, 0);
 #endif
 
   // Added 2023-09
@@ -408,6 +418,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // appearance
   registry->RegisterBooleanPref(kShowBookmarksButton, true);
   registry->RegisterBooleanPref(kShowSidePanelButton, true);
+  registry->RegisterBooleanPref(kShowScreenshotButton, true);
   registry->RegisterBooleanPref(kLocationBarIsWide, false);
   registry->RegisterBooleanPref(kMRUCyclingEnabled, false);
   registry->RegisterBooleanPref(kTabsSearchShow, true);
@@ -438,6 +449,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   registry->RegisterBooleanPref(kShieldsStatsBadgeVisible, true);
   registry->RegisterBooleanPref(kGoogleLoginControlType, true);
+  registry->RegisterIntegerPref(prefs::kBraveHistoryRetentionDays, 90);
   registry->RegisterBooleanPref(
       query_filter::kTrackingQueryParametersFilteringEnabled, true);
   registry->RegisterBooleanPref(
@@ -552,6 +564,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 #if BUILDFLAG(ENABLE_AI_CHAT)
   ai_chat::prefs::RegisterProfilePrefs(registry);
   ai_chat::ModelService::RegisterProfilePrefs(registry);
+#endif
+
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+  local_ai::prefs::RegisterProfilePrefs(registry);
 #endif
 
   brave_account::prefs::RegisterPrefs(registry);

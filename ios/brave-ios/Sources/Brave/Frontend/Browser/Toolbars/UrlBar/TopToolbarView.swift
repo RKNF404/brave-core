@@ -157,7 +157,7 @@ class TopToolbarView: UIView, ToolbarProtocol {
 
   private lazy var cancelButton = InsetButton().then {
     $0.setTitle(Strings.cancelButtonTitle, for: .normal)
-    $0.setTitleColor(UIColor.secondaryBraveLabel, for: .normal)
+    $0.setTitleColor(UIColor(braveSystemName: .textSecondary), for: .normal)
     $0.accessibilityIdentifier = "topToolbarView-cancel"
     $0.addTarget(self, action: #selector(didClickCancel), for: .touchUpInside)
     $0.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -718,7 +718,7 @@ class TopToolbarView: UIView, ToolbarProtocol {
     updateURLBarButtonsVisibility()
   }
 
-  func updateTranslateButtonState(_ state: TranslateURLBarButton.TranslateState) {
+  func updateTranslateButtonState(_ state: TranslationState) {
     locationView.translationState = state
     updateURLBarButtonsVisibility()
   }

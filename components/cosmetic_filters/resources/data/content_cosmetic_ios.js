@@ -8,7 +8,7 @@
 import {
   applyCompiledSelector,
   compileProceduralSelector,
-} from './procedural_filters'
+} from './procedural_filters.ts'
 
 /**
  * Send ids and classes to iOS and await new hide selectors
@@ -641,7 +641,7 @@ const shouldUnhideElement = (element, pendingSrcAttributes) => {
     return true
   } else if (
     queryResults.foundThirdPartyResource
-    || queryResults.pendingSrcAttributes.size > 0
+    || queryResults.pendingSrcAttributes.length > 0
   ) {
     if (pendingSrcAttributes !== undefined) {
       queryResults.pendingSrcAttributes.forEach((src) => {
@@ -672,6 +672,7 @@ const shouldUnhideElementAsync = async (element) => {
         return true
       }
     }
+    return false
   } else {
     return false
   }

@@ -19,8 +19,8 @@
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
-#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_widget_delegate_view.h"
 #include "brave/browser/ui/views/location_bar/brave_location_bar_view.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/browser/ui/views/toolbar/bookmark_button.h"
@@ -36,10 +36,12 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bubble_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_divider.h"
@@ -61,6 +63,9 @@
 #include "brave/browser/ui/views/toolbar/ai_chat_button.h"
 #include "brave/components/ai_chat/core/common/pref_names.h"
 #endif
+
+#include "brave/browser/ui/screenshot/features.h"
+#include "brave/browser/ui/views/toolbar/screenshot_button.h"
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 #include "brave/browser/brave_vpn/brave_vpn_service_factory.h"
@@ -263,6 +268,11 @@ void BraveToolbarView::Init() {
       base::BindRepeating(&BraveToolbarView::OnLocationBarIsWideChanged,
                           base::Unretained(this)));
 
+  compact_horizontal_tabs_.Init(
+      brave_tabs::kCompactHorizontalTabs, g_browser_process->local_state(),
+      base::BindRepeating(&BraveToolbarView::OnCompactModePrefChanged,
+                          base::Unretained(this)));
+
   if (tabs::utils::SupportsBraveVerticalTabs(browser_)) {
     show_vertical_tabs_.Init(brave_tabs::kVerticalTabsEnabled,
                              profile->GetPrefs(),
@@ -271,6 +281,7 @@ void BraveToolbarView::Init() {
                                    self->UpdateHorizontalPadding();
                                    self->UpdateVerticalTabToggleVisibility();
                                    self->UpdateVerticalTabTogglePlacement();
+                                   self->UpdateComboButtonState();
                                  },
                                  base::Unretained(this)));
     show_title_bar_on_vertical_tabs_.Init(
@@ -312,8 +323,19 @@ void BraveToolbarView::Init() {
         vertical_tabs_collapsed_.GetValue()
             ? kVerticalTabStripToggleCollapsedIcon
             : kLeoWindowTabsVerticalExpandedIcon);
+
+    if (base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
+      auto target_index = GetIndexOf(vertical_tab_toggle_);
+      combo_button_ = AddChildViewAt(
+          std::make_unique<TabStripComboButton>(
+              browser(), TabStripComboButton::Context::kHorizontalTabStrip),
+          *target_index);
+    }
+
     UpdateVerticalTabToggleVisibility();
     UpdateVerticalTabToggleState();
+    UpdateVerticalTabToggleState();
+    UpdateComboButtonState();
   }
 
   bookmark_ =
@@ -325,8 +347,11 @@ void BraveToolbarView::Init() {
   bookmark_->UpdateImageAndText();
   SetBraveButtonFlexBehavior(bookmark_);
 
-  side_panel_ = AddChildViewAt(std::make_unique<SidePanelButton>(browser()),
-                               *GetIndexOf(app_menu_button()) - 1);
+  side_panel_ = AddChildViewAt(
+      std::make_unique<SidePanelButton>(
+          browser()->browser_window_features()->sidebar_controller(),
+          profile->GetPrefs()),
+      *GetIndexOf(app_menu_button()) - 1);
   SetBraveButtonFlexBehavior(side_panel_);
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
@@ -360,6 +385,18 @@ void BraveToolbarView::Init() {
     UpdateAIChatButtonVisibility();
   }
 #endif
+
+  if (screenshot::features::IsScreenshotEnabled()) {
+    screenshot_button_ =
+        AddChildViewAt(std::make_unique<ScreenshotButton>(browser()),
+                       *GetIndexOf(app_menu_button()) - 1);
+    SetBraveButtonFlexBehavior(screenshot_button_);
+    show_screenshot_button_.Init(
+        kShowScreenshotButton, profile->GetPrefs(),
+        base::BindRepeating(&BraveToolbarView::OnShowScreenshotButtonChanged,
+                            base::Unretained(this)));
+    screenshot_button_->SetVisible(show_screenshot_button_.GetValue());
+  }
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
   if (brave_vpn::BraveVpnServiceFactory::GetForProfile(profile)) {
@@ -416,11 +453,21 @@ void BraveToolbarView::OnShowBookmarksButtonChanged() {
   UpdateBookmarkVisibility();
 }
 
+void BraveToolbarView::OnShowScreenshotButtonChanged() {
+  CHECK(screenshot_button_);
+  screenshot_button_->SetVisible(show_screenshot_button_.GetValue());
+}
+
 void BraveToolbarView::OnLocationBarIsWideChanged() {
   DCHECK_EQ(DisplayMode::kNormal, display_mode_);
 
   DeprecatedLayoutImmediately();
   SchedulePaint();
+}
+
+void BraveToolbarView::OnCompactModePrefChanged() {
+  PreferredSizeChanged();
+  InvalidateLayout();
 }
 
 void BraveToolbarView::OnThemeChanged() {
@@ -715,18 +762,26 @@ void BraveToolbarView::OnVerticalTabTogglePressed() {
     return;
   }
 
-  auto* delegate_view =
-      brave_browser_view->vertical_tab_strip_widget_delegate_view();
-  if (!delegate_view) {
+  auto* container_view =
+      brave_browser_view->vertical_tab_strip_container_view();
+  if (!container_view) {
     return;
   }
 
-  auto* region_view = delegate_view->vertical_tab_strip_region_view();
+  auto* region_view = container_view->vertical_tab_strip_region_view();
   if (!region_view) {
     return;
   }
 
   region_view->ToggleState();
+}
+
+void BraveToolbarView::UpdateComboButtonState() {
+  if (!combo_button_) {
+    return;
+  }
+
+  combo_button_->SetVisible(tabs::utils::ShouldShowBraveVerticalTabs(browser_));
 }
 
 BEGIN_METADATA(BraveToolbarView)

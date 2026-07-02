@@ -26,11 +26,11 @@ struct OptInView: View {
         Text(Strings.BraveNews.introCardTitle)
           .font(.title3.bold())
           .multilineTextAlignment(.center)
-          .foregroundColor(Color(.bravePrimary))
+          .foregroundColor(Color(braveSystemName: .textPrimary))
         Text(Strings.BraveNews.introCardBody)
           .font(.subheadline)
           .multilineTextAlignment(.center)
-          .foregroundColor(Color(.braveLabel))
+          .foregroundColor(Color(braveSystemName: .textPrimary))
       }
       VStack(spacing: 16) {
         Button {
@@ -49,11 +49,12 @@ struct OptInView: View {
             )
             .animation(.default, value: isLoading)
         }
-        .buttonStyle(BraveFilledButtonStyle(size: .large))
+        .buttonStyle(.filled)
+        .controlSize(.large)
         Button(action: tappedLearnMore) {
           Text(Strings.BraveNews.learnMoreTitle)
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(Color(.braveBlurpleTint))
+            .foregroundColor(Color(braveSystemName: .textInteractive))
         }
       }
     }

@@ -18,6 +18,8 @@ public struct OriginPaywallView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
 
+  @State private var isOfferCodeRedeemSheetPresented: Bool = false
+
   var didPurchase: (() -> Void)
 
   public init(viewModel: OriginPaywallViewModel, didPurchase: @escaping () -> Void = {}) {
@@ -50,8 +52,7 @@ public struct OriginPaywallView: View {
             AdditionalActionView(
               title: Strings.Origin.promoCodeTitle
             ) {
-              // Open the redeem code sheet
-              SKPaymentQueue.default().presentCodeRedemptionSheet()
+              isOfferCodeRedeemSheetPresented = true
             } label: {
               Text(Strings.Origin.redeemPromoCodeButton)
             }
@@ -60,6 +61,18 @@ public struct OriginPaywallView: View {
           .padding(16)
         }
         paywallActionContainerView
+      }
+      .offerCodeRedemption(isPresented: $isOfferCodeRedeemSheetPresented) { result in
+        if case .success = result {
+          Task {
+            // The result of the sheet is still successful if the user cancels, so we dont want to
+            // explicitly show an error if theres no receipt in this case.
+            if await viewModel.restore(presentErrorOnFailure: false) {
+              dismiss()
+              didPurchase()
+            }
+          }
+        }
       }
       .background(Color(braveSystemName: .primitiveBlurple10))
       .navigationTitle(Strings.Origin.originProductName)
@@ -96,18 +109,6 @@ public struct OriginPaywallView: View {
         }
       } message: {
         Text(Strings.Origin.purchaseErrorMessage)
-      }
-      .introspectViewController { vc in
-        vc.navigationItem.do {
-          let appearance = UINavigationBarAppearance().then {
-            $0.configureWithDefaultBackground()
-            $0.backgroundColor = UIColor(braveSystemName: .primitivePrimary10)
-            $0.titleTextAttributes = [.foregroundColor: UIColor.white]
-            $0.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
-          }
-          $0.standardAppearance = appearance
-          $0.scrollEdgeAppearance = appearance
-        }
       }
     }
     .colorScheme(.dark)

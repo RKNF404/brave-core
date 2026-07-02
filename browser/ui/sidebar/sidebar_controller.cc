@@ -10,7 +10,6 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
-#include "brave/browser/ui/sidebar/buildflags/buildflags.h"
 #include "brave/browser/ui/sidebar/sidebar.h"
 #include "brave/browser/ui/sidebar/sidebar_model.h"
 #include "brave/browser/ui/sidebar/sidebar_service_factory.h"
@@ -41,10 +40,6 @@ namespace sidebar {
 
 namespace {
 
-SidebarService* GetSidebarService(Profile* profile) {
-  return SidebarServiceFactory::GetForProfile(profile);
-}
-
 std::vector<int> GetAllExistingTabIndexForHost(TabStripModel* tab_strip_model,
                                                std::string_view host) {
   const int tab_count = tab_strip_model->count();
@@ -65,7 +60,7 @@ SidebarController::SidebarController(Browser* browser, Profile* profile)
       profile_(profile),
       browser_(browser),
       sidebar_model_(new SidebarModel(profile_)) {
-  sidebar_service_observed_.Observe(GetSidebarService(profile_));
+  sidebar_service_observed_.Observe(GetSidebarService());
 }
 
 SidebarController::~SidebarController() = default;
@@ -165,16 +160,12 @@ void SidebarController::ActivatePanelItem(
     return;
   }
 
-#if BUILDFLAG(ENABLE_SIDEBAR_V2)
   // Suppress opening animation when we have active item.
   // When opening another panel while other panel is visible,
   // we don't need to open new panel with animation.
   const bool suppress_animations = sidebar_model_->active_index().has_value();
   side_panel_ui->Show(sidebar::SidePanelIdFromSideBarItemType(panel_item),
                       /*open_trigger*/ std::nullopt, suppress_animations);
-#else
-  side_panel_ui->Show(sidebar::SidePanelIdFromSideBarItemType(panel_item));
-#endif
 }
 
 void SidebarController::DeactivateCurrentPanel() {
@@ -267,7 +258,7 @@ void SidebarController::AddItemWithCurrentTab() {
   DCHECK(active_contents);
   const GURL url = active_contents->GetVisibleURL();
   const std::u16string title = active_contents->GetTitle();
-  GetSidebarService(profile_)->AddItem(SidebarItem::Create(
+  GetSidebarService()->AddItem(SidebarItem::Create(
       url, title, SidebarItem::Type::kTypeWeb,
       SidebarItem::BuiltInItemType::kNone, IsWebPanelFeatureEnabled()));
 }
@@ -309,6 +300,10 @@ SidebarWebPanelController* SidebarController::GetWebPanelController() {
   }
 
   return web_panel_controller_.get();
+}
+
+SidebarService* SidebarController::GetSidebarService() {
+  return SidebarServiceFactory::GetForProfile(profile_);
 }
 
 }  // namespace sidebar

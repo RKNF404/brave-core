@@ -26,7 +26,6 @@ struct PlaylistSettingsView: View {
       Section {
         Toggle(Strings.PlayList.urlBarButtonOptionTitle, isOn: $enablePlaylistURLBarButton.value)
           .tint(Color(braveSystemName: .primary40))
-          .listRowBackground(Color(.secondaryBraveGroupedBackground))
       } footer: {
         Text(Strings.PlayList.urlBarButtonOptionFooter)
       }
@@ -36,33 +35,34 @@ struct PlaylistSettingsView: View {
           isOn: $enableLongPressAddToPlaylist.value
         )
         .tint(Color(braveSystemName: .primary40))
-        .listRowBackground(Color(.secondaryBraveGroupedBackground))
       } footer: {
         Text(Strings.PlayList.playlistLongPressSettingsOptionFooterText)
       }
       Section {
         Toggle(Strings.PlayList.playlistAutoPlaySettingsOptionTitle, isOn: $firstLoadAutoPlay.value)
           .tint(Color(braveSystemName: .primary40))
-          .listRowBackground(Color(.secondaryBraveGroupedBackground))
       } footer: {
         Text(Strings.PlayList.playlistAutoPlaySettingsOptionFooterText)
       }
-      Section {
-        Picker(Strings.PlayList.playlistAutoSaveSettingsTitle, selection: $autoDownloadVideo.value)
-        {
-          Text(Strings.PlayList.playlistAutoSaveOptionOn)
-            .tag(PlayListDownloadType.on.rawValue)
-          Text(Strings.PlayList.playlistAutoSaveOptionOff)
-            .tag(PlayListDownloadType.off.rawValue)
-          Text(Strings.PlayList.playlistAutoSaveOptionOnlyWifi)
-            .tag(PlayListDownloadType.wifi.rawValue)
-        }
-        .pickerStyle(.navigationLink)
-        .listRowBackground(Color(.secondaryBraveGroupedBackground))
-      } footer: {
-        VStack(alignment: .leading, spacing: 4) {
-          Text(Strings.PlayList.playlistAutoSaveSettingsFooterText)
-          Text(Strings.PlayList.playlistAutoSaveSettingsDescription)
+      if FeatureList.kPlaylistOfflineCacheEnabled.enabled {
+        Section {
+          Picker(
+            Strings.PlayList.playlistAutoSaveSettingsTitle,
+            selection: $autoDownloadVideo.value
+          ) {
+            Text(Strings.PlayList.playlistAutoSaveOptionOn)
+              .tag(PlayListDownloadType.on.rawValue)
+            Text(Strings.PlayList.playlistAutoSaveOptionOff)
+              .tag(PlayListDownloadType.off.rawValue)
+            Text(Strings.PlayList.playlistAutoSaveOptionOnlyWifi)
+              .tag(PlayListDownloadType.wifi.rawValue)
+          }
+          .pickerStyle(.navigationLink)
+        } footer: {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(Strings.PlayList.playlistAutoSaveSettingsFooterText)
+            Text(Strings.PlayList.playlistAutoSaveSettingsDescription)
+          }
         }
       }
       Section {
@@ -71,7 +71,6 @@ struct PlaylistSettingsView: View {
           isOn: $playbackLeftOff.value
         )
         .tint(Color(braveSystemName: .primary40))
-        .listRowBackground(Color(.secondaryBraveGroupedBackground))
       } footer: {
         Text(Strings.PlayList.playlistStartPlaybackSettingsFooterText)
       }
@@ -83,7 +82,6 @@ struct PlaylistSettingsView: View {
             .foregroundStyle(Color(braveSystemName: .textInteractive))
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .listRowBackground(Color(.secondaryBraveGroupedBackground))
         .confirmationDialog(
           Strings.PlayList.playlistResetAlertTitle,
           isPresented: $isResetConfirmationDialogPresented,
@@ -102,8 +100,6 @@ struct PlaylistSettingsView: View {
         Text(Strings.PlayList.playlistResetPlaylistOptionFooterText)
       }
     }
-    .scrollContentBackground(.hidden)
-    .background(Color(.braveGroupedBackground))
   }
 }
 

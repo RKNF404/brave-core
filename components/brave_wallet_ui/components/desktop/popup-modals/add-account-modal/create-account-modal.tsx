@@ -12,7 +12,10 @@ import { showAlert } from '@brave/leo/react/alertCenter'
 
 // utils
 import { getLocale } from '$web-common/locale'
-import { keyringIdForNewAccount } from '../../../../utils/account-utils'
+import {
+  getAccountsForNetwork,
+  keyringIdForNewAccount,
+} from '../../../../utils/account-utils'
 
 // options
 import { CreateAccountOptions } from '../../../../options/create-account-options'
@@ -38,6 +41,7 @@ import {
 import { useAccountsQuery } from '../../../../common/slices/api.slice.extra'
 import {
   useAddAccountMutation,
+  useGetHiddenAccountsQuery,
   useGetVisibleNetworksQuery,
 } from '../../../../common/slices/api.slice'
 
@@ -76,6 +80,7 @@ export const CreateAccountModal = () => {
 
   // queries
   const { accounts } = useAccountsQuery()
+  const { data: hiddenAccounts = [] } = useGetHiddenAccountsQuery()
   const { data: visibleNetworks = [] } = useGetVisibleNetworksQuery()
 
   // mutations
@@ -110,17 +115,30 @@ export const CreateAccountModal = () => {
   }, [accountTypeName, createAccountOptions])
 
   const suggestedAccountName = React.useMemo(() => {
-    const accountTypeLength =
-      accounts.filter(
-        (account) => account.accountId.coin === selectedAccountType?.coin,
-      ).length + 1
+    const allAccounts = [...accounts, ...hiddenAccounts]
+    // Polkadot accounts are scoped by keyring (mainnet vs testnet), not coin,
+    // so defer to getAccountsForNetwork for keyring-aware counting.
+    const matchingAccounts =
+      selectedAccountType?.coin === BraveWallet.CoinType.DOT
+      && selectedAccountType.fixedNetwork
+        ? getAccountsForNetwork(
+            {
+              coin: selectedAccountType.coin,
+              chainId: selectedAccountType.fixedNetwork,
+            },
+            allAccounts,
+          )
+        : allAccounts.filter(
+            (account) => account.accountId.coin === selectedAccountType?.coin,
+          )
+    const accountTypeLength = matchingAccounts.length + 1
     return `${
       selectedAccountType?.name //
     } ${getLocale('braveWalletSubviewAccount')} ${
       //
       accountTypeLength
     }`
-  }, [accounts, selectedAccountType])
+  }, [accounts, hiddenAccounts, selectedAccountType])
 
   const targetKeyringId = React.useMemo(() => {
     if (!selectedAccountType) {

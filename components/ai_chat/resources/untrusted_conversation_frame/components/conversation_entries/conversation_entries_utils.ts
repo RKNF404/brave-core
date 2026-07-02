@@ -222,6 +222,43 @@ export const normalizeCitationSpacing = (text: string): string =>
   })
 
 /**
+ * Returns the source offset of the `[` character for every GFM task-list
+ * checkbox in `text`, in document order. Task list items inside `<think>`
+ * reasoning blocks are excluded so the order matches what the markdown
+ * renderer produces (it operates on text with reasoning stripped).
+ */
+export const findTaskCheckboxBracketOffsets = (text: string): number[] => {
+  const reasoningRanges: Array<[number, number]> = []
+  let cursor = 0
+  while (cursor < text.length) {
+    const open = text.indexOf('<think>', cursor)
+    if (open === -1) break
+    const close = text.indexOf('</think>', open + '<think>'.length)
+    if (close === -1) {
+      reasoningRanges.push([open, text.length])
+      break
+    }
+    const endExclusive = close + '</think>'.length
+    reasoningRanges.push([open, endExclusive])
+    cursor = endExclusive
+  }
+  const isInReasoning = (offset: number) =>
+    reasoningRanges.some(([a, b]) => offset >= a && offset < b)
+
+  const tree = unified().use(remarkParse).use(remarkGfm).parse(text)
+  const offsets: number[] = []
+  visit(tree, 'listItem', (node: any) => {
+    if (node.checked === null || node.checked === undefined) return
+    const start = node.position?.start?.offset
+    if (start === undefined) return
+    if (isInReasoning(start)) return
+    const bracket = text.indexOf('[', start)
+    if (bracket >= 0) offsets.push(bracket)
+  })
+  return offsets
+}
+
+/**
  * Replaces citation numbers `[1]`, `[2]`, etc. with URLs from `allowedLinks`,
  * skipping matches that fall inside fenced code blocks or inline code spans —
  * where `[N]` is typically array indexing rather than a citation.
@@ -278,4 +315,59 @@ export function getToolArtifacts(
   }
 
   return [...artifactsWithoutId, ...artifactsById.values()]
+}
+
+/**
+ * Collects every URL that should be permitted as an anchor in the assistant
+ * replies for this group, deduped. Combines:
+ *  - Web search citations from `sourcesEvent` (the "Sources" panel URLs).
+ *  - HTTPS URLs from `visited_links` artifacts on tool_use events --
+ *    client-side tools (e.g. semantic history search) emit these as a
+ *    sidechannel trust-list so the assistant's reply can render the tool's
+ *    URLs as anchors. Bad JSON or non-string array entries are skipped.
+ * Flattening across the whole group is required because a client-side tool
+ * call lives in a separate assistant entry from the follow-up response that
+ * references the tool's URLs.
+ */
+function parseVisitedLinksArtifact(artifact: Mojom.ToolArtifact): string[] {
+  if (artifact.type !== Mojom.VISITED_LINKS_ARTIFACT_TYPE) {
+    return []
+  }
+  try {
+    const parsed: unknown = JSON.parse(artifact.contentJson)
+    return Array.isArray(parsed)
+      ? parsed.filter((u): u is string => typeof u === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
+
+function collectLinksFromEvent(
+  event: Mojom.ConversationEntryEvent,
+  links: Set<string>,
+) {
+  if (event.sourcesEvent) {
+    for (const source of event.sourcesEvent.sources) {
+      links.add(source.url.url)
+    }
+  }
+  for (const a of event.toolUseEvent?.artifacts ?? []) {
+    for (const url of parseVisitedLinksArtifact(a)) {
+      links.add(url)
+    }
+  }
+}
+
+export function getGroupAllowedLinks(
+  group: Mojom.ConversationTurn[],
+): string[] {
+  const links = new Set<string>()
+  for (const entry of group) {
+    const events = (entry.edits?.at(-1) ?? entry).events ?? []
+    for (const event of events) {
+      collectLinksFromEvent(event, links)
+    }
+  }
+  return Array.from(links)
 }

@@ -80,7 +80,8 @@ struct UnlockWalletView: View {
               Text(Strings.Wallet.unlockWalletButtonTitle)
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(BraveFilledButtonStyle(size: .large))
+            .buttonStyle(.filled)
+            .controlSize(.large)
             .disabled(!isPasswordValid)
 
             NavigationLink(
@@ -221,7 +222,7 @@ private struct WalletUnlockStyleModifier<Failure: LocalizedError & Equatable>: V
         )
       )
       .font(.footnote)
-      .foregroundColor(Color(.braveErrorLabel))
+      .foregroundColor(Color(UIColor(braveSystemName: .systemfeedbackErrorText)))
       .padding(.leading, 8)
       .hidden(isHidden: error == nil)
     }

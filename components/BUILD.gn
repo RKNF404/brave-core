@@ -4,10 +4,13 @@
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")
+import("//brave/components/brave_vpn/common/buildflags/buildflags.gni")
 import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
 import("//brave/components/brave_wayback_machine/buildflags/buildflags.gni")
 import("//brave/components/containers/buildflags/buildflags.gni")
 import("//brave/components/email_aliases/buildflags/buildflags.gni")
+import("//brave/components/local_ai/buildflags/buildflags.gni")
+import("//brave/components/playlist/core/common/buildflags/buildflags.gni")
 import("//brave/components/psst/buildflags/buildflags.gni")
 import("//brave/components/speedreader/common/buildflags/buildflags.gni")
 import("//build/config/features.gni")
@@ -40,8 +43,8 @@ test("brave_components_unittests") {
     "//brave/components/component_updater:unit_tests",
     "//brave/components/https_upgrade_exceptions/browser:unit_tests",
     "//brave/components/json:unit_tests",
-    "//brave/components/local_ai/core:unit_tests",
     "//brave/components/oblivious_http:unit_tests",
+    "//brave/components/screenshot/core/browser:unit_tests",
     "//brave/components/static_redirect_helper:unit_tests",
     "//brave/components/time_period_storage:unit_tests",
     "//brave/components/update_client:unit_tests",
@@ -64,10 +67,7 @@ test("brave_components_unittests") {
   }
 
   if (enable_psst) {
-    deps += [
-      "//brave/components/psst/browser/content:unit_tests",
-      "//brave/components/psst/browser/core:unit_tests",
-    ]
+    deps += [ "//brave/components/psst/core/browser:unit_tests" ]
   }
 
   if (enable_brave_wayback_machine) {
@@ -86,12 +86,29 @@ test("brave_components_unittests") {
     ]
   }
 
+  if (enable_brave_vpn_v2_apps) {
+    deps += [
+      "//brave/components/brave_vpn/app/v2/agent:unit_tests",
+      "//brave/components/brave_vpn/app/v2/shared:unit_tests",
+    ]
+  }
+
   if (enable_email_aliases) {
     deps += [ "//brave/components/email_aliases:unit_tests" ]
   }
 
+  if (enable_local_ai) {
+    deps += [ "//brave/components/local_ai/core:unit_tests" ]
+  }
+
+  if (enable_playlist) {
+    deps += [ "//brave/components/playlist/core/browser:unit_tests" ]
+  }
+
   if (use_blink) {
-    deps += [ "//brave/components/local_ai/content:unit_tests" ]
+    if (enable_local_ai) {
+      deps += [ "//brave/components/local_ai/content:unit_tests" ]
+    }
     if (enable_ai_chat) {
       deps += [ "//brave/components/ai_chat/content/browser:unit_tests" ]
     }
@@ -134,7 +151,6 @@ test("brave_components_unittests") {
   # extensions targets.
   assert_no_deps = [
     "//brave/browser/*",
-    "//brave/build/*",
     "//brave/common/*",
     "//brave/renderer/*",
     "//brave/updater/*",
@@ -145,8 +161,12 @@ test("brave_components_unittests") {
     "//extensions/browser/*",
     "//extensions/common:core_api_provider",
     "//extensions/components/*",
-    "//extensions/renderer/*",
-    "//extensions/shell/*",
+
+    # //extensions/renderer/resources:extensions_renderer_generated_resources is
+    # a dependency of //extensions/common:common, and components do make use of
+    # things like URLPattern from it. Asserting on the local renderer is enough
+    # though to prevent renderer code.
+    "//extensions/renderer:*",
   ]
 
   if (is_ios) {

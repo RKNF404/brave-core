@@ -11,6 +11,7 @@ import { useEngineContext } from './EngineContext';
 import { ContextUploadErrorType, ContextUploadStatus } from 'gen/components/omnibox/composebox/composebox_query.mojom.m';
 import { InputState } from 'gen/ui/webui/resources/tsc/mojo/components/omnibox/composebox/composebox_query.mojom-webui';
 import { WindowOpenDisposition } from 'gen/ui/webui/resources/tsc/mojo/ui/base/mojom/window_open_disposition.mojom-webui';
+import { Size } from 'gen/ui/webui/resources/tsc/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui';
 
 interface Context {
   open: boolean,
@@ -93,6 +94,9 @@ class SearchPage implements PageInterface {
   openCurrentSelection(disposition: WindowOpenDisposition): void {}
   setAimButtonVisible(visible: boolean): void {}
   updateAimPopupEligibility(eligible: boolean): void {}
+  onPermissionPromptChanged(isShowing: boolean, promptSize: Size): void {}
+  setRestoredTabIds(tabIds: number[]): void { }
+  setAimThreadRestoredTabs(tabs: TabInfo[]): void { }
 }
 
 export const search = new SearchPage()
@@ -131,7 +135,7 @@ export function SearchContext(props: React.PropsWithChildren<{}>) {
   React.useEffect(() => {
     if (query) {
       const keywordQuery = `${searchEngine?.keyword} ${query}`
-      omniboxController.queryAutocomplete(keywordQuery, false);
+      omniboxController.queryAutocomplete(keywordQuery, false, keywordQuery.length);
     } else {
       omniboxController.stopAutocomplete(true)
     }

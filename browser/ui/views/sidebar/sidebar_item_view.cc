@@ -21,9 +21,16 @@ SidebarItemView::~SidebarItemView() = default;
 
 void SidebarItemView::SetActiveState(bool active) {
   if (active_ == active) {
+    if (active_) {
+      // Re-apply the ink drop in case it was reset when the view was hidden
+      // (e.g., after the sidebar was hidden and re-shown). SetHighlighted's
+      // own guard makes this a no-op when the ink drop is already ACTIVATED.
+      SetHighlighted(true);
+    }
+
+    // non-active same-state: skip to avoid HIDDEN→DEACTIVATED flash
     return;
   }
-
   active_ = active;
   SetHighlighted(active_);
 }

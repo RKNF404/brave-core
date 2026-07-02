@@ -106,7 +106,6 @@
 <translation id="8890516388109605451">מקורות</translation>
 <translation id="5158129253322921540">השבת תוכן מאת <ph name="PUBLISHER_NAME"/></translation>
 <translation id="3189348785087463371">מקודם</translation>
-<translation id="4541978218358617681">פרסומות</translation>
 <translation id="1776831331757823105">שעון</translation>
 <translation id="7791543448312431591">הוספה</translation>
 <translation id="6216996674668969227">להרוויח אסימונים על צפייה במודעות מכבדות-פרטיות.</translation>
@@ -377,7 +376,6 @@
 <translation id="1430915738399379752">הדפס</translation>
 <translation id="2600847485413879104">פרסי BAT</translation>
 <translation id="3439853736976204026">ארנק bitFlyer</translation>
-<translation id="8533411848724153701">Gemini</translation>
 <translation id="6569877533335686968">Uphold</translation>
 <translation id="6011108706830742093">ZebPay</translation>
 <translation id="5390923430722428146">Solana</translation>
@@ -438,6 +436,7 @@
 <translation id="412480955826088549">מוריד רכיב...</translation>
 <translation id="4894106830958548828">אני מבינ/ה</translation>
 <translation id="2729085694451916573">מחרוזת בדיקה עבור <ph name="PART_ONE"/>אָרט האָלדערס<ph name="PART_ONE_END"/>. <ph name="PART_TWO"/>לערן מער<ph name="PART_TWO_END"/></translation>
+<translation id="6705666103672654256">החיפושים ותוכן העמודים מעובדים במכשיר זה. שום דבר לא נשלח ל-Brave ולא נצפה על ידי בודקים אנושיים. זוהי תכונה ניסיונית והיא לא תמיד תפעל כראוי.</translation>
 <translation id="7534079972563542000">דומיינים בלתי ניתנים לעצירה</translation>
 <translation id="4492298165410552103">לאפשר תמיכה בדומיינים בלתי ניתנים לעצירה ב-Brave?</translation>
 <translation id="5015092481905019948">Brave ישתמש ב-<ph name="PROVIDER_NAME"/> כדי לפתור את שמות הדומיינים של <ph name="DOMAIN_LIST"/>שנמצאים ב-<ph name="DOMAIN_PROVIDER_NAME"/>. הנמצאים בכתובת ה-IP שלך. אם תפעיל אפשרות זאת, <ph name="PROVIDER_NAME"/> יראה שמישהו מנסה לבקר בדומיינים אלה אך לא יראה אף פרט אחר. יש לעיין <ph name="BEGIN_PROVIDER_TOU_LINK"/>בתנאי השימוש<ph name="END_PROVIDER_TOU_LINK"/> <ph name="BEGIN_PROVIDER_PRIVACY_LINK"/>ובמדיניות הפרטיות<ph name="END_PROVIDER_PRIVACY_LINK"/> של <ph name="PROVIDER_NAME"/>.</translation>
@@ -747,9 +746,9 @@
 <translation id="8251969358165471584">ארנק Web3</translation>
 <translation id="7160424977552599351">השתמש בארנק Web3</translation>
 <translation id="6369571967625114920">מודעות אישיות ב-Brave אינן זמינות עדיין באזורך.</translation>
-<translation id="5309155375926073606">כן, בנוסף הייתי רוצה לתרום לחיפוש Brave ולהצטרף אל <ph name="LINK_BEGIN"/>פרויקט גילוי Web<ph name="LINK_END"/>.</translation>
-<translation id="4622826307953794521">לתרום נתוני חיפוש וגלישה אנונימיים כדי לשפר את חיפוש Brave עם פרויקט Web Discovery. זה מבוסס-קוד פתוח לחלוטין.</translation>
-<translation id="4174337572777167894">פרויקט גילוי אתרים</translation>
+<translation id="5309155375926073606">כן, אני רוצה גם לתרום אל חיפוש Brave ולהצטרף אל <ph name="LINK_BEGIN"/>Web Discovery Project<ph name="LINK_END"/>.</translation>
+<translation id="4622826307953794521">תרמו נתוני חיפוש וגלישה אנונימיים כדי לשפר את חיפוש Brave באמצעות Web Discovery Project. זהו פרויקט בקוד פתוח לחלוטין.</translation>
+<translation id="4174337572777167894">Web Discovery Project</translation>
 <translation id="9034669711835382440">קהילה</translation>
 <translation id="845020633253356720">הצגת חנות</translation>
 <translation id="7777123407058400802">אסימון תשומת לב בסיסי – BAT</translation>
@@ -759,7 +758,6 @@
 <translation id="1288078776976153868">רֶשֶׁת</translation>
 <translation id="1148827340205946630">המשתמש דחה את הבקשה.</translation>
 <translation id="2403819048476450281">פרמטרים לא חוקיים.</translation>
-<translation id="3849003816301348130">כתובת היעד נמצאת ברשימת OFAC SDN.</translation>
 <translation id="3955144560853195652">שרשרת <ph name="VALUE"/> לא הוספה</translation>
 <translation id="1875861420974447980">מזהה שרשרת זה נמצא כעת בשימוש</translation>
 <translation id="167698752210114155">קרתה שגיאה פנימית</translation>
@@ -873,11 +871,12 @@
 <translation id="3751611888003301070">מסלולים</translation>
 <translation id="3799091982455573025">החלף ב-<ph name="NETWORK_NAME"/> דרך <ph name="EXCHANGE_NAME"/></translation>
 <translation id="5136093123841570193">גשר מ-<ph name="FRIST_NETWORK_NAME"/> ל-<ph name="SECOND_NETWORK_NAME"/></translation>
-<translation id="5962276579291287541">{SWAP_EXCHANGE_STEPS, plural,
-      =1 {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} שלב}
-      other {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} שלבים}
+<translation id="4419195975736642805">{SWAP_EXCHANGE_STEPS, plural,
+      =1 {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} שלב)}
+      other {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} שלבים)}
     }</translation>
 <translation id="8621264173374071200"><ph name="EXCHANGE_NAME"/> דרך <ph name="PROVIDER_NAME"/></translation>
+<translation id="7214440235486032620"><ph name="DESTINATION_TOKEN"/> ← <ph name="SOURCE_TOKEN"/> דרך</translation>
 <translation id="646023614746251785">אישור החלפה</translation>
 <translation id="6264944956989873014">אישור גישור</translation>
 <translation id="7067917728851842589">אישור שליחה</translation>
@@ -958,6 +957,7 @@
 <translation id="1108298724135935307">אתרים מחוברים</translation>
 <translation id="5716350339763180836">מאזנים</translation>
 <translation id="5538251867290702601">גרף</translation>
+<translation id="8123016618655108594">התפלגות</translation>
 <translation id="352407037922720467">כרטיסיית NFT</translation>
 <translation id="163697698769819510">מומלץ לבצע גיבוי של הארנק שלך עכשיו כדי להגן על הנכסים שלך ולהבטיח שלעולם לא תאבד לך הגישה.</translation>
 <translation id="1018806299114415224">גבה כעת</translation>
@@ -990,7 +990,7 @@
 <translation id="7080614857771109950">תומך בנכסים תואמי EVM בבלוקצ'יין Ethereum  (ERC-20, ERC-721, ERC-1551, ERC-1155)</translation>
 <translation id="6577166808959668729">תומך בנכסים תואמי SPL ב- Solana blockchain</translation>
 <translation id="4541295941776129088">אחסון נכס FIL</translation>
-<translation id="6030958132571544682">אחסון נכסי FIL Testnet</translation>
+<translation id="6030958132571544682">אחסון נכס FIL Testnet</translation>
 <translation id="29759539656432505">אחסן נכסי BTC</translation>
 <translation id="2399555431746923964">אחסון נכסי BTC Testnet</translation>
 <translation id="8749751940551938347">אחסן נכסי ZEC</translation>
@@ -1013,6 +1013,9 @@
 <translation id="6720675936326555106">קובץ שנבחר</translation>
 <translation id="5891811606602061966">ייבוא החשבון נכשל. נסה שוב.</translation>
 <translation id="6566535583781706170">ייבוא ​​חשבון</translation>
+<translation id="8079448455682522748">העתק את המפתח הפרטי של החשבון שברצונך לייבא מארנק אחר.</translation>
+<translation id="8475326612689436917">ייצא את המפתח הפרטי מארנק אחר לקובץ JSON והעלה אותו כאן.</translation>
+<translation id="5733063593286221597">העלאת קובץ JSON</translation>
 <translation id="5051929972046200722">בחר את החומרה לארנק שלך</translation>
 <translation id="5745936663807461565">חבר<ph name="HARDWARE_DEVICE"/> את הארנק שלך ישירות למחשב שלך.</translation>
 <translation id="4350216031085285578">פתחו את מכשירכם ובחרו ביישום <ph name="BLOCKCHAIN_NETWORK"/>.</translation>
@@ -1058,9 +1061,10 @@
 <translation id="7657130382217527063">הערה: יש לספק מפתח פרטי בתור JSON בקידוד הקסדצימלי המכיל מפתח פרטי ומידע פרוטוקול.<ph name="LINK_START"/>פרטים נוספים<ph name="LINK_END"/>.</translation>
 <translation id="4482913669726886926">לתשומת לבך: רק מפתחות מוצפנים של <ph name="FORMAT"/> נתמכים.</translation>
 <translation id="6457746820359933716">ייבוא באמצעות קובץ JSON שיוצא מ-Polkadot.js או ארנקים תואמים. הזן את הסיסמה ששימשה להצפנת היצוא.</translation>
-<translation id="9133762451347918196">חשבונות Testnet</translation>
+<translation id="7285350832506166367">מחפש חשבונות Testnet?</translation>
 <translation id="42126664696688958">ייצא</translation>
 <translation id="1366855498335432549">הפקדה</translation>
+<translation id="3852653589653889099">הסתר חשבון</translation>
 <translation id="790104325876206743">הגדרות חשבון</translation>
 <translation id="8856844353253421399">עודכן לאחרונה <ph name="TIME_AGO"/> ago</translation>
 <translation id="6322030314101903925">אין נכסים זמינים</translation>
@@ -1181,12 +1185,12 @@
 <translation id="4324239559624557455">למשך 24 שעות</translation>
 <translation id="9139452553033760558">למשך שבוע</translation>
 <translation id="1658834457013045127">לנצח</translation>
-<translation id="5571630233760536706"><ph name="DEVICE_NAME"/> מחובר</translation>
-<translation id="7058480232601314508"><ph name="DEVICE_NAME"/> מנותק</translation>
+<translation id="620344059960827012"><ph name="ACCOUNT_NAME"/> מחובר ל-<ph name="DEVICE_NAME"/></translation>
+<translation id="4403794623379243396"><ph name="ACCOUNT_NAME"/> מנותק</translation>
 <translation id="434328838837168401">הצג הוראות</translation>
-<translation id="6739517232898494646">חבר את ה-<ph name="DEVICE_NAME"/> שלך כדי להמשיך</translation>
+<translation id="13670155462680755">חבר את ה-<ph name="ACCOUNT_NAME"/> שלך כדי להמשיך</translation>
 <translation id="6941881257520473899">נדרש אישור במכשיר עבור ארנק החומרה.</translation>
-<translation id="2288190100157580461">ארנק החומרה דורש לפתוח אפליקציית <ph name="NETWORK"/> ב-<ph name="DEVICE_NAME"/></translation>
+<translation id="4108619287854657806">ארנק החומרה דורש לפתוח אפליקציית <ph name="NETWORK"/> ב-<ph name="ACCOUNT_NAME"/></translation>
 <translation id="8687869982094542529">נשלח</translation>
 <translation id="5013754027092416509">התקבל</translation>
 <translation id="5867988533873716616">חסימת כתובת URL של סייר אינה זמינה.</translation>
@@ -1361,6 +1365,14 @@
 <translation id="3067168166931605141">שם החשבון</translation>
 <translation id="1213870770696612739">סכום מינימלי: <ph name="AMOUNT"/></translation>
 <translation id="3041074161036535192">סכום מקסימלי: <ph name="AMOUNT"/></translation>
+<translation id="3419957337495393511">החשבון נוצר בהצלחה</translation>
+<translation id="7444985841455466546">החשבון יובא בהצלחה</translation>
+<translation id="6775224295382583896">{ACCOUNTS, plural,
+      =1 {חשבון ארנק חומרה חובר בהצלחה}
+      two {{ACCOUNTS} חשבונות ארנק חומרה חוברו בהצלחה}
+      many {{ACCOUNTS} חשבונות ארנק חומרה חוברו בהצלחה}
+      other {{ACCOUNTS} חשבונות ארנק חומרה חוברו בהצלחה}
+    }</translation>
 <translation id="8528916244724490964">כל הרשתות</translation>
 <translation id="7721139939763655123">נמוך עד גבוה</translation>
 <translation id="5458608274117818139">גבוה לנמוך</translation>
@@ -1371,6 +1383,7 @@
 <translation id="8491675129455635799">קבץ נכסים לפי</translation>
 <translation id="5331775401966766526">מסננים והגדרות תצוגה</translation>
 <translation id="5332541468425943610">הגדרות תצוגת NFT</translation>
+<translation id="1539149309756422999">התפלגות הנכסים</translation>
 <translation id="886032538431162695">מיין נכסים</translation>
 <translation id="6080181976198929758">מיין לפי ערך פיאט או שם</translation>
 <translation id="2563815561570398537">הסתר יתרות קטנות</translation>
@@ -1382,6 +1395,7 @@
 <translation id="1257387162647804035">רשתות ראשוניות</translation>
 <translation id="8323674164587854512">רשתות Ethereum + EVM</translation>
 <translation id="1398414935371867469">רשתות Solana + SVM</translation>
+<translation id="6498449512528552760">קידומת לא חוקית</translation>
 <translation id="7058248670699639973">לוגו רשת</translation>
 <translation id="4378208228955237306">הצג את לוגו הרשת ב-NFTs</translation>
 <translation id="5472199803712163015">ספאם NFTs</translation>
@@ -1618,6 +1632,9 @@
 <translation id="5882719778740918116">שלח אסימונים לכתובת זו רק ב-<ph name="VALUE"/></translation>
 <translation id="6885009592653876601">קנה, שלח והחלף 200+ נכסי קריפטו</translation>
 <translation id="8716223552348254401">מקורי לדפדפן, ללא הרחבות מסוכנות</translation>
+<translation id="1198271701881992799">בוא נתחיל</translation>
+<translation id="7904301836463577071">קנה את הקריפטו הראשון שלך בכרטיס אשראי או חיוב</translation>
+<translation id="3721561070667360112">הפקד קריפטו מארנק או מבורסה אחרים</translation>
 <translation id="4559901986238865734">רב שרשרת &amp; תמיכה ב-NFT</translation>
 <translation id="296101411136980896">לחץ כדי לעבור</translation>
 <translation id="753655478253155745">השְׁנֵים עָשָׂר</translation>
@@ -1652,7 +1669,7 @@
 <translation id="1353726744456297797">אם לא מצאת את הנכס שלך ברשימה זו, תוכל להוסיף אותו ידנית על ידי שימוש בלחצן למטה</translation>
 <translation id="4543171429371680949">הנכס לא נמצא</translation>
 <translation id="1026825928738055872">בטוח שברצונך להסיר את "<ph name="ACCOUNT_NAME"/>"?</translation>
-<translation id="3910551537328657217">תכונת בקשה</translation>
+<translation id="2220529011494928058">דווח על בעיה</translation>
 <translation id="7657322905916621147">משפט השחזור חייב להיות באורך 12, 15, 18, 21 או 24 מילים</translation>
 <translation id="5026874946691314267">אל תציג זאת שוב</translation>
 <translation id="434502623875309667">פתרון כתובות דורש בקשות רשת אופ-צ'יין. להמשיך?</translation>
@@ -1769,6 +1786,7 @@ CoinGecko</translation>
 <translation id="8549067157732633185">אסימון זה מאומת</translation>
 <translation id="2130170065617939165">אסימון זה מאומת ברשימות <ph name="NUMBER_OF_LISTS"/></translation>
 <translation id="1554316484739382186">בזבזן: <ph name="ADDRESS"/></translation>
+<translation id="8533411848724153701">Gemini</translation>
 <translation id="4265415116535094892">זבפיי</translation>
 <translation id="3026353765778463291">חשבון <ph name="PROVIDER"/></translation>
 <translation id="5360752485622434494">Brave Rewards BAT פועל <ph name="PROVIDER"/></translation>
@@ -2088,6 +2106,7 @@ CoinGecko</translation>
 <translation id="7294510764127771956">החלפה של גלישת Caret</translation>
 <translation id="4186334830839439230">הצג הגדרות ביצועים</translation>
 <translation id="1094277301241124207">איך מסמנים לוח צד</translation>
+<translation id="5101042277149003567">פתח את כל הסימניות</translation>
 <translation id="8283515796576236471">פתח הכל בסרגל הסימניות בחלון חדש</translation>
 <translation id="5271773791943587595">פתח הכל בסרגל הסימניות בחלון פרטי</translation>
 <translation id="2748975346534113286">סרגל הסימניות פתח את כל קבוצת הלשוניות החדשות</translation>
@@ -2165,13 +2184,16 @@ CoinGecko</translation>
 <translation id="6459036216700972269">לא לפצל כרטיסיות</translation>
 <translation id="4235382917338421035">החליפו מיקום טאב</translation>
 <translation id="4288085058450834672">הצגת יישומים</translation>
+<translation id="4750337523930607658">הפעל או כבה מצב מיקוד</translation>
 <translation id="4144468798716165316">פקודות מהירות</translation>
 <translation id="3617523374417810198">תצוגה מפוצלת חדשה</translation>
 <translation id="8571323456914890254">פתח בתצוגה מפוצלת</translation>
 <translation id="5329136173514538969">לא לפצל כרטיסיות</translation>
 <translation id="7595612919377246359">החליפו מיקום טאב</translation>
 <translation id="2367972762794486313">הצג יישומים</translation>
+<translation id="3142853026316054951">הפעל או כבה מצב מיקוד</translation>
 <translation id="3468387898712904997">מייל בדוי חדש</translation>
+<translation id="2796584247246518451">קונטיינר זמני חדש</translation>
 <translation id="8591883849678260674">צפה במקור</translation>
 <translation id="1969654232209826429">קריאה מינימלית</translation>
 <translation id="4101707289420716287">כבה את Speedreader</translation>
@@ -2218,6 +2240,7 @@ CoinGecko</translation>
 <translation id="5923170497201832190">גלול למטה</translation>
 <translation id="6219262425964000211">יש לגרור קבצים לכאן</translation>
 <translation id="4313763911013851687">יש לגרור קבצים לכאן כדי להוסיף אותם לשיחה</translation>
+<translation id="8206915760129310348">לא ניתן היה לקרוא חלק מהקבצים והם לא צורפו</translation>
 <translation id="4524675003624341892">הצעת שאלות…</translation>
 <translation id="4567071417854988869">לסכם את הדף הזה</translation>
 <translation id="4264902191243445258">{PAGE_COUNT, plural,
@@ -2228,7 +2251,9 @@ CoinGecko</translation>
 <translation id="7932221068776853847">התנתק כדי להפסיק לשלוח את תוכן הדף הזה ל-Leo, ולהתחיל שיחה חדשה</translation>
 <translation id="8743383817154663379">משהו השתבש בעת עיבוד הבקשה שלך. יש לנסות שוב מאוחר יותר.</translation>
 <translation id="2712650703044366764">בדגם הזה יש נקודת קצה לא חוקית. יש לבדוק את הקונפיגורציה ולנסות שוב.</translation>
-<translation id="1167803637855350748">הייתה בעיית רשת בחיבור ל-Leo, נא לבדוק את החיבור ולנסות שוב.</translation>
+<translation id="7092656392206649236">משהו השתבש במהלך התקשורת עם Leo. יש לנסות שוב.</translation>
+<translation id="3552709750512842961">קוד מצב: <ph name="STATUS_CODE"/>, קוד שגיאה: <ph name="ERROR_CODE"/></translation>
+<translation id="9215978379284690246">קוד מצב: <ph name="STATUS_CODE"/></translation>
 <translation id="1996126325390835277">הגעתם לגבול דירוג הפרימיום. אנא נסו שוב בעוד מספר שעות</translation>
 <translation id="3683964919745779766">הגעת למגבלת התעריף עבור מודל זה או שאזלו לך הקרדיטים. נא לנסות שוב מאוחר יותר.</translation>
 <translation id="7692501701960747469">מפתח ה-API שהוגדר עבור מודל זה אינו חוקי. נא לבדוק את הקונפיגורציה שלך ולנסות שוב.</translation>
@@ -2238,6 +2263,7 @@ CoinGecko</translation>
 <translation id="1238020084128916796">היי, אני Leo. אני עוזר AI המנוהל במלואו על ידי Brave. אני מופעל באמצעות Llama 3.1 8B, מודל שנוצר על ידי Meta לשימוש ויישום במגוון תרחישים. Llama מנוהל על ידי Brave באמצעות התשתית המאובטחת שלנו.<ph name="LINK_BEFORE"/>למידע נוסף<ph name="LINK_AFTER"/></translation>
 <translation id="3852808100039989429">היי, אני Leo. אני עוזר AI המנוהל במלואו על ידי Brave. אני מופעל באמצעות Qwen VL 30B, מודל שנוצר על ידי Alibaba Cloud לשימוש ויישום במגוון תרחישים. Qwen מנוהל על ידי Brave באמצעות התשתית המאובטחת שלנו.<ph name="LINK_BEFORE"/>למידע נוסף<ph name="LINK_AFTER"/></translation>
 <translation id="3812564134126884433">היי, אני Leo. אני עוזר AI המנוהל במלואו על ידי Brave. אני מופעל באמצעות GLM-5, מודל שנוצר על ידי Zhipu AI לשימוש ויישום במגוון תרחישים. GLM-5 מתארח על ידי NEAR באמצעות התשתית המאובטחת והפרטית שלהם.<ph name="LINK_BEFORE"/>למידע נוסף<ph name="LINK_AFTER"/></translation>
+<translation id="784931275560506522">היי, אני Leo. אני עוזר AI המנוהל במלואו על ידי Brave. אני מופעל באמצעות GLM-5.1, מודל שנוצר על ידי Zhipu AI לשימוש ויישום במגוון תרחישים. GLM-5.1 מתארח על ידי NEAR באמצעות התשתית המאובטחת והפרטית שלהם.<ph name="LINK_BEFORE"/>למידע נוסף<ph name="LINK_AFTER"/></translation>
 <translation id="8932568551552504373">שלום, אני לאו. אני עוזר AI של Brave. אני מוטמע יחד עם Claude Instant, מודל שפותח על ידי Anthropic לביצוע משימות שיחה ועיבוד טקסט. Claude Instant מתארח על-ידי Brave בתשתית המאובטחת שלה.<ph name="LINK_BEFORE"/>למידע נוסף<ph name="LINK_AFTER"/></translation>
 <translation id="3789772321824682783">היי, אני Leo. אני עוזר AI המנוהל במלואו על ידי Brave. אני מופעל באמצעות Claude Haiku, מודל שנוצר על ידי Anthropic לשימוש ויישום במגוון תרחישים. Claude Haiku מנוהל על ידי Brave באמצעות התשתית המאובטחת שלנו.<ph name="LINK_BEFORE"/>למידע נוסף<ph name="LINK_AFTER"/></translation>
 <translation id="1778885220602472158">היי, אני Leo. אני עוזר AI המנוהל במלואו על ידי Brave. אני מופעל באמצעות Claude Sonnet, מודל שנוצר על ידי Anthropic לשימוש ויישום במגוון תרחישים. Claude Sonnet מנוהל על ידי Brave באמצעות התשתית המאובטחת שלנו.<ph name="LINK_BEFORE"/>למידע נוסף<ph name="LINK_AFTER"/></translation>
@@ -2355,8 +2381,8 @@ CoinGecko</translation>
 <translation id="4592293425457329338">יתכן שחסר הקשר מסוים מהשיחה. Leo הצליח לשמר <ph name="PERCENTAGE"/> מהתוכן המשויך לשיחה.</translation>
 <translation id="8501106061098623831">נלכדו יותר מדי תמונות מהדף. Leo לא הצליח להשתמש ב-<ph name="PERCENTAGE"/> מהתוכן החזותי הזמין.</translation>
 <translation id="4370698775470316661">השיחה הזו ארוכה מדי ואי אפשר להמשיך. ייתכן שקיימים דגמים אחרים שבהם ליאו מסוגל לשמור על דיוק לשיחות ארוכות יותר.</translation>
-<translation id="5719170755629028558">משפר את התשובה שלך עם חיפוש Brave...</translation>
-<translation id="5794962229997281366">תשובה משופרת לחיפוש טוב יותר של<ph name="SEARCH_TERMS"/>.</translation>
+<translation id="4744144453035015075">מחפש באינטרנט</translation>
+<translation id="8548351747582087191">מחפש באינטרנט את <ph name="SEARCH_TERMS"/>.</translation>
 <translation id="7307396647043599949">עוד <ph name="COUNT"/>…</translation>
 <translation id="8103700533980268469">סגירת התראה זו</translation>
 <translation id="3417835166382867856">חיפוש בכרטיסיות</translation>
@@ -2427,8 +2453,8 @@ CoinGecko</translation>
 <translation id="2370739752330685659">אולי מאוחר יותר</translation>
 <translation id="983013125018250242">כלי אריה</translation>
 <translation id="7623223587478473368">קובץ מצורף</translation>
-<translation id="3777121685517940177">העלאת קובץ...</translation>
-<translation id="6739516910850820220">מעלה קובץ...</translation>
+<translation id="3728603231003977269">צרף קובץ...</translation>
+<translation id="7899721102369502629">מצרף קובץ...</translation>
 <translation id="9088751620363630236">צילום תמונה...</translation>
 <translation id="4250229828105606438">צילום מסך</translation>
 <translation id="7949596341600215809">צילום מסך של עמוד מלא</translation>
@@ -2476,10 +2502,12 @@ CoinGecko</translation>
 <translation id="7607002721634913082">מושהה</translation>
 <translation id="4773299976671772492">נעצר</translation>
 <translation id="6946722113367118030">חושב</translation>
+<translation id="7918928051723770926">המשימה הושלמה</translation>
 <translation id="2113810663179257944">הרצת קוד</translation>
-<translation id="6338250692384725496">קוד שונים בתיבת חול כדי לעזור לשאלתך</translation>
+<translation id="4838375634693651776">מריץ קוד ב-sandbox כדי לעזור עם השאילתה שלך</translation>
 <translation id="4379566111233326721">קוד:</translation>
 <translation id="3542130965673205258">פלט:</translation>
+<translation id="6911817209337314910">מייצר עבורך כמה אפשרויות לבחירה</translation>
 <translation id="5382076391290708074">העברת הכרטיסיות שלך סביב</translation>
 <translation id="3862123464576147769">אפשרות זו תשלח את <ph name="URL_FORMAT_START"/>כתובת ה-URL<ph name="URL_FORMAT_END"/> וה<ph name="TITLE_FORMAT_START"/>כותרת<ph name="TITLE_FORMAT_END"/> של כל הכרטיסיות וקבוצות הכרטיסיות שלך ל-Brave AI, ותתיר ל-Brave AI להעביר אותן. הרשאה זו חלה רק על שיחה זו.</translation>
 <translation id="396165714586708444">חקר עמוק</translation>
@@ -2511,7 +2539,9 @@ CoinGecko</translation>
 <translation id="5663901348199429994">המיילים הבדויים שלך</translation>
 <translation id="9046133327037621173">מייל בדוי חדש</translation>
 <translation id="3768606658230902536">יצירת כתובת אימייל אקראית שמפנה לתיבת הדואר הנכנס שלך ושומרת על הפרטיות של האימייל האישי שלך.</translation>
-<translation id="6887156107256264506">הגעת למקסימום של 5 מיילים בדויים בחינם. יש ללחוץ על על "ניהול" לשימוש חוזר או למחיקת מייל בדוי.</translation>
+<translation id="4452721050684632493">הגעת למגבלת הכינויים</translation>
+<translation id="2912191433415590080">השתמשת בכל <ph name="MAX_ALIASES"/> כינויי האימייל שלך. מחק כינוי קיים כדי ליצור חדש.</translation>
+<translation id="3847337908410945070">הכינויים שלך (<ph name="CURRENT"/> / <ph name="MAX"/>)</translation>
 <translation id="1104500750724567895">מייל בדוי חדש</translation>
 <translation id="8072910658503112482">הצעת מייל בדוי אחר</translation>
 <translation id="7710361355427562228">יוצר מייל בדוי חדש...</translation>
@@ -2528,6 +2558,7 @@ CoinGecko</translation>
 <translation id="646524615209870492">הסרת <ph name="ALIAS"/> כמייל בדוי תביא לאובדן היכולת שלך לקבל מיילים.</translation>
 <translation id="8133100642915054515">שגיאה במחיקת מייל בדוי. יש לבדוק את חיבור האינטרנט שלך ולנסות שוב.</translation>
 <translation id="8465742443901727718">פעולה זו היא בלתי הפיכה. בטוח שברצונך להמשיך?</translation>
+<translation id="6402052536605772735">שגיאה בעת אחזור כינויי דוא"ל מהשרתים שלנו. אנא בדוק את חיבור האינטרנט שלך.</translation>
 <translation id="9162685486229945876">התחבר או צור חשבון Brave</translation>
 <translation id="1335007417599138852">חשבון Brave יאפשר לך לגשת למוצרי Brave מסוימים ולסנכרן בקלות את המידע שלך בכל התקניך.</translation>
 <translation id="2133391407495495735">קבלת לינק כניסה</translation>
@@ -2554,6 +2585,8 @@ CoinGecko</translation>
 <translation id="2991633563551889054">הסתרת כרטיס שיחה</translation>
 <translation id="5355776323718420036">הסתרת אתרים מובילים</translation>
 <translation id="1689504141194856995">הסתרת כרטיס VPN</translation>
+<translation id="2919329118360099847">Brave ישמש כמנוע החיפוש בשורת הכתובת עבור חלונות רגילים.</translation>
+<translation id="6792837540759934892">להגדיר את Brave כמנוע החיפוש המוגדר כברירת מחדל?</translation>
 <translation id="8262911270872215147">התאמה אישית של חדשות</translation>
 <translation id="3884037897537157986">השבתת חדשות</translation>
 <translation id="7847477075635510673">הסתרת חדשות</translation>
@@ -2693,7 +2726,7 @@ CoinGecko</translation>
 <translation id="2273851479262317744">הגדירו את Brave כדפדפן ברירת המחדל</translation>
 <translation id="5037676449506322593">בחר הכל</translation>
 <translation id="5148943178722443958">עזרו לנו להפוך את Brave לטוב יותר.</translation>
-<translation id="479535542793009168">יציבות ועדכון חלקי</translation>
+<translation id="8874748598814587364">יציבות</translation>
 <translation id="1097073572755862978">שלחו דוחות אבחון, במידה וחוויתם קריסה או הקפאה. <ph name="LINK_BEFORE"/>למידע נוסך.<ph name="LINK_AFTER"/></translation>
 <translation id="6629244688368006959">שתפו תובנות בנוגע למוצרים באופן פרטי ואנונימי בכל מה שקשור לתכונות שבהן משתמשי Brave עושים שימוש. <ph name="LINK_BEFORE"/>למידע נוסף.<ph name="LINK_AFTER"/></translation>
 <translation id="7415454883318062233">ההתקנה הסתיימה</translation>
@@ -2706,7 +2739,7 @@ CoinGecko</translation>
 <translation id="4117637339509843559">מצב כהה</translation>
 <translation id="6302485303316397682">רוצה תוצאות חיפוש טובות יותר?</translation>
 <translation id="7014699001826714920">הצטרף לתנועה, תרום לחיפוש של Brave.</translation>
-<translation id="6821108091726602352">עזור לנו לתקן את הרשת על ידי השתתפות בפרויקט גילוי הרשת של Brave. על ידי שיתוף אותות חיפוש אנונימיים לחלוטין, תוכל לעזור ל-Brave לגדול את מפתח החיפוש.</translation>
+<translation id="6821108091726602352">עזרו לנו לתקן את הרשת באמצעות השתתפות ב-Web Discovery Project של Brave. על ידי שיתוף אותות חיפוש אנונימיים לחלוטין, תוכלו לעזור ל-Brave להגדיל את אינדקס החיפוש.</translation>
 <translation id="6764845498618413165">למד עוד.</translation>
 <translation id="7818938154803162778">בטח, אעזור</translation>
 <translation id="7207456302801184289">‏ברוכים הבאים ל-Brave‏</translation>
@@ -2822,7 +2855,11 @@ Brave יש שירות עוזר שמגן עליך מפני חשיפה זו על �
 <translation id="1602850501393095406">יש ללחוץ ↑ כדי להדגיש</translation>
 <translation id="8367705492654390392">שאל כל דבר</translation>
 <translation id="8525248723479742219">נגן מאוחר יותר</translation>
-<translation id="2935698011275148880">מקור אמיץ</translation>
+<translation id="1751249301761991853">אישי</translation>
+<translation id="1122068467107743258">עבודה</translation>
+<translation id="8372721116225477180">חברתי</translation>
+<translation id="1539343118617844331">בית ספר</translation>
+<translation id="2935698011275148880">Brave Origin</translation>
 <translation id="3983844925615091103">ברוכים הבאים ל-Brave Origin. כדי להמשיך, אנא קנה או שחזר את רכישת Brave Origin שלך.</translation>
 <translation id="4801175670604644729">אתה זקוק לרכישת Brave Origin פעילה כדי להשתמש בדפדפן זה.</translation>
 <translation id="4144294274624829008">שחזר רכישת Brave Origin</translation>
@@ -2837,4 +2874,66 @@ Brave יש שירות עוזר שמגן עליך מפני חשיפה זו על �
 <translation id="5816720995022674532">Origin הוא חינם להשתמוש בהתקני Linux, אך עדיין <ph name="BEGIN_LINK"/>זמין לרכישה<ph name="END_LINK"/> אם תרצה לתמוך ב-Brave כעסק. רכישה תשחרר גם את היכולת להשתמש ב-Origin בהתקני Android, iOS, macOS ו-Windows.</translation>
 <translation id="3065220545261045367">תמוך ב-Brave על ידי רכישת Origin</translation>
 <translation id="2069499076031488636">המשך עם Origin בחינם על Linux</translation>
+<translation id="5713644099811900409">חשבון Brave</translation>
+<translation id="2906576968270573525">התחבר או צור חשבון Brave</translation>
+<translation id="6972754398087986839">תחילת העבודה</translation>
+<translation id="5378207817582281342">כמעט הגענו!</translation>
+<translation id="3750210661641549834">כדי ליצור את החשבון שלך, יש לאמת את כתובת האימייל שלך.</translation>
+<translation id="4129813507847680661">הזנת קוד הרשמה</translation>
+<translation id="1672793037892810340">אמור היה להגיע אליך אימייל עם קוד שעליך להזין.</translation>
+<translation id="4821255729182569254">שליחה חוזרת של דוא״ל אימות</translation>
+<translation id="5837679375142747484">לא רואה את האימייל? כדאי לבדוק את תיקיית הספאם שלך או <ph name="BEGIN_LINK"/>לשלוח אותו שוב<ph name="END_LINK"/>.</translation>
+<translation id="1080588816740959885">לא רואה את האימייל? כדאי לבדוק את תיקיית הספאם שלך או לשלוח אותו שוב.</translation>
+<translation id="1020730839570724178">ביטול הרשמה</translation>
+<translation id="4869737930995549965">התנתקות</translation>
+<translation id="5538654494923870167">להתחיל עם חשבון ה-Brave שלך</translation>
+<translation id="1544145635547515689">יצירת חשבון Brave</translation>
+<translation id="3828644479849256404">כבר יש לך חשבון? התחבר</translation>
+<translation id="6624553071240278643">צור את החשבון שלך</translation>
+<translation id="6505120968393722022">אי אפשר להשתמש בכתובות @bravealias.com ליצירת חשבונות Brave. נא לנסות שוב עם דומיין אחר.</translation>
+<translation id="8248460961680233459">צור/י סיסמה</translation>
+<translation id="552339301062636488">חלשה מדי כדי להמשיך</translation>
+<translation id="8433528931936107676">כמעט שם</translation>
+<translation id="4324743471050874155">חזקה מספיק</translation>
+<translation id="5585552203448068294">חזקה במיוחד</translation>
+<translation id="5486261815000869482">נא לאשר סיסמה</translation>
+<translation id="7345706641791090287">אשר את הסיסמה שלך</translation>
+<translation id="7114054701490058191">הססמאות אינן תואמות</translation>
+<translation id="1293857704520741614">כניסה לחשבון שלך</translation>
+<translation id="118617366439356381">שכחת את הסיסמה?</translation>
+<translation id="5183159033908953146">יש לאשר את האימייל של חשבון ה-Brave שלך ולאחר מכן יישלח אליך קישור לאיפוס הסיסמה. הקישור יהיה תקף ל-30 דקות בלבד.</translation>
+<translation id="3997368361371298873">אזהרה: מאחר שאינך מחובר במכשיר זה, איפוס הסיסמה שלך <ph name="BEGIN_BOLD"/>ימחק את כל הנתונים שלך<ph name="END_BOLD"/> מהשרת. אם יש לך מכשיר אחר שבו אתה מחובר, יש לשנות את הסיסמה ממכשיר זה במקום לאפס אותה.</translation>
+<translation id="3674472551471103443">איפוס הסיסמה שלך</translation>
+<translation id="2755539422340788311">אימות האימייל שלך</translation>
+<translation id="6641436078676327508">אמור היה להגיע אליך אימייל עם קוד קצר. נא להזין אותו כאן כדי להמשיך.</translation>
+<translation id="7228810962389847249">הזן את הקוד כאן</translation>
+<translation id="4683390091376980486">אישור קוד</translation>
+<translation id="3970028678400797622">שליחת קוד אימייל מחדש</translation>
+<translation id="2475982808118771221">אירעה שגיאה</translation>
+<translation id="5430795854491041407">שגיאה</translation>
+<translation id="2232323423357029857">הדפדפן נתקל בשגיאה לא צפויה<ph name="ERROR_CODE"/>. נא להפעיל מחדש את הדפדפן ולנסות שוב.</translation>
+<translation id="7167650060829320707">שגיאת שרת פנימית (<ph name="STATUS_CODE"/><ph name="ERROR_CODE"/>). נא לנסות שוב מאוחר יותר.</translation>
+<translation id="2387645930330673048">חשבון זה ממתין לאימות אימייל.</translation>
+<translation id="2199962270601714404">לא נמצא חשבון לכתובת אימייל זו. נא לנסות שוב, או ליצור חשבון חדש.</translation>
+<translation id="8130611002720478693">סיסמה שגויה. נא לנסות שוב.</translation>
+<translation id="7144067487084094749">כבר קיים חשבון עבור כתובת אימייל זו. כדאי לנסות להתחבר במקום ליצור חשבון.</translation>
+<translation id="5288951359968156008">הדומיין של כתובת האימייל הזו אינו נתמך. נא להשתמש בכתובת אימייל אחרת.</translation>
+<translation id="7625678607509255072">חרגת ממכסת אימותי האימייל. נא להמתין 30 דקות לפני שתנסה שוב.</translation>
+<translation id="4582421696414628320">תוקף האימות פג. יש להתחיל את תהליך ההרשמה מחדש.</translation>
+<translation id="8439543211004394821">הוזנו יותר מדי קודים שגויים. יש להתחיל את תהליך ההרשמה מחדש.</translation>
+<translation id="3229986152760633988">קוד שגוי, נא לנסות שוב.</translation>
+<translation id="818783632689113711">כבר התבקש חשבון עבור כתובת דוא"ל זו. אנא בדוק את הדוא"ל שלך או נסה שוב בעוד 30 דקות.</translation>
+<translation id="4178004989875422946">חשבון Brave יאפשר לך לגשת בקלות לשירותי Brave.</translation>
+<translation id="4902897635127068510">האם התכוונת ל-<ph name="SUGGESTION"/>?</translation>
+<translation id="8314772463905284467">Caps Lock פעיל</translation>
+<translation id="7044608453949401443">לא ניתן להזין רווחים בתחילת הסיסמה או בסופה.</translation>
+<translation id="2939492377741553693">אימייל האישור נשלח מחדש.</translation>
+<translation id="2112559299194052697">לא ניתן לשלוח מחדש</translation>
+<translation id="7932611814134267012">כבר נשלחו יותר מדי אימיילי אימות. נא לבדוק את תיקיית הספאם שלך.</translation>
+<translation id="1364223093800750401">האימייל כבר אומת.</translation>
+<translation id="3353844160742960162">כוונון הגדרות פרטיות</translation>
+<translation id="528205534230423181">אתר זה מציע הגדרות פרטיות ש-Brave יכול לכוונן עבורך באופן אוטומטי. הנה מה שאנו ממליצים:</translation>
+<translation id="1063227610401477317">החל שינויים</translation>
+<translation id="5539769255716491933">דווח על שלבים שנכשלו</translation>
+<translation id="7562163394445060270">השלמת המשימה נכשלה</translation>
 </translationbundle>

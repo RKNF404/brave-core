@@ -29,12 +29,18 @@ export const NFTWrapper = styled.div`
   z-index: 0;
 `
 
+export const GridItemWrapper = styled(NFTWrapper)`
+  overflow: visible;
+  min-width: 0;
+  width: 100%;
+`
+
 export const IconWrapper = styled.div`
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   width: 100%;
-  padding-top: 100%;
-  z-index: 0;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
 `
 
 export const DIVForClickableArea = styled.div`
@@ -46,7 +52,7 @@ export const DIVForClickableArea = styled.div`
   right: 0;
   width: 100%;
   height: 100%;
-  z-index: 2;
+  z-index: 3;
 `
 
 export const NFTText = styled(Text)`
@@ -125,7 +131,7 @@ export const JunkMarker = styled.div`
   background-color: ${leo.color.red[20]};
   color: ${leo.color.red[50]};
   text-transform: uppercase;
-  z-index: 2;
+  z-index: 4;
 `
 
 export const WatchOnlyMarker = styled(JunkMarker)`

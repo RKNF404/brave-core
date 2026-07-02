@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.2.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import Foundation
@@ -10,7 +10,7 @@ import PackageDescription
 var package = Package(
   name: "Brave",
   defaultLocalization: "en",
-  platforms: [.iOS(.v17), .macOS(.v14)],
+  platforms: [.iOS(.v18)],
   products: [
     .library(name: "Brave", targets: ["Brave"]),
     .library(name: "Shared", targets: ["Shared"]),
@@ -389,7 +389,7 @@ var package = Package(
       dependencies: ["FaviconModels"],
       sources: [
         "BraveWidgets.intentdefinition", "LockScreenFavoriteIntentHandler.swift",
-        "FavoritesWidgetData.swift",
+        "FavoritesWidgetData.swift", "DisabledShortcutsWidgetData.swift",
       ],
       plugins: ["IntentBuilderPlugin", "LoggerPlugin"]
     ),
@@ -658,10 +658,11 @@ var package = Package(
       ]
     ),
   ],
+  swiftLanguageModes: [.v5],
   cxxLanguageStandard: .cxx17
 )
 
-let iosRootDirectory = URL(string: #file)!.deletingLastPathComponent().absoluteString.dropLast()
+let iosRootDirectory = URL(string: PackageDescription.Context.packageDirectory)!.absoluteString
 let isStripAbsolutePathsFromDebugSymbolsEnabled = {
   do {
     let env = try String(contentsOfFile: "\(iosRootDirectory)/../../.env", encoding: .utf8)

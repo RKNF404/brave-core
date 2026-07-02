@@ -40,6 +40,13 @@ extension Strings {
       comment: "Title for shortcuts widget on 'add widget' screen."
     )
 
+    public static let shortcutsEmptyState = NSLocalizedString(
+      "widgets.shortcutsEmptyState",
+      bundle: widgetBundle,
+      value: "Your shortcuts will appear here",
+      comment: "A label shown on the widget has no available shortcuts to display."
+    )
+
     public static let shortcutsWidgetDescription = NSLocalizedString(
       "widgets.shortcutsWidgetDescription",
       bundle: widgetBundle,
@@ -190,6 +197,18 @@ extension Strings {
       value: "Ask Brave",
       comment:
         "Title for Ask Brave shortcut. Brave is the company name and should not be translated"
+    )
+    public static let newsUnavailableByPolicy = NSLocalizedString(
+      "widgets.newsUnavailableByPolicy",
+      bundle: widgetBundle,
+      value: "Brave News is Disabled",
+      comment: "Displayed on a news widget wont load due to admin policies"
+    )
+    public static let newsUnavailableByPolicyDescription = NSLocalizedString(
+      "widgets.newsUnavailableByPolicyDescription",
+      bundle: widgetBundle,
+      value: "Turned off by your organization's policy",
+      comment: "Displayed on a news widget wont load due to admin policies"
     )
   }
 }

@@ -94,7 +94,7 @@ struct OnboardingNetworkSelectionView: View {
             Text(Strings.Wallet.showTestnets)
           }
         )
-        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+        .tint(Color(braveSystemName: .primitivePrimary40))
         .fixedSize(horizontal: true, vertical: false)
         .frame(maxWidth: .infinity, alignment: .trailing)
         LazyVGrid(
@@ -241,7 +241,8 @@ struct OnboardingNetworkSelectionView: View {
         )
       }
     )
-    .buttonStyle(BraveFilledButtonStyle(size: .large))
+    .buttonStyle(.filled)
+    .controlSize(.large)
     .frame(maxWidth: .infinity)
     .padding(.top)
     .background(
@@ -316,7 +317,7 @@ struct OnboardingNetworkSelectionView: View {
       }
     )
   }
-  .accentColor(Color(.braveBlurple))
+  .accentColor(Color(braveSystemName: .primitivePrimary40))
 }
 #endif
 
@@ -357,7 +358,7 @@ private struct SelectableGridItemView<Content: View, Item: Identifiable & Equata
             didSelect(item.model)
           }
         ),
-        colorOverride: isSelectable ? nil : UIColor.braveDisabled
+        colorOverride: isSelectable ? nil : UIColor(braveSystemName: .neutral20)
       )
       .padding(.top, 8)
       .padding(.trailing, 8)

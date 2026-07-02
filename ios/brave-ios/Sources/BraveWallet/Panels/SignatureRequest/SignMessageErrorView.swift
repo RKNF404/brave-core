@@ -34,7 +34,8 @@ struct SignMessageErrorView: View {
           Text(Strings.Wallet.confirmedTransactionCloseButtonTitle)
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(BraveFilledButtonStyle(size: .large))
+        .buttonStyle(.filled)
+        .controlSize(.large)
         .disabled(currentIndex > 0)
       }
       .padding(.horizontal, 16)
@@ -65,7 +66,7 @@ struct SignMessageErrorView: View {
       } label: {
         Text(Strings.Wallet.next)
           .fontWeight(.semibold)
-          .foregroundColor(Color(.braveBlurpleTint))
+          .foregroundColor(Color(braveSystemName: .textInteractive))
       }
     }
     .frame(maxWidth: .infinity, alignment: .trailing)

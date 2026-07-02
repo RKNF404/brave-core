@@ -16,6 +16,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
+#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_sync/brave_sync_p3a.h"
 #include "brave/components/brave_sync/crypto/crypto.h"
 #include "brave/components/brave_sync/features.h"
@@ -24,6 +25,10 @@
 #include "build/build_config.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/prefs/pref_service.h"
+
+#if BUILDFLAG(ENABLE_AI_CHAT)
+#include "brave/components/ai_chat/core/common/features.h"
+#endif  // BUILDFLAG(ENABLE_AI_CHAT)
 #include "components/sync/engine/sync_protocol_error.h"
 #include "components/sync/model/type_entities_count.h"
 
@@ -57,9 +62,8 @@ BraveSyncServiceImpl::~BraveSyncServiceImpl() {
 }
 
 void BraveSyncServiceImpl::OnOsCryptAsyncReady(
-    os_crypt_async::Encryptor encryptor) {
-  encryptor_ =
-      std::make_unique<os_crypt_async::Encryptor>(std::move(encryptor));
+    scoped_refptr<os_crypt_async::Encryptor> encryptor) {
+  encryptor_ = std::move(encryptor);
 
   brave_sync_prefs_change_registrar_.Init(sync_client_->GetPrefService());
   brave_sync_prefs_change_registrar_.Add(
@@ -97,15 +101,14 @@ bool BraveSyncServiceImpl::has_encryptor() const {
   return encryptor_ != nullptr;
 }
 
-std::unique_ptr<os_crypt_async::Encryptor>
+scoped_refptr<os_crypt_async::Encryptor>
 BraveSyncServiceImpl::SetEncryptorForTesting(
-    os_crypt_async::Encryptor encryptor_for_tests) {
+    scoped_refptr<os_crypt_async::Encryptor> encryptor_for_tests) {
   CHECK_IS_TEST();
-  std::unique_ptr<os_crypt_async::Encryptor> old_encryptor =
+  scoped_refptr<os_crypt_async::Encryptor> old_encryptor =
       std::move(encryptor_);
 
-  encryptor_ = std::make_unique<os_crypt_async::Encryptor>(
-      std::move(encryptor_for_tests));
+  encryptor_ = std::move(encryptor_for_tests);
 
   return old_encryptor;
 }
@@ -314,6 +317,11 @@ void BraveSyncServiceImpl::OnBraveSyncPrefsChanged(const std::string& path) {
               brave_sync::features::kBraveSyncDefaultPasswords)) {
         selected_types.Put(UserSelectableType::kPasswords);
       }
+#if BUILDFLAG(ENABLE_AI_CHAT)
+      if (ai_chat::features::IsBraveSyncAIChatEnabled()) {
+        selected_types.Put(UserSelectableType::kAIChat);
+      }
+#endif  // BUILDFLAG(ENABLE_AI_CHAT)
       GetUserSettings()->SetSelectedTypes(false, selected_types);
 
       brave_sync_prefs_.ClearLeaveChainDetails();

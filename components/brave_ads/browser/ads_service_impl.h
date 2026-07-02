@@ -116,7 +116,8 @@ class AdsServiceImpl : public AdsService,
       std::unique_ptr<AdsTooltipsDelegate> ads_tooltips_delegate,
       std::unique_ptr<DeviceId> device_id,
       std::unique_ptr<BatAdsServiceFactory> bat_ads_service_factory,
-      ResourceComponent* resource_component,
+      std::unique_ptr<ApplicationStateMonitor> application_state_monitor,
+      ResourceComponent& resource_component,
       history::HistoryService* history_service,
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
       brave_rewards::RewardsService* rewards_service,
@@ -450,7 +451,7 @@ class AdsServiceImpl : public AdsService,
 
   const std::string channel_name_;
 
-  const raw_ptr<ResourceComponent> resource_component_;  // Not owned.
+  const raw_ref<ResourceComponent> resource_component_;
   base::ScopedObservation<ResourceComponent, ResourceComponentObserver>
       resource_component_observation_{this};
 
@@ -477,6 +478,8 @@ class AdsServiceImpl : public AdsService,
                           brave_rewards::RewardsServiceObserver>
       rewards_service_observation_{this};
 #endif  // BUILDFLAG(ENABLE_BRAVE_REWARDS)
+
+  std::unique_ptr<ApplicationStateMonitor> application_state_monitor_;
   base::ScopedObservation<ApplicationStateMonitor, ApplicationStateObserver>
       application_state_monitor_observation_{this};
 

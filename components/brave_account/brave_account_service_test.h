@@ -9,11 +9,13 @@
 #include <memory>
 #include <string>
 
+#include "base/base64.h"
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
+#include "base/no_destructor.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -36,9 +38,36 @@
 
 namespace brave_account {
 
+inline constexpr char kAuthenticationToken[] = "authentication_token";
+inline constexpr char kEmailAddress[] = "email@address.com";
+inline constexpr char kLoginToken[] = "login_token";
+inline constexpr char kVerificationToken[] = "verification_token";
+
+inline const std::string& EncryptedAuthenticationToken() {
+  static const base::NoDestructor<std::string> kEncryptedAuthenticationToken(
+      base::Base64Encode(kAuthenticationToken));
+  return *kEncryptedAuthenticationToken;
+}
+
+inline const std::string& EncryptedLoginToken() {
+  static const base::NoDestructor<std::string> kEncryptedLoginToken(
+      base::Base64Encode(kLoginToken));
+  return *kEncryptedLoginToken;
+}
+
+inline const std::string& EncryptedVerificationToken() {
+  static const base::NoDestructor<std::string> kEncryptedVerificationToken(
+      base::Base64Encode(kVerificationToken));
+  return *kEncryptedVerificationToken;
+}
+
 struct AuthenticationObserverTestCase;
 struct AuthValidateTestCase;
-struct CancelRegistrationTestCase;
+struct CancelVerificationTestCase;
+struct ChangePasswordPasswordFinalizeTestCase;
+struct ChangePasswordPasswordInitTestCase;
+struct ChangePasswordVerifyCompleteTestCase;
+struct ChangePasswordVerifyInitTestCase;
 struct GetServiceTokenTestCase;
 struct LoginFinalizeTestCase;
 struct LoginInitializeTestCase;
@@ -46,7 +75,11 @@ struct LogOutTestCase;
 struct RegisterFinalizeTestCase;
 struct RegisterInitializeTestCase;
 struct RegisterVerifyTestCase;
-struct ResendConfirmationEmailTestCase;
+struct ResendVerificationEmailTestCase;
+struct ResetPasswordPasswordFinalizeTestCase;
+struct ResetPasswordPasswordInitTestCase;
+struct ResetPasswordVerifyCompleteTestCase;
+struct ResetPasswordVerifyInitTestCase;
 
 template <typename TestCase>
 class BraveAccountServiceTest : public testing::TestWithParam<const TestCase*> {
@@ -87,13 +120,22 @@ class BraveAccountServiceTest : public testing::TestWithParam<const TestCase*> {
       }
     }
 
-    if constexpr (std::is_same_v<TestCase, RegisterInitializeTestCase> ||
-                  std::is_same_v<TestCase, RegisterFinalizeTestCase> ||
-                  std::is_same_v<TestCase, RegisterVerifyTestCase> ||
-                  std::is_same_v<TestCase, ResendConfirmationEmailTestCase> ||
-                  std::is_same_v<TestCase, LoginInitializeTestCase> ||
-                  std::is_same_v<TestCase, LoginFinalizeTestCase> ||
-                  std::is_same_v<TestCase, GetServiceTokenTestCase>) {
+    if constexpr (
+        std::is_same_v<TestCase, ChangePasswordPasswordFinalizeTestCase> ||
+        std::is_same_v<TestCase, ChangePasswordPasswordInitTestCase> ||
+        std::is_same_v<TestCase, ChangePasswordVerifyCompleteTestCase> ||
+        std::is_same_v<TestCase, ChangePasswordVerifyInitTestCase> ||
+        std::is_same_v<TestCase, GetServiceTokenTestCase> ||
+        std::is_same_v<TestCase, LoginFinalizeTestCase> ||
+        std::is_same_v<TestCase, LoginInitializeTestCase> ||
+        std::is_same_v<TestCase, RegisterFinalizeTestCase> ||
+        std::is_same_v<TestCase, RegisterInitializeTestCase> ||
+        std::is_same_v<TestCase, RegisterVerifyTestCase> ||
+        std::is_same_v<TestCase, ResendVerificationEmailTestCase> ||
+        std::is_same_v<TestCase, ResetPasswordPasswordFinalizeTestCase> ||
+        std::is_same_v<TestCase, ResetPasswordPasswordInitTestCase> ||
+        std::is_same_v<TestCase, ResetPasswordVerifyCompleteTestCase> ||
+        std::is_same_v<TestCase, ResetPasswordVerifyInitTestCase>) {
       base::test::TestFuture<typename TestCase::MojoExpected> future;
       TestCase::Run(test_case, pref_service_, task_environment_,
                     authentication_, future.GetCallback());
@@ -103,7 +145,7 @@ class BraveAccountServiceTest : public testing::TestWithParam<const TestCase*> {
                     CHECK_DEREF(brave_account_service_.get()));
     } else if constexpr (std::is_same_v<TestCase,
                                         AuthenticationObserverTestCase> ||
-                         std::is_same_v<TestCase, CancelRegistrationTestCase> ||
+                         std::is_same_v<TestCase, CancelVerificationTestCase> ||
                          std::is_same_v<TestCase, LogOutTestCase>) {
       TestCase::Run(test_case, pref_service_, authentication_);
     } else {

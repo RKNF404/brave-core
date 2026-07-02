@@ -13,15 +13,8 @@ provideStrings({
   // Search Text
   braveWalletSearchText: 'Search',
 
-  // Side Nav Buttons
-  braveWalletSideNavCrypto: 'Crypto',
-  braveWalletSideNavRewards: 'Rewards',
-  braveWalletSideNavCards: 'Cards',
-
   // Top Nav Tab Buttons
   braveWalletTopNavPortfolio: 'Portfolio',
-  braveWalletTopTabPrices: 'Prices',
-  braveWalletTopTabApps: 'Apps',
   braveWalletTopNavNFTS: 'NFTs',
   braveWalletTopNavAccounts: 'Accounts',
   braveWalletTopNavMarket: 'Market',
@@ -1626,6 +1619,9 @@ provideStrings({
     'Please don’t close this window until sync finishes.',
   braveWalletContinueUsingWallet: 'Continue using wallet in a new tab',
   braveWalletShieldedAccountBirthdayBlock: 'Shielded account birthday block',
+  braveWalletResetShieldedAccountBirthday: 'Reset account birthday',
+  braveWalletResetShieldedAccountBirthdayDescription:
+    'Resetting your account birthday will require a full resync. Enter a new birthday block and click "Reset account birthday" to continue.',
   braveWalletAccountBirthdayTooLow: 'Account birthday must be greater than $1',
   braveWalletAccountBirthdayTooHigh: 'Account birthday must be less than $1',
   braveWalletBlocksBehind: '$1 blocks behind',

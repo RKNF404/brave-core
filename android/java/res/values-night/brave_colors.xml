@@ -15,13 +15,6 @@
 
     <color name="onboarding_text_color">#F0F2FF</color>
     <color name="onboarding_bg_color">#1E2029</color>
-    <color name="onboarding_timer_color">#478AFF</color>
-
-    <color name="onboarding_progress_start_color">@color/primitive_primary_80</color>
-    <color name="onboarding_progress_mid_color">#FF1893</color>
-    <color name="onboarding_progress_end_color">#A78AFF</color>
-
-    <color name="onboarding_progressbar_secondary_bg">#212529</color>
 
     <color name="onboarding_card_bg_color">#1E2029</color>
     <color name="onboarding_negative_button_color">#A0A5EB</color>
@@ -97,17 +90,9 @@
     <color name="brave_set_default_dialog_text_color">@android:color/white</color>
 
     <color name="qr_button_color">@color/primitive_neutral_20</color>
-    <color name="shield_title_color">#F0F2FF</color>
     <color name="shield_text_color">#F0F2FF</color>
 
-    <color name="shield_divider_color">#3B3E4F</color>
-    <color name="shield_bg_color">#17171F</color>
-    <color name="shield_back_button_tint">#FF7654</color>
-
     <color name="shield_toggle_button_tint">#F0F2FF</color>
-    <color name="shield_toggle_bg_color">#1E2029</color>
-
-    <color name="shield_thank_you_icon_color">#F0F2FF</color>
 
     <color name="filter_title_color">#EDEEF1</color>
     <color name="filter_summary_color">#C2C4CF</color>

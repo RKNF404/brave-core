@@ -21,7 +21,7 @@
 #include "brave/browser/ui/color/brave_color_id.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
-#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_widget_delegate_view.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/tabs/brave_tab.h"
 #include "brave/browser/ui/views/tabs/brave_tab_group_header.h"
 #include "brave/browser/ui/views/tabs/brave_tab_strip.h"
@@ -40,6 +40,7 @@
 #include "chrome/browser/ui/views/tabs/tab_container.h"
 #include "chrome/browser/ui/views/tabs/tab_container_impl.h"
 #include "chrome/browser/ui/views/tabs/tab_group_highlight.h"
+#include "chrome/browser/ui/views/tabs/tab_group_views.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_layout_helper.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/prefs/pref_service.h"
@@ -485,14 +486,9 @@ void BraveTabContainer::PaintBoundingBoxForSplitTab(
 
   if (!is_vertical_tab) {
     // In order to make margin between the bounding box and tab strip.
-    // Need to compensate the amount of overlap because it's hidden by overlap
-    // at bottom.
     int vertical_margin = tab1->data().pinned ? 4 : 2;
-    bounding_rects.Inset(gfx::Insets::TLBR(
-        vertical_margin, tabs::kHorizontalTabInset,
-        vertical_margin +
-            GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap),
-        tabs::kHorizontalTabInset));
+    bounding_rects.Inset(
+        gfx::Insets::VH(vertical_margin, tabs::kHorizontalTabInset));
   }
 
   const float corner_radius =
@@ -1460,6 +1456,12 @@ base::CallbackListSubscription
 BraveTabContainer::RegisterHorizontalScrollOffsetChangedCallback(
     base::RepeatingClosure callback) {
   return horizontal_scroll_offset_changed_callbacks_.Add(std::move(callback));
+}
+
+void BraveTabContainer::RefreshGroupHeaderVisuals() {
+  for (auto& [_, group_views] : group_views_) {
+    group_views->OnGroupVisualsChanged();
+  }
 }
 
 std::pair<TabSlotView*, TabSlotView*>

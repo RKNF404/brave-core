@@ -56,7 +56,7 @@ extension BrowserViewController: TabDelegate {
 
         let openNewPrivateTabAction = UIAction(
           title: Strings.openNewPrivateTabButtonTitle,
-          image: UIImage(named: "private_glasses", in: .module, compatibleWith: nil)!.template
+          image: UIImage(braveSystemNamed: "leo.product.private-window")
         ) { _ in
           if !isPrivate, Preferences.Privacy.privateBrowsingLock.value {
             self.askForLocalAuthentication { [weak self] success, error in
@@ -143,12 +143,15 @@ extension BrowserViewController: TabDelegate {
           // - Add custom "Save to file" functionality (needs investigation).
           self.presentActivityViewController(
             url,
-            sourceView: self.view,
-            sourceRect: self.view.convert(
-              self.topToolbar.shareButton.frame,
-              from: self.topToolbar.shareButton.superview
-            ),
-            arrowDirection: .any
+            tab: self.tabManager.selectedTab,
+            source: .init(
+              view: self.view,
+              rect: self.view.convert(
+                self.topToolbar.shareButton.frame,
+                from: self.topToolbar.shareButton.superview
+              ),
+              arrowDirection: .any
+            )
           )
         }
         shareAction.accessibilityLabel = "linkContextMenu.share"

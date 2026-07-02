@@ -8,8 +8,10 @@
 #include <algorithm>
 #include <optional>
 
-#include "base/feature_list.h"
+#include "brave/browser/ui/tabs/brave_tab_prefs.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "components/prefs/pref_service.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/gfx/geometry/insets.h"
 
@@ -66,10 +68,14 @@ std::optional<int> GetBraveLayoutConstant(LayoutConstant constant) {
       return std::nullopt;
     }
     case LayoutConstant::kTabstripToolbarOverlap: {
-      if (!HorizontalTabsUpdateEnabled()) {
-        return std::nullopt;
+      // Upstream extends tabs 1px into the toolbar to hide a fractional-scale
+      // gap at the tab/toolbar seam. Brave's tabs are free-floating pills with
+      // a deliberate gap below them, so there is no seam and no need for an
+      // overlap.
+      if (HorizontalTabsUpdateEnabled()) {
+        return 0;
       }
-      return UseCompactHorizontalTabs() ? 8 : 1;
+      return std::nullopt;
     }
     case LayoutConstant::kLocationBarChildCornerRadius:
       return 4;
@@ -141,10 +147,6 @@ int GetHorizontalTabVerticalSpacing() {
   return UseCompactHorizontalTabs() ? 2 : 4;
 }
 
-int GetHorizontalTabButtonYOffset() {
-  return UseCompactHorizontalTabs() ? -5 : -4;
-}
-
 int GetHorizontalTabStripHeight() {
   return GetHorizontalTabHeight() + (GetHorizontalTabVerticalSpacing() * 2);
 }
@@ -166,8 +168,14 @@ int GetDragHandleExtensionHeight() {
 }
 
 bool UseCompactHorizontalTabs() {
-  return base::FeatureList::IsEnabled(kBraveCompactHorizontalTabs) &&
-         !ui::TouchUiController::Get()->touch_ui();
+  if (ui::TouchUiController::Get()->touch_ui()) {
+    return false;
+  }
+  if (g_browser_process && g_browser_process->local_state()) {
+    return g_browser_process->local_state()->GetBoolean(
+        brave_tabs::kCompactHorizontalTabs);
+  }
+  return false;
 }
 
 }  // namespace tabs

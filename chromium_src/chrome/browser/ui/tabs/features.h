@@ -22,15 +22,9 @@ BASE_DECLARE_FEATURE(kBraveSharedPinnedTabs);
 
 BASE_DECLARE_FEATURE(kBraveHorizontalTabsUpdate);
 
-BASE_DECLARE_FEATURE(kBraveCompactHorizontalTabs);
-
 BASE_DECLARE_FEATURE(kBraveVerticalTabScrollBar);
 
 BASE_DECLARE_FEATURE(kBraveVerticalTabHideCompletely);
-
-// When enabled, the vertical tab strip is embedded under BrowserView instead of
-// wrapped in a separate child Widget (see VerticalTabStripWidgetDelegateView).
-BASE_DECLARE_FEATURE(kBraveVerticalTabStripEmbedded);
 
 BASE_DECLARE_FEATURE(kBraveTreeTab);
 

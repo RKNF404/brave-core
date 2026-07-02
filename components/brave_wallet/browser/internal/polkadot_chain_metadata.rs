@@ -11,9 +11,15 @@ fn decode_scale<T: Decode>(input: &mut &[u8]) -> Result<T, Error> {
     T::decode(input).map_err(|_| Error::InvalidScale)
 }
 
+const MAX_VEC_LEN: usize = 10_000;
+
 fn decode_vec_len(input: &mut &[u8]) -> Result<usize, Error> {
     let len: Compact<u32> = decode_scale(input)?;
-    usize::try_from(len.0).map_err(|_| Error::InvalidLength)
+    let len = usize::try_from(len.0).map_err(|_| Error::InvalidLength)?;
+    if len > MAX_VEC_LEN {
+        return Err(Error::InvalidLength);
+    }
+    Ok(len)
 }
 
 fn decode_type_id(input: &mut &[u8]) -> Result<u32, Error> {
@@ -171,10 +177,15 @@ fn parse_storage_entry_type(input: &mut &[u8]) -> Result<(), Error> {
         }
         // Map { hashers, key, value }
         1 => {
-            let _ = decode_vec(input, |input| {
-                let _: u8 = decode_scale(input)?;
-                Ok(())
-            })?;
+            let saved = *input;
+            if decode_vec(input, decode_scale::<u8>).is_ok() {
+                let _: u32 = decode_type_id(input)?;
+                let _: u32 = decode_type_id(input)?;
+                return Ok(());
+            }
+            // Fallback: v14 spec defines a single StorageHasher byte.
+            *input = saved;
+            let _: u8 = decode_scale(input)?;
             let _: u32 = decode_type_id(input)?;
             let _: u32 = decode_type_id(input)?;
             Ok(())
@@ -196,10 +207,9 @@ fn parse_pallet(input: &mut &[u8], has_pallet_docs: bool) -> Result<PalletInfo, 
     let name: String = decode_scale(input)?;
 
     // storage: Option<PalletStorageMetadata>
-    let _storage = decode_option(input, |input| {
+    decode_option(input, |input| {
         let _: String = decode_scale(input)?; // prefix
-        let _ = decode_vec(input, parse_storage_entry)?;
-        Ok(())
+        decode_vec(input, parse_storage_entry)
     })?;
 
     // calls: Option<PalletCallMetadata { ty: u32 }>
@@ -240,8 +250,8 @@ fn parse_pallets(input: &mut &[u8], has_pallet_docs: bool) -> Result<Vec<PalletI
 }
 
 // SS58Prefix constant is SCALE-encoded but the concrete integer width varies
-// across runtimes (u8, u16, or u32). Try each width and accept the first that
-// consumes the entire buffer.
+// across runtimes (u8, u16, u32, or Compact<u32>). Try fixed-width first to
+// avoid misinterpreting multi-byte fixed-width encodings as compact.
 fn decode_ss58_prefix(raw: &[u8]) -> Option<u16> {
     let mut input = raw;
     if let Ok(v) = u16::decode(&mut input) {
@@ -251,6 +261,12 @@ fn decode_ss58_prefix(raw: &[u8]) -> Option<u16> {
     }
     let mut input = raw;
     if let Ok(v) = u32::decode(&mut input) {
+        if input.is_empty() {
+            return u16::try_from(v).ok();
+        }
+    }
+    let mut input = raw;
+    if let Ok(Compact(v)) = Compact::<u32>::decode(&mut input) {
         if input.is_empty() {
             return u16::try_from(v).ok();
         }
@@ -356,6 +372,8 @@ fn parse_extrinsic_metadata(input: &mut &[u8], version: u8) -> Result<bool, Erro
 ///   - `transfer_allow_death` call index
 ///   - `System.SS58Prefix`
 ///   - `System.Version.spec_version`
+///   - `Assets` pallet index and transfer call indexes when the pallet is
+///     present
 ///   - whether `ChargeAssetTxPayment` is a signed extension
 ///
 /// References:
@@ -396,6 +414,19 @@ fn parse_chain_metadata_fields(bytes: &[u8]) -> Result<CxxPolkadotChainMetadata,
     let transfer_all_call_index =
         get_call_index(&portable_registry, balances_pallet, "transferall")?;
 
+    let mut has_assets_pallet = false;
+    let mut assets_pallet_index = 0;
+    let mut assets_transfer_all_call_index = 0;
+    let mut assets_transfer_keep_alive_call_index = 0;
+    if let Some(assets_pallet) = pallets.iter().find(|p| normalize_ident(&p.name) == "assets") {
+        has_assets_pallet = true;
+        assets_pallet_index = assets_pallet.index;
+        assets_transfer_all_call_index =
+            get_call_index(&portable_registry, assets_pallet, "transferall")?;
+        assets_transfer_keep_alive_call_index =
+            get_call_index(&portable_registry, assets_pallet, "transferkeepalive")?;
+    }
+
     let system_pallet = pallets
         .iter()
         .find(|p| normalize_ident(&p.name) == "system")
@@ -430,6 +461,10 @@ fn parse_chain_metadata_fields(bytes: &[u8]) -> Result<CxxPolkadotChainMetadata,
         transfer_allow_death_call_index,
         transfer_keep_alive_call_index,
         transfer_all_call_index,
+        assets_pallet_index,
+        assets_transfer_all_call_index,
+        assets_transfer_keep_alive_call_index,
+        has_assets_pallet,
         ss58_prefix,
         spec_version,
         asset_tx_payment,

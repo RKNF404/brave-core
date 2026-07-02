@@ -86,10 +86,8 @@ struct SearchView: View {
           SearchUnavailableView(query: query)
         }
       }
-      .navigationTitle(Strings.Playlist.searchTitle)
-      .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        if #available(iOS 26.0, *), LiquidGlassMode.isEnabled {
+        if #available(iOS 26.0, *) {
           ToolbarItemGroup(placement: .automatic) {
             SearchBar(
               text: $query,
@@ -124,7 +122,6 @@ struct SearchView: View {
           }
         }
       }
-      .toolbarBackground(Color(braveSystemName: .neutral10), for: .navigationBar)
     }
     .onAppear {
       isSearchFocused = true

@@ -20,9 +20,6 @@
 #include "brave/browser/ui/browser_commands.h"
 #include "brave/browser/ui/focus_mode/focus_mode_utils.h"
 #include "brave/browser/ui/sidebar/sidebar_utils.h"
-#include "brave/browser/workspaces/features.h"
-#include "brave/browser/workspaces/workspace_service.h"
-#include "brave/browser/workspaces/workspace_service_factory.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/brave_rewards/core/rewards_util.h"
@@ -54,6 +51,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/sync/base/command_line_switches.h"
+#include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
@@ -137,7 +135,7 @@ BraveBrowserCommandController::BraveBrowserCommandController(
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
   if (auto* vpn_service = brave_vpn::BraveVpnServiceFactory::GetForProfile(
           browser_->profile())) {
-    brave_vpn::BraveVPNServiceObserver::Observe(vpn_service);
+    brave_vpn::BraveVpnServiceObserver::Observe(vpn_service);
   }
 #endif
 }
@@ -372,17 +370,6 @@ void BraveBrowserCommandController::InitBraveCommandState() {
       ContainersServiceFactory::GetForProfile(browser_->profile()));
 #endif
 
-  // Reload options if person has an update in workspaces
-  if (base::FeatureList::IsEnabled(features::kWorkspaces) &&
-      browser_->is_type_normal()) {
-    UpdateCommandForWorkspace();
-    pref_change_registrar_.Add(
-        kWorkspacesMetadataPref,
-        base::BindRepeating(
-            &BraveBrowserCommandController::UpdateCommandForWorkspace,
-            base::Unretained(this)));
-  }
-
   if (browser_->is_type_normal()) {
     // Delete these when upstream enables by default.
     UpdateCommandEnabled(IDC_READING_LIST_MENU, true);
@@ -401,8 +388,8 @@ void BraveBrowserCommandController::UpdateCommandsForFullscreenMode() {
 // On macOS, we block vertical tab mode toggling in fullscreen.
 // Immersive fullscreen feeature is enabled by default but
 // it's not compatible with vertical tab. See the comments in
-// BraveBrowserView::UsesImmersiveFullscreenMode() for more datail. Otherwise,
-// crash happens when turn on vertical tab while fullscreen.
+// WindowFeatureController::UsesImmersiveFullscreenMode() for more detail.
+// Otherwise, crash happens when turn on vertical tab while fullscreen.
 #if BUILDFLAG(IS_MAC)
   UpdateCommandEnabled(IDC_TOGGLE_VERTICAL_TABS,
                        window() && !window()->IsFullscreen());
@@ -557,17 +544,6 @@ void BraveBrowserCommandController::UpdateCommandForSplitView() {
        {IDC_BREAK_TILE, IDC_SWAP_SPLIT_VIEW}) {
     UpdateCommandEnabled(command_enabled_when_tab_is_split, is_split_tabs);
   }
-}
-
-void BraveBrowserCommandController::UpdateCommandForWorkspace() {
-  auto* service = WorkspaceServiceFactory::GetForProfile(browser_->profile());
-
-  if (!service) {
-    return;
-  }
-
-  UpdateCommandEnabled(IDC_SAVE_WORKSPACE, true);
-  UpdateCommandEnabled(IDC_OPEN_WORKSPACE, !service->ListWorkspaces().empty());
 }
 
 void BraveBrowserCommandController::UpdateCommandForBraveSync() {
@@ -775,7 +751,8 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
     case IDC_SHOW_EMAIL_ALIASES:
       browser_->GetFeatures().email_aliases_controller()->OpenSettingsPage(
-          email_aliases::SettingsPageMethod::kAppMenu);
+          email_aliases::SettingsPageMethod::kAppMenu,
+          browser_->tab_strip_model()->GetActiveWebContents());
       break;
 #endif
 #if BUILDFLAG(ENABLE_CONTAINERS)
@@ -820,6 +797,7 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
       break;
     case IDC_NEW_SPLIT_VIEW: {
       chrome::NewSplitTab(base::to_address(browser_),
+                          split_tabs::SplitTabLayout::kSideBySide,
                           split_tabs::SplitTabCreatedSource::kToolbarButton);
       break;
     }
@@ -843,18 +821,6 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
     }
     case IDC_TOGGLE_FOCUS_MODE:
       brave::ToggleFocusMode(base::to_address(browser_));
-      break;
-    case IDC_SAVE_WORKSPACE:
-      if (auto* svc =
-              WorkspaceServiceFactory::GetForProfile(browser_->profile())) {
-        svc->ShowSaveWorkspaceDialog();
-      }
-      break;
-    case IDC_OPEN_WORKSPACE:
-      if (auto* svc =
-              WorkspaceServiceFactory::GetForProfile(browser_->profile())) {
-        svc->ShowOpenWorkspaceDialog();
-      }
       break;
     default:
       LOG(WARNING) << "Received Unimplemented Command: " << id;

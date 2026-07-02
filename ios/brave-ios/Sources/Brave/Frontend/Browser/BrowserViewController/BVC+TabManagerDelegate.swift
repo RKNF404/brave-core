@@ -94,10 +94,22 @@ extension BrowserViewController: TabManagerDelegate {
     // we should add it as a policy decider at initialization.
     tab.addPolicyDecider(braveShieldsHelper)
     tab.logins = .init(tab: tab, passwordAPI: profileController.passwordAPI)
+    tab.protectionStats = .init(tab: tab)
     tab.nightMode = .init(tab: tab)
-
-    if FeatureList.kUseProfileWebViewConfiguration.enabled {
-      tab.readerMode = .init(tab: tab)
+    // reader mode
+    tab.readerMode = .init(tab: tab, readerModeCache: ReaderModeScriptHandler.cache(for: tab))
+    tab.readerMode?.onStateChanged = { [weak self, weak tab] in
+      guard let self, let tab, self.tabManager.selectedTab === tab else { return }
+      self.topToolbar.updateReaderModeState(tab.readerMode?.state ?? .unavailable)
+    }
+    tab.readerMode?.onReaderModeDisplayed = { [weak self, weak tab] in
+      guard let self, let tab else { return }
+      self.showReaderModeBar(animated: true)
+      tab.showContent(true)
+    }
+    tab.readerMode?.onReaderModeToggled = { [weak self] tab in
+      PlaylistScriptHandler.updatePlaylistTab(tab: tab, item: tab.playlistItem)
+      self?.updateTranslateURLBar(tab: tab, state: tab.translationState)
     }
 
     tab.braveTalk = .init(tab: tab, coordinator: braveTalkJitsiCoordinator)
@@ -130,14 +142,22 @@ extension BrowserViewController: TabManagerDelegate {
       guard let self else { return }
       let quickViewController = QuickViewController(
         url: url,
-        profile: tab.profile
-      ) { [weak self] request in
-        guard let self else { return }
-        self.tabManager.addTabAndSelect(
-          request,
-          isPrivate: self.privateBrowsingManager.isPrivateBrowsing
-        )
-      }
+        profileController: profileController,
+        onOpenInNewTab: { [weak self] request in
+          guard let self else { return }
+          self.tabManager.addTabAndSelect(
+            request,
+            isPrivate: self.privateBrowsingManager.isPrivateBrowsing
+          )
+        },
+        onAttachTab: { [weak self] tab in
+          guard let self else { return }
+          let request = tab.visibleURL.map { URLRequest(url: $0) }
+          self.tabManager.configureTab(tab, request: request, flushToDisk: false, zombie: true)
+          self.tabManager.saveTab(tab, saveOrder: true)
+          self.tabManager.selectTab(tab)
+        }
+      )
       self.present(quickViewController, animated: true)
     }
   }
@@ -244,14 +264,7 @@ extension BrowserViewController: TabManagerDelegate {
     let shouldShowPlaylistURLBarButton = selected?.visibleURL?.isPlaylistSupportedSiteURL == true
 
     if !shouldShowPlaylistURLBarButton {
-      let readerModeState: ReaderModeState?
-      if FeatureList.kUseProfileWebViewConfiguration.enabled {
-        readerModeState = selected?.readerMode?.state
-      } else {
-        readerModeState =
-          (selected?.browserData?.getContentScript(name: ReaderModeScriptHandler.scriptName)
-          as? ReaderModeScriptHandler)?.state
-      }
+      let readerModeState = selected?.readerMode?.state
       if let readerModeState {
         topToolbar.updateReaderModeState(readerModeState)
         if readerModeState == .active {

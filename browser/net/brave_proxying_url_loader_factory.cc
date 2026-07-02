@@ -39,6 +39,7 @@
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
+#include "third_party/blink/public/common/loader/throttling_url_loader.h"
 #include "url/origin.h"
 
 namespace {
@@ -133,6 +134,10 @@ BraveProxyingURLLoaderFactory<T>::InProgressRequest::InProgressRequest(
       &BraveProxyingURLLoaderFactory<T>::InProgressRequest::OnRequestError,
       weak_factory_.GetWeakPtr(),
       network::URLLoaderCompletionStatus(net::ERR_ABORTED)));
+  proxied_loader_receiver_.set_disconnect_with_reason_handler(
+      base::BindOnce(&BraveProxyingURLLoaderFactory<
+                         T>::InProgressRequest::OnLoaderDisconnected,
+                     weak_factory_.GetWeakPtr()));
 }
 
 template <template <typename> class T>
@@ -146,6 +151,24 @@ template <template <typename> class T>
 void BraveProxyingURLLoaderFactory<T>::InProgressRequest::Restart() {
   UpdateRequestInfo();
   RestartInternal();
+}
+
+template <template <typename> class T>
+void BraveProxyingURLLoaderFactory<T>::InProgressRequest::OnLoaderDisconnected(
+    uint32_t custom_reason,
+    const std::string& description) {
+  if (custom_reason == network::mojom::URLLoader::kClientDisconnectReason &&
+      description == blink::ThrottlingURLLoader::kFollowRedirectReason) {
+    // Propagate the redirect-restart signal to the inner loader
+    // (WebRequestProxyingURLLoaderFactory) so it can call
+    // DisassociateProxyWithRequestId and allow the next loader to register.
+    if (target_loader_.is_bound()) {
+      target_loader_.ResetWithReason(custom_reason, description);
+    }
+    factory_->RemoveRequest(this);
+  } else {
+    OnRequestError(network::URLLoaderCompletionStatus(net::ERR_ABORTED));
+  }
 }
 
 template <template <typename> class T>
@@ -213,26 +236,26 @@ void BraveProxyingURLLoaderFactory<T>::InProgressRequest::RestartInternal() {
 
 template <template <typename> class T>
 void BraveProxyingURLLoaderFactory<T>::InProgressRequest::FollowRedirect(
-    const std::vector<std::string>& removed_headers,
-    const net::HttpRequestHeaders& modified_headers,
-    const net::HttpRequestHeaders& modified_cors_exempt_headers,
+    network::HttpRequestHeadersUpdateParams headers_update_params,
     const std::optional<GURL>& new_url) {
   if (new_url) {
     request_.url = new_url.value();
   }
 
-  for (const std::string& header : removed_headers) {
+  for (const std::string& header : headers_update_params.removed_headers) {
     request_.headers.RemoveHeader(header);
   }
-  request_.headers.MergeFrom(modified_headers);
+  request_.headers.MergeFrom(headers_update_params.modified_headers);
 
   UpdateRequestInfo();
 
   if (target_loader_.is_bound()) {
     auto params = std::make_unique<FollowRedirectParams>();
-    params->removed_headers = removed_headers;
-    params->modified_headers = modified_headers;
-    params->modified_cors_exempt_headers = modified_cors_exempt_headers;
+    params->removed_headers = std::move(headers_update_params.removed_headers);
+    params->modified_headers =
+        std::move(headers_update_params.modified_headers);
+    params->modified_cors_exempt_headers =
+        std::move(headers_update_params.modified_cors_exempt_headers);
     params->new_url = new_url;
     pending_follow_redirect_params_ = std::move(params);
   }
@@ -510,13 +533,19 @@ void BraveProxyingURLLoaderFactory<T>::InProgressRequest::ContinueToSendHeaders(
     }
 
     if (target_loader_.is_bound()) {
-      target_loader_->FollowRedirect(
-          pending_follow_redirect_params_->removed_headers,
-          pending_follow_redirect_params_->modified_headers,
-          pending_follow_redirect_params_->modified_cors_exempt_headers,
-          pending_follow_redirect_params_->new_url);
+      network::HttpRequestHeadersUpdateParams headers_update_params;
+      headers_update_params.removed_headers =
+          std::move(pending_follow_redirect_params_->removed_headers);
+      headers_update_params.modified_headers =
+          std::move(pending_follow_redirect_params_->modified_headers);
+      headers_update_params.modified_cors_exempt_headers = std::move(
+          pending_follow_redirect_params_->modified_cors_exempt_headers);
+      target_loader_->FollowRedirect(std::move(headers_update_params),
+                                     pending_follow_redirect_params_->new_url);
     }
 
+    // This `.reset()` makes it safe for us to use `std::move` just in the
+    // previous block. Bear this in mind when touching this code.
     pending_follow_redirect_params_.reset();
   }
 

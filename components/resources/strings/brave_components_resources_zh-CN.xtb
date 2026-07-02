@@ -106,7 +106,6 @@
 <translation id="8890516388109605451">来源</translation>
 <translation id="5158129253322921540">禁用来自<ph name="PUBLISHER_NAME"/>的内容</translation>
 <translation id="3189348785087463371">已宣传</translation>
-<translation id="4541978218358617681">广告</translation>
 <translation id="1776831331757823105">时钟</translation>
 <translation id="7791543448312431591">添加</translation>
 <translation id="6216996674668969227">查看隐私保护广告赚取令牌。</translation>
@@ -377,7 +376,6 @@
 <translation id="1430915738399379752">打印</translation>
 <translation id="2600847485413879104">奖励 BAT</translation>
 <translation id="3439853736976204026">bitFlyer</translation>
-<translation id="8533411848724153701">Gemini</translation>
 <translation id="6569877533335686968">Uphold</translation>
 <translation id="6011108706830742093">ZebPay</translation>
 <translation id="5390923430722428146">Solana</translation>
@@ -438,6 +436,7 @@
 <translation id="412480955826088549">正在下载组件...</translation>
 <translation id="4894106830958548828">我理解</translation>
 <translation id="2729085694451916573"><ph name="PART_ONE"/>预留位置<ph name="PART_ONE_END"/>的测试字串。 <ph name="PART_TWO"/>了解更多<ph name="PART_TWO_END"/></translation>
+<translation id="6705666103672654256">您的搜索和页面内容在此设备上处理。不会发送任何内容给 Brave 或被人工审核员看到。这是一项实验性功能,不一定每次都能正确处理。</translation>
 <translation id="7534079972563542000">不可阻挡的域名</translation>
 <translation id="4492298165410552103">是否在 Brave 中启用对不可阻挡域的支持？</translation>
 <translation id="5015092481905019948">Brave 将使用 <ph name="PROVIDER_NAME"/> 來解析 <ph name="DOMAIN_PROVIDER_NAME"/> 上的 <ph name="DOMAIN_LIST"/> 域名。Brave 将隐藏你的 IP 地址。如果你啟用这项功能，<ph name="PROVIDER_NAME"/> 只会看到有人正在尝试访这些域，不会看到其他资料。请查阅 <ph name="PROVIDER_NAME"/> 的<ph name="BEGIN_PROVIDER_TOU_LINK"/>使用条款<ph name="END_PROVIDER_TOU_LINK"/>和<ph name="BEGIN_PROVIDER_PRIVACY_LINK"/>隐私权政策<ph name="END_PROVIDER_PRIVACY_LINK"/>。</translation>
@@ -483,10 +482,10 @@
 <translation id="1518915449477235311">允许<ph name="URL"/>在 Brave 中打开 Leo AI 对话？</translation>
 <translation id="4355784577209159847">允许使用第三方 cookie 的传统 Google 登录</translation>
 <translation id="5770656036486891920"><ph name="URL"/>希望使用第三方 cookie 进行传统 Google 登录</translation>
-<translation id="5582087890067572966">🎉你开始赚取收益了！</translation>
-<translation id="4364336119478610380">每当这样的通知出现在你的屏幕上，你就能赚取收益。而无需点击以赚取收益。</translation>
-<translation id="5893017172751072752">当 Brave Ads 的通知出现时，你就能赚取收益</translation>
-<translation id="3447730462826640312">你无需点击以赚取收益，但如果你有兴趣，请点击查看！</translation>
+<translation id="5582087890067572966">🎉您开始赚取收益了！</translation>
+<translation id="4364336119478610380">每当这样的通知出现在您的屏幕上时，您就能赚取收益。您无需点击通知即可赚取收益。</translation>
+<translation id="5893017172751072752">当 Brave 广告的通知出现时，您就能赚取收益</translation>
+<translation id="3447730462826640312">您无需点击通知即可赚取收益，但如果你感兴趣，欢迎点击查看！</translation>
 <translation id="2104347391516032700">Bat 奖励服务</translation>
 <translation id="5939518447894949180">重置</translation>
 <translation id="3349204812119681938">重设 Brave 奖励</translation>
@@ -737,8 +736,8 @@
 <translation id="8251969358165471584">Web3 钱包</translation>
 <translation id="7160424977552599351">使用您的 Web3 钱包</translation>
 <translation id="6369571967625114920">您所在地区尚未提供 Brave 私人广告。</translation>
-<translation id="5309155375926073606">是的，我也想为 Brave 搜索做贡献，并选择加入 <ph name="LINK_BEGIN"/> 网络<ph name="LINK_END"/>发现项目。</translation>
-<translation id="4622826307953794521">提供匿名搜索和浏览数据，通过 网络发现项目完善 Brave 搜索。该项目完全开源。</translation>
+<translation id="5309155375926073606">是的，我也愿意为 Brave 搜索做出贡献，并选择加入 <ph name="LINK_BEGIN"/>Web Discovery Project<ph name="LINK_END"/>。</translation>
+<translation id="4622826307953794521">通过 Web Discovery Project 贡献一些匿名搜索和浏览数据，以优化 Brave 搜索。它是完全开源的。</translation>
 <translation id="4174337572777167894">Web Discovery Project</translation>
 <translation id="9034669711835382440">社区</translation>
 <translation id="845020633253356720">查看商店</translation>
@@ -749,7 +748,6 @@
 <translation id="1288078776976153868">网络</translation>
 <translation id="1148827340205946630">用户拒绝了此请求</translation>
 <translation id="2403819048476450281">参数无效</translation>
-<translation id="3849003816301348130">目的地地址位于 OFAC SDN 清单。</translation>
 <translation id="3955144560853195652">尚未添加 <ph name="VALUE"/> 链</translation>
 <translation id="1875861420974447980">此链 ID 已有人使用</translation>
 <translation id="167698752210114155">发生了一个内部的错误</translation>
@@ -863,11 +861,12 @@
 <translation id="3751611888003301070">路线</translation>
 <translation id="3799091982455573025">通过 <ph name="EXCHANGE_NAME"/> 调换<ph name="NETWORK_NAME"/></translation>
 <translation id="5136093123841570193">桥接<ph name="FRIST_NETWORK_NAME"/> 至<ph name="SECOND_NETWORK_NAME"/></translation>
-<translation id="5962276579291287541">{SWAP_EXCHANGE_STEPS, plural,
-      =1 {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} 步骤}
-      other {<ph name="EXCHANGE_NAME"/> + {SWAP_EXCHANGE_STEPS} 步骤}
+<translation id="4419195975736642805">{SWAP_EXCHANGE_STEPS, plural,
+      =1 {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} step)}
+      other {<ph name="EXCHANGE_NAME"/> ({SWAP_EXCHANGE_STEPS} steps)}
     }</translation>
 <translation id="8621264173374071200"><ph name="EXCHANGE_NAME"/> 通过 <ph name="PROVIDER_NAME"/></translation>
+<translation id="7214440235486032620"><ph name="DESTINATION_TOKEN"/> ← <ph name="SOURCE_TOKEN"/> 通过</translation>
 <translation id="646023614746251785">确认兑换</translation>
 <translation id="6264944956989873014">确认桥接</translation>
 <translation id="7067917728851842589">确认发送</translation>
@@ -948,6 +947,7 @@
 <translation id="1108298724135935307">连接的站点</translation>
 <translation id="5716350339763180836">余额</translation>
 <translation id="5538251867290702601">图表</translation>
+<translation id="8123016618655108594">分布</translation>
 <translation id="352407037922720467">NFT 标签页</translation>
 <translation id="163697698769819510">立即备份你的钱包以便能够保护你的资产并确保你永远不会失去访问权限。</translation>
 <translation id="1018806299114415224">立即备份</translation>
@@ -980,11 +980,11 @@
 <translation id="7080614857771109950">支持 Ethereum 区块链上兼容 EVM 的资产（ERC-20、ERC-721、ERC-1551、ERC-1155）</translation>
 <translation id="6577166808959668729">支持 Solana 区块链上兼容 SPL 的资产</translation>
 <translation id="4541295941776129088">存储 FIL 资产</translation>
-<translation id="6030958132571544682">存储 FIL Testnet 资产</translation>
+<translation id="6030958132571544682">存储 FIL 测试网资产</translation>
 <translation id="29759539656432505">存储 BTC 资产</translation>
 <translation id="2399555431746923964">存储 BTC Testnet 资产</translation>
 <translation id="8749751940551938347">储存 ZEC 资产</translation>
-<translation id="3451958544919449297">存储 ZEC Testnet 资产</translation>
+<translation id="3451958544919449297">存储 ZEC 测试网资产</translation>
 <translation id="8459631690385393533">存储卡尔达诺资产</translation>
 <translation id="4915057812371523845">存储卡尔达诺测试网资产</translation>
 <translation id="5387140102951033657">支持 Polkadot 中继链和 Substrate 平行链上的 Substrate 资产</translation>
@@ -1003,6 +1003,9 @@
 <translation id="6720675936326555106">已选择的文件</translation>
 <translation id="5891811606602061966">导入账户失败，请重试。</translation>
 <translation id="6566535583781706170">导入账户</translation>
+<translation id="8079448455682522748">复制您想要从其他钱包导入的账户的私钥。</translation>
+<translation id="8475326612689436917">从其他钱包导出私钥到 JSON 文件并在此处上传。</translation>
+<translation id="5733063593286221597">上传 JSON 文件</translation>
 <translation id="5051929972046200722">选择您的硬件钱包设备</translation>
 <translation id="5745936663807461565">直接将您的 <ph name="HARDWARE_DEVICE"/>钱包连接到计算机。</translation>
 <translation id="4350216031085285578">解锁设备并选择 <ph name="BLOCKCHAIN_NETWORK"/> 应用。</translation>
@@ -1048,9 +1051,10 @@
 <translation id="7657130382217527063">注意：私钥必须以十六进制编码的 JSON 形式提供，内含私钥和协议信息。<ph name="LINK_START"/>了解更多<ph name="LINK_END"/>。</translation>
 <translation id="4482913669726886926">注意：仅支持 <ph name="FORMAT"/> 扩展密钥。</translation>
 <translation id="6457746820359933716">使用从 Polkadot.js 或兼容钱包导出的 JSON 文件进行导入。输入用于加密导出的密码。</translation>
-<translation id="9133762451347918196">Testnet 账户</translation>
+<translation id="7285350832506166367">正在寻找测试网账户？</translation>
 <translation id="42126664696688958">导出</translation>
 <translation id="1366855498335432549">存入</translation>
+<translation id="3852653589653889099">隐藏账户</translation>
 <translation id="790104325876206743">账号设置</translation>
 <translation id="8856844353253421399">上次更新于 <ph name="TIME_AGO"/> 前</translation>
 <translation id="6322030314101903925">没有可用资产</translation>
@@ -1171,12 +1175,12 @@
 <translation id="4324239559624557455">24 小时</translation>
 <translation id="9139452553033760558">1 周</translation>
 <translation id="1658834457013045127">始终</translation>
-<translation id="5571630233760536706"><ph name="DEVICE_NAME"/> 已连接</translation>
-<translation id="7058480232601314508"><ph name="DEVICE_NAME"/> 已断开连接</translation>
+<translation id="620344059960827012"><ph name="ACCOUNT_NAME"/> 已连接到 <ph name="DEVICE_NAME"/></translation>
+<translation id="4403794623379243396"><ph name="ACCOUNT_NAME"/> 已断开连接</translation>
 <translation id="434328838837168401">查看说明</translation>
-<translation id="6739517232898494646">连接您的 <ph name="DEVICE_NAME"/> 以继续</translation>
+<translation id="13670155462680755">连接您的 <ph name="ACCOUNT_NAME"/> 以继续</translation>
 <translation id="6941881257520473899">硬件钱包需要在设备上进行确认。</translation>
-<translation id="2288190100157580461">硬件钱包需要在 <ph name="NETWORK"/> 上开启<ph name="DEVICE_NAME"/> 应用</translation>
+<translation id="4108619287854657806">硬件钱包需要在 <ph name="ACCOUNT_NAME"/> 上打开 <ph name="NETWORK"/> 应用</translation>
 <translation id="8687869982094542529">已发送</translation>
 <translation id="5013754027092416509">已接收</translation>
 <translation id="5867988533873716616">区块浏览器 URL 不可用</translation>
@@ -1351,6 +1355,12 @@
 <translation id="3067168166931605141">账户名称</translation>
 <translation id="1213870770696612739">最小金额：<ph name="AMOUNT"/></translation>
 <translation id="3041074161036535192">最大金额：<ph name="AMOUNT"/></translation>
+<translation id="3419957337495393511">账户创建成功</translation>
+<translation id="7444985841455466546">账户导入成功</translation>
+<translation id="6775224295382583896">{ACCOUNTS, plural,
+      =1 {硬件钱包账户连接成功}
+      other {{ACCOUNTS} 个硬件钱包账户连接成功}
+    }</translation>
 <translation id="8528916244724490964">所有网络</translation>
 <translation id="7721139939763655123">从低至高</translation>
 <translation id="5458608274117818139">从高至低</translation>
@@ -1361,6 +1371,7 @@
 <translation id="8491675129455635799">按以下条件分组资产</translation>
 <translation id="5331775401966766526">筛选和显示设置</translation>
 <translation id="5332541468425943610">NFT 显示设置</translation>
+<translation id="1539149309756422999">资产分布</translation>
 <translation id="886032538431162695">资产分类</translation>
 <translation id="6080181976198929758">按法定价值或名称排序</translation>
 <translation id="2563815561570398537">隐藏小额余额</translation>
@@ -1372,6 +1383,7 @@
 <translation id="1257387162647804035">主要网络</translation>
 <translation id="8323674164587854512">以太坊+ EVM 链</translation>
 <translation id="1398414935371867469">Solana + SVM 链</translation>
+<translation id="6498449512528552760">前缀无效</translation>
 <translation id="7058248670699639973">网络标识</translation>
 <translation id="4378208228955237306">在 NFT 上显示网络标识</translation>
 <translation id="5472199803712163015">垃圾邮件 NFT</translation>
@@ -1396,7 +1408,7 @@
 <translation id="8419958386475786929">在 <ph name="NETWORK"/> 上 <ph name="SWAPPING_OR_BRIDGING"/></translation>
 <translation id="7903225589949400974">尝试在 <ph name="NETWORK"/> 上 <ph name="SWAP_OR_BRIDGE"/> 时发生错误</translation>
 <translation id="7220786058474068424">处理中</translation>
-<translation id="3248185426436836442">等待审批</translation>
+<translation id="3248185426436836442">待处理</translation>
 <translation id="5503843345634715425">已退款</translation>
 <translation id="1778601041100951971">屏蔽 <ph name="AMOUNT"/></translation>
 <translation id="6439110433198887239">取消屏蔽 <ph name="AMOUNT"/></translation>
@@ -1604,6 +1616,9 @@
 <translation id="5882719778740918116">仅在 <ph name="VALUE"/> 将代币发送到此地址</translation>
 <translation id="6885009592653876601">购买、发送和兑换 200 多种加密货币资产</translation>
 <translation id="8716223552348254401">浏览器原生、无风险扩展程序</translation>
+<translation id="1198271701881992799">开始使用</translation>
+<translation id="7904301836463577071">使用信用卡或借记卡购买您的第一个加密货币</translation>
+<translation id="3721561070667360112">从其他钱包或交易所存入加密货币</translation>
 <translation id="4559901986238865734">多链与NFT 支持</translation>
 <translation id="296101411136980896">点击以切换</translation>
 <translation id="753655478253155745">第 12 个</translation>
@@ -1638,7 +1653,7 @@
 <translation id="1353726744456297797">如果您未在这个列表中找到您的资产，您可以使用下列按钮手动添加</translation>
 <translation id="4543171429371680949">资产未找到</translation>
 <translation id="1026825928738055872">是否确定要移除“<ph name="ACCOUNT_NAME"/>”？</translation>
-<translation id="3910551537328657217">请求功能</translation>
+<translation id="2220529011494928058">报告问题</translation>
 <translation id="7657322905916621147">助记词的长度必须为 12、15、18、21 或 24 个字</translation>
 <translation id="5026874946691314267">别再给我看这个了</translation>
 <translation id="434502623875309667">地址解析需要链下网络请求。要继续吗？</translation>
@@ -1751,6 +1766,7 @@
 <translation id="8549067157732633185">此代币已完成验证</translation>
 <translation id="2130170065617939165">此代币已通过<ph name="NUMBER_OF_LISTS"/>列表验证</translation>
 <translation id="1554316484739382186">支出地址：<ph name="ADDRESS"/></translation>
+<translation id="8533411848724153701">Gemini</translation>
 <translation id="4265415116535094892">Zebpay</translation>
 <translation id="3026353765778463291"><ph name="PROVIDER"/>账户</translation>
 <translation id="5360752485622434494">存放于<ph name="PROVIDER"/>的 Brave Rewards BAT</translation>
@@ -2068,6 +2084,7 @@ other {# 个来源}
 <translation id="7294510764127771956">浏览切换光标</translation>
 <translation id="4186334830839439230">显示性能设置</translation>
 <translation id="1094277301241124207">显示书签侧边栏</translation>
+<translation id="5101042277149003567">打开所有书签</translation>
 <translation id="8283515796576236471">书签栏在新窗口中全部打开</translation>
 <translation id="5271773791943587595">书签栏在个人窗口中全部打开</translation>
 <translation id="2748975346534113286">书签栏打开所有新标签组</translation>
@@ -2145,13 +2162,16 @@ other {# 个来源}
 <translation id="6459036216700972269">取消分割标签页</translation>
 <translation id="4235382917338421035">切换标签页位置</translation>
 <translation id="4288085058450834672">显示应用程序</translation>
+<translation id="4750337523930607658">切换聚合模式</translation>
 <translation id="4144468798716165316">快捷指令</translation>
 <translation id="3617523374417810198">新的分屏视图</translation>
 <translation id="8571323456914890254">在分屏视图打开</translation>
 <translation id="5329136173514538969">取消分割标签页</translation>
 <translation id="7595612919377246359">切换标签页位置</translation>
 <translation id="2367972762794486313">显示应用</translation>
+<translation id="3142853026316054951">切换聚合模式</translation>
 <translation id="3468387898712904997">新电子邮件别名</translation>
+<translation id="2796584247246518451">新建临时容器</translation>
 <translation id="8591883849678260674">查看原文</translation>
 <translation id="1969654232209826429">分钟读取</translation>
 <translation id="4101707289420716287">关闭 Speedreader</translation>
@@ -2198,6 +2218,7 @@ other {# 个来源}
 <translation id="5923170497201832190">滚动至底部</translation>
 <translation id="6219262425964000211">将文件拖放到此处</translation>
 <translation id="4313763911013851687">将任何文件拖放到此处，以将其添加到对话中</translation>
+<translation id="8206915760129310348">某些文件无法读取且未附加</translation>
 <translation id="4524675003624341892">建议问题…</translation>
 <translation id="4567071417854988869">总结这段视频</translation>
 <translation id="4264902191243445258">{PAGE_COUNT, plural,
@@ -2208,7 +2229,9 @@ other {# 个来源}
 <translation id="7932221068776853847">断开连接以停止向 Leo 发送此页面内容，并开始新的对话</translation>
 <translation id="8743383817154663379">处理您的请求时出错了。请稍后再试。</translation>
 <translation id="2712650703044366764">该模型有一个无效端点。请检查您的配置，然后重试。</translation>
-<translation id="1167803637855350748">连接 Leo 时出现网络问题，请检查您的连接并重试。</translation>
+<translation id="7092656392206649236">与 Leo 通信时出了点问题。请再试一次。</translation>
+<translation id="3552709750512842961">状态码:<ph name="STATUS_CODE"/>,错误代码:<ph name="ERROR_CODE"/></translation>
+<translation id="9215978379284690246">状态码:<ph name="STATUS_CODE"/></translation>
 <translation id="1996126325390835277">您已达到  premium 速率上限。请几小时后重试。</translation>
 <translation id="3683964919745779766">您已达到此模型的费用上限或积分不足。请稍后再试。</translation>
 <translation id="7692501701960747469">为该模型配置的 API 密钥无效。请检查您的配置并重试。</translation>
@@ -2218,6 +2241,7 @@ other {# 个来源}
 <translation id="1238020084128916796">嗨，我是 Leo。我是由 Brave 完全托管的 AI 助手。我由 Llama 3.1 8B 提供支持，这是一个由 Meta 创建的模型，性能卓越，适用于多种用例。Llama 通过我们自己的安全基础设施由 Brave 托管。<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="3852808100039989429">嗨，我是 Leo。我是由 Brave 完全托管的 AI 助手。我由 Qwen VL 30B 提供支持，这是一个由阿里巴巴云创建的模型，性能卓越，适用于多种用例。Qwen 通过我们自己的安全基础设施由 Brave 托管。<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="3812564134126884433">嗨，我是 Leo。我是由 Brave 完全托管的 AI 助手。我由 GLM-5 提供支持，这是一个由 Zhipu AI 创建的模型，性能卓越，适用于多种用例。GLM-5 通过他们自己的可验证私密安全基础设施由 NEAR 托管。<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
+<translation id="784931275560506522">嗨，我是 Leo。我是由 Brave 提供的 AI 助手。我由 GLM-5.1 提供支持，这是一个由 Zhipu AI 创建的模型，性能卓越，适用于多种用例。GLM-5.1 通过他们自己的可验证私密安全基础设施由 NEAR 托管。<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="8932568551552504373">您好，我是 Leo。是 Brave 提供的 AI 助手，由 Anthropic 创建的 Claude Instant 模型驱动⸺该模型可处理对话及文本任务。Claude Instant 由 Brave 自有安全基础架构托管。<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="3789772321824682783">嗨，我是 Leo。我是由 Brave 完全托管的 AI 助手。我由 Claude Haiku 提供支持，这是一个由 Anthropic 创建的模型，用于支持对话和文本处理任务。Claude Haiku 通过我们自己的安全基础设施由 Brave 托管。<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="1778885220602472158">嗨，我是 Leo。我是由 Brave 完全托管的 AI 助手。我由 Claude Sonnet 提供支持，这是一个由 Anthropic 创建的模型，用于支持对话和文本处理任务。Claude Sonnet 通过我们自己的安全基础设施由 Brave 托管。<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
@@ -2335,8 +2359,8 @@ other {# 个来源}
 <translation id="4592293425457329338">对话中可能缺少一些上下文信息。Leo 可保留 <ph name="PERCENTAGE"/> 的对话相关内容。</translation>
 <translation id="8501106061098623831">从页面上获取的图像太多。Leo 可以使用 <ph name="PERCENTAGE"/> 的可用视觉内容。</translation>
 <translation id="4370698775470316661">对话时间太长，无法继续。可能有其他机型，Leo 能够在较长时间的对话中保持准确性。</translation>
-<translation id="5719170755629028558">正在改善您在 Brave 搜索中的搜索结果...</translation>
-<translation id="5794962229997281366">已改善<ph name="SEARCH_TERMS"/>的搜索结果。</translation>
+<translation id="4744144453035015075">正在搜索网页</translation>
+<translation id="8548351747582087191">正在网页上搜索 <ph name="SEARCH_TERMS"/>。</translation>
 <translation id="7307396647043599949"><ph name="COUNT"/> 更多…</translation>
 <translation id="8103700533980268469">关闭此通知</translation>
 <translation id="3417835166382867856">搜索标签页</translation>
@@ -2361,7 +2385,7 @@ other {# 个来源}
 <translation id="2793458212460902934">快速 • 搜索 • 工具</translation>
 <translation id="8506027496671575183">搜索 • 视觉 • 工具</translation>
 <translation id="3184606955650139158">快速 • 搜索 • 视觉</translation>
-<translation id="7465032796278724624">通过 NEAR AI TEE 可验证私密性</translation>
+<translation id="7465032796278724624">通过 NEAR AI TEE 实现可验证的隐私保护</translation>
 <translation id="8782867266498869301">模型会动态变化以使用最适合任务的模型</translation>
 <translation id="3213834013136637671">搜索 • 视觉</translation>
 <translation id="5276681919620506371">搜索 • 工具</translation>
@@ -2407,8 +2431,8 @@ other {# 个来源}
 <translation id="2370739752330685659">回头再说</translation>
 <translation id="983013125018250242">Leo 工具</translation>
 <translation id="7623223587478473368">附件</translation>
-<translation id="3777121685517940177">上传文件……</translation>
-<translation id="6739516910850820220">正在上传文件……</translation>
+<translation id="3728603231003977269">附加文件……</translation>
+<translation id="7899721102369502629">正在附加文件……</translation>
 <translation id="9088751620363630236">拍摄照片……</translation>
 <translation id="4250229828105606438">截图</translation>
 <translation id="7949596341600215809">整页截图</translation>
@@ -2456,10 +2480,12 @@ other {# 个来源}
 <translation id="7607002721634913082">暂停</translation>
 <translation id="4773299976671772492">已停止</translation>
 <translation id="6946722113367118030">思考中</translation>
+<translation id="7918928051723770926">任务完成</translation>
 <translation id="2113810663179257944">代码执行</translation>
-<translation id="6338250692384725496">在沙盒中执行代码以帮助解答您的问题</translation>
+<translation id="4838375634693651776">正在沙盒中执行代码以帮助解答您的问题</translation>
 <translation id="4379566111233326721">代码：</translation>
 <translation id="3542130965673205258">输出：</translation>
+<translation id="6911817209337314910">正在为您生成一些选项供您选择</translation>
 <translation id="5382076391290708074">移动你的标签页</translation>
 <translation id="3862123464576147769">允许此操作将向 Brave AI 发送所有标签页和标签页组的 <ph name="URL_FORMAT_START"/>URL<ph name="URL_FORMAT_END"/> 和 <ph name="TITLE_FORMAT_START"/>标题<ph name="TITLE_FORMAT_END"/>，并允许 Brave AI 移动它们。此权限仅适用于此对话。</translation>
 <translation id="396165714586708444">深度研究</translation>
@@ -2491,7 +2517,9 @@ other {# 个来源}
 <translation id="5663901348199429994">您的电子邮件别名</translation>
 <translation id="9046133327037621173">新电子邮件别名</translation>
 <translation id="3768606658230902536">创建一个随机电子邮件地址，该地址会转发到您的收件箱，同时将您的个人电子邮件地址保密。</translation>
-<translation id="6887156107256264506">您已经达到了 5 个免费电子邮件别名的上限。点击“管理”以重新使用或删除别名。</translation>
+<translation id="4452721050684632493">已达到别名上限</translation>
+<translation id="2912191433415590080">您已用完所有 <ph name="MAX_ALIASES"/> 个电子邮件别名。请删除一个现有别名以创建新的别名。</translation>
+<translation id="3847337908410945070">您的别名 (<ph name="CURRENT"/> / <ph name="MAX"/>)</translation>
 <translation id="1104500750724567895">新别名</translation>
 <translation id="8072910658503112482">建议另一个电子邮件别名</translation>
 <translation id="7710361355427562228">正在生成新别名……</translation>
@@ -2508,6 +2536,7 @@ other {# 个来源}
 <translation id="646524615209870492">删除 <ph name="ALIAS"/> 这个别名将会导致您无法接收电子邮件。</translation>
 <translation id="8133100642915054515">删除别名时出错。请检查网络连接并重试。</translation>
 <translation id="8465742443901727718">此操作无法撤销。您确定要继续操作吗？</translation>
+<translation id="6402052536605772735">从我们的服务器检索电子邮件别名时出错。请检查您的网络连接。</translation>
 <translation id="9162685486229945876">登录或创建 Brave 账户</translation>
 <translation id="1335007417599138852">Brave 账户将允许您访问某些 Brave 产品，并轻松跨设备同步您的信息。</translation>
 <translation id="2133391407495495735">获取登录链接</translation>
@@ -2534,12 +2563,14 @@ other {# 个来源}
 <translation id="2991633563551889054">隐藏通话卡</translation>
 <translation id="5355776323718420036">隐藏常用网站</translation>
 <translation id="1689504141194856995">隐藏 VPN 卡</translation>
+<translation id="2919329118360099847">Brave 将作为普通窗口地址栏中的默认搜索引擎使用。</translation>
+<translation id="6792837540759934892">将 Brave 设置为默认搜索引擎?</translation>
 <translation id="8262911270872215147">自定义新闻</translation>
 <translation id="3884037897537157986">禁用新闻</translation>
 <translation id="7847477075635510673">隐藏新闻</translation>
 <translation id="9173319813356700250">新闻</translation>
 <translation id="6543799171249004861">照片提供者：<ph name="AUTHOR"/></translation>
-<translation id="2361906291514218784">Leo 人工智能</translation>
+<translation id="2361906291514218784">Leo AI</translation>
 <translation id="466214682712474574">登录您的<ph name="PROVIDER"/>账户查看余额</translation>
 <translation id="8332875111286275890">登录查看余额</translation>
 <translation id="5430001801813715388">奖励</translation>
@@ -2593,16 +2624,16 @@ other {# 个来源}
 <translation id="4677356505199464553">看起来不错</translation>
 <translation id="1992750560347846445">报告站点</translation>
 <translation id="2863270180245144869">已启用仅限广告屏蔽模式</translation>
-<translation id="3773808439655997805">您当前使用的是 "仅限广告屏蔽 "模式。该模式仅提供广告屏蔽保护（如果屏蔽已打开）。如果您想返回完整的屏蔽模式，请从设置中禁用该模式。</translation>
+<translation id="3773808439655997805">您当前使用的是“仅屏蔽广告”模式。该模式仅提供广告屏蔽保护（如果盾牌已打开）。如果您想返回全方位盾牌保护模式，请从设置中禁用该模式。</translation>
 <translation id="4820891023903368625">广告已屏蔽<ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="8377155647357436161">拦截了跟踪器、广告和其他 <ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="7604553853176833536">不受 Brave 防护盾保护 <ph name="LINK_BEFORE"/>了解更多<ph name="LINK_AFTER"/></translation>
 <translation id="650318023204990401">高级控制</translation>
-<translation id="7939062555109487992">進階控制項</translation>
+<translation id="7939062555109487992">高级选项</translation>
 <translation id="5799940914270080805">更改这些设置有可能会影响网站的兼容性。</translation>
 <translation id="9204041448536398473">盾牌全局设置</translation>
 <translation id="2108334320919763866">全局默认值</translation>
-<translation id="1896472873031845605">所有设置</translation>
+<translation id="1896472873031845605">全局设置</translation>
 <translation id="8324318899000695659">拦截元素</translation>
 <translation id="7205939464631857223">清除所有已屏蔽的元素</translation>
 <translation id="3440043456924990296">由组织管理的设置</translation>
@@ -2672,7 +2703,7 @@ other {# 个来源}
 <translation id="2273851479262317744">将 Brave 设为默认浏览器</translation>
 <translation id="5037676449506322593">全选</translation>
 <translation id="5148943178722443958">帮助让 Brave 变得更好。</translation>
-<translation id="479535542793009168">稳定性和诊断</translation>
+<translation id="8874748598814587364">稳定性</translation>
 <translation id="1097073572755862978">如果遇到系统崩溃或冻结，请发送诊断报告。<ph name="LINK_BEFORE"/>了解更多内容。<ph name="LINK_AFTER"/></translation>
 <translation id="6629244688368006959">分享和 Brave 用户正在使用哪些功能有关的私密和匿名的产品见解。<ph name="LINK_BEFORE"/>了解更多内容。<ph name="LINK_AFTER"/></translation>
 <translation id="7415454883318062233">已完成设置</translation>
@@ -2685,7 +2716,7 @@ other {# 个来源}
 <translation id="4117637339509843559">深色模式</translation>
 <translation id="6302485303316397682">想要有更好的搜索结果吗？</translation>
 <translation id="7014699001826714920">加入这项活动，为 Brave 搜索作出贡献。</translation>
-<translation id="6821108091726602352">藉由参与 Brave 的 Web 探索项目。协助我们修复 Web。只要分享完全匿名的搜索信号，您就可以協助 Brave 充实搜索索引。</translation>
+<translation id="6821108091726602352">参与 Brave 的 Web Discovery Project，帮助我们修复网络。通过分享完全匿名的搜索信号，您可以帮助 Brave 扩展搜索索引。</translation>
 <translation id="6764845498618413165">了解更多。</translation>
 <translation id="7818938154803162778">没问题，我愿意协助</translation>
 <translation id="7207456302801184289">歡迎使用 Brave</translation>
@@ -2800,6 +2831,10 @@ Brave 有一个帮助服务，通过过滤在 VPN 连接上进行 DNS 查询的�
 <translation id="1602850501393095406">按 ↑ 高亮显示</translation>
 <translation id="8367705492654390392">尽管问</translation>
 <translation id="8525248723479742219">稍后播放</translation>
+<translation id="1751249301761991853">个人</translation>
+<translation id="1122068467107743258">工作</translation>
+<translation id="8372721116225477180">社交</translation>
+<translation id="1539343118617844331">学校</translation>
 <translation id="2935698011275148880">Brave Origin</translation>
 <translation id="3983844925615091103">欢迎来到 Brave Origin。要继续，请购买或恢复您的 Brave Origin 购买。</translation>
 <translation id="4801175670604644729">您需要有效的 Brave Origin 购买才能使用此浏览器。</translation>
@@ -2815,4 +2850,66 @@ Brave 有一个帮助服务，通过过滤在 VPN 连接上进行 DNS 查询的�
 <translation id="5816720995022674532">Origin 在 Linux 设备上可以免费使用，但如果您想支持 Brave 作为一项业务，仍然 <ph name="BEGIN_LINK"/>可供购买<ph name="END_LINK"/>。购买还将解锁在 Android、iOS、macOS 和 Windows 设备上使用 Origin 的功能。</translation>
 <translation id="3065220545261045367">通过购买 Origin 支持 Brave</translation>
 <translation id="2069499076031488636">在 Linux 上免费继续使用 Origin</translation>
+<translation id="5713644099811900409">Brave 账户</translation>
+<translation id="2906576968270573525">登录或创建 Brave 账户</translation>
+<translation id="6972754398087986839">开始使用</translation>
+<translation id="5378207817582281342">马上就好了！</translation>
+<translation id="3750210661641549834">为了创建您的账户，请验证您的电子邮件地址。</translation>
+<translation id="4129813507847680661">输入注册码</translation>
+<translation id="1672793037892810340">您应该已收到一封包含需要输入的验证码的电子邮件。</translation>
+<translation id="4821255729182569254">重新发送确认电子邮件</translation>
+<translation id="5837679375142747484">没有看到电子邮件？检查您的垃圾邮件文件夹或 <ph name="BEGIN_LINK"/>重新发送<ph name="END_LINK"/>。</translation>
+<translation id="1080588816740959885">没有看到电子邮件？检查您的垃圾邮件文件夹或重新发送。</translation>
+<translation id="1020730839570724178">取消注册</translation>
+<translation id="4869737930995549965">退出登录</translation>
+<translation id="5538654494923870167">开始使用您的 Brave 账户</translation>
+<translation id="1544145635547515689">创建 Brave 账户</translation>
+<translation id="3828644479849256404">已有账户？登录</translation>
+<translation id="6624553071240278643">创建您的账户</translation>
+<translation id="6505120968393722022">您不能使用 @bravealias.com 地址创建 Brave 账户。请使用其他域名重试。</translation>
+<translation id="8248460961680233459">创建密码</translation>
+<translation id="552339301062636488">太弱，无法继续</translation>
+<translation id="8433528931936107676">快达到了</translation>
+<translation id="4324743471050874155">足够强</translation>
+<translation id="5585552203448068294">异常强</translation>
+<translation id="5486261815000869482">确认密码</translation>
+<translation id="7345706641791090287">确认您的密码</translation>
+<translation id="7114054701490058191">密码不匹配</translation>
+<translation id="1293857704520741614">登录到您的账户</translation>
+<translation id="118617366439356381">忘记密码？</translation>
+<translation id="5183159033908953146">确认您的 Brave 账户电子邮件，您将收到一个重置密码的链接。该链接仅在 30 分钟内有效。</translation>
+<translation id="3997368361371298873">警告：由于您未在此设备上登录，重置密码将<ph name="BEGIN_BOLD"/>删除您在服务器上的所有数据<ph name="END_BOLD"/>。如果您在另一台设备上已登录，请从该设备上更改密码，而不是重置密码。</translation>
+<translation id="3674472551471103443">重置您的密码</translation>
+<translation id="2755539422340788311">验证您的电子邮件</translation>
+<translation id="6641436078676327508">您应该已收到一封包含短验证码的电子邮件。请在此输入以继续。</translation>
+<translation id="7228810962389847249">在此输入验证码</translation>
+<translation id="4683390091376980486">确认验证码</translation>
+<translation id="3970028678400797622">重新发送电子邮件验证码</translation>
+<translation id="2475982808118771221">发生错误</translation>
+<translation id="5430795854491041407">错误</translation>
+<translation id="2232323423357029857">浏览器遇到意外错误<ph name="ERROR_CODE"/>。请重新启动浏览器并重试。</translation>
+<translation id="7167650060829320707">内部服务器错误 (<ph name="STATUS_CODE"/><ph name="ERROR_CODE"/>)。请稍后重试。</translation>
+<translation id="2387645930330673048">此账户正在等待电子邮件验证。</translation>
+<translation id="2199962270601714404">未找到与该电子邮件地址对应的账户。请重试，或创建新账户。</translation>
+<translation id="8130611002720478693">密码错误。请重试。</translation>
+<translation id="7144067487084094749">该电子邮件地址已存在账户。请尝试登录，而不是创建账户。</translation>
+<translation id="5288951359968156008">不支持此电子邮件地址的域名。请使用其他电子邮件地址。</translation>
+<translation id="7625678607509255072">已超出电子邮件验证次数限制。请等待 30 分钟后再试。</translation>
+<translation id="4582421696414628320">验证已过期。请重新开始注册流程。</translation>
+<translation id="8439543211004394821">输入错误验证码次数过多。请重新开始注册流程。</translation>
+<translation id="3229986152760633988">验证码错误，请重试。</translation>
+<translation id="818783632689113711">此电子邮件地址已申请了账户。请检查您的电子邮件或 30 分钟后重试。</translation>
+<translation id="4178004989875422946">Brave 账户将让您轻松访问 Brave 服务。</translation>
+<translation id="4902897635127068510">您是否想输入 <ph name="SUGGESTION"/>？</translation>
+<translation id="8314772463905284467">大写锁定已开启</translation>
+<translation id="7044608453949401443">密码的开头或结尾不允许有空格。</translation>
+<translation id="2939492377741553693">确认电子邮件已重新发送。</translation>
+<translation id="2112559299194052697">无法重新发送</translation>
+<translation id="7932611814134267012">已经发送了太多验证电子邮件。请检查您的垃圾邮件文件夹。</translation>
+<translation id="1364223093800750401">电子邮件已验证。</translation>
+<translation id="3353844160742960162">隐私设置调整</translation>
+<translation id="528205534230423181">此网站提供 Brave 可以自动为您调整的隐私设置。以下是我们的建议：</translation>
+<translation id="1063227610401477317">应用更改</translation>
+<translation id="5539769255716491933">报告失败的步骤</translation>
+<translation id="7562163394445060270">任务完成失败</translation>
 </translationbundle>

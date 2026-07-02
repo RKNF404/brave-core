@@ -305,25 +305,42 @@ changes trigger rebuilds of large upstream targets.
 
 <a id="BS-021"></a>
 
-## ✅ Create Test Targets in Component BUILD.gn
+## ✅ Wire Component Unit Tests Through `components/BUILD.gn`
 
-**Unit test files should have a test target in the component's `BUILD.gn`, not
-be individually listed in the top-level `test/BUILD.gn`.** The top-level test
-target should depend on the component's test target.
+**Unit test files should have a `unit_tests` target in the component's own
+`BUILD.gn`, not be individually listed in a top-level test target. For code
+under `//brave/components/...`, default to wiring that `:unit_tests` target into
+the aggregate `brave_components_unittests` target in `components/BUILD.gn`.**
+Only add it to `brave_unit_tests` in `test/BUILD.gn` when the test genuinely
+requires the heavier chrome/browser-layer test support (e.g. `//chrome/...`,
+profile/browser-process scaffolding) that `brave_components_unittests` does not
+provide.
 
 ```gn
-# ❌ WRONG - individual test files in top-level test/BUILD.gn
+# ❌ WRONG - individual test files listed in a top-level test target
 sources += [ "//brave/components/ai_chat/core/credential_manager_unittest.cc" ]
 
-# ✅ CORRECT - test target in component BUILD.gn
-# components/ai_chat/core/BUILD.gn
+# ❌ WRONG - component :unit_tests dep added to brave_unit_tests in test/BUILD.gn
+#            when it doesn't need chrome/browser-layer test support
+# test/BUILD.gn -> test("brave_unit_tests")
+deps += [ "//brave/components/brave_vpn/browser/v2:unit_tests" ]
+
+# ✅ CORRECT - test target lives in the component's own BUILD.gn
+# components/brave_vpn/browser/v2/BUILD.gn
 source_set("unit_tests") {
-  sources = [ "credential_manager_unittest.cc" ]
+  testonly = true
+  sources = [ "..._unittest.cc" ]
   deps = [ ... ]
 }
-# test/BUILD.gn
-deps += [ "//brave/components/ai_chat/core:unit_tests" ]
+
+# ✅ CORRECT - aggregated by brave_components_unittests in components/BUILD.gn
+# components/BUILD.gn -> test("brave_components_unittests")
+deps += [ "//brave/components/brave_vpn/browser/v2:unit_tests" ]
 ```
+
+Note: many component `:unit_tests` targets currently live in `brave_unit_tests`
+for historical reasons; the rule above is the target state, not a license to
+flag every existing dep there as a violation.
 
 ---
 
@@ -570,11 +587,23 @@ source_set("unit_tests") {
 
 <a id="BS-034"></a>
 
-## ✅ Place Includes Inside BUILDFLAG Guards When Only Used There
+## ✅ Guard an Include Only When the Header Is Conditionally Available
 
-**When an `#include` is only used inside a `#if BUILDFLAG(...)` block, the
-include must also be inside that guard.** An unconditional include for a
-conditionally-used header breaks builds when the feature is disabled.
+**Move an `#include` inside a `#if BUILDFLAG(...)` block only when the header
+itself is conditionally available** — i.e. its target/sources are gated behind
+the same buildflag in GN, or the header sits behind its own buildflag. In that
+case an unconditional include breaks the build when the feature is disabled,
+because the header does not exist in that configuration.
+
+**Do NOT guard an include just because it is only _used_ inside a
+`#if BUILDFLAG(...)` block.** Most Chromium headers (e.g. `web_contents.h`,
+`tab_interface.h`, `history_service.h`) are always built regardless of any
+feature flag. An unconditional include of an always-available header does not
+break a disabled-feature build — it merely pulls in a header you don't use under
+that config, which is harmless. Wrapping such includes in guards adds churn with
+no benefit. Before suggesting a guard, confirm the header is actually gated in
+GN (check the relevant `BUILD.gn` `sources` lists / buildflag conditions); if it
+is always built, leave the include unconditional.
 
 **IMPORTANT: Only apply this rule when the BUILDFLAG actually exists.** Before
 suggesting that code be wrapped in a `#if BUILDFLAG(...)` guard, verify the
@@ -584,17 +613,28 @@ a feature, do not invent one. Instead, check if the feature uses
 `base::FeatureList` runtime checks or has no compile-time guard at all.
 
 ```cpp
-// ❌ WRONG - unconditional include for conditionally-used header
+// ❌ WRONG - unconditional include of a GN-gated header
+// extension_web_ui.h is only built when ENABLE_EXTENSIONS is set, so this
+// breaks the build when extensions are disabled.
 #include "chrome/browser/extensions/extension_web_ui.h"
 // ...
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   IsChromeURLOverridden(...);  // uses extension_web_ui.h
 #endif
 
-// ✅ CORRECT - include inside the same guard
+// ✅ CORRECT - include inside the same guard, because the header is GN-gated
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/extension_web_ui.h"
   IsChromeURLOverridden(...);
+#endif
+
+// ✅ ALSO CORRECT - leave always-built headers unconditional even when only
+// used inside the guard. content/public/browser/web_contents.h is always
+// available, so guarding its include is unnecessary.
+#include "content/public/browser/web_contents.h"
+// ...
+#if BUILDFLAG(ENABLE_AI_CHAT)
+  SearchTabsByContent(...);  // uses web_contents.h
 #endif
 ```
 
@@ -1028,3 +1068,44 @@ only headers listed in `public` can be `#include`d by dependent targets.
 New endpoints must be added to both the pins `"entries"` list and the HSTS
 `"entries"` list in that file. This applies to all new endpoints regardless of
 whether they require user opt-in.
+
+---
+
+<a id="BS-057"></a>
+
+## ❌ Don't Add New Source Files to `browser/ui/BUILD.gn`
+
+**Don't add new `sources` entries to the `source_set("ui")` target in
+`brave/browser/ui/BUILD.gn`.** Adding source files here is flagged in review
+because `//chrome/browser/ui` is prone to circular dependencies, and Brave
+should avoid adding to that problem. Place the new files in a more specific,
+lower-level target instead.
+
+```gn
+# ❌ WRONG - new source files added to source_set("ui") in brave/browser/ui/BUILD.gn
+source_set("ui") {
+  sources = [
+    ...
+    "webui/history/brave_history_embeddings_page_handler.cc",
+    "webui/history/brave_history_embeddings_page_handler.h",
+  ]
+}
+
+# ✅ CORRECT - put the files in a feature-specific lower-level target
+# e.g. brave/browser/ui/webui/history/BUILD.gn
+source_set("history") {
+  sources = [
+    "brave_history_embeddings_page_handler.cc",
+    "brave_history_embeddings_page_handler.h",
+  ]
+  deps = [ ... ]
+}
+```
+
+Break circular dependencies using the interface/impl pattern (public headers in
+the direct dependency, implementation pulled into a higher-level target like
+`//brave/browser`), dependency inversion, or the templated-subclass technique.
+Only fall back to `brave_chrome_browser_ui_allow_circular_includes_from` /
+`sources.gni` as a temporary last resort, and never use `check_includes = false`
+to suppress circular include errors. See [`gni_sources.md`](../gni_sources.md)
+(Circular dependencies).

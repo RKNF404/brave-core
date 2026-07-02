@@ -42,7 +42,6 @@
 #include "brave/browser/profiles/brave_renderer_updater_factory.h"
 #include "brave/browser/skus/skus_service_factory.h"
 #include "brave/browser/ui/brave_ui_features.h"
-#include "brave/browser/ui/webui/local_ai/local_ai_ui.h"
 #include "brave/browser/ui/webui/skus_internals_ui.h"
 #include "brave/browser/updater/buildflags.h"
 #include "brave/browser/url_sanitizer/url_sanitizer_service_factory.h"
@@ -85,7 +84,7 @@
 #include "brave/components/global_privacy_control/global_privacy_control_utils.h"
 #include "brave/components/google_sign_in_permission/google_sign_in_permission_throttle.h"
 #include "brave/components/google_sign_in_permission/google_sign_in_permission_util.h"
-#include "brave/components/local_ai/core/local_ai.mojom.h"
+#include "brave/components/local_ai/buildflags/buildflags.h"
 #include "brave/components/ntp_background_images/browser/mojom/ntp_background_images.mojom.h"
 #include "brave/components/password_strength_meter/password_strength_meter.mojom.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
@@ -130,6 +129,7 @@
 #include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/weak_document_ptr.h"
@@ -140,6 +140,7 @@
 #include "content/public/common/url_constants.h"
 #include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/cookies/site_for_cookies.h"
@@ -159,11 +160,22 @@
 #include "brave/browser/ui/webui/brave_new_tab_page_refresh/brave_new_tab_page_ui.h"
 #include "brave/browser/ui/webui/brave_settings_ui.h"
 #include "brave/browser/ui/webui/brave_shields/shields_panel_ui.h"
+#include "brave/browser/ui/webui/brave_welcome_page/brave_welcome_page.mojom.h"
+#include "brave/browser/ui/webui/brave_welcome_page/brave_welcome_page_ui.h"
+#include "brave/browser/ui/webui/history/brave_history_ui.h"
 #include "brave/browser/ui/webui/new_tab_page/brave_new_tab_ui.h"
 #include "brave/browser/ui/webui/private_new_tab_page/brave_private_new_tab_ui.h"
 #include "brave/components/brave_new_tab_ui/brave_new_tab_page.mojom.h"
 #include "brave/components/brave_private_new_tab_ui/common/brave_private_new_tab.mojom.h"
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+#include "brave/browser/ui/webui/history/brave_history_embeddings.mojom.h"
+#endif
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+#include "brave/browser/ui/webui/local_ai/local_ai_ui.h"
+#include "brave/components/local_ai/core/local_ai.mojom.h"
+#endif
 
 #if BUILDFLAG(ENABLE_BRAVE_ADS)
 #include "brave/browser/ui/webui/ads_internals/ads_internals_ui.h"
@@ -263,7 +275,11 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 #if BUILDFLAG(ENABLE_TOR)
 #include "brave/browser/tor/tor_profile_service_factory.h"
 #include "brave/components/tor/onion_location_navigation_throttle.h"
+#include "brave/components/tor/pref_names.h"
 #include "brave/components/tor/tor_navigation_throttle.h"
+#include "net/base/net_errors.h"
+#include "net/base/url_util.h"
+#include "services/network/public/mojom/websocket.mojom.h"
 #endif
 
 #if BUILDFLAG(ENABLE_SPEEDREADER)
@@ -295,6 +311,7 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 
 #if !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
+#include "brave/browser/ui/webui/brave_news/brave_news_ui.h"
 #include "brave/browser/ui/webui/brave_news_internals/brave_news_internals_ui.h"
 #include "brave/components/brave_news/common/brave_news.mojom.h"
 #include "brave/components/brave_news/common/features.h"
@@ -320,7 +337,7 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 
 #if BUILDFLAG(ENABLE_PSST)
 #include "brave/browser/ui/webui/psst/brave_psst_dialog_ui.h"
-#include "brave/components/psst/common/psst_ui_common.mojom-shared.h"
+#include "brave/components/psst/core/common/psst_ui_common.mojom-shared.h"
 #endif
 
 #if BUILDFLAG(IS_BRAVE_ORIGIN_BRANDED)
@@ -338,6 +355,7 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
 #include "brave/browser/ui/webui/email_aliases/email_aliases_panel_ui.h"
+#include "brave/browser/ui/webui/email_aliases/email_aliases_promo_ui.h"
 #include "brave/components/email_aliases/email_aliases.mojom.h"
 #include "brave/components/email_aliases/features.h"
 #endif
@@ -750,6 +768,9 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
     ntp_registration.Add<searchbox::mojom::PageHandlerFactory>();
   }
 
+  registry.ForWebUI<BraveWelcomePageUI>()
+      .Add<brave_welcome_page::mojom::WelcomePageHandler>();
+
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
   if (base::FeatureList::IsEnabled(
           brave_news::features::kBraveNewsFeedUpdate)) {
@@ -771,6 +792,8 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
     registry.ForWebUI<EmailAliasesPanelUI>()
         .Add<email_aliases::mojom::EmailAliasesService>()
         .Add<email_aliases::mojom::EmailAliasesPanelHandler>();
+    registry.ForWebUI<EmailAliasesPromoUI>()
+        .Add<email_aliases::mojom::EmailAliasesPromoHandler>();
   }
 #endif
 
@@ -807,6 +830,13 @@ void BraveContentBrowserClient::RegisterUntrustedWebUIInterfaceBrokers(
   if (base::FeatureList::IsEnabled(playlist::features::kPlaylist)) {
     registry.ForWebUI<playlist::PlaylistUI>()
         .Add<playlist::mojom::PageHandlerFactory>();
+  }
+#endif
+
+#if BUILDFLAG(ENABLE_BRAVE_NEWS) && !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(brave_news::features::kBraveNewsSidebar)) {
+    registry.ForWebUI<BraveNewsUI>()
+        .Add<brave_news::mojom::BraveNewsController>();
   }
 #endif
 }
@@ -948,16 +978,22 @@ void BraveContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
 
   map->Add<skus::mojom::SkusService>(
       base::BindRepeating(&MaybeBindSkusSdkImpl));
+#if BUILDFLAG(ENABLE_LOCAL_AI)
   if (base::FeatureList::IsEnabled(history_embeddings::kHistoryEmbeddings)) {
     content::RegisterWebUIControllerInterfaceBinder<
         local_ai::mojom::LocalAIService, local_ai::UntrustedLocalAIUI>(map);
   }
+#endif
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
   map->Add<brave_vpn::mojom::ServiceHandler>(
       base::BindRepeating(&MaybeBindBraveVpnImpl));
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+  content::RegisterWebUIControllerInterfaceBinder<
+      brave_history_embeddings::mojom::PageHandlerFactory, BraveHistoryUI>(map);
+#endif
   content::RegisterWebUIControllerInterfaceBinder<
       brave_private_new_tab::mojom::PageHandler, BravePrivateNewTabUI>(map);
   content::RegisterWebUIControllerInterfaceBinder<
@@ -1211,6 +1247,21 @@ void BraveContentBrowserClient::CreateWebSocket(
     const std::optional<std::string>& user_agent,
     mojo::PendingRemote<network::mojom::WebSocketHandshakeClient>
         handshake_client) {
+#if BUILDFLAG(ENABLE_TOR)
+  if (frame) {
+    content::BrowserContext* browser_context = frame->GetBrowserContext();
+    Profile* profile = Profile::FromBrowserContext(browser_context);
+    if (!profile->IsTor() &&
+        profile->GetPrefs()->GetBoolean(tor::prefs::kOnionOnlyInTorWindows) &&
+        net::IsOnion(url)) {
+      mojo::Remote<network::mojom::WebSocketHandshakeClient> client(
+          std::move(handshake_client));
+      client->OnFailure(std::string(), net::ERR_NAME_NOT_RESOLVED, 0);
+      return;
+    }
+  }
+#endif
+
   if (base::FeatureList::IsEnabled(features::kBraveRequestInfoUniquePtr)) {
     auto* proxy = BraveProxyingWebSocket<base::WeakPtr>::ProxyWebSocket(
         frame, std::move(factory), url, site_for_cookies, user_agent);
@@ -1352,7 +1403,9 @@ void BraveContentBrowserClient::CreateThrottlesForNavigation(
   tor::TorNavigationThrottle::MaybeCreateAndAdd(registry, context->IsTor());
   tor::OnionLocationNavigationThrottle::MaybeCreateAndAdd(
       registry, TorProfileServiceFactory::IsTorDisabled(context),
-      context->IsTor());
+      context->IsTor(),
+      user_prefs::UserPrefs::Get(context)->GetBoolean(
+          tor::prefs::kOnionOnlyInTorWindows));
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
@@ -1436,7 +1489,8 @@ bool PreventDarkModeFingerprinting(WebContents* web_contents,
   if (!host_content_settings_map) {
     return false;
   }
-  const GURL url = main_frame_site.GetSiteURL();
+  const GURL url =
+      main_frame_site.GetSecurityPrincipal().GetDeprecatedSiteURL();
   const bool shields_up =
       brave_shields::GetBraveShieldsEnabled(host_content_settings_map, url);
   auto fingerprinting_type = brave_shields::GetFingerprintingControlType(

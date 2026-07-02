@@ -160,22 +160,11 @@ std::optional<std::string> AdBlockEngineWrapper::GetCspDirectives(
   return csp_directives;
 }
 
-void AdBlockEngineWrapper::EnableTag(const std::string& tag, bool enabled) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Tags only need to be modified for the default engine.
-  default_engine_->EnableTag(tag, enabled);
-}
-
 void AdBlockEngineWrapper::UseResources(
     const adblock::BraveCoreResourceStorage& storage) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   default_engine_->UseResources(storage);
   additional_filters_engine_->UseResources(storage);
-}
-
-bool AdBlockEngineWrapper::TagExists(const std::string& tag) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return default_engine_->TagExists(tag);
 }
 
 std::pair<base::DictValue, base::DictValue>
@@ -347,8 +336,9 @@ void AdBlockEngineWrapper::MergeResourcesInto(base::DictValue from,
   auto* resources_injected_script = into.FindString("injected_script");
   auto* from_resources_injected_script = from.FindString("injected_script");
   if (resources_injected_script && from_resources_injected_script) {
-    *resources_injected_script = base::StrCat(
-        {*resources_injected_script, "\n", *from_resources_injected_script});
+    *resources_injected_script =
+        base::StrCat({"{\n", *resources_injected_script, "\n}\n{\n",
+                      *from_resources_injected_script, "\n}"});
   }
 
   auto from_resources_generichide = from.FindBool("generichide");

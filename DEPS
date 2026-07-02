@@ -6,18 +6,17 @@ vars = {
 }
 
 deps = {
-  "vendor/python-patch": "https://github.com/brave/python-patch@d8880110be6554686bc08261766538c2926d4e82",
   "vendor/omaha": {
     "url": "https://github.com/brave/omaha.git@32383a4dc9c50a88e42be0e03e5b2f2ba7ad058b",
     "condition": "checkout_win",
   },
   "vendor/sparkle": {
-    "url": "https://github.com/brave/Sparkle.git@8721f93f694244f9ff41fe975a92617ac5f63f9a",
+    "url": "https://github.com/brave/Sparkle.git@6e8b614d26f96cf5a146ba005d3429172500a1d7",
     "condition": "checkout_mac",
   },
   "vendor/bat-native-tweetnacl": "https://github.com/brave-intl/bat-native-tweetnacl.git@8b424ccf29957fe01c88c36076fd32006a357887",
   "vendor/gn-project-generators": "https://github.com/brave/gn-project-generators.git@b76e14b162aa0ce40f11920ec94bfc12da29e5d0",
-  "vendor/web-discovery-project": "https://github.com/brave/web-discovery-project@b36426be065fbba19b3a5231b97b436e9c980b60",
+  "vendor/web-discovery-project": "https://github.com/brave/web-discovery-project@f25eb3d6f91f5618c04894db98f8d65bab8301d1",
   "third_party/bip39wally-core-native": "https://github.com/brave-intl/bat-native-bip39wally-core.git@547a7810333d821e29b8f55126aba031aa0d5fcd",
   "third_party/ethash/src": "https://github.com/chfast/ethash.git@e4a15c3d76dc09392c7efd3e30d84ee3b871e9ce",
   "third_party/bitcoin-core/src": "https://github.com/bitcoin/bitcoin.git@8105bce5b384c72cf08b25b7c5343622754e7337", # v25.0
@@ -33,7 +32,7 @@ deps = {
     "url": "https://github.com/ronaldoussoren/macholib.git@36a6777ccd0891c5d1b44ba885573d7c90740015",
     "condition": "checkout_mac",
   },
-  "components/brave_wallet/browser/zcash/rust/librustzcash/src": "https://github.com/brave/librustzcash.git@127aacc83dc9ed12fc38c3c7f5b52f7f51011e4d", # v2
+  "components/brave_wallet/browser/zcash/rust/librustzcash/src": "https://github.com/brave/librustzcash.git@f34cb36d9287b76b52ba1a2ab58e50db96706dc8", # brave-orchard-0.14
 }
 
 recursedeps = [
@@ -41,11 +40,6 @@ recursedeps = [
 ]
 
 hooks = [
-  {
-    'name': 'bootstrap',
-    'pattern': '.',
-    'action': ['vpython3', 'script/bootstrap.py'],
-  },
   {
     'name': 'bootstrap_ios',
     'pattern': '.',
@@ -56,7 +50,7 @@ hooks = [
     # Download hermetic xcode for goma
     'name': 'download_hermetic_xcode',
     'pattern': '.',
-    'condition': 'checkout_mac',
+    'condition': 'checkout_mac or checkout_ios',
     'action': ['vpython3', 'build/mac/download_hermetic_xcode.py'],
   },
   {
@@ -80,7 +74,7 @@ hooks = [
     'pattern': '.',
     'condition': 'checkout_mac and download_prebuilt_sparkle',
     'action': ['vpython3', 'build/download_dep.py',
-               'sparkle/sparkle-1.24.3.tar.gz',
+               'sparkle/sparkle-1.24.4.tar.gz',
                '//build/mac_files/sparkle_binaries'],
   },
   {
@@ -163,6 +157,12 @@ hooks = [
                '--filter', '^[0-9]\{{1,\}}\.[0-9]\{{1,\}}\.[0-9]\{{1,\}}$'],
   },
   {
+    # Generate //brave/build/version.gni from chrome/VERSION.
+    'name': 'brave_version_gni',
+    'pattern': '.',
+    'action': ['python3', 'build/util/version.py', 'gen', '../chrome/VERSION'],
+  },
+  {
     # Downloads & overwrites Chromium's swift-format dep on macOS only
     'name': 'download_swift_format',
     'pattern': '.',
@@ -198,9 +198,21 @@ hooks = [
     'action': ['build/mac/cross-compile/build-libdmg-hfsplus.py', 'third_party/libdmg-hfsplus']
   },
   {
-    'name': 'download_rust_toolchain_aux',
+    'name': 'download_rust_wasm_toolchain',
     'pattern': '.',
-    'action': ['python3', 'build/rust/download_rust_toolchain_aux.py']
+    'action': ['vpython3',
+               'tools/cr/install_extra_deps.py',
+               'src/third_party/rust-toolchain']
+  },
+  {
+    'name': 'download_node',
+    'pattern': '.',
+    'action': ['vpython3',
+               'tools/cr/install_extra_deps.py',
+               'src/brave/third_party/node/linux',
+               'src/brave/third_party/node/mac',
+               'src/brave/third_party/node/mac_arm64',
+               'src/brave/third_party/node/win']
   },
 ]
 

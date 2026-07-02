@@ -462,7 +462,6 @@ public class BrowserViewController: UIViewController {
     Preferences.General.tabBarVisibility.observe(from: self)
     Preferences.General.defaultPageZoomLevel.observe(from: self)
     Preferences.Shields.allShields.forEach { $0.observe(from: self) }
-    Preferences.Privacy.blockAllCookies.observe(from: self)
     Preferences.Rewards.hideRewardsIcon.observe(from: self)
     Preferences.Rewards.rewardsToggledOnce.observe(from: self)
     Preferences.Playlist.enablePlaylistURLBarButton.observe(from: self)
@@ -487,6 +486,22 @@ public class BrowserViewController: UIViewController {
         )
       ])
       tabManager.reloadSelectedTab()
+    }
+    prefsChangeRegistrar.addObserver(forPath: kBlockAllCookiesEnabled) { [weak self] _ in
+      guard let self else { return }
+      // All `block all cookies` toggle requires a hard reset of Webkit configuration.
+      tabManager.reset()
+      if !profileController.profile.prefs.boolean(forPath: kBlockAllCookiesEnabled) {
+        tabManager.reloadSelectedTab()
+        for tab in tabManager.allTabs where tab !== tabManager.selectedTab {
+          tab.createWebView()
+          if let url = tab.visibleURL {
+            tab.loadRequest(PrivilegedRequest(url: url) as URLRequest)
+          }
+        }
+      } else {
+        tabManager.reloadSelectedTab()
+      }
     }
 
     disconnectVPNIfDisabledByPolicy()
@@ -535,6 +550,7 @@ public class BrowserViewController: UIViewController {
     try? widgetBookmarksFRC?.performFetch()
 
     updateWidgetFavoritesData()
+    updateWidgetShortcutsData()
 
     // Eliminate the older usage days
     // Used in App Rating criteria
@@ -545,7 +561,7 @@ public class BrowserViewController: UIViewController {
     recordVPNUsageP3A(vpnEnabled: BraveVPN.isConnected)
     recordAccessibilityDisplayZoomEnabledP3A()
     recordAccessibilityDocumentsDirectorySizeP3A()
-    recordTimeBasedNumberReaderModeUsedP3A(activated: false)
+    ReaderModeTabHelper.recordTimeBasedNumberReaderModeUsedP3A(activated: false)
     recordGeneralBottomBarLocationP3A()
     PlaylistP3A.recordHistogram()
     recordAdsUsageType()
@@ -561,6 +577,17 @@ public class BrowserViewController: UIViewController {
       BraveWebView.didResetConfiguration = { profile, configuration in
         configuration.prepareBraveConfiguration()
       }
+      let configuration = BraveWebViewConfiguration(profile: profileController.profile)
+      configuration.setSkusCredentialsFetchedCallback { [weak self] domain, message in
+        guard let self,
+          let skusService = Skus.SkusServiceFactory.get(profile: profileController.profile)
+        else {
+          return
+        }
+        Task {
+          await skusService.updatePreferences(for: domain, summaryData: Data(message.utf8))
+        }
+      }
     }
 
     Task { @MainActor in
@@ -568,6 +595,15 @@ public class BrowserViewController: UIViewController {
         await originService.checkPurchaseState()
       {
         topToolbar.updateViewsForOverlayModeAndToolbarChanges()
+      }
+    }
+
+    BraveOriginNavigation.openOriginSettings = { [weak self] in
+      guard let self else { return }
+      // Only present Origin settings if the user activated from the browser. Activating via Origin
+      // IAP paywall will already present Origin settings via settings
+      if presentedViewController == nil {
+        presentBraveOriginDeepLink()
       }
     }
   }
@@ -700,7 +736,7 @@ public class BrowserViewController: UIViewController {
       }
     )
 
-    if LiquidGlassMode.isEnabled {
+    if #available(iOS 26.0, *) {
       // Update top toolbar constraints and force layout/redraw during transition
       Task.delayed(bySeconds: 0.1) { @MainActor [self] in
         // Force a full layout pass to redraw the toolbar
@@ -823,7 +859,7 @@ public class BrowserViewController: UIViewController {
 
   override public func viewDidLoad() {
     super.viewDidLoad()
-    view.backgroundColor = .braveBackground
+    view.backgroundColor = UIColor(braveSystemName: .containerBackground)
 
     // Add layout guides
     view.addLayoutGuide(pageOverlayLayoutGuide)
@@ -955,7 +991,7 @@ public class BrowserViewController: UIViewController {
         let skusService = Skus.SkusServiceFactory.get(
           privateMode: self.privateBrowsingManager.isPrivateBrowsing
         )
-        await skusService?.refreshVPNCredentials()
+        await skusService?.refreshSkusCredentials()
 
         self.vpnProductInfo.load()
         if let customCredential = Preferences.VPN.skusCredential.value,
@@ -2008,8 +2044,7 @@ public class BrowserViewController: UIViewController {
     settingsNavigationController.modalPresentationStyle =
       UIDevice.current.userInterfaceIdiom == .phone ? .pageSheet : .formSheet
     settingsNavigationController.navigationBar.topItem?.leftBarButtonItem =
-      UIBarButtonItem(
-        barButtonSystemItem: .done,
+      .doneButton(
         target: settingsNavigationController,
         action: #selector(settingsNavigationController.done)
       )
@@ -2114,26 +2149,6 @@ public class BrowserViewController: UIViewController {
       if !url.isNewTabURL, !InternalURL.isValid(url: url) || url.isInternalURL(for: .readermode),
         !url.isFileURL
       {
-        // Fire the readability check. This is here and not in the pageShow event handler in ReaderMode.js anymore
-        // because that event will not always fire due to unreliable page caching. This will either let us know that
-        // the currently loaded page can be turned into reading mode or if the page already is in reading mode. We
-        // ignore the result because we are being called back asynchronous when the readermode status changes.
-        if FeatureList.kUseProfileWebViewConfiguration.enabled {
-          if let readerMode = tab.readerMode {
-            Task {
-              await readerMode.checkReadability()
-              if tabManager.selectedTab === tab {
-                topToolbar.updateReaderModeState(readerMode.state)
-              }
-            }
-          }
-        } else {
-          tab.evaluateJavaScript(
-            functionName: "\(readerModeNamespace).checkReadability",
-            contentWorld: ReaderModeScriptHandler.scriptSandbox
-          )
-        }
-
         // Only add history of a url which is not a localhost url
         if !url.isInternalURL(for: .readermode) {
           if !tab.isPrivate {
@@ -2191,27 +2206,6 @@ public class BrowserViewController: UIViewController {
         UIAlertAction(title: Strings.scanQRCodeErrorOKButton, style: .default, handler: nil)
       )
       self.present(alert, animated: true, completion: nil)
-    }
-  }
-
-  func toggleReaderMode() {
-    guard let tab = tabManager.selectedTab else { return }
-    let readerModeState: ReaderModeState?
-    if FeatureList.kUseProfileWebViewConfiguration.enabled {
-      readerModeState = tab.readerMode?.state
-    } else {
-      readerModeState =
-        (tab.browserData?.getContentScript(name: ReaderModeScriptHandler.scriptName)
-        as? ReaderModeScriptHandler)?.state
-    }
-    guard let readerModeState else { return }
-    switch readerModeState {
-    case .available:
-      enableReaderMode()
-    case .active:
-      disableReaderMode()
-    case .unavailable:
-      break
     }
   }
 
@@ -2724,23 +2718,29 @@ extension BrowserViewController: ToolbarUrlActionsDelegate {
         dismiss(animated: true) {
           self.presentActivityViewController(
             url,
-            sourceView: self.view,
-            sourceRect: self.view.convert(
+            tab: self.tabManager.selectedTab,
+            source: .init(
+              view: self.view,
+              rect: self.view.convert(
+                self.topToolbar.shareButton.frame,
+                from: self.topToolbar.shareButton.superview
+              ),
+              arrowDirection: [.up]
+            )
+          )
+        }
+      } else {
+        self.presentActivityViewController(
+          url,
+          tab: self.tabManager.selectedTab,
+          source: .init(
+            view: self.view,
+            rect: self.view.convert(
               self.topToolbar.shareButton.frame,
               from: self.topToolbar.shareButton.superview
             ),
             arrowDirection: [.up]
           )
-        }
-      } else {
-        presentActivityViewController(
-          url,
-          sourceView: view,
-          sourceRect: view.convert(
-            topToolbar.shareButton.frame,
-            from: topToolbar.shareButton.superview
-          ),
-          arrowDirection: [.up]
         )
       }
     }
@@ -2900,21 +2900,10 @@ extension BrowserViewController: PreferencesObserver {
             ?? Preferences.General.defaultPageZoomLevel.value
         $0.viewScale = zoomLevel
       })
-    case Preferences.Privacy.blockAllCookies.key,
-      Preferences.Shields.googleSafeBrowsing.key:
-      // All `block all cookies` toggle requires a hard reset of Webkit configuration.
+    case Preferences.Shields.googleSafeBrowsing.key:
+      // Toggling Google safe browsing requires a hard reset of Webkit configuration.
       tabManager.reset()
-      if !Preferences.Privacy.blockAllCookies.value {
-        self.tabManager.reloadSelectedTab()
-        for tab in self.tabManager.allTabs where tab !== self.tabManager.selectedTab {
-          tab.createWebView()
-          if let url = tab.visibleURL {
-            tab.loadRequest(PrivilegedRequest(url: url) as URLRequest)
-          }
-        }
-      } else {
-        tabManager.reloadSelectedTab()
-      }
+      tabManager.reloadSelectedTab()
     case Preferences.Rewards.hideRewardsIcon.key,
       Preferences.Rewards.rewardsToggledOnce.key:
       updateRewardsButtonState()
@@ -2981,10 +2970,12 @@ extension BrowserViewController: PreferencesObserver {
         screenTimeViewController = nil
       }
     case Preferences.Translate.translateEnabled.key:
-      tabManager.selectedTab?.translationState = .unavailable
-      tabManager.selectedTab?.browserData?.setScripts(scripts: [
-        .braveTranslate: Preferences.Translate.translateEnabled.value != false
-      ])
+      if let tab = tabManager.selectedTab {
+        updateTranslateURLBar(tab: tab, state: .unavailable)
+        tab.browserData?.setScripts(scripts: [
+          .braveTranslate: Preferences.Translate.translateEnabled.value != false
+        ])
+      }
       // Only reload the tab if the setting was changed from the settings controller
       if presentedViewController is SettingsNavigationController {
         tabManager.reloadSelectedTab()

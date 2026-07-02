@@ -10,7 +10,6 @@ import Favicon
 import LocalAuthentication
 import Preferences
 import SwiftUI
-import UIKit
 
 struct ManagePasswordsView: View {
   private typealias GroupID = ManagePasswordsViewModel.GroupID
@@ -25,6 +24,7 @@ struct ManagePasswordsView: View {
   @State private var selectedGroupIds: Set<GroupID> = []
   @State private var isDeleteSelectionDialogPresented: Bool = false
   @State private var isSceneInactive = false
+  @State private var addPasswordPresentation: ManagePasswordAddPresentation?
 
   private var isSearchActive: Bool {
     !viewModel.searchText.isEmpty
@@ -63,7 +63,6 @@ struct ManagePasswordsView: View {
       if !isSearchActive {
         Toggle(Strings.Autofill.managePasswordsOfferToSavePasswords, isOn: $saveLogins.value)
           .tint(Color(braveSystemName: .primary40))
-          .listRowBackground(Color(.secondaryBraveGroupedBackground))
       }
 
       if !viewModel.filteredAllowedGroups.isEmpty {
@@ -123,8 +122,7 @@ struct ManagePasswordsView: View {
         }
       }
     }
-    .scrollContentBackground(.hidden)
-    .background((Color(.braveGroupedBackground)))
+    .listSectionSpacing(.compact)
     .accessibilityHidden(isPrivacyOverlayActive)
     .searchable(
       text: $viewModel.searchText,
@@ -139,7 +137,7 @@ struct ManagePasswordsView: View {
       }
     }
     .overlay {
-      if isPrivacyOverlayActive { Color(.braveGroupedBackground).ignoresSafeArea() }
+      if isPrivacyOverlayActive { Color(uiColor: .systemGroupedBackground).ignoresSafeArea() }
     }
     .environment(\.redactionReasons, effectiveRedactionReasons)
     .navigationTitle(Strings.Autofill.managePasswordsTitle)
@@ -148,7 +146,7 @@ struct ManagePasswordsView: View {
       if !isPrivacyOverlayActive {
         ToolbarItem(placement: .topBarTrailing) {
           Button {
-            //TODO: Present Add Password Form
+            addPasswordPresentation = ManagePasswordAddPresentation()
           } label: {
             Label(Strings.addButtonTitle, braveSystemImage: "leo.plus.add")
           }
@@ -190,7 +188,7 @@ struct ManagePasswordsView: View {
         }
       }
 
-      if #available(iOS 26.0, *), LiquidGlassMode.isEnabled {
+      if #available(iOS 26.0, *) {
         ToolbarSpacer(.flexible, placement: .bottomBar)
       } else {
         ToolbarItem(placement: .bottomBar) {
@@ -212,6 +210,12 @@ struct ManagePasswordsView: View {
     .onAppear {
       Task {
         await privacyLock.authenticate(onFailure: exitAfterAuthFailure)
+      }
+    }
+    .sheet(item: $addPasswordPresentation) { presentation in
+      NavigationStack {
+        ManagePasswordAddView(viewModel: viewModel, prefilledSite: presentation.prefilledSite)
+          .environment(\.redactionReasons, effectiveRedactionReasons)
       }
     }
     // Obscure list immediately when the scene deactivates (Control Center, Face ID sheet, etc.);
@@ -276,7 +280,7 @@ private struct ManagePasswordListRow: View {
     NavigationLink {
       Group {
         if passwords.count == 1, let password = passwords.first {
-          ManagePasswordDetailView(viewModel: viewModel, password: password)
+          ManagePasswordDetailContainerView(viewModel: viewModel, password: password)
         } else {
           ManagePasswordGroupView(viewModel: viewModel, domain: domain)
         }
@@ -302,6 +306,5 @@ private struct ManagePasswordListRow: View {
           .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
       }
     }
-    .listRowBackground(Color(.secondaryBraveGroupedBackground))
   }
 }

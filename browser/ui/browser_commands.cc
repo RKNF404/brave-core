@@ -33,8 +33,8 @@
 #include "brave/browser/ui/sidebar/sidebar_service_factory.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/tabs/brave_tab_strip_model.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
-#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_widget_delegate_view.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/browser/url_sanitizer/url_sanitizer_service_factory.h"
 #include "brave/components/brave_vpn/common/buildflags/buildflags.h"
@@ -147,7 +147,7 @@ namespace {
 
 bool CanTakeTabs(const Browser* from, const Browser* to) {
   return from != to && from->type() == Browser::TYPE_NORMAL &&
-         !from->IsAttemptingToCloseBrowser() && !from->is_delete_scheduled() &&
+         !from->IsAttemptingToCloseBrowser() && !from->IsDeleteScheduled() &&
          to->profile() == from->profile();
 }
 
@@ -363,8 +363,9 @@ void CopySanitizedURL(BrowserWindowInterface* browser, const GURL& url) {
 // - Debouncer (potentially debouncing many levels)
 // - Query filter
 // - URLSanitizerService
-void CopyLinkWithStrictCleaning(Browser* browser, const GURL& url) {
-  if (!browser || !browser->profile()) {
+void CopyLinkWithStrictCleaning(BrowserWindowInterface* browser,
+                                const GURL& url) {
+  if (!browser || !browser->GetProfile()) {
     return;
   }
   DCHECK(url.SchemeIsHTTPOrHTTPS());
@@ -372,7 +373,7 @@ void CopyLinkWithStrictCleaning(Browser* browser, const GURL& url) {
   // Apply debounce rules.
   auto* debounce_service =
       debounce::DebounceServiceFactory::GetForBrowserContext(
-          browser->profile());
+          browser->GetProfile());
   if (debounce_service && !debounce_service->Debounce(url, &final_url)) {
     VLOG(1) << "Unable to apply debounce rules";
     final_url = url;
@@ -384,7 +385,7 @@ void CopyLinkWithStrictCleaning(Browser* browser, const GURL& url) {
   }
   // Sanitize url.
   final_url = brave::URLSanitizerServiceFactory::GetForBrowserContext(
-                  browser->profile())
+                  browser->GetProfile())
                   ->SanitizeURL(final_url);
 
   ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);
@@ -433,7 +434,7 @@ void ToggleVerticalTabStripExpanded(Browser* browser) {
   if (!browser_view) {
     return;
   }
-  auto* vtsr_view = browser_view->vertical_tab_strip_widget_delegate_view()
+  auto* vtsr_view = browser_view->vertical_tab_strip_container_view()
                         ->vertical_tab_strip_region_view();
   if (!vtsr_view) {
     return;
@@ -1096,7 +1097,7 @@ void SplitTabsWithSideBySide(Browser* browser,
                                           : selected_indices[0];
   tab_strip_model->AddToNewSplit(
       {non_active_index_from_selected_indices},
-      split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical),
+      split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kSideBySide),
       source);
 }
 
@@ -1292,5 +1293,38 @@ void OpenContainerMenuOnPageActionView(BrowserWindowInterface* browser_window,
 #endif
 }
 #endif
+
+#if BUILDFLAG(ENABLE_PSST)
+void OpenPsstMenuOnPageActionView(BrowserWindowInterface* browser_window,
+                                  actions::ActionItem* item,
+                                  int event_flags) {
+  if (!browser_window) {
+    DVLOG(1) << "Browser window is not valid";
+    return;
+  }
+  BrowserView* const browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser_window);
+  if (!browser_view || !browser_view->toolbar_button_provider()) {
+    DVLOG(1) << "Browser view or toolbar button provider is not valid";
+    return;
+  }
+
+  tabs::TabInterface* tab = browser_window->GetActiveTabInterface();
+  if (!tab) {
+    DVLOG(1) << "Tab is not valid";
+    return;
+  }
+
+  tabs::BraveTabFeatures* brave_tab_features =
+      tabs::BraveTabFeatures::FromTabFeatures(tab->GetTabFeatures());
+  CHECK(brave_tab_features);
+
+  page_actions::PsstActionController* const controller =
+      brave_tab_features->psst_page_action_controller();
+  CHECK(controller);
+  controller->ExecuteAction(browser_view->toolbar_button_provider(), item,
+                            event_flags);
+}
+#endif  // BUILDFLAG(ENABLE_PSST)
 
 }  // namespace brave

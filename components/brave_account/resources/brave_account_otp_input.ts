@@ -9,9 +9,6 @@ import { getDeepActiveElement, hasKeyModifiers } from '//resources/js/util.js'
 import { getCss } from './brave_account_otp_input.css.js'
 import { getHtml } from './brave_account_otp_input.html.js'
 
-const BASE32_CHAR_REGEX = /^[A-Z2-7]$/
-const BASE32_SANITIZE_REGEX = /[^A-Z2-7]/g
-
 type LeoInputElement = HTMLElement & {
   value: string
 }
@@ -43,17 +40,40 @@ export class BraveAccountOtpInputElement extends CrLitElement {
 
   protected onPaste(e: ClipboardEvent) {
     e.preventDefault()
+    this.distribute(e.clipboardData?.getData('text') || '')
+  }
 
+  // Handle direct text input by overwriting the slots.
+  // Done in `beforeinput` to bypass native insertion (caret-dependent),
+  // ensuring consistent behavior.
+  // Real validation happens on the backend, so characters are passed as-is.
+  //
+  // A single keystroke inserts one character at the focused slot. The Android
+  // on-screen keyboard's paste affordance, however, does not dispatch a
+  // `paste`/`ClipboardEvent` (unlike long-press paste), it inserts the whole
+  // clipboard text as a single `insertText` edit, surfacing here with
+  // multi-character `e.data`. Distributing handles both uniformly - one
+  // character per slot starting at the focused one.
+  protected onBeforeInput(e: InputEvent, index: number) {
+    if (e.inputType === 'insertText') {
+      e.preventDefault()
+      this.distribute(e.data ?? '', index)
+    }
+  }
+
+  // Distribute a multi-character string across the slots, one character per
+  // slot, starting at `startIndex` (defaults to the currently focused slot).
+  private distribute(text: string, startIndex?: number) {
     const inputs = this.getInputs()
-    const activeElement = getDeepActiveElement()
-    const startIndex = Math.max(
-      0,
-      inputs.findIndex((input) => input.shadowRoot?.contains(activeElement)),
-    )
+    if (startIndex === undefined) {
+      const activeElement = getDeepActiveElement()
+      startIndex = Math.max(
+        0,
+        inputs.findIndex((input) => input.shadowRoot?.contains(activeElement)),
+      )
+    }
 
-    const chars = (e.clipboardData?.getData('text') || '')
-      .toUpperCase()
-      .replace(BASE32_SANITIZE_REGEX, '')
+    const chars = text.toUpperCase()
     for (const [offset, char] of [...chars].entries()) {
       const input = inputs[startIndex + offset]
       if (!input) {
@@ -63,36 +83,6 @@ export class BraveAccountOtpInputElement extends CrLitElement {
     }
 
     this.focusInput(Math.min(startIndex + chars.length, this.length - 1))
-    this.emitCode()
-  }
-
-  // Handle direct text input by validating Base32 (A-Z, 2-7) and overwriting
-  // the slot. Done in `beforeinput` to block invalid characters before they
-  // enter the field and to bypass native insertion (caret-dependent), ensuring
-  // consistent single-character behavior.
-  protected onBeforeInput(e: InputEvent, index: number) {
-    if (e.inputType !== 'insertText') {
-      return
-    }
-
-    const char = e.data?.toUpperCase() ?? ''
-    if (!BASE32_CHAR_REGEX.test(char)) {
-      e.preventDefault()
-      return
-    }
-
-    const input = this.getInput(index)
-    if (!input) {
-      return
-    }
-
-    e.preventDefault()
-    input.value = char
-
-    if (index < this.length - 1) {
-      this.focusInput(index + 1)
-    }
-
     this.emitCode()
   }
 
@@ -113,10 +103,7 @@ export class BraveAccountOtpInputElement extends CrLitElement {
       return
     }
 
-    input.value = detail.value
-      .toUpperCase()
-      .replace(BASE32_SANITIZE_REGEX, '')
-      .slice(-1)
+    input.value = detail.value.toUpperCase().slice(-1)
 
     this.emitCode()
   }
@@ -155,21 +142,33 @@ export class BraveAccountOtpInputElement extends CrLitElement {
     }
   }
 
+  // Handle backspace manually instead of relying on native deletion.
+  // Native backspace removes the character to the left of the caret,
+  // so it no-ops whenever the caret sits before a character (position 0),
+  // a state users can reach themselves by repositioning the caret.
+  // Clearing explicitly makes backspace caret-independent.
   private handleBackspaceKey(e: KeyboardEvent, index: number) {
     const input = this.getInput(index)
-    if (!input || input.value) {
-      // No-op: no field or let native backspace handle current value.
+    if (!input) {
       return
     }
 
-    const previousInput = this.getInput(index - 1)
-    if (!previousInput) {
-      return
+    if (input.value) {
+      // Clear the current slot, keeping focus on it.
+      e.preventDefault()
+      input.value = ''
+    } else {
+      // Already empty: clear the previous slot and move focus to it.
+      const previousInput = this.getInput(index - 1)
+      if (!previousInput) {
+        return
+      }
+
+      e.preventDefault()
+      previousInput.value = ''
+      this.focusInput(index - 1)
     }
 
-    e.preventDefault()
-    previousInput.value = ''
-    this.focusInput(index - 1)
     this.emitCode()
   }
 

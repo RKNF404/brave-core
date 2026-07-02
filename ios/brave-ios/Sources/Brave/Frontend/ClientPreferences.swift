@@ -142,6 +142,11 @@ extension Preferences {
       key: "general.open-keyboard-on-ntp-selection",
       default: false
     )
+    /// Whether or not open link in quickview mode
+    public static let openLinkInQuickViewMode: Option<Bool> = .init(
+      key: "general.open-link-in-quickview-mode",
+      default: true
+    )
   }
 
   final public class Search {
@@ -245,8 +250,6 @@ extension Preferences {
       key: "privacy.remember-browsing-mode",
       default: false
     )
-    /// Blocks all cookies and access to local storage
-    static let blockAllCookies = Option<Bool>(key: "privacy.block-all-cookies", default: false)
     /// The toggles states for clear private data screen
     static let clearPrivateDataToggles = Option<[Bool]>(
       key: "privacy.clear-data-toggles",

@@ -19,7 +19,11 @@ struct CustomFilterListView: View {
   /// A state for showing/hiding the cancelation alert
   @State private var showCancelAlert = false
   /// Indicates if our text content is empty which allows us to show the prompt text
+  #if compiler(>=6.4)
+  @State private var isTextEmpty: Bool
+  #else
   @State private var isTextEmpty = false
+  #endif
   /// Indicates if we are currently saving the custom filters
   @State private var isSaving = false
   /// Our coordinator manages the content of the input text and gives us information back
@@ -137,7 +141,7 @@ struct CustomFilterListView: View {
       .scrollContentBackground(.hidden)
       .scrollDismissesKeyboard(.interactively)
       .background(
-        Color(.secondaryBraveBackground)
+        Color(braveSystemName: .pageBackground)
           .edgesIgnoringSafeArea(.all)
       )
       .navigationTitle(Text(Strings.Shields.customFilters))
@@ -225,11 +229,10 @@ struct FilterListEditor: UIViewRepresentable {
     lazy var textView: UITextView = {
       let textView = UITextView()
       textView.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)
-      textView.textColor = UIColor.braveLabel
       textView.autocorrectionType = .no
       textView.autocapitalizationType = .none
       textView.keyboardType = .alphabet
-      textView.backgroundColor = .secondaryBraveGroupedBackground
+      textView.backgroundColor = .secondarySystemGroupedBackground
       textView.textContainerInset = UIEdgeInsets(
         vertical: 16,
         horizontal: 12

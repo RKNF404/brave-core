@@ -7,8 +7,10 @@
 #define BRAVE_COMPONENTS_BRAVE_WALLET_BROWSER_POLKADOT_POLKADOT_TEST_UTILS_H_
 
 #include <array>
+#include <cstddef>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/values.h"
@@ -24,6 +26,19 @@ namespace brave_wallet {
 base::DictValue RequestBodyToJsonDict(const network::ResourceRequest& req);
 std::string ReadMetadataFixtureJson(std::string_view file_name);
 std::vector<uint8_t> ReadMetadataFixture(std::string_view file_name);
+
+// Replaces the zero-based nth occurrence of `needle` in `bytes` with
+// `replacement`. Returns false if `needle` is empty or if the requested
+// occurrence is not found.
+//
+// Examples:
+//   ReplaceNthOccurrence("a b a b", "a", "x", 0) -> "x b a b"
+//   ReplaceNthOccurrence("a b a b", "a", "x", 1) -> "a b x b"
+//   ReplaceNthOccurrence("a b", "z", "x", 0) -> false
+bool ReplaceNthOccurrence(std::vector<uint8_t>& bytes,
+                          std::string_view needle,
+                          std::string_view replacement,
+                          size_t occurrence);
 
 struct PolkadotMockRpc {
  public:
@@ -42,6 +57,7 @@ struct PolkadotMockRpc {
   void SetSenderPubKey(
       base::span<uint8_t, kPolkadotSubstrateAccountIdSize> pubkey);
   void SetExpectedExtrinsic(std::string extrinsic);
+  void SetSubmittedExtrinsicHash(std::string extrinsic_hash);
   void SetFinalizedBlockHeader(std::string_view json_str);
 
   // Used to map requests for a block hash given a block's number.
@@ -70,6 +86,9 @@ struct PolkadotMockRpc {
 
   // Convenience wrapper for the above Add* family of functions.
   void AddReqResPairs();
+  void AddWestendAssetHubReqResPairs();
+  void AddPaseoAssetHubReqResPairs();
+  void AddPolkadotAssetHubReqResPairs();
 
   // Must be called last. Sets the interceptor for the TestURLLoaderFactory and
   // ensures that the configured request-response mapping is used.
@@ -108,9 +127,15 @@ struct PolkadotMockRpc {
   base::flat_map<base::DictValue, std::string> req_res_pairs_;
   std::string testnet_url_;
   std::string mainnet_url_;
+  std::string westend_asset_hub_url_;
+  std::string paseo_asset_hub_url_;
+  std::string polkadot_asset_hub_url_;
   std::optional<std::string> expected_extrinsic_;
+  std::string submitted_extrinsic_hash_;
+  std::string account_info_response_json_;
   std::string finalized_block_hash_;  // Hex-encoded, no leading 0x.
   std::string finalized_block_header_json_;
+  base::flat_map<std::string, std::string> block_header_map_;
   base::flat_map<uint32_t, std::string> block_hash_map_;
   base::flat_map<std::string, PolkadotBlock> block_map_;
   std::string bad_block_map_key_;

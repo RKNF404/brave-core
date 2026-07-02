@@ -13,7 +13,6 @@
 namespace tabs {
 
 OVERRIDE_FEATURE_DEFAULT_STATES({{
-    {kHorizontalTabStripComboButton, base::FEATURE_DISABLED_BY_DEFAULT},
     {kVerticalTabsLaunch, base::FEATURE_DISABLED_BY_DEFAULT},
 }});
 
@@ -26,13 +25,9 @@ BASE_FEATURE(kBraveSharedPinnedTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBraveHorizontalTabsUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kBraveCompactHorizontalTabs, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kBraveVerticalTabScrollBar, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBraveVerticalTabHideCompletely, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kBraveVerticalTabStripEmbedded, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBraveTreeTab, base::FEATURE_DISABLED_BY_DEFAULT);
 

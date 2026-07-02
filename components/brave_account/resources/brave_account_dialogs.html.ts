@@ -5,31 +5,26 @@
 
 import { html, nothing } from '//resources/lit/v3_0/lit.rollup.js'
 
-import './brave_account_create_dialog.js'
+import './brave_account_credentials_dialog.js'
 import './brave_account_entry_dialog.js'
-import './brave_account_forgot_password_dialog.js'
 import './brave_account_otp_dialog.js'
+import './brave_account_password_reset_dialog.js'
 import './brave_account_sign_in_dialog.js'
 import { BraveAccountDialogsElement } from './brave_account_dialogs.js'
 
 export function getHtml(this: BraveAccountDialogsElement) {
-  switch (this.dialog) {
+  switch (this.dialog?.type) {
     case undefined:
       return nothing
 
     case 'ENTRY':
       return html`
         <brave-account-entry-dialog
-          @create-button-clicked=${() => (this.dialog = 'CREATE')}
-          @sign-in-button-clicked=${() => (this.dialog = 'SIGN_IN')}
+          @create-button-clicked=${() =>
+            (this.dialog = { type: 'CREDENTIALS' })}
+          @sign-in-button-clicked=${() => (this.dialog = { type: 'SIGN_IN' })}
         >
         </brave-account-entry-dialog>
-      `
-
-    case 'CREATE':
-      return html`
-        <brave-account-create-dialog .isCapsLockOn=${this.isCapsLockOn}>
-        </brave-account-create-dialog>
       `
 
     case 'SIGN_IN':
@@ -37,18 +32,30 @@ export function getHtml(this: BraveAccountDialogsElement) {
         <brave-account-sign-in-dialog
           .isCapsLockOn=${this.isCapsLockOn}
           @forgot-password-button-clicked=${() =>
-            (this.dialog = 'FORGOT_PASSWORD')}
+            (this.dialog = { type: 'PASSWORD_RESET' })}
         >
         </brave-account-sign-in-dialog>
       `
 
-    case 'FORGOT_PASSWORD':
+    case 'PASSWORD_RESET':
       return html`
-        <brave-account-forgot-password-dialog>
-        </brave-account-forgot-password-dialog>
+        <brave-account-password-reset-dialog>
+        </brave-account-password-reset-dialog>
       `
 
     case 'OTP':
-      return html` <brave-account-otp-dialog> </brave-account-otp-dialog> `
+      return html`
+        <brave-account-otp-dialog .intent=${this.dialog.intent}>
+        </brave-account-otp-dialog>
+      `
+
+    case 'CREDENTIALS':
+      return html`
+        <brave-account-credentials-dialog
+          .isCapsLockOn=${this.isCapsLockOn}
+          .verification=${this.dialog.verification}
+        >
+        </brave-account-credentials-dialog>
+      `
   }
 }

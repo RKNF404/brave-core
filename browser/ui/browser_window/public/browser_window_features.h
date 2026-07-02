@@ -16,7 +16,9 @@ class BraveNonClientHitTestHelper;
 class BraveVPNController;
 class FocusModeController;
 class PlaylistSidePanelCoordinator;
-class TreeTabSessionObserver;
+class TreeTabSessionManager;
+class VerticalTabController;
+class WorkspacesBubbleController;
 
 namespace brave_rewards {
 class RewardsPanelCoordinator;
@@ -31,6 +33,10 @@ namespace email_aliases {
 class EmailAliasesController;
 }  // namespace email_aliases
 #endif
+
+namespace screenshot {
+class ScreenshotController;
+}  // namespace screenshot
 
 // This file doesn't include header file for BrowserWindowFeatures_ChromiumImpl
 // because this file only could be included at the bottom of
@@ -82,6 +88,28 @@ class BrowserWindowFeatures : public BrowserWindowFeatures_ChromiumImpl {
     return brave_non_client_hit_test_helper_.get();
   }
 
+  // Can be null when the browser isn't a normal browser or when the tree tab
+  // feature is disabled.
+  TreeTabSessionManager* GetTreeTabSessionManager() {
+    return tree_tab_session_manager_.get();
+  }
+
+  screenshot::ScreenshotController* screenshot_controller() {
+    return screenshot_controller_.get();
+  }
+
+  VerticalTabController* vertical_tab_controller() {
+    return vertical_tab_controller_.get();
+  }
+
+  const VerticalTabController* vertical_tab_controller() const {
+    return vertical_tab_controller_.get();
+  }
+
+  WorkspacesBubbleController* workspaces_bubble_controller() {
+    return workspaces_bubble_controller_.get();
+  }
+
  private:
   std::unique_ptr<sidebar::SidebarController> sidebar_controller_;
   std::unique_ptr<BraveVPNController> brave_vpn_controller_;
@@ -99,7 +127,10 @@ class BrowserWindowFeatures : public BrowserWindowFeatures_ChromiumImpl {
   std::unique_ptr<BraveShieldsUIContentsCache> brave_shields_ui_contents_cache_;
   std::unique_ptr<BraveNonClientHitTestHelper>
       brave_non_client_hit_test_helper_;
-  std::unique_ptr<TreeTabSessionObserver> tree_tab_session_observer_;
+  std::unique_ptr<TreeTabSessionManager> tree_tab_session_manager_;
+  std::unique_ptr<screenshot::ScreenshotController> screenshot_controller_;
+  std::unique_ptr<VerticalTabController> vertical_tab_controller_;
+  std::unique_ptr<WorkspacesBubbleController> workspaces_bubble_controller_;
 };
 
 #endif  // BRAVE_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

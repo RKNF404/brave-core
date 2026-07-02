@@ -115,7 +115,7 @@ if (is_ios) {
     features += [
       "object-pooling",
       "lifeguard",
-      "unsync-regex-caching",
+      "single-thread",
     ]
     deps += [ "//brave/third_party/rust/lifeguard/v0_6:lib" ]
   }
@@ -278,6 +278,9 @@ extra_kv = { allow_unsafe = false }
 [crate.core2]
 extra_kv = { allow_unsafe = true }
 
+[crate.corez]
+extra_kv = { allow_unsafe = false }
+
 [crate.cpufeatures]
 extra_kv = { raw_gn = '''
 if (is_apple && target_cpu == "arm64") {
@@ -316,7 +319,7 @@ extra_kv = { allow_unsafe = false }
 
 [crate.curve25519-dalek]
 extra_input_roots = [ "../docs", "../README.md" ]
-extra_kv = { allow_unsafe = true }
+extra_kv = { allow_unsafe = true, allow_unstable_features = ["stdarch_x86_avx512"] }
 
 [crate.curve25519-dalek-derive]
 extra_input_roots = [ "../README.md" ]
@@ -363,7 +366,6 @@ extra_kv = { allow_unsafe = true }
 extra_kv = { allow_unsafe = true }
 
 [crate.encoding_rs]
-license_files = ['LICENSE-APACHE']
 extra_kv = { allow_unsafe = true }
 
 [crate.equivalent]
@@ -384,7 +386,7 @@ extra_kv = { allow_unsafe = false }
 extra_kv = { allow_unsafe = false }
 
 [crate.flatbuffers]
-extra_kv = { allow_unsafe = true }
+extra_kv = { allow_unsafe = true, allow_unstable_features = ["trusted_len"] }
 
 [crate.fnv]
 extra_kv = { allow_unsafe = false }
@@ -452,6 +454,9 @@ extra_kv = { allow_unsafe = true }
 [crate.getrandom_or_panic]
 extra_kv = { allow_unsafe = false }
 
+[crate.getset]
+extra_kv = { allow_unsafe = false }
+
 [crate.group]
 extra_kv = { allow_unsafe = false }
 
@@ -464,6 +469,9 @@ extra_kv = { allow_unsafe = false }
 
 [crate.halo2_legacy_pdqsort]
 extra_kv = { allow_unsafe = true }
+
+[crate.halo2_poseidon]
+extra_kv = { allow_unsafe = false }
 
 [crate.halo2_proofs]
 license_files = ['../../../../../common/licenses/Apache-2.0']
@@ -507,8 +515,11 @@ extra_kv = { allow_unsafe = false }
 extra_kv = { allow_unsafe = false }
 
 [crate.indexmap]
-license_files = ['../../../../../../third_party/rust/chromium_crates_io/vendor/indexmap-v2/LICENSE-APACHE']
-extra_kv = { allow_unsafe = true }
+# indexmap 1.x's build.rs uses autocfg to probe for `std`, which does not work
+# under gnrt (the probe rustc invocation fails). Set the cfg directly so the
+# crate builds with std support (default hasher + `IndexMap::new`). Harmless for
+# indexmap 2.x which does not read this cfg.
+extra_kv = { rustenv = [ "CARGO_FEATURE_STD=1" ], allow_unsafe = true }
 
 [crate.inout]
 extra_kv = { allow_unsafe = true }
@@ -599,7 +610,7 @@ extra_kv = { allow_unsafe = false }
 extra_kv = { allow_unsafe = true }
 
 [crate.nonempty]
-extra_kv = { allow_unsafe = false }
+extra_kv = { allow_unsafe = true }
 
 [crate.num-bigint]
 license_files = ['../../../../../common/licenses/Apache-2.0']
@@ -707,6 +718,12 @@ extra_kv = { allow_unsafe = false }
 extra_kv = { allow_unsafe = true }
 
 [crate.precomputed-hash]
+extra_kv = { allow_unsafe = false }
+
+[crate.proc-macro-error-attr2]
+extra_kv = { allow_unsafe = false }
+
+[crate.proc-macro-error2]
 extra_kv = { allow_unsafe = false }
 
 [crate.proc-macro-hack]
@@ -826,6 +843,9 @@ extra_kv = { allow_unsafe = true }
 extra_kv = { allow_unsafe = true }
 
 [crate.shardtree]
+extra_kv = { allow_unsafe = false }
+
+[crate.sinsemilla]
 extra_kv = { allow_unsafe = false }
 
 [crate.siphasher]
@@ -968,6 +988,9 @@ extra_kv = { allow_unsafe = true }
 extra_kv = { allow_unsafe = true }
 
 [crate.version_check]
+extra_kv = { allow_unsafe = false }
+
+[crate.visibility]
 extra_kv = { allow_unsafe = false }
 
 [crate.wasi]

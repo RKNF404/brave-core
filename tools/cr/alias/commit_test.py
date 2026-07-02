@@ -19,6 +19,7 @@ import unittest
 
 import _boot  # noqa: F401
 from cmd_test import (CMD_SCRIPT, _GIT_ENV_OVERRIDES, _Sandbox)
+from alias.commit import _MarkChangeShortcut
 
 # ---------------------------------------------------------------------------
 # Tests: flag pass-through
@@ -228,6 +229,160 @@ class TestCommitSanityCheck(unittest.TestCase):
         result = self._sandbox.run_gc(['commit', '-m', 'should fail'])
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('install-hook', result.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Tests: --fixup=reassign: shortcut (delegates to brockit reassign)
+# ---------------------------------------------------------------------------
+
+
+class TestReassignFixup(unittest.TestCase):
+    """git cr commit --fixup=reassign:<ref> delegates to brockit reassign."""
+
+    def setUp(self) -> None:
+        self._sandbox = _Sandbox()
+        self._sandbox.__enter__()
+
+    def tearDown(self) -> None:
+        self._sandbox.__exit__(None, None, None)
+
+    def _commit_count(self) -> int:
+        return int(
+            subprocess.check_output(
+                ['git', 'rev-list', '--count', 'HEAD'],
+                cwd=self._sandbox.root,
+                text=True,
+                env={
+                    **os.environ,
+                    **_GIT_ENV_OVERRIDES
+                },
+            ).strip())
+
+    def test_joined_form_creates_reassign_commit(self) -> None:
+        """--fixup=reassign:HEAD adds an empty reassign! commit on top.
+
+        No hook is installed: the shortcut must work without it because
+        brockit commits with --no-verify.
+        """
+        before = self._commit_count()
+        result = self._sandbox.run_gc(['commit', '--fixup=reassign:HEAD'])
+        self.assertEqual(result.returncode, 0, msg=f'stderr: {result.stderr}')
+        self.assertEqual(self._commit_count(), before + 1)
+        msg = self._sandbox.last_commit_message()
+        # brockit formats the subject as `reassign!<hash>! <original subject>`.
+        self.assertTrue(msg.startswith('reassign!'),
+                        msg=f'unexpected message: {msg!r}')
+        self.assertIn('Add file.txt', msg)
+
+    def test_split_form_creates_reassign_commit(self) -> None:
+        """The split spelling `--fixup reassign:HEAD` is handled too."""
+        before = self._commit_count()
+        result = self._sandbox.run_gc(['commit', '--fixup', 'reassign:HEAD'])
+        self.assertEqual(result.returncode, 0, msg=f'stderr: {result.stderr}')
+        self.assertEqual(self._commit_count(), before + 1)
+        self.assertTrue(
+            self._sandbox.last_commit_message().startswith('reassign!'))
+
+    def test_drop_verb_creates_drop_commit(self) -> None:
+        """--fixup=drop:HEAD adds an empty drop! commit via brockit drop."""
+        before = self._commit_count()
+        result = self._sandbox.run_gc(['commit', '--fixup=drop:HEAD'])
+        self.assertEqual(result.returncode, 0, msg=f'stderr: {result.stderr}')
+        self.assertEqual(self._commit_count(), before + 1)
+        msg = self._sandbox.last_commit_message()
+        # brockit formats the subject as `drop!<hash>! <original subject>`.
+        self.assertTrue(msg.startswith('drop!'),
+                        msg=f'unexpected message: {msg!r}')
+        self.assertIn('Add file.txt', msg)
+
+    def test_empty_ref_is_rejected(self) -> None:
+        """--fixup=reassign: with no ref errors out without committing."""
+        before = self._commit_count()
+        result = self._sandbox.run_gc(['commit', '--fixup=reassign:'])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('reassign', result.stderr)
+        self.assertEqual(self._commit_count(), before)
+
+    def test_extra_passthrough_arg_is_rejected(self) -> None:
+        """Mixing the shortcut with a git arg (e.g. -m) errors, no commit."""
+        before = self._commit_count()
+        result = self._sandbox.run_gc(
+            ['commit', '--fixup=reassign:HEAD', '-m', 'nope'])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('cannot be combined', result.stderr)
+        self.assertEqual(self._commit_count(), before)
+
+    def test_extra_wrapper_flag_is_rejected(self) -> None:
+        """Mixing the shortcut with a wrapper flag (--tagged) errors too."""
+        before = self._commit_count()
+        result = self._sandbox.run_gc(
+            ['commit', '--tagged', 'WIP', '--fixup=reassign:HEAD'])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('cannot be combined', result.stderr)
+        self.assertIn('--tagged', result.stderr)
+        self.assertEqual(self._commit_count(), before)
+
+    def test_native_fixup_still_passes_through_to_git(self) -> None:
+        """A plain `--fixup=<ref>` is not intercepted and reaches git.
+
+        git produces a `fixup! Add file.txt` commit, proving the wrapper only
+        claims the `reassign:` mode and leaves git's own modes alone.
+        """
+        self._sandbox.install_hook()
+        self._sandbox.stage_change('fixup body\n')
+        result = self._sandbox.run_gc(
+            ['commit', '--fixup=HEAD', '--no-verify'])
+        self.assertEqual(result.returncode, 0, msg=f'stderr: {result.stderr}')
+        msg = self._sandbox.last_commit_message()
+        self.assertTrue(msg.startswith('fixup!'),
+                        msg=f'unexpected message: {msg!r}')
+
+
+# ---------------------------------------------------------------------------
+# Tests: _MarkChangeShortcut.from_args detection and leniency (unit)
+# ---------------------------------------------------------------------------
+
+
+class TestMarkChangeShortcutParsing(unittest.TestCase):
+    """Unit checks for the lenient arg detection in from_args."""
+
+    def test_detects_joined_and_split_forms(self) -> None:
+        """Both `--fixup=reassign:X` and `--fixup reassign:X` are recognised."""
+        joined = _MarkChangeShortcut.from_args(['--fixup=reassign:HEAD'])
+        self.assertIsNotNone(joined)
+        self.assertEqual(joined.verb, 'reassign')
+        self.assertEqual(joined.target, 'HEAD')
+        self.assertIsNotNone(
+            _MarkChangeShortcut.from_args(['--fixup', 'reassign:HEAD']))
+
+    def test_detects_drop_verb(self) -> None:
+        """The `drop:` verb is recognised alongside `reassign:`."""
+        for form in (['--fixup=drop:HEAD'], ['--fixup', 'drop:HEAD']):
+            shortcut = _MarkChangeShortcut.from_args(form)
+            self.assertIsNotNone(shortcut, msg=f'not detected: {form}')
+            self.assertEqual(shortcut.verb, 'drop')
+            self.assertEqual(shortcut.target, 'HEAD')
+
+    def test_absent_when_no_marker(self) -> None:
+        """Ordinary commits and git's native fixup modes are not claimed."""
+        self.assertIsNone(_MarkChangeShortcut.from_args(['--fixup=HEAD']))
+        self.assertIsNone(_MarkChangeShortcut.from_args(['--fixup=amend:HEAD'
+                                                         ]))
+        self.assertIsNone(_MarkChangeShortcut.from_args(['-m', 'a message']))
+
+    def test_marker_outside_fixup_is_not_the_shortcut(self) -> None:
+        """A verb token only in a commit message is not the shortcut."""
+        self.assertIsNone(
+            _MarkChangeShortcut.from_args(['-m', 'fix reassign: bug']))
+
+    def test_malformed_fixup_does_not_terminate(self) -> None:
+        """A `--fixup` with no value must not exit the process.
+
+        A strict ArgumentParser would call sys.exit() here; the lenient parser
+        instead raises, so from_args reports "not the shortcut" and the caller
+        falls back to the normal commit path.
+        """
+        self.assertIsNone(_MarkChangeShortcut.from_args(['--fixup']))
 
 
 # ---------------------------------------------------------------------------

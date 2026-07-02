@@ -25,7 +25,9 @@ class BraveVPNButton;
 #endif
 
 class BraveBookmarkButton;
+class ScreenshotButton;
 class SidePanelButton;
+class TabStripComboButton;
 class ToolbarButton;
 class WalletButton;
 
@@ -44,6 +46,7 @@ class BraveToolbarView : public ToolbarView,
   ToolbarButton* vertical_tab_toggle_button() const {
     return vertical_tab_toggle_;
   }
+  TabStripComboButton* combo_button() const { return combo_button_; }
 #if BUILDFLAG(ENABLE_AI_CHAT)
   AIChatButton* ai_chat_button() const { return ai_chat_button_; }
 #endif
@@ -63,6 +66,7 @@ class BraveToolbarView : public ToolbarView,
   void OnEditBookmarksEnabledChanged();
   void OnLocationBarIsWideChanged();
   void OnShowBookmarksButtonChanged();
+  void OnShowScreenshotButtonChanged();
   void ShowBookmarkBubble(const GURL& url, bool already_bookmarked) override;
   void VisibilityChanged(views::View* starting_from, bool visible) override;
 
@@ -78,6 +82,8 @@ class BraveToolbarView : public ToolbarView,
   void UpdateVerticalTabTogglePlacement();
   void UpdateVerticalTabToggleState();
   void OnVerticalTabTogglePressed();
+  void OnCompactModePrefChanged();
+  void UpdateComboButtonState();
 
   // ProfileAttributesStorage::Observer:
   void OnProfileAdded(const base::FilePath& profile_path) override;
@@ -90,6 +96,8 @@ class BraveToolbarView : public ToolbarView,
   void UpdateWalletButtonVisibility();
 
   ToolbarDivider* toolbar_divider_for_testing() { return toolbar_divider_; }
+
+  raw_ptr<TabStripComboButton> combo_button_ = nullptr;
 
   raw_ptr<ToolbarButton> vertical_tab_toggle_ = nullptr;
   raw_ptr<BraveBookmarkButton> bookmark_ = nullptr;
@@ -113,11 +121,15 @@ class BraveToolbarView : public ToolbarView,
   BooleanPrefMember hide_ai_chat_button_by_policy_;
 #endif
 
+  raw_ptr<ScreenshotButton> screenshot_button_ = nullptr;
+  BooleanPrefMember show_screenshot_button_;
+
   BooleanPrefMember show_wallet_button_;
   BooleanPrefMember wallet_disabled_by_policy_;
   BooleanPrefMember wallet_private_window_enabled_;
 
   BooleanPrefMember location_bar_is_wide_;
+  BooleanPrefMember compact_horizontal_tabs_;
 
   BooleanPrefMember show_vertical_tabs_;
   BooleanPrefMember show_title_bar_on_vertical_tabs_;

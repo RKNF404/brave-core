@@ -51,14 +51,15 @@ struct WalletPromptContentView<Content, Footer>: View where Content: View, Foote
                 .font(.footnote.weight(.semibold))
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(BraveFilledButtonStyle(size: .large))
+            .buttonStyle(.filled)
+            .controlSize(.large)
             .disabled(!isPrimaryButtonEnabled)
             Button {
               secondaryButton.action(nil)
             } label: {
               Text(secondaryButton.title)
                 .font(.footnote.weight(.semibold))
-                .foregroundColor(Color(.braveLabel))
+                .foregroundColor(Color(braveSystemName: .textPrimary))
                 .frame(maxWidth: .infinity)
             }
           }
@@ -69,10 +70,11 @@ struct WalletPromptContentView<Content, Footer>: View where Content: View, Foote
             } label: {
               Text(secondaryButton.title)
                 .font(.footnote.weight(.semibold))
-                .foregroundColor(Color(.braveLabel))
+                .foregroundColor(Color(braveSystemName: .textPrimary))
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(BraveOutlineButtonStyle(size: .large))
+            .buttonStyle(.outline)
+            .controlSize(.large)
             Button {
               primaryButton.action(nil)
             } label: {
@@ -80,7 +82,8 @@ struct WalletPromptContentView<Content, Footer>: View where Content: View, Foote
                 .font(.footnote.weight(.semibold))
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(BraveFilledButtonStyle(size: .large))
+            .buttonStyle(.filled)
+            .controlSize(.large)
             .disabled(!isPrimaryButtonEnabled)
           }
         }
@@ -92,7 +95,8 @@ struct WalletPromptContentView<Content, Footer>: View where Content: View, Foote
             .font(.footnote.weight(.semibold))
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(BraveFilledButtonStyle(size: .large))
+        .buttonStyle(.filled)
+        .controlSize(.large)
         .disabled(!isPrimaryButtonEnabled)
       }
       footer()

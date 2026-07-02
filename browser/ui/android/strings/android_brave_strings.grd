@@ -91,6 +91,7 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
     <file lang="az" path="translations/android_brave_strings_az.xtb" />
     <file lang="bg" path="translations/android_brave_strings_bg.xtb" />
     <file lang="bn" path="translations/android_brave_strings_bn.xtb" />
+    <file lang="bs" path="translations/android_brave_strings_bs.xtb" />
     <file lang="ca" path="translations/android_brave_strings_ca.xtb" />
     <file lang="cs" path="translations/android_brave_strings_cs.xtb" />
     <file lang="da" path="translations/android_brave_strings_da.xtb" />
@@ -282,7 +283,7 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
         Enable support for bypassing top-level redirect tracking URLs.
       </message>
       <message name="IDS_BRAVE_SHIELDS_BLOCKS_SCRIPTS_SWITCH" desc="Switch for Block Scripts.">
-        Block Scripts
+        Block scripts
       </message>
       <message name="IDS_BRAVE_SHIELDS_BLOCKS_SCRIPTS_SUMMARY" desc="Switch for Block Scripts summary.">
         Blocks JavaScript (may break sites)
@@ -620,6 +621,90 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
       <message name="IDS_BRAVE_ALLOW_ELEMENT_BLOCKER_IN_PRIVATE_SUMMARY" desc="Shields panel toggle summary that would allow element blocker in private mode.">
         Enables the Shields Block Elements feature in private windows. Note that elements blocked in private windows will also be blocked in non-private windows.
       </message>
+
+      <!-- Unified Shields Panel -->
+      <message name="IDS_SHIELDS_WARNING_LINE2" desc="Warning shown when shields are disabled for a site.">
+        Note: this may reduce Brave's privacy protections.
+      </message>
+      <message name="IDS_SHIELDS_UP_STATUS" desc="Status text when shields are enabled for a site.">
+        Shields up for this site
+      </message>
+      <message name="IDS_SHIELDS_DOWN_STATUS" desc="Status text when shields are disabled for a site.">
+        Shields down for this site
+      </message>
+      <message name="IDS_TRACKERS_BLOCKED_TEXT" desc="Text shown below the block count in the shields panel.">
+        Trackers, ads, and more blocked.
+      </message>
+      <message name="IDS_TRACKERS_ADS_DESCRIPTION" desc="Description for the trackers and ads sub-panel.">
+        Choose how to handle trackers and ads
+      </message>
+      <message name="IDS_COOKIES_DESCRIPTION" desc="Description for the cookies sub-panel.">
+        Choose how to handle cookies
+      </message>
+      <message name="IDS_SHRED_SITE_DATA" desc="Label for the shred site data option in shields advanced settings.">
+        Shred site's data
+      </message>
+      <message name="IDS_RESET_SHIELDS_DEFAULTS" desc="Label for the reset shields defaults option.">
+        Reset this site to Shields defaults
+      </message>
+      <message name="IDS_RESET_SHIELDS_DEFAULTS_CONFIRMATION" desc="Toast confirmation after resetting shields defaults.">
+        Site reset to Shields defaults
+      </message>
+      <message name="IDS_BRAVE_SHIELDS_GLOBAL_SETTINGS_TITLE" desc="Label for the global shields settings link.">
+        Shields global settings
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PROMPT" desc="Prompt asking the user to report a broken site.">
+        Tell us if the site wasn't working properly with Shields up.
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_BUTTON" desc="Button label to initiate a broken site report.">
+        Report
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_TITLE" desc="Title of the broken site report panel.">
+        Report a broken site
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_DESC1" desc="First description paragraph in the broken site report panel.">
+        Let Brave's developers know that this site doesn't work properly with this site.
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_DESC2" desc="Second description paragraph in the broken site report panel.">
+        Thank you for helping make Brave better for all. This report will only contain information necessary for us to fix this site.
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_DETAILS_HINT" desc="Hint text for the details input field in the broken site report.">
+        What is not working on this site?
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_CONTACT_LABEL" desc="Label for the contact field in the broken site report.">
+        Contact me at (optional)
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_CONTACT_HINT" desc="Hint text for the contact input field.">
+        Email, X username, and more
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_CONTACT_INFO" desc="Info text about contact data storage.">
+        If you provide contact info, it will be stored for future reports
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_SUBMIT" desc="Submit button label for the broken site report.">
+        Submit
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_VIEW_SCREENSHOT" desc="Link text to view the screenshot attached to a broken site report.">
+        View screenshot
+      </message>
+      <message name="IDS_REPORT_BROKEN_SITE_PANEL_SUBMITTED" desc="Confirmation message after submitting a broken site report.">
+        Report submitted. Thank you!
+      </message>
+      <message name="IDS_SHRED_SITE_DATA_TITLE" desc="Title of the shred site data sub-panel.">
+        Shred site data
+      </message>
+      <message name="IDS_SHRED_AUTO_SHRED" desc="Label for the auto shred option.">
+        Auto shred
+      </message>
+      <message name="IDS_SHRED_OPTION_SITE_TABS_CLOSED" desc="Auto shred option: when site tabs are closed.">
+        When site tabs are closed
+      </message>
+      <message name="IDS_SHRED_OPTION_APP_EXIT" desc="Auto shred option: when app exits.">
+        When app exits
+      </message>
+      <message name="IDS_SHRED_SITE_DATA_NOW" desc="Button label to shred site data immediately.">
+        Shred site data now
+      </message>
+
       <message name="IDS_CLOSE_TABS_ON_EXIT_SUMMARY" desc="Summary for closing tabs on exit.">
         Don't persist tabs between browsing sessions
       </message>
@@ -693,6 +778,9 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
       </message>
       <message name="IDS_PREFS_CLOSING_ALL_TABS_CLOSES_BRAVE" desc="Title for closing all tabs closes brave in controls section">
         Closing all tabs closes Brave
+      </message>
+      <message name="IDS_BRAVE_TABS_SETTINGS_GROUPS_SECTION_TITLE" desc="Section heading for tab group settings on the Tabs settings page.">
+        Groups
       </message>
       <message name="IDS_PREFS_BACKGROUND_VIDEO_PLAYBACK_ON" desc="Text for background video playback is on">
         Allows audio to play when you switch to another tab in Brave or another app or your device screen is off.
@@ -798,35 +886,14 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
       <message name="IDS_SHIELD_TOOLTIP_DESC" desc="Text for shield tooltip description onboarding">
         See all the bad stuff Brave blocked, on every page, with Shields.
       </message>
-      <message name="IDS_SHIELD_BIGTECH_TRACKER_BLOCKED" desc="Text for shield tracker big tech blocked tooltip onboarding">
-        <ph name="BIG_TECH">%1$s<ex>google</ex></ph> and <ph name="TRACKER">%2$s<ex>1</ex></ph> other ads &amp; trackers blocked
-      </message>
-      <message name="IDS_SHIELD_BIGTECH_TRACKER_ONLY_BLOCKED" desc="Text for shield tracker only big tech blocked tooltip onboarding">
-        <ph name="BIG_TECH">%1$s<ex>google</ex></ph> and other ads &amp; trackers blocked
-      </message>
       <message name="IDS_SHIELD_TRACKER_BLOCKED" desc="Text for shield tracker blocked tooltip onboarding">
         <ph name="TRACKER_COUNT">%1$s<ex>1</ex></ph> ads &amp; trackers blocked
       </message>
       <message name="IDS_SKIP" desc="Text for skip button in onboarding">
         Skip
       </message>
-      <message name="IDS_TROUBLESHOOTING_ONBOARDING" desc="Text for trouble shooting page for onboarding">
-        Troubleshooting onboarding
-      </message>
       <message name="IDS_BRAVE_SHIELDS_ONBOARDING_TITLE" desc="Title for brave shield page">
         Brave Shields
-      </message>
-      <message name="IDS_EARN_TOKENS" desc="Partial Text for brave rewards page">
-        Earn <ph name="TOKEN">%1$s<ex>token</ex></ph>s
-      </message>
-      <message name="IDS_BRAVE_REWARDS_ONBOARDING_TITLE" desc="Title for brave rewards page">
-        Brave Rewards
-      </message>
-      <message name="IDS_BRAVE_REWARDS_ONBOARDING_TEXT" desc="Text for brave rewards page">
-        by viewing privacy-respecting ads and support your favorite sites and creators by default.
-      </message>
-      <message name="IDS_TERMS_TEXT" desc="Text for terms of service page">
-        By tapping Start using Brave Rewards, you agree to the
       </message>
       <message name="IDS_TERMS_OF_SERVICE" desc="Text for terms of service">
         Terms of Service
@@ -834,23 +901,8 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
       <message name="IDS_START_BROWSING" desc="Text for start browsing button">
         Start browsing
       </message>
-      <message name="IDS_I_DIDNT_SEE" desc="Text for i didt see it button">
-        I didn&apos;t see an ad
-      </message>
-      <message name="IDS_BRAVE_ADS_ONBOARDING_TITLE" desc="Title for brave ads page">
-        Brave will show your first ad in
-      </message>
-      <message name="IDS_BRAVE_ADS_ONBOARDING_TEXT" desc="Text for brave ads page">
-        Now you'll earn token from Brave Ads.
-      </message>
       <message name="IDS_THIS_IS_YOUR_FIRST_AD" desc="Text brave rewards notification.">
         This is your first Brave ad. Tap to learn more.
-      </message>
-      <message name="IDS_EARN_AND_GIVE" desc="Button text for rewards onboarding.">
-        Start using Brave Rewards
-      </message>
-      <message name="IDS_CONTINUE_TO_WALLET" desc="Text for continue to wallet button">
-        Continue to wallet
       </message>
       <message name="IDS_RECOVERY_PHRASE_12" desc="12-word recovery phrase Wallet button">
         I have a 12-word recovery phrase
@@ -1183,6 +1235,9 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
       <message name="IDS_BRAVE_SYNC_AUTOFILL" desc="Title for preference which enables sync'ing of autofill. [CHAR_LIMIT=32]">
         Phone numbers, emails, and addresses
       </message>
+      <message name="IDS_BRAVE_SYNC_AI_CHAT" desc="Title for preference which enables sync'ing of AI Chat conversations. [CHAR_LIMIT=32]">
+        Leo AI Conversations
+      </message>
       <message name="IDS_SYNC_FINAL_WARNING_TITLE" desc="Sync final warning alert dialog title">
         Warning
       </message>
@@ -1256,9 +1311,6 @@ Are you sure you want to do this?
       <!-- <message name="IDS_CLEAR_DOWNLOADS_TITLE" desc="Title for Clear download in Clear Browsing Data dialog">
         Download history
       </message> -->
-      <message name="IDS_TOKEN" desc="Text for token">
-        token
-      </message>
       <message name="IDS_PREFS_NEW_TAB_PAGE" desc="Title of New Tab Page settings.">
         New Tab Page
       </message>
@@ -1356,7 +1408,7 @@ Are you sure you want to do this?
         <ph name="BEGIN_LINK_0">&lt;LINK_0&gt;</ph>The "Block all Cookies" option has been deprecated. To learn how to force-enable this option, visit<ph name="END_LINK_0">&lt;/LINK_0&gt;</ph> <ph name="BEGIN_LINK_1">&lt;LINK_1&gt;</ph>our help page<ph name="END_LINK_1">&lt;/LINK_1&gt;</ph>
       </message>
       <message name="IDS_BLOCK_COOKIES" desc="Title for shields option.">
-        Block Cookies
+        Block cookies
       </message>
       <message name="IDS_BLOCK_COOKIES_TEXT" desc="Text for shields option.">
         Prevents websites from storing information about your previous visits
@@ -1389,7 +1441,7 @@ Are you sure you want to do this?
         Never go Off-The-Record
       </message>
       <message name="IDS_BLOCK_FINGERPRINTING" desc="Title for shields option.">
-        Block Fingerprinting
+        Block fingerprinting
       </message>
       <message name="IDS_SHIELDS_SUMMARY" desc="Title for shields option.">
         These are the default Shields settings for new sites. Changing these won't affect your existing per-site settings.
@@ -1418,24 +1470,6 @@ Are you sure you want to do this?
       <message name="IDS_BLOCK_FINGERPRINTING_OPTION_3" desc="Title for shields option.">
         Allow all fingerprinting
       </message>
-      <message name="IDS_ADS_AND_OTHER_THINGS_BLOCKED" desc="Text for shields option.">
-        Ads and other creepy things blocked
-      </message>
-      <message name="IDS_SHIELDS_ABOUT_TEXT" desc="About Text for shields option.">
-        Sites often include cookies and scripts which try to identify you and your device. They want to work out who you are and follow you across the web, tracking what you do on every site.\n\nBrave blocks these things so that you can browse without being followed around.
-      </message>
-      <message name="IDS_ABOUT_BRAVE_SHIELDS_TEXT" desc="About Title for shields option.">
-        About Brave Shields
-      </message>
-      <message name="IDS_UP" desc="Text for brave shields switch.">
-        UP
-      </message>
-      <message name="IDS_DOWN" desc="Text for brave shields switch.">
-        DOWN
-      </message>
-      <message name="IDS_BRAVE_SHIELDS_DOWN_TEXT" desc="Text for brave shields down.">
-        You're browsing this site without Brave's privacy protections. Does it not work right with Shields up?
-      </message>
       <message name="IDS_BRAVE_ETHEREUM_NETWORKS" desc="Text Ethereum networks label.">
         Ethereum networks
       </message>
@@ -1454,17 +1488,8 @@ Are you sure you want to do this?
       <message name="IDS_BRAVE_SHIELDS_BLOCK_ELEMENT_TEXT" desc="Shields block element button label.">
         Block element
       </message>
-      <message name="IDS_BRAVE_SHIELDS_SHRED_SITES_DATA_TEXT" desc="Shields menu shred site's data item text.">
-        Shred site's data
-      </message>
-      <message name="IDS_BRAVE_SHIELDS_SHRED_SITES_DATA_SUB_TEXT" desc="Shields menu shred site's data item sub text.">
-        Auto shred: <ph name="AUTO_SHRED_MODE_TEXT">%1$s</ph>
-      </message>
-      <message name="IDS_BRAVE_SHIELDS_SHRED_SITES_DATA_NOW_TEXT" desc="Shields menu shred site's data now item text.">
-        Shred site data now
-      </message>
-      <message name="IDS_BRAVE_SHIELDS_AUTO_SHRED_SITES_DATA_TEXT" desc="Shields menu auto shred site's data item text.">
-        Auto shred
+      <message name="IDS_SHOW_ALL_BLOCKED_ELEMENTS" desc="Text for show all block elements button.">
+        Clear all blocked elements
       </message>
       <message name="IDS_BRAVE_SHIELDS_AUTO_SHRED_NEVER_MODE_TEXT" desc="Shields menu auto shred never mode item text.">
         Never
@@ -1496,44 +1521,11 @@ Are you sure you want to do this?
       <message name="IDS_BRAVE_SHIELDS_SHRED_REMOVES_HISTORY_TEXT" desc="Shred removes history toggle title text.">
         Shred browsing history
       </message>
-      <message name="IDS_REPORT_BROKEN_SITE_TEXT" desc="Shields text for broken text warning message.">
-        Report a broken site
-      </message>
-      <message name="IDS_REPORT_BROKEN_SITE_TEXT_1" desc="Shields text for broken text warning message.">
-        Let Brave's developers know that this site doesn't work properly with Shields:
-      </message>
-      <message name="IDS_REPORT_BROKEN_SITE_TEXT_2" desc="Shields text for broken text warning message.">
-        Thank you for helping make Brave better for all. This report will only contain information necessary for us to fix this site. <ph name="LEARN_MORE">%1$s</ph>
-      </message>
-      <message name="IDS_REPORT_BROKEN_SITE_TEXT_LINK" desc="Text for link to webcompat report wiki page.">
-        Learn more.
-      </message>
-      <message name="IDS_REPORT_ERROR_PAGE_EXPLANATION" desc="Notifies the user that the error page cannot be reported">
-        This is an error page. It cannot be reported as a broken site.
-      </message>
       <message name="IDS_REPORT_BROKEN_SITE_TEXT_ATTACH_SCREENSHOT_LABEL" desc="Label for the checkbox for attaching a screenshot with the broken website report">
         Include screenshot of the current page
       </message>
-      <message name="IDS_REPORT_BROKEN_SITE_TEXT_VIEW_SCREENSHOT_LABEL" desc="Link text for viewing a screenshot for a broken website report">
-          View screenshot
-      </message>
       <message name="IDS_REPORT_BROKEN_SITE_DETAILS_PLACEHOLDER" desc="Placeholder text for the optional details field in the broken website report">
           Additional details (optional)
-      </message>
-      <message name="IDS_REPORT_BROKEN_SITE_CONTACT_LABEL" desc="Label for the optional contact information field in the broken website report">
-          Contact me at: (optional)
-      </message>
-      <message name="IDS_REPORT_BROKEN_SITE_CONTACT_APOPUP_LABEL" desc="Contact information auto population explanation">
-          If you provide contact info it will be stored for future reports.
-      </message>
-      <message name="IDS_REPORT_BROKEN_SITE_CONTACT_PLACEHOLDER" desc="Placeholder text for the optional contact information field in the broken website report">
-          Email, Twitter, etc.
-      </message>
-      <message name="IDS_THANK_YOU" desc="Title for thank you UI for shields.">
-        Thank you!
-      </message>
-      <message name="IDS_THANK_YOU_TEXT" desc="Text for thank you UI for shields.">
-        Thanks for letting Brave's developers know that there's something wrong with this site. We'll do our best to fix it!
       </message>
       <message name="IDS_ISSUE_CATEGORY_SPINNER_TEXT" desc="Label for a dropdown containing categories of issues on a webpage">
         What's the main issue you're seeing?
@@ -1543,9 +1535,6 @@ Are you sure you want to do this?
       </message>
       <message name="IDS_ADVANCED_CONTROLS" desc="Title for toggle section.">
         Advanced controls
-      </message>
-      <message name="IDS_SHOW_ALL_BLOCKED_ELEMENTS" desc="Text for show all block elements button.">
-        Clear all blocked elements
       </message>
       <message name="IDS_UPDATE_NOTIFICATION_TITLE" desc="Title of notification on application update.">
         Save Data Online
@@ -1712,6 +1701,12 @@ Are you sure you want to do this?
       <message name="IDS_GO_BACK" desc="Go back button text">
         Go Back
       </message>
+      <message name="IDS_PULL_TO_REFRESH_TITLE" desc="Title for pull to refresh preference in accessibility settings.">
+        Pull to refresh
+      </message>
+      <message name="IDS_PULL_TO_REFRESH_SUMMARY" desc="Summary for pull to refresh preference in accessibility settings.">
+        Enables the pull to refresh gesture. Swiping down from the top of a page will refresh the page.
+      </message>
       <message name="IDS_AUTOMATICALLY_OPEN_WHEN_POSSIBLE_TITLE" desc="Title for preference that allows the user to open downloads automatically.">
         Automatically open when possible
       </message>
@@ -1723,9 +1718,6 @@ Are you sure you want to do this?
       </message>
       <message name="IDS_ENABLE_PARALLEL_DOWNLOADING_TEXT" desc="Summary for preference that allows the user to enable parallel downloading.">
         Enable parallel downloading to accelerate download speed
-      </message>
-      <message name="IDS_VIEW_FULL_PRIVACY_REPORT" desc="Shields privacy report text">
-        View full Privacy Report
       </message>
       <message name="IDS_NOT_NOW" desc="Set default browser modal button text">
         Not now
@@ -2642,11 +2634,23 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     <message name="IDS_BRAVE_WALLET_ALLOW_CHANGE_NETWORK_BUTTON" desc="Change network panel button">
       Switch network
     </message>
+    <message name="IDS_TAB_GROUPS_ENABLE_TITLE" desc="Title for a setting that enables or disables tab groups.">
+      Enable tab groups
+    </message>
+    <message name="IDS_TAB_GROUPS_BAR_TITLE" desc="Title for a setting that enables the tab groups bottom bar.">
+      Tab groups bar
+    </message>
+    <message name="IDS_TAB_GROUPS_BAR_SUMMARY" desc="Summary for a setting that enables the tab groups bottom bar.">
+      Show a bottom bar for quick access to tabs in the currently open tab group
+    </message>
+    <message name="IDS_OPEN_LINKS_IN_CURRENT_TAB_GROUP_TITLE" desc="Title for the setting that opens links in the current tab group.">
+      Open links in current tab group
+    </message>
     <message name="IDS_ENABLE_TAB_GROUPS_TITLE" desc="Menu item for grouping Tabs automatically title.">
       Only open links in current tab group
     </message>
-    <message name="IDS_ENABLE_TAB_GROUPS_TEXT" desc="Menu item for grouping Tabs automatically text.">
-      Automatically opens all links in the current tab group
+    <message name="IDS_ENABLE_TAB_GROUPS_TEXT" desc="Summary for the setting that opens links in the current tab group.">
+      Automatically open all links in the current tab group
     </message>
     <message name="IDS_DAPPS_MENU_LOCK_WALLET" desc="Menu item Lock Wallet on DApps Panel">
       Lock Wallet
@@ -3948,6 +3952,15 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     </message>
     <message name="IDS_SYNC_CATEGORY_TITLE" desc="Title for the Brave Sync settings page.">
       Sync
+    </message>
+    <message name="IDS_PERMISSIONS_GEOLOCATION_ACCURACY_LABEL" desc="Label above the geolocation accuracy radio buttons in the permission prompt.">
+      Location precision
+    </message>
+    <message name="IDS_PERMISSIONS_GEOLOCATION_PRECISE" desc="Radio button label for precise location in the permission prompt.">
+      Precise
+    </message>
+    <message name="IDS_PERMISSIONS_GEOLOCATION_APPROXIMATE" desc="Radio button label for approximate location in the permission prompt.">
+      Approximate
     </message>
   </messages>
   </release>

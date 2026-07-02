@@ -7,7 +7,8 @@
 # Add new entries here to override additional Chromium icons.
 nala_icon_overrides = [
   {
-    # Override Chromium's star icon in the bookmark bar with Brave's bookmark ribbon.
+    # Override Chromium's star icon in the bookmark bar with Brave's bookmark
+    # ribbon.
     source = "ic_browser_bookmark_normal.xml"
     dest = "ic_all_bookmarks_icon_16dp.xml"
   },
@@ -17,19 +18,86 @@ nala_icon_overrides = [
     dest = "ic_zoom.xml"
   },
   {
-    # Override Chromium's zoom in button at floating toolbar and app menu on tablets.
+    # Override Chromium's zoom in button at floating toolbar and app menu on
+    # tablets.
     source = "ic_add_circle_filled.xml"
     dest = "ic_add_24dp.xml"
   },
   {
-    # Override Chromium's zoom out button at floating toolbar and app menu on tablets.
+    # Override Chromium's zoom out button at floating toolbar and app menu on
+    # tablets.
     source = "ic_minus.xml"
     dest = "ic_remove.xml"
   },
   {
-    # Override Chromium's product icon in media notifications with the Brave shield.
-    source = "ic_brave_icon_monochrome.xml"
+    # Override Chromium's product icon in media notifications with the Brave
+    # outline favicon.
+    source = "ic_social_brave_outline_favicon_fullheight.xml"
     dest = "chrome_product_vd_24.xml"
+  },
+  {
+    # Override Chromium's copy icon (omnibox suggestions, share sheet, etc.).
+    source = "ic_copy.xml"
+    dest = "ic_content_copy.xml"
+  },
+  {
+    # Override Chromium's edit icon (omnibox suggestions, bookmarks, etc.).
+    source = "ic_edit_pencil.xml"
+    dest = "ic_edit_24dp.xml"
+  },
+  {
+    # Override Chromium's microphone icon (omnibox voice search, widgets, etc.).
+    source = "ic_microphone.xml"
+    dest = "ic_mic_white_24dp.xml"
+  },
+]
+
+# Raster overrides: for upstream icons that ship ONLY as density-qualified PNGs
+# (mdpi..xxxhdpi, optionally with ldrtl variants) and no default-bucket entry. A
+# vector placed in the default res/drawable/ bucket gets shadowed by the
+# denser-matching PNGs, and some of these icons are consumed as raster bitmaps
+# (e.g. via BitmapFactory.decodeResource(), which returns null for a vector), so
+# the override must itself be a PNG in each density bucket. To keep the Nala
+# vector as the single source of truth, those PNGs are generated from it at
+# build time (see android/nala/BUILD.gn and
+# //brave/build/android/nala_vd_rasterizer).
+#
+# Each entry lists the density buckets the upstream icon defines; the override
+# must cover every one of them, otherwise the unoverridden upstream PNG still
+# wins resource resolution on devices matching that density/direction. "ldrtl-"
+# (RTL) buckets are rendered horizontally mirrored, matching how upstream ships
+# its mirrored ldrtl PNGs.
+nala_icon_raster_overrides = [
+  {
+    # Override Chromium's share icon (share sheet, etc.); upstream ships LTR and
+    # RTL density PNGs in components/browser_ui/styles.
+    source = "ic_share.xml"
+    dest = "ic_share_white_24dp"
+    densities = [
+      "mdpi",
+      "hdpi",
+      "xhdpi",
+      "xxhdpi",
+      "xxxhdpi",
+      "ldrtl-mdpi",
+      "ldrtl-hdpi",
+      "ldrtl-xhdpi",
+      "ldrtl-xxhdpi",
+      "ldrtl-xxxhdpi",
+    ]
+  },
+  {
+    # Override Chromium's close ("X") button; upstream ships density PNGs in
+    # ui/android and several callers decode it as a raster bitmap.
+    source = "ic_close.xml"
+    dest = "btn_close"
+    densities = [
+      "mdpi",
+      "hdpi",
+      "xhdpi",
+      "xxhdpi",
+      "xxxhdpi",
+    ]
   },
 ]
 
@@ -38,17 +106,26 @@ nala_icons = [
   "ic_accessibility.xml",
   "ic_antenna.xml",
   "ic_appearance.xml",
+  "ic_arrow_left.xml",
+  "ic_arrow_small_down.xml",
+  "ic_arrow_small_right.xml",
+  "ic_arrow_undo.xml",
+  "ic_arrow_up_and_down.xml",
   "ic_bar_chart_search.xml",
   "ic_bar_chart.xml",
   "ic_browser_customizable_shortcut.xml",
+  "ic_browser_group.xml",
   "ic_browser_home.xml",
+  "ic_browser_mobile_bottom_tab_groups.xml",
   "ic_browser_mobile_tabs_bottom.xml",
   "ic_browser_mobile_tabs_top.xml",
   "ic_browser_mobile_tabs.xml",
   "ic_check_normal.xml",
+  "ic_close.xml",
   "ic_code.xml",
   "ic_credit_card.xml",
   "ic_brave_icon_search.xml",
+  "ic_disable_outline.xml",
   "ic_download.xml",
   "ic_edit_pencil.xml",
   "ic_email_shield.xml",
@@ -57,7 +134,11 @@ nala_icons = [
   "ic_message_bubble_comments.xml",
   "ic_microphone.xml",
   "ic_info_outline.xml",
+  "ic_checkbox_checked.xml",
+  "ic_checkbox_unchecked.xml",
   "ic_key.xml",
+  "ic_launch.xml",
+  "ic_link_normal.xml",
   "ic_autofill.xml",
   "ic_location_on.xml",
   "ic_star_circle.xml",
@@ -73,7 +154,11 @@ nala_icons = [
   "ic_product_translate.xml",
   "ic_product_vpn.xml",
   "ic_search.xml",
+  "ic_shred_data.xml",
   "ic_shield_done.xml",
+  "ic_smartphone_laptop.xml",
+  "ic_social_brave_carved_favicon_fullheight.xml",
+  "ic_social_brave_outline_favicon_fullheight.xml",
   "ic_social_brave_release_favicon_fullheight_color.xml",
   "ic_trash.xml",
   "ic_tune.xml",
@@ -81,5 +166,4 @@ nala_icons = [
   "ic_widget_search2.xml",
   "ic_window_tab_close.xml",
   "ic_window_tab_new.xml",
-  "ic_window.xml",
 ]

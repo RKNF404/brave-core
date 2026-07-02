@@ -18,6 +18,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/path_service.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
@@ -180,8 +181,21 @@ void AdBlockServiceTest::PreRunTestOnMainThread() {
   histogram_tester_.ExpectTotalCount(
       "Brave.Adblock.MakeEngineWithRules.Default", 1);
   InstallDefaultAdBlockComponent();
-  histogram_tester_.ExpectTotalCount(
-      "Brave.Adblock.MakeEngineWithRules.Default", 2);
+  // The histogram is recorded on the ad-block background thread before the
+  // OnEngineLoaded reply is posted back to the UI thread.  Although the
+  // PostTask provides a happens-before guarantee for the reply callback
+  // itself, the HistogramTester reads through relaxed-atomic snapshots that
+  // may not yet reflect the background write at the exact moment the
+  // observer fires.  Poll briefly so slower platforms (especially Windows
+  // CI) have time for the sample to become visible.  Count total samples via
+  // TotalCount(); GetAllSamples().size() counts distinct buckets, so when both
+  // engine builds fall into the same duration bucket it would stay at 1 and
+  // this poll would never complete.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    auto samples = histogram_tester_.GetHistogramSamplesSinceCreation(
+        "Brave.Adblock.MakeEngineWithRules.Default");
+    return samples && samples->TotalCount() >= 2;
+  })) << "Timeout waiting for second MakeEngineWithRules histogram sample";
   EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
 }
 
@@ -315,21 +329,6 @@ void AdBlockServiceTest::UpdateCustomAdBlockInstanceWithRules(
 
   brave_shields::AdBlockServiceTestObserver observer(ad_block_service);
   observer.WaitForAdditional();
-}
-
-void AdBlockServiceTest::AssertTagExists(const std::string& tag,
-                                         bool expected_exists) const {
-  base::test::TestFuture<bool> future;
-  g_brave_browser_process->ad_block_service()
-      ->AsyncCallAndReplyWithResult<bool>(
-          base::BindLambdaForTesting(
-              [tag](brave_shields::AdBlockEngineWrapper* wrapper) {
-                return wrapper->TagExists(tag);
-              }),
-
-          future.GetCallback());
-  ASSERT_TRUE(future.Wait());
-  ASSERT_EQ(future.Get(), expected_exists);
 }
 
 void AdBlockServiceTest::InitEmbeddedTestServer() {
@@ -1403,100 +1402,54 @@ IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, FrameSourceURL) {
   EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
 }
 
-// Tags for social buttons work
-IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, SocialButttonAdBlockTagTest) {
-  UpdateAdBlockInstanceWithRules(
-      base::StrCat({"||example.com^$tag=", brave_shields::kFacebookEmbeds}));
-  GURL tab_url = embedded_test_server()->GetURL("b.com", kAdBlockTestPage);
-  g_brave_browser_process->ad_block_service()->EnableTag(
-      brave_shields::kFacebookEmbeds, true);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  GURL resource_url =
-      embedded_test_server()->GetURL("example.com", "/logo.png");
-  NavigateToURL(tab_url);
-  content::WebContents* contents = web_contents();
-  ASSERT_EQ(true,
-            EvalJs(contents, content::JsReplace("setExpectations(0, 1, 0, 0);"
-                                                "addImage($1)",
-                                                resource_url.spec())));
-  EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
-}
+IN_PROC_BROWSER_TEST_F(AdBlockServiceTest,
+                       SocialMediaBlockingPrefsToggleLists) {
+  // kTwitterEmbedListConstants UUID (enabled by default)
+  std::string twitterUuid = "84960ADD-1CC1-419F-81FC-9F116F5205CC";
+  InstallRegionalAdBlockComponent(twitterUuid, false);
+  // kLinkedInEmbedListConstants UUID (disabled by default)
+  std::string linkedInUuid = "FB626316-6CC8-4447-884B-F5A37C29B0AE";
+  InstallRegionalAdBlockComponent(linkedInUuid, false);
 
-// Lack of tags for social buttons work
-IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, SocialButttonAdBlockDiffTagTest) {
-  UpdateAdBlockInstanceWithRules("||example.com^$tag=sup");
-  GURL tab_url = embedded_test_server()->GetURL("b.com", kAdBlockTestPage);
-  g_brave_browser_process->ad_block_service()->EnableTag(
-      brave_shields::kFacebookEmbeds, true);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  GURL resource_url =
-      embedded_test_server()->GetURL("example.com", "/logo.png");
-  NavigateToURL(tab_url);
-  content::WebContents* contents = web_contents();
-  ASSERT_EQ(true,
-            EvalJs(contents, content::JsReplace("setExpectations(1, 0, 0, 0);"
-                                                "addImage($1)",
-                                                resource_url.spec())));
-  EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
-}
+  {
+    EXPECT_TRUE(component_service_manager()->IsFilterListEnabled(twitterUuid));
+    EXPECT_FALSE(
+        component_service_manager()->IsFilterListEnabled(linkedInUuid));
 
-// Tags are preserved after resetting
-IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, ResetPreservesTags) {
-  g_brave_browser_process->ad_block_service()->EnableTag(
-      brave_shields::kFacebookEmbeds, true);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  UpdateAdBlockInstanceWithRules("");
-  AssertTagExists(brave_shields::kFacebookEmbeds, true);
-}
+    const auto lists = component_service_manager()->GetRegionalLists();
+    ASSERT_EQ(2UL, lists.size());
+    EXPECT_EQ(true, *lists[0].GetDict().FindBool("enabled"));
+    EXPECT_EQ(false, *lists[1].GetDict().FindBool("enabled"));
+  }
 
-// Setting prefs sets the right tags
-IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, TagPrefsControlTags) {
-  // Default tags exist on startup
-  AssertTagExists(brave_shields::kFacebookEmbeds, true);
-  AssertTagExists(brave_shields::kTwitterEmbeds, true);
-  AssertTagExists(brave_shields::kLinkedInEmbeds, false);
+  // Enable LinkedIn embeds
+  {
+    local_state()->SetBoolean(brave_shields::prefs::kLinkedInEmbedControlType,
+                              true);
 
-  // Toggling prefs once is reflected in the adblock client.
-  local_state()->SetBoolean(brave_shields::prefs::kLinkedInEmbedControlType,
-                            true);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  AssertTagExists(brave_shields::kFacebookEmbeds, true);
-  AssertTagExists(brave_shields::kTwitterEmbeds, true);
-  AssertTagExists(brave_shields::kLinkedInEmbeds, true);
+    EXPECT_TRUE(component_service_manager()->IsFilterListEnabled(twitterUuid));
+    EXPECT_TRUE(component_service_manager()->IsFilterListEnabled(linkedInUuid));
 
-  local_state()->SetBoolean(brave_shields::prefs::kFBEmbedControlType, false);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  AssertTagExists(brave_shields::kFacebookEmbeds, false);
-  AssertTagExists(brave_shields::kTwitterEmbeds, true);
-  AssertTagExists(brave_shields::kLinkedInEmbeds, true);
+    const auto lists = component_service_manager()->GetRegionalLists();
+    ASSERT_EQ(2UL, lists.size());
+    EXPECT_EQ(true, *lists[0].GetDict().FindBool("enabled"));
+    EXPECT_EQ(true, *lists[1].GetDict().FindBool("enabled"));
+  }
 
-  local_state()->SetBoolean(brave_shields::prefs::kTwitterEmbedControlType,
-                            false);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  AssertTagExists(brave_shields::kFacebookEmbeds, false);
-  AssertTagExists(brave_shields::kTwitterEmbeds, false);
-  AssertTagExists(brave_shields::kLinkedInEmbeds, true);
+  // Disable Twitter embeds
+  {
+    local_state()->SetBoolean(brave_shields::prefs::kTwitterEmbedControlType,
+                              false);
+    brave_shields::WaitForAdBlockServiceThreads();
 
-  // Toggling prefs back is reflected in the adblock client.
-  local_state()->SetBoolean(brave_shields::prefs::kLinkedInEmbedControlType,
-                            false);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  AssertTagExists(brave_shields::kFacebookEmbeds, false);
-  AssertTagExists(brave_shields::kTwitterEmbeds, false);
-  AssertTagExists(brave_shields::kLinkedInEmbeds, false);
+    EXPECT_FALSE(component_service_manager()->IsFilterListEnabled(twitterUuid));
+    EXPECT_TRUE(component_service_manager()->IsFilterListEnabled(linkedInUuid));
 
-  local_state()->SetBoolean(brave_shields::prefs::kFBEmbedControlType, true);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  AssertTagExists(brave_shields::kFacebookEmbeds, true);
-  AssertTagExists(brave_shields::kTwitterEmbeds, false);
-  AssertTagExists(brave_shields::kLinkedInEmbeds, false);
-
-  local_state()->SetBoolean(brave_shields::prefs::kTwitterEmbedControlType,
-                            true);
-  ASSERT_TRUE(brave_shields::WaitForAdBlockServiceThreads());
-  AssertTagExists(brave_shields::kFacebookEmbeds, true);
-  AssertTagExists(brave_shields::kTwitterEmbeds, true);
-  AssertTagExists(brave_shields::kLinkedInEmbeds, false);
+    const auto lists = component_service_manager()->GetRegionalLists();
+    ASSERT_EQ(2UL, lists.size());
+    EXPECT_EQ(false, *lists[0].GetDict().FindBool("enabled"));
+    EXPECT_EQ(true, *lists[1].GetDict().FindBool("enabled"));
+  }
 }
 
 // Load a page with a blocked image, and make sure it is collapsed.

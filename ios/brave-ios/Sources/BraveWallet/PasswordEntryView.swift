@@ -93,7 +93,7 @@ struct PasswordEntryField: View {
           icon
             .imageScale(.large)
             .font(.headline)
-            .foregroundColor(Color(.braveBlurpleTint))
+            .foregroundColor(Color(braveSystemName: .iconInteractive))
         }
       }
     }
@@ -183,7 +183,7 @@ struct PasswordEntryView: View {
           Button(action: validate) {
             Text(Strings.Wallet.confirm)
           }
-          .buttonStyle(BraveFilledButtonStyle(size: .normal))
+          .buttonStyle(.filled)
           .disabled(!isPasswordValid)
         }
         .padding()
@@ -196,7 +196,7 @@ struct PasswordEntryView: View {
               presentationMode.dismiss()
             } label: {
               Text(Strings.cancelButtonTitle)
-                .foregroundColor(Color(.braveBlurpleTint))
+                .foregroundColor(Color(braveSystemName: .textInteractive))
             }
           }
         }

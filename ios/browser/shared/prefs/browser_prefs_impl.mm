@@ -92,6 +92,7 @@ void RegisterBrowserStatePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(
       global_privacy_control::kGlobalPrivacyControlEnabled, true);
   registry->RegisterBooleanPref(prefs::kMediaBackgroundingEnabled, false);
+  registry->RegisterBooleanPref(prefs::kBlockAllCookiesEnabled, false);
 }
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
@@ -128,9 +129,16 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       brave_shields::prefs::kAdBlockCheckedAllDefaultRegions, false);
   registry->RegisterBooleanPref(
       brave_shields::prefs::kAdBlockCheckedDefaultRegion, false);
+  registry->RegisterBooleanPref(brave_shields::prefs::kFBEmbedControlType,
+                                true);
+  registry->RegisterBooleanPref(brave_shields::prefs::kTwitterEmbedControlType,
+                                true);
+  registry->RegisterBooleanPref(brave_shields::prefs::kLinkedInEmbedControlType,
+                                false);
 }
 
 void MigrateObsoleteProfilePrefs(PrefService* prefs) {
+  brave_account::prefs::MigrateObsoleteProfilePrefs(prefs);
   brave_ads::MigrateObsoleteProfilePrefs(prefs);
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
   brave_wallet::MigrateObsoleteProfilePrefs(prefs);

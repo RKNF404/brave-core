@@ -122,6 +122,11 @@ std::string BraveVpnServiceImpl::GetCurrentEnvironment() const {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
+std::string BraveVpnServiceImpl::GetLastConnectionError() const {
+  CHECK(connection_manager_);
+  return connection_manager_->GetLastConnectionError();
+}
+
 void BraveVpnServiceImpl::RecordWidgetUsageMetrics(bool new_usage) {
   brave_vpn_metrics_.RecordWidgetUsage(new_usage);
 }
@@ -136,7 +141,8 @@ bool BraveVpnServiceImpl::is_purchased_user() const {
 }
 
 void BraveVpnServiceImpl::ReloadPurchasedState() {
-  LoadPurchasedState(skus::GetDomain("vpn", GetCurrentEnvironment()));
+  LoadPurchasedState(
+      skus::GetDomain(skus::GetVpnProductPrefix(), GetCurrentEnvironment()));
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -563,7 +569,7 @@ void BraveVpnServiceImpl::GetPurchasedState(
 
 void BraveVpnServiceImpl::LoadPurchasedState(const std::string& domain) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!skus::DomainIsForProduct(domain, "vpn")) {
+  if (!skus::DomainIsForProduct(domain, skus::GetVpnProductPrefix())) {
     VLOG(2) << __func__ << ": LoadPurchasedState called for non-vpn product";
     return;
   }
@@ -635,7 +641,7 @@ void BraveVpnServiceImpl::RequestCredentialSummary(const std::string& domain) {
 void BraveVpnServiceImpl::OnCredentialSummary(
     const std::string& domain,
     skus::mojom::SkusResultPtr summary) {
-  if (!skus::DomainIsForProduct(domain, "vpn")) {
+  if (!skus::DomainIsForProduct(domain, skus::GetVpnProductPrefix())) {
     VLOG(2) << __func__ << ": CredentialSummary called for non-vpn product";
     return;
   }
@@ -780,7 +786,8 @@ void BraveVpnServiceImpl::OnGetSubscriberCredentialV12(
       VLOG(2) << __func__
               << " : Re-trying to fetch subscriber-credential by fetching "
                  "newer skus-credential.";
-      RequestCredentialSummary(skus::GetDomain("vpn", GetCurrentEnvironment()));
+      RequestCredentialSummary(skus::GetDomain(skus::GetVpnProductPrefix(),
+                                               GetCurrentEnvironment()));
       SetSkusCredentialFetchingRetried(local_prefs_, true);
       return;
     }

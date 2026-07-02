@@ -12,25 +12,30 @@ assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 # Note: Target names in this file should match those upstream where possible.
 
 source_set("tabs_public") {
-  sources = [ "public/brave_tab_features.h" ]
+  sources = [
+    "public/brave_tab_features.h",
+    "public/switches.h",
+    "public/vertical_tab_controller.h",
+  ]
 
   public_deps = [
     "//brave/components/ai_chat/core/common/buildflags",
     "//brave/components/psst/buildflags",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tabs_public",
   ]
 
-  deps = [
-    "//brave/browser/ui/views/page_action",
-    "//brave/components/containers/buildflags",
-  ]
+  deps = [ "//brave/components/containers/buildflags" ]
 }
 
 if (!is_android) {
   source_set("impl") {
     visibility = [ "//chrome/browser" ]
 
-    sources = [ "brave_tab_features.cc" ]
+    sources = [
+      "brave_tab_features.cc",
+      "vertical_tab_controller.cc",
+    ]
 
     deps = [
       ":tabs_public",
@@ -39,6 +44,7 @@ if (!is_android) {
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/profiles",
       "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+      "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:impl",
     ]
 
@@ -57,8 +63,7 @@ if (!is_android) {
     if (enable_psst) {
       deps += [
         "//brave/browser/psst",
-        "//brave/components/psst/browser/content",
-        "//brave/components/psst/common",
+        "//brave/components/psst/core/common",
       ]
     }
   }
@@ -84,15 +89,13 @@ if (!is_android) {
 
   source_set("tab_menu") {
     sources = [
-      "brave_browser_tab_menu_model_delegate.cc",
-      "brave_browser_tab_menu_model_delegate.h",
       "brave_tab_menu_model_factory.cc",
       "brave_tab_menu_model_factory.h",
-      "tab_menu_model_delegate.cc",
     ]
 
     deps = [
       "//base",
+      "//brave/browser/ui/tabs:tabs_public",
       "//brave/components/containers/buildflags",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_menu",
@@ -148,15 +151,16 @@ if (!is_android) {
     ]
   }
 
-  source_set("tree_tab_session_observer") {
+  source_set("tree_tab_session_manager") {
     sources = [
-      "tree_tab_session_observer.cc",
-      "tree_tab_session_observer.h",
+      "tree_tab_session_manager.cc",
+      "tree_tab_session_manager.h",
     ]
 
     deps = [
       "//base",
       "//brave/browser/sessions",
+      "//brave/browser/ui/tabs:tab_strip",
       "//brave/components/tabs",
       "//chrome/browser/sessions",
       "//chrome/browser/ui/tabs:features",
@@ -191,6 +195,9 @@ source_set("browser_tests") {
   ]
 
   if (enable_containers) {
-    deps += [ "//brave/components/containers/core/common:features" ]
+    deps += [
+      "//brave/components/containers/core/browser:test_support",
+      "//brave/components/containers/core/common:features",
+    ]
   }
 }

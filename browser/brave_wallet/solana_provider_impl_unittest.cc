@@ -10,13 +10,14 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/bind.h"
 #include "brave/browser/brave_wallet/brave_wallet_provider_delegate_impl.h"
-#include "brave/browser/brave_wallet/brave_wallet_provider_delegate_impl_helper.h"
+#include "brave/browser/brave_wallet/brave_wallet_provider_delegate_impl_helper_test_util.h"
 #include "brave/browser/brave_wallet/brave_wallet_service_delegate_impl.h"
 #include "brave/browser/brave_wallet/brave_wallet_tab_helper.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_service.h"
@@ -636,7 +637,7 @@ TEST_F(SolanaProviderImplUnitTest, EagerlyConnect) {
 
 TEST_F(SolanaProviderImplUnitTest, ConnectWithNoSolanaAccount) {
   bool onboarding_callback_called = false;
-  SetCallbackForNewSetupNeededForTesting(
+  ScopedNewSetupNeededCallbackForTesting new_setup_callback(
       base::BindLambdaForTesting([&]() { onboarding_callback_called = true; }));
   Navigate(GURL("https://brave.com"));
 
@@ -650,7 +651,9 @@ TEST_F(SolanaProviderImplUnitTest, ConnectWithNoSolanaAccount) {
   EXPECT_TRUE(onboarding_callback_called);
 
   base::test::TestFuture<std::string_view> account_creation_callback_future;
-  SetCallbackForAccountCreationForTesting(
+  std::optional<ScopedAccountCreationCallbackForTesting>
+      account_creation_callback;
+  account_creation_callback.emplace(
       account_creation_callback_future.GetCallback());
   // No solana account
   CreateWallet();
@@ -664,7 +667,7 @@ TEST_F(SolanaProviderImplUnitTest, ConnectWithNoSolanaAccount) {
   EXPECT_TRUE(provider_->account_creation_shown_);
 
   // It should be shown at most once.
-  SetCallbackForAccountCreationForTesting(
+  account_creation_callback.emplace(
       account_creation_callback_future.GetCallback());
   account = Connect(std::nullopt, &error, &error_message);
   EXPECT_TRUE(account.empty());
@@ -672,8 +675,6 @@ TEST_F(SolanaProviderImplUnitTest, ConnectWithNoSolanaAccount) {
   EXPECT_FALSE(IsConnected());
   EXPECT_FALSE(account_creation_callback_future.IsReady());
   EXPECT_TRUE(provider_->account_creation_shown_);
-  // Clear previous set callback which won't run in this test suite
-  SetCallbackForAccountCreationForTesting(base::DoNothing());
 }
 
 TEST_F(SolanaProviderImplUnitTest, Disconnect) {
@@ -834,6 +835,24 @@ TEST_F(SolanaProviderImplUnitTest, SignMessage) {
   AddSolanaPermission(added_account->account_id);
   Connect(std::nullopt, &error, &error_message);
   ASSERT_TRUE(IsConnected());
+
+  // V1 transaction should not be accepted as message for signing.
+  constexpr uint8_t kV1Transaction[] = {
+      0x81, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x01, 0x02, 0x0c, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40,
+      0x42, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  EXPECT_TRUE(SolanaMessage::DeserializeAsV1(kV1Transaction));
+  signature = SignMessage(base::ToVector(kV1Transaction), std::nullopt, &error,
+                          &error_message);
+  EXPECT_TRUE(signature.empty());
+  EXPECT_EQ(error, mojom::SolanaProviderError::kUnauthorized);
+  EXPECT_EQ(error_message, l10n_util::GetStringUTF8(IDS_WALLET_NOT_AUTHED));
 
   // Non-UTF-8 binary payload should be rejected (matches Phantom behavior).
   signature =

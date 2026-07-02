@@ -15,8 +15,10 @@
 #include "brave/browser/ui/sidebar/sidebar_model.h"
 #include "brave/browser/ui/sidebar/sidebar_service_factory.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
+#include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/brave_origin/buildflags/buildflags.h"
 #include "brave/components/brave_talk/buildflags/buildflags.h"
+#include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/constants/brave_switches.h"
 #include "brave/components/constants/webui_url_constants.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
@@ -28,6 +30,7 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -40,6 +43,10 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+#include "brave/components/brave_wallet/common/web_ui_constants.h"
+#endif
+
 namespace sidebar {
 
 using BuiltInItemType = SidebarItem::BuiltInItemType;
@@ -47,17 +54,19 @@ using ShowSidebarOption = SidebarService::ShowSidebarOption;
 
 namespace {
 
-SidebarService* GetSidebarService(Browser* browser) {
-  return SidebarServiceFactory::GetForProfile(browser->profile());
+SidebarService* GetSidebarService(Profile* profile) {
+  return SidebarServiceFactory::GetForProfile(profile);
 }
 
 bool IsActiveTabNTP(content::WebContents* active_web_contents) {
   content::NavigationEntry* entry =
       active_web_contents->GetController().GetLastCommittedEntry();
-  if (!entry)
+  if (!entry) {
     entry = active_web_contents->GetController().GetVisibleEntry();
-  if (!entry)
+  }
+  if (!entry) {
     return false;
+  }
   const GURL url = entry->GetURL();
   return NewTabUI::IsNewTab(url) || NewTabPageUI::IsNewTabPageOrigin(url) ||
          search::NavEntryIsInstantNTP(active_web_contents, entry);
@@ -66,8 +75,9 @@ bool IsActiveTabNTP(content::WebContents* active_web_contents) {
 bool IsURLAlreadyAddedToSidebar(SidebarService* service, const GURL& url) {
   const GURL converted_url = ConvertURLToBuiltInItemURL(url);
   for (const auto& item : service->items()) {
-    if (item.url == converted_url)
+    if (item.url == converted_url) {
       return true;
+    }
   }
 
   return false;
@@ -78,12 +88,14 @@ bool IsURLAlreadyAddedToSidebar(SidebarService* service, const GURL& url) {
 bool HiddenDefaultSidebarItemsContains(SidebarService* service,
                                        const GURL& url) {
   const auto not_added_default_items = service->GetHiddenDefaultSidebarItems();
-  if (not_added_default_items.empty())
+  if (not_added_default_items.empty()) {
     return false;
+  }
   const GURL converted_url = ConvertURLToBuiltInItemURL(url);
   for (const auto& item : not_added_default_items) {
-    if (item.url == converted_url)
+    if (item.url == converted_url) {
       return true;
+    }
   }
   return false;
 }
@@ -97,39 +109,48 @@ bool CanUseSidebar(Browser* browser) {
 // Ex, we don't need to add bookmarks manager as a sidebar shortcut
 // if sidebar panel already has bookmarks item.
 GURL ConvertURLToBuiltInItemURL(const GURL& url) {
-  if (url == GURL(chrome::kChromeUIBookmarksURL))
+  if (url == GURL(chrome::kChromeUIBookmarksURL)) {
     return GURL(chrome::kChromeUIBookmarksSidePanelURL);
+  }
 
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
-  if (url.host() == kBraveTalkHost)
+  if (url.host() == kBraveTalkHost) {
     return GURL(kBraveTalkURL);
+  }
 #endif
 
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
   if (url.SchemeIs(content::kChromeUIScheme) && url.host() == kWalletPageHost) {
     return GURL(kBraveUIWalletPageURL);
   }
+#endif
   return url;
 }
 
 bool CanAddCurrentActiveTabToSidebar(Browser* browser) {
   auto* active_web_contents =
       browser->tab_strip_model()->GetActiveWebContents();
-  if (!active_web_contents)
+  if (!active_web_contents) {
     return false;
+  }
 
-  if (IsActiveTabNTP(active_web_contents))
+  if (IsActiveTabNTP(active_web_contents)) {
     return false;
+  }
 
   const GURL url = active_web_contents->GetLastCommittedURL();
-  if (!url.is_valid())
+  if (!url.is_valid()) {
     return false;
+  }
 
-  auto* service = GetSidebarService(browser);
-  if (IsURLAlreadyAddedToSidebar(service, url))
+  auto* service = GetSidebarService(browser->GetProfile());
+  if (IsURLAlreadyAddedToSidebar(service, url)) {
     return false;
+  }
 
-  if (HiddenDefaultSidebarItemsContains(service, url))
+  if (HiddenDefaultSidebarItemsContains(service, url)) {
     return false;
+  }
 
   return true;
 }
@@ -151,6 +172,10 @@ SidePanelEntryId SidePanelIdFromSideBarItemType(BuiltInItemType type) {
 #if BUILDFLAG(ENABLE_AI_CHAT)
     case BuiltInItemType::kChatUI:
       return SidePanelEntryId::kChatUI;
+#endif
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+    case BuiltInItemType::kBraveNews:
+      return SidePanelEntryId::kBraveNews;
 #endif
     case BuiltInItemType::kWallet:
       [[fallthrough]];
@@ -183,6 +208,10 @@ std::optional<BuiltInItemType> BuiltInItemTypeFromSidePanelId(
     case SidePanelEntryId::kChatUI:
       return BuiltInItemType::kChatUI;
 #endif
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+    case SidePanelEntryId::kBraveNews:
+      return BuiltInItemType::kBraveNews;
+#endif
     default:
       break;
   }
@@ -195,10 +224,10 @@ SidePanelEntryId SidePanelIdFromSideBarItem(const SidebarItem& item) {
   return SidePanelIdFromSideBarItemType(item.built_in_item_type);
 }
 
-std::optional<SidebarItem> AddItemForSidePanelIdIfNeeded(Browser* browser,
+std::optional<SidebarItem> AddItemForSidePanelIdIfNeeded(Profile* profile,
                                                          SidePanelEntryId id) {
   const auto hidden_default_items =
-      GetSidebarService(browser)->GetHiddenDefaultSidebarItems();
+      GetSidebarService(profile)->GetHiddenDefaultSidebarItems();
   if (hidden_default_items.empty()) {
     return std::nullopt;
   }
@@ -206,7 +235,7 @@ std::optional<SidebarItem> AddItemForSidePanelIdIfNeeded(Browser* browser,
   for (const auto& item : hidden_default_items) {
     // Only panel item could have panel id.
     if (item.open_in_panel && id == sidebar::SidePanelIdFromSideBarItem(item)) {
-      GetSidebarService(browser)->AddItem(item);
+      GetSidebarService(profile)->AddItem(item);
       return item;
     }
   }
@@ -235,6 +264,11 @@ void SetLastUsedSidePanel(PrefService* prefs,
         type = BuiltInItemType::kChatUI;
         break;
 #endif
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+      case SidePanelEntryId::kBraveNews:
+        type = BuiltInItemType::kBraveNews;
+        break;
+#endif
       default:
         break;
     }
@@ -243,8 +277,9 @@ void SetLastUsedSidePanel(PrefService* prefs,
   prefs->SetInteger(kLastUsedBuiltInItemType, static_cast<int>(type));
 }
 
-std::optional<SidePanelEntryId> GetLastUsedSidePanel(Browser* browser) {
-  PrefService* prefs = browser->profile()->GetPrefs();
+std::optional<SidePanelEntryId> GetLastUsedSidePanel(
+    BrowserWindowInterface* browser) {
+  PrefService* prefs = browser->GetProfile()->GetPrefs();
   BuiltInItemType type =
       static_cast<BuiltInItemType>(prefs->GetInteger(kLastUsedBuiltInItemType));
   // If cached type item is not included in current model, return null.
@@ -264,6 +299,10 @@ bool IsDisabledItemForPrivate(SidebarItem::BuiltInItemType type) {
     case SidebarItem::BuiltInItemType::kPlaylist:
       return true;
 #endif
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+    case SidebarItem::BuiltInItemType::kBraveNews:
+      return true;
+#endif
     default:
       break;
   }
@@ -281,6 +320,10 @@ bool IsDisabledItemForGuest(SidebarItem::BuiltInItemType type) {
 #endif
 #if BUILDFLAG(ENABLE_PLAYLIST)
     case SidebarItem::BuiltInItemType::kPlaylist:
+      return true;
+#endif
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+    case SidebarItem::BuiltInItemType::kBraveNews:
       return true;
 #endif
     default:

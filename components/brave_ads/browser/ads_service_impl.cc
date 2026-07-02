@@ -149,7 +149,8 @@ AdsServiceImpl::AdsServiceImpl(
     std::unique_ptr<AdsTooltipsDelegate> ads_tooltips_delegate,
     std::unique_ptr<DeviceId> device_id,
     std::unique_ptr<BatAdsServiceFactory> bat_ads_service_factory,
-    ResourceComponent* resource_component,
+    std::unique_ptr<ApplicationStateMonitor> application_state_monitor,
+    ResourceComponent& resource_component,
     history::HistoryService* history_service,
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
     brave_rewards::RewardsService* rewards_service,
@@ -177,14 +178,15 @@ AdsServiceImpl::AdsServiceImpl(
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
       rewards_service_(rewards_service),
 #endif
+      application_state_monitor_(std::move(application_state_monitor)),
       policy_initialization_waiter_(std::move(policy_initialization_waiter)),
       bat_ads_client_associated_receiver_(this) {
   CHECK(device_id_);
   CHECK(bat_ads_service_factory_);
+  CHECK(application_state_monitor_);
   CHECK(policy_initialization_waiter_);
 
-  if (!http_client_ || !history_service_ || !host_content_settings_map_ ||
-      !resource_component_) {
+  if (!http_client_ || !history_service_ || !host_content_settings_map_) {
     CHECK_IS_TEST();
   }
 
@@ -235,10 +237,8 @@ void AdsServiceImpl::RegisterResourceComponents() {
 }
 
 void AdsServiceImpl::RegisterCountryResourceComponent() {
-  if (resource_component_) {
-    resource_component_->RegisterCountryComponent(
-        delegate_->GetVariationsCountryCode());
-  }
+  resource_component_->RegisterCountryComponent(
+      delegate_->GetVariationsCountryCode());
 }
 
 void AdsServiceImpl::UnregisterCountryResourceComponent() {
@@ -246,9 +246,7 @@ void AdsServiceImpl::UnregisterCountryResourceComponent() {
 }
 
 void AdsServiceImpl::RegisterLanguageResourceComponent() {
-  if (resource_component_) {
-    resource_component_->RegisterLanguageComponent(CurrentLanguageCode());
-  }
+  resource_component_->RegisterLanguageComponent(CurrentLanguageCode());
 }
 
 void AdsServiceImpl::UnregisterLanguageResourceComponent() {
@@ -459,9 +457,7 @@ void AdsServiceImpl::InitializeBatAdsCallback(bool success) {
 
   RegisterResourceComponents();
 
-  if (resource_component_) {
-    resource_component_observation_.Observe(resource_component_.get());
-  }
+  resource_component_observation_.Observe(&*resource_component_);
 
   if (host_content_settings_map_) {
     host_content_settings_map_observation_.Observe(
@@ -475,7 +471,7 @@ void AdsServiceImpl::InitializeBatAdsCallback(bool success) {
 #endif
 
   application_state_monitor_observation_.Observe(
-      ApplicationStateMonitor::GetInstance());
+      application_state_monitor_.get());
 
   MaybeShowOnboardingNotification();
 
@@ -835,8 +831,9 @@ void AdsServiceImpl::CheckIdleStateAfterDelay() {
 
 void AdsServiceImpl::CheckIdleState() {
   const int64_t idle_threshold = kUserIdleDetectionThreshold.Get().InSeconds();
-  ProcessIdleState(ui::CalculateIdleState(static_cast<int>(idle_threshold)),
-                   last_idle_time_);
+  ProcessIdleState(
+      ui::CalculateIdleState(base::saturated_cast<int>(idle_threshold)),
+      last_idle_time_);
   last_idle_time_ = base::Seconds(ui::CalculateIdleTime());
 }
 
@@ -1094,11 +1091,6 @@ void AdsServiceImpl::Shutdown() {
   policy_initialization_waiter_.reset();
 
   ShutdownAdsService();
-
-  // ApplicationStateMonitor is only used by this service, it needs to be reset
-  // to let go of the BrowserCollectionObserver before GlobalFeatures object is
-  // destoryed.
-  ApplicationStateMonitor::GetInstance()->Reset();
 }
 
 void AdsServiceImpl::AddBatAdsObserver(
@@ -1445,8 +1437,7 @@ void AdsServiceImpl::IsNetworkConnectionAvailable(
 }
 
 void AdsServiceImpl::IsBrowserActive(IsBrowserActiveCallback callback) {
-  std::move(callback).Run(
-      ApplicationStateMonitor::GetInstance()->IsBrowserActive());
+  std::move(callback).Run(application_state_monitor_->IsBrowserActive());
 }
 
 void AdsServiceImpl::IsBrowserInFullScreenMode(
@@ -1549,10 +1540,6 @@ void AdsServiceImpl::LoadResourceComponent(
     const std::string& id,
     int version,
     LoadResourceComponentCallback callback) {
-  if (!resource_component_) {
-    return std::move(callback).Run({});
-  }
-
   std::optional<base::FilePath> file_path =
       resource_component_->MaybeGetPath(id, version);
   if (!file_path) {

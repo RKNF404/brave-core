@@ -21,7 +21,6 @@ Object.defineProperty(URL, 'createObjectURL', {
 
 const testContext: InputBoxProps['context'] = {
   isMobile: false,
-  hasAcceptedAgreement: true,
   getPluralString: () => Promise.resolve(''),
   attachFiles: jest.fn(),
   isAIChatAgentProfileFeatureEnabled: false,
@@ -37,8 +36,6 @@ const testContext: InputBoxProps['context'] = {
   getScreenshots: jest.fn(),
   setInputText: () => {},
   submitInputTextToAPI: jest.fn(),
-  selectedActionType: undefined,
-  resetSelectedActionType: () => {},
   isCharLimitApproaching: false,
   isCharLimitExceeded: false,
   inputTextCharCountDisplay: '',
@@ -51,12 +48,14 @@ const testContext: InputBoxProps['context'] = {
   removeFile: () => {},
   isUploadingFiles: false,
   disassociateContent: () => {},
+  setToolsAttached: () => {},
   associateDefaultContent: undefined,
   pauseTask: () => {},
   resumeTask: () => {},
   stopTask: () => {},
   handleSkillClick: () => {},
   selectedSkill: undefined,
+  focusInput: jest.fn(),
   processImageFile: jest.fn(),
   processPdfFile: jest.fn(),
   processTextFile: jest.fn(),
@@ -94,6 +93,7 @@ describe('input box', () => {
                 url: { url: 'https://example.com' },
                 uuid: '1234',
                 conversationTurnUuid: undefined,
+                toolsAttached: false,
               },
             ],
           }}
@@ -144,6 +144,7 @@ describe('input box', () => {
                 url: { url: 'https://example.com' },
                 uuid: '1234',
                 conversationTurnUuid: 'turn-1',
+                toolsAttached: false,
               },
             ],
           }}
@@ -431,6 +432,7 @@ describe('input box', () => {
                 title: 'Page Content',
                 url: { url: 'https://example.com' },
                 uuid: '1234',
+                toolsAttached: false,
               },
             ],
             pendingMessageFiles: [
