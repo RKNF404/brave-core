@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/expected.h"
+#include "base/values.h"
 #include "brave/components/brave_account/endpoint_client/client.h"
 #include "brave/components/constants/brave_services_key.h"
 #include "brave/components/constants/network_constants.h"
@@ -112,7 +113,7 @@ EmailAliasesService::EmailAliasesService(
   CHECK(base::FeatureList::IsEnabled(email_aliases::features::kEmailAliases));
   CHECK(brave_account_auth);
 
-  auth_.emplace(pref_service_.get(), std::move(brave_account_auth),
+  auth_.emplace(std::move(brave_account_auth),
                 base::BindRepeating(&EmailAliasesService::OnAuthChanged,
                                     weak_factory_.GetWeakPtr()));
 }
@@ -124,6 +125,9 @@ void EmailAliasesService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kEmailAliasesEnabled, true);
   registry->RegisterBooleanPref(prefs::kPromoShown, false);
 
+  registry->RegisterBooleanPref(
+      prefs::kEmailAliasesNewAliasAutofillSuggestionEnabled, true);
+  registry->RegisterListPref(prefs::kCachedAliases);
   EmailAliasesMetrics::RegisterProfilePrefs(registry);
   EmailAliasesNotes::RegisterProfilePrefs(registry);
 }
@@ -154,18 +158,27 @@ std::string EmailAliasesService::GetAuthEmail() const {
   return auth_->GetAuthEmail();
 }
 
-mojom::AuthenticationStatus EmailAliasesService::GetCurrentStatus() {
-  if (auth_->IsAuthenticated()) {
-    return mojom::AuthenticationStatus::kAuthenticated;
+std::vector<mojom::AliasPtr> EmailAliasesService::GetCachedAliases() const {
+  EmailAliasesNotes notes(pref_service_.get(), GetAuthEmail());
+  std::vector<mojom::AliasPtr> aliases;
+  for (const auto& value : pref_service_->GetList(prefs::kCachedAliases)) {
+    const std::string* email = value.GetIfString();
+    if (!email) {
+      continue;
+    }
+    auto alias = mojom::Alias::New();
+    alias->email = *email;
+    alias->note = notes.GetNote(*email);
+    aliases.push_back(std::move(alias));
   }
-  return mojom::AuthenticationStatus::kUnauthenticated;
+  return aliases;
 }
 
 void EmailAliasesService::OnAuthChanged() {
-  const auto status = GetCurrentStatus();
-  const auto email = GetAuthEmail();
-  for (auto& observer : observers_) {
-    observer->OnAuthStateChanged(mojom::AuthState::New(status, email));
+  if (!IsAuthenticated()) {
+    pref_service_->ClearPref(prefs::kCachedAliases);
+  } else if (ShouldShowPromo()) {
+    MarkPromoShown();
   }
   RefreshAliases();
 }
@@ -205,13 +218,8 @@ void EmailAliasesService::DeleteAlias(const std::string& alias_email,
 
 void EmailAliasesService::AddObserver(
     mojo::PendingRemote<mojom::EmailAliasesServiceObserver> observer) {
-  auto id = observers_.Add(std::move(observer));
-  auto* remote = observers_.Get(id);
-  if (remote) {
-    remote->OnAuthStateChanged(
-        mojom::AuthState::New(GetCurrentStatus(), GetAuthEmail()));
-    RefreshAliases();
-  }
+  observers_.Add(std::move(observer));
+  RefreshAliases();
 }
 
 bool EmailAliasesService::IsAuthenticated() const {
@@ -252,7 +260,7 @@ void EmailAliasesService::OnEditAliasResponse(
 
 void EmailAliasesService::RefreshAliases() {
   CHECK(auth_);
-  if (observers_.empty() || !auth_->IsAuthenticated()) {
+  if (observers_.empty()) {
     return;
   }
   auth_->GetServiceToken(
@@ -370,12 +378,16 @@ void EmailAliasesService::OnRefreshAliasesResponse(
   notes.RemoveNotesForDeletedAliases(response.body.value()->result);
 
   std::vector<email_aliases::mojom::AliasPtr> aliases;
+  base::ListValue cached_aliases;
   for (const auto& entry : response.body.value()->result) {
     auto alias_obj = email_aliases::mojom::Alias::New();
     alias_obj->email = entry.alias;
     alias_obj->note = notes.GetNote(entry.alias);
     aliases.push_back(std::move(alias_obj));
+    cached_aliases.Append(entry.alias);
   }
+
+  pref_service_->SetList(prefs::kCachedAliases, std::move(cached_aliases));
 
   metrics_.ReportEmailAliasPresence(!aliases.empty());
   NotifyObserversAliasesUpdated(

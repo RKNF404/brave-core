@@ -5,7 +5,6 @@
 
 #import "brave/ios/browser/api/ads/brave_ads.h"
 
-#import <Network/Network.h>
 #import <UIKit/UIKit.h>
 
 #include <memory>
@@ -16,11 +15,12 @@
 #include "base/containers/flat_map.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/sequence_bound.h"
@@ -31,9 +31,8 @@
 #include "brave/components/brave_ads/core/browser/network/http_client.h"
 #include "brave/components/brave_ads/core/browser/virtual_pref/virtual_pref_provider.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
-#include "brave/components/brave_ads/core/public/ad_units/new_tab_page_ad/new_tab_page_ad_info.h"
-#include "brave/components/brave_ads/core/public/ad_units/new_tab_page_ad/new_tab_page_ad_util.h"
 #include "brave/components/brave_ads/core/public/ad_units/notification_ad/notification_ad_info.h"
+#include "brave/components/brave_ads/core/public/ad_units/notification_ad/notification_ad_util.h"
 #include "brave/components/brave_ads/core/public/ads.h"
 #include "brave/components/brave_ads/core/public/ads_callback.h"
 #include "brave/components/brave_ads/core/public/ads_client/ads_client_notifier_observer.h"
@@ -44,15 +43,12 @@
 #include "brave/components/brave_rewards/core/pref_names.h"
 #include "brave/components/brave_rewards/core/pref_registry.h"
 #include "brave/components/brave_rewards/core/rewards_flags.h"
-#include "brave/components/l10n/common/locale_util.h"
 #include "brave/components/l10n/common/prefs.h"
-#include "brave/components/ntp_background_images/browser/new_tab_takeover_infobar_util.h"
+#include "brave/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/new_tab_takeover_infobar_util.h"
 #include "brave/components/ntp_background_images/common/pref_names.h"
 #import "brave/ios/browser/api/ads/ads_client_bridge.h"
 #import "brave/ios/browser/api/ads/ads_client_ios.h"
 #import "brave/ios/browser/api/ads/brave_ads.mojom.objc+private.h"
-#import "brave/ios/browser/api/ads/new_tab_page_ad_ios.h"
-#import "brave/ios/browser/api/ads/notification_ad_ios.h"
 #import "brave/ios/browser/api/common/common_operations.h"
 #include "brave/ios/browser/brave_ads/ads_service_factory_ios.h"
 #include "brave/ios/browser/brave_ads/ads_service_impl_ios.h"
@@ -74,6 +70,8 @@
 
 NSString* const kBraveAdsFirstRunAtPrefName =
     base::SysUTF8ToNSString(brave_ads::prefs::kFirstRunAt);
+NSString* const kBraveAdsSponsoredEnabledPrefName =
+    base::SysUTF8ToNSString(brave_ads::prefs::kSponsoredEnabled);
 
 #define BLOG(verbose_level, format, ...)                  \
   [self log:(__FILE__)                                    \
@@ -98,22 +96,10 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 
 }  // namespace
 
-@interface NotificationAdIOS ()
-- (instancetype)initWithNotificationAdInfo:
-    (const brave_ads::NotificationAdInfo&)info;
-@end
-
-@interface NewTabPageAdIOS ()
-- (instancetype)initWithNewTabPageAdInfo:
-    (const brave_ads::NewTabPageAdInfo&)info;
-@end
-
 @interface BraveAds () <AdsClientBridge> {
   std::unique_ptr<brave_ads::VirtualPrefProvider> virtualPrefProvider;
   std::unique_ptr<brave_ads::HttpClient> httpClient;
   raw_ptr<brave_ads::AdsServiceImplIOS> adsService;
-  nw_path_monitor_t networkMonitor;
-  dispatch_queue_t monitorQueue;
 }
 
 // TODO(https://github.com/brave/brave-browser/issues/33730): Unify Brave Ads
@@ -130,7 +116,6 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 @property(nonatomic) int64_t componentUpdaterRetryCount;
 @property(nonatomic, readonly) NSDictionary* componentPaths;
 
-@property(nonatomic) BOOL networkConnectivityAvailable;
 @property(nonatomic, copy) NSString* storagePath;
 @property(nonatomic) PrefService* profilePrefService;
 @property(nonatomic) PrefService* localStatePrefService;
@@ -142,8 +127,6 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
   if ((self = [super init])) {
     self.storagePath = path;
     self.commonOps = [[BraveCommonOperations alloc] initWithStoragePath:path];
-
-    [self startNetworkMonitoring];
 
     [self initComponentUpdater];
 
@@ -159,7 +142,8 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
         std::make_unique<brave_ads::VirtualPrefProviderDelegateIOS>(*profile));
 
     httpClient = std::make_unique<brave_ads::HttpClient>(
-        *self.localStatePrefService, profile->GetSharedURLLoaderFactory(),
+        *self.profilePrefService, *self.localStatePrefService,
+        profile->GetSharedURLLoaderFactory(),
         base::BindRepeating(
             [](ProfileIOS* profile) { return profile->GetNetworkContext(); },
             profile),
@@ -173,8 +157,6 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
   [self removeObservers];
 
   [self stopComponentUpdaterTimer];
-
-  [self stopNetworkMonitor];
 
   virtualPrefProvider.reset();
 
@@ -195,18 +177,6 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 
 - (BOOL)isServiceRunning {
   return adsService != nil && adsService->IsInitialized();
-}
-
-- (BOOL)shouldShowSponsoredImagesAndVideosSetting {
-  const std::string country_code = brave_l10n::GetDefaultISOCountryCodeString();
-
-  // Currently, sponsored videos are only supported in Japan.
-  return base::ToLowerASCII(country_code) == "jp";
-}
-
-- (BOOL)isOptedInToSearchResultAds {
-  return self.profilePrefService->GetBoolean(
-      brave_ads::prefs::kOptedInToSearchResultAds);
 }
 
 - (BOOL)shouldShowSearchResultAdClickedInfoBar {
@@ -235,35 +205,15 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
                  value:base::Value(isEnabled)];
 }
 
-- (void)notifySponsoredImagesIsEnabledPreferenceDidChange:(BOOL)isEnabled {
-  [self setProfilePref:ntp_background_images::prefs::
-                           kNewTabPageShowBackgroundImage
-                 value:base::Value(isEnabled)];
-  [self setProfilePref:ntp_background_images::prefs::
-                           kNewTabPageShowSponsoredImagesBackgroundImage
-                 value:base::Value(isEnabled)];
-}
-
-- (BOOL)isSurveyPanelistEnabled {
-  return self.profilePrefService->GetBoolean(
-      ntp_background_images::prefs::kNewTabPageSponsoredImagesSurveyPanelist);
-}
-
-- (void)setIsSurveyPanelistEnabled:(BOOL)enabled {
-  [self setProfilePref:ntp_background_images::prefs::
-                           kNewTabPageSponsoredImagesSurveyPanelist
-                 value:base::Value(enabled)];
-}
-
-- (BOOL)isEnabled {
+- (BOOL)isNotificationsEnabled {
   return self.profilePrefService->GetBoolean(brave_rewards::prefs::kEnabled);
 }
 
-- (void)setEnabled:(BOOL)enabled {
+- (void)setNotificationsEnabled:(BOOL)notificationsEnabled {
   [self setProfilePref:brave_rewards::prefs::kEnabled
-                 value:base::Value(enabled)];
-  [self setProfilePref:brave_ads::prefs::kOptedInToNotificationAds
-                 value:base::Value(enabled)];
+                 value:base::Value(notificationsEnabled)];
+  [self setProfilePref:brave_ads::prefs::kNotificationsEnabled
+                 value:base::Value(notificationsEnabled)];
 }
 
 #pragma mark - Initialization / Shutdown
@@ -355,32 +305,6 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
   [self notifyBrowserDidEnterBackground];
 }
 
-#pragma mark - Network
-
-- (void)startNetworkMonitoring {
-  auto const __weak weakSelf = self;
-  monitorQueue = dispatch_queue_create("bat.nw.monitor", DISPATCH_QUEUE_SERIAL);
-  networkMonitor = nw_path_monitor_create();
-  nw_path_monitor_set_queue(networkMonitor, monitorQueue);
-  nw_path_monitor_set_update_handler(
-      networkMonitor, ^(nw_path_t _Nonnull path) {
-        const auto strongSelf = weakSelf;
-        if (!strongSelf) {
-          return;
-        }
-        strongSelf.networkConnectivityAvailable =
-            (nw_path_get_status(path) == nw_path_status_satisfied ||
-             nw_path_get_status(path) == nw_path_status_satisfiable);
-      });
-  nw_path_monitor_start(networkMonitor);
-}
-
-- (void)stopNetworkMonitor {
-  if (networkMonitor) {
-    nw_path_monitor_cancel(networkMonitor);
-  }
-}
-
 #pragma mark - URLs
 
 - (std::vector<GURL>)GURLsWithNSURLs:(NSArray<NSURL*>*)redirectChain {
@@ -409,6 +333,16 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 
   _profilePrefService = last_used_profile->GetPrefs();
   CHECK(_profilePrefService);
+
+  // iOS used to incorrectly set kNewTabPageShowBackgroundImage alongside
+  // kSponsoredEnabled, even though iOS doesn't use or expose this pref
+  // separately. Reset it back to its default (true) so it can't override
+  // kSponsoredEnabled in IsNewTabPageAdsEnabled.
+  if (_profilePrefService->HasPrefPath(
+          ntp_background_images::prefs::kNewTabPageShowBackgroundImage)) {
+    _profilePrefService->ClearPref(
+        ntp_background_images::prefs::kNewTabPageShowBackgroundImage);
+  }
 }
 
 #pragma mark - Local state prefs
@@ -445,15 +379,21 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 - (void)saveComponentUpdaterPrefs {
   NSDictionary* prefs = [self.componentUpdaterPrefs copy];
   NSString* path = [[self componentUpdaterPrefsPath] copy];
-  dispatch_group_enter(self.componentUpdaterPrefsWriteGroup);
+  dispatch_group_t prefsWriteGroup = self.componentUpdaterPrefsWriteGroup;
+  dispatch_group_enter(prefsWriteGroup);
+  const auto __weak weakSelf = self;
   dispatch_async(self.componentUpdaterPrefsWriteThread, ^{
     NSError* error = nil;
     [prefs writeToURL:[NSURL fileURLWithPath:path isDirectory:NO] error:&error];
     if (error) {
-      BLOG(0, @"Failed to write component updater prefs: %@", error);
+      [weakSelf logFailedToWriteComponentUpdaterPrefs:error];
     }
-    dispatch_group_leave(self.componentUpdaterPrefsWriteGroup);
+    dispatch_group_leave(prefsWriteGroup);
   });
+}
+
+- (void)logFailedToWriteComponentUpdaterPrefs:(NSError*)error {
+  BLOG(0, @"Failed to write component updater prefs: %@", error);
 }
 
 - (NSDictionary*)componentUpdaterMetadata {
@@ -1275,7 +1215,10 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 #pragma mark - Ads client
 
 - (bool)isNetworkConnectionAvailable {
-  return self.networkConnectivityAvailable;
+  if (!adsService) {
+    return false;
+  }
+  return adsService->IsNetworkConnectionAvailable();
 }
 
 - (bool)isBrowserActive {
@@ -1295,10 +1238,11 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
   return false;
 }
 
-- (void)showNotificationAd:(const brave_ads::NotificationAdInfo&)ad {
-  const auto notificationAd =
-      [[NotificationAdIOS alloc] initWithNotificationAdInfo:ad];
-  [self.notificationsHandler showNotificationAd:notificationAd];
+- (void)showNotificationAd:(brave_ads::mojom::NotificationAdInfoPtr)mojom_ad {
+  CHECK(mojom_ad);
+  const auto notification_ad =
+      [[BraveAdsNotificationAdInfo alloc] initWithNotificationAdInfo:*mojom_ad];
+  [self.notificationsHandler showNotificationAd:notification_ad];
 }
 
 - (void)closeNotificationAd:(const std::string&)placement_id {
@@ -1362,19 +1306,24 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 
 - (void)loadResourceComponent:(const std::string&)id
                       version:(int)version
-                     callback:(brave_ads::LoadFileCallback)callback {
+                     callback:(brave_ads::LoadResourceComponentCallback)callback {
   NSString* bridgedId = base::SysUTF8ToNSString(id);
   NSString* nsFilePath = [self.commonOps dataPathForFilename:bridgedId];
 
   BLOG(1, @"Loading %@ ads resource descriptor", nsFilePath);
 
   base::FilePath file_path(base::SysNSStringToUTF8(nsFilePath));
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock()}, base::BindOnce(^base::File {
-        return base::File(file_path,
-                          base::File::FLAG_OPEN | base::File::FLAG_READ);
-      }),
-      base::BindOnce(std::move(callback)));
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock()},
+      base::BindOnce(
+          [](base::FilePath file_path,
+             brave_ads::LoadResourceComponentCallback callback) {
+            const bool exists = base::PathExists(file_path);
+            base::File file(file_path, base::File::FLAG_OPEN |
+                                            base::File::FLAG_READ);
+            std::move(callback).Run(std::move(file), exists);
+          },
+          file_path, base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
 
 - (void)showScheduledCaptcha:(const std::string&)payment_id
@@ -1475,7 +1424,7 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 }
 
 - (void)maybeServeNewTabPageAd:
-    (void (^)(NewTabPageAdIOS* _Nullable))completion {
+    (void (^)(BraveAdsNewTabPageAdInfo* _Nullable))completion {
   if (![self isServiceRunning]) {
     return completion(/*newTabPageAd=*/nil);
   }
@@ -1486,13 +1435,8 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
           return completion(/*newTabPageAd=*/nil);
         }
 
-        const auto ad = brave_ads::FromMojom(mojom_ad);
-        if (!ad) {
-          return completion(/*newTabPageAd=*/nil);
-        }
-
-        const auto newTabPageAd =
-            [[NewTabPageAdIOS alloc] initWithNewTabPageAdInfo:*ad];
+        const auto newTabPageAd = [[BraveAdsNewTabPageAdInfo alloc]
+            initWithNewTabPageAdInfo:*mojom_ad];
         completion(newTabPageAd);
       }));
 }
@@ -1519,23 +1463,25 @@ constexpr NSString* kAdsResourceComponentMetadataVersion = @".v1";
 }
 
 - (void)maybeGetNotificationAd:(NSString*)identifier
-                    completion:(void (^)(NotificationAdIOS*))completion {
+                    completion:(void (^)(BraveAdsNotificationAdInfo* _Nullable))
+                                   completion {
   if (![self isServiceRunning]) {
     return completion(/*notificationAd=*/nil);
   }
 
   adsService->MaybeGetNotificationAd(
       base::SysNSStringToUTF8(identifier),
-      base::BindOnce(^(
-          base::optional_ref<const brave_ads::NotificationAdInfo> ad) {
-        if (!ad) {
-          return completion(/*notificationAd=*/nil);
-        }
+      base::BindOnce(
+          ^(base::optional_ref<const brave_ads::NotificationAdInfo> ad) {
+            const brave_ads::mojom::NotificationAdInfoPtr mojom_ad =
+                brave_ads::ToMojom(ad);
+            if (!mojom_ad) {
+              return completion(/*notificationAd=*/nil);
+            }
 
-        const auto notification_ad =
-            [[NotificationAdIOS alloc] initWithNotificationAdInfo:*ad];
-        completion(notification_ad);
-      }));
+            completion([[BraveAdsNotificationAdInfo alloc]
+                initWithNotificationAdInfo:*mojom_ad]);
+          }));
 }
 
 - (void)triggerNotificationAdEvent:(NSString*)placementId

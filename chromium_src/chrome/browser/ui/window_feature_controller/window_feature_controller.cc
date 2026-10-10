@@ -5,8 +5,12 @@
 
 #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "build/build_config.h"
+
+// Forward declared to avoid adding a compile-time dependency.
+// impl target is //brave/browser/ui/window_feature_controller:chromium_impl.
+bool BraveDisablesImmersiveFullscreenMode(const ui::UnownedUserDataHost& host);
+bool BraveShouldShowTitlebar(const ui::UnownedUserDataHost& host);
 
 #if BUILDFLAG(IS_MAC)
 #define UsesImmersiveFullscreenMode UsesImmersiveFullscreenMode_ChromiumImpl
@@ -21,19 +25,21 @@
 #undef UsesImmersiveFullscreenTabbedMode
 
 bool WindowFeatureController::UsesImmersiveFullscreenMode() const {
-  // Disable immersive when vertical tabs were on at startup: overlay_widget_ is
-  // not created in that case, so immersive would crash. The first call happens
-  // during BrowserView construction (before the user can toggle vertical tabs),
-  // so this captures the startup state.
-  if (!vertical_tabs_on_at_startup_.has_value()) {
-    vertical_tabs_on_at_startup_ =
-        tabs::utils::ShouldShowBraveVerticalTabs(&browser_.get());
+  // Disable immersive when vertical tabs(or compact mode) were on at startup:
+  // overlay_widget_ is not created in that case, so immersive would crash. The
+  // first call happens during BrowserView construction (before the user can
+  // toggle vertical tabs), so this captures the startup state.
+  if (!disabled_at_startup_.has_value()) {
+    disabled_at_startup_ =
+        BraveDisablesImmersiveFullscreenMode(*unowned_user_data_host_);
   }
-  if (*vertical_tabs_on_at_startup_) {
+
+  if (*disabled_at_startup_) {
     return false;
   }
+
   // Immersive is also incompatible with vertical tabs at runtime.
-  if (tabs::utils::ShouldShowBraveVerticalTabs(&browser_.get())) {
+  if (BraveDisablesImmersiveFullscreenMode(*unowned_user_data_host_)) {
     return false;
   }
 
@@ -41,7 +47,7 @@ bool WindowFeatureController::UsesImmersiveFullscreenMode() const {
 }
 
 bool WindowFeatureController::UsesImmersiveFullscreenTabbedMode() const {
-  if (tabs::utils::ShouldShowBraveVerticalTabs(&browser_.get())) {
+  if (BraveDisablesImmersiveFullscreenMode(*unowned_user_data_host_)) {
     return false;
   }
 
@@ -49,20 +55,3 @@ bool WindowFeatureController::UsesImmersiveFullscreenTabbedMode() const {
       UsesImmersiveFullscreenTabbedMode_ChromiumImpl();
 }
 #endif
-
-bool WindowFeatureController::NormalBrowserSupportsWindowFeature(
-    WindowFeature feature,
-    bool check_can_support) const {
-#if BUILDFLAG(IS_WIN)
-  if (feature == WindowFeature::kFeatureTitleBar) {
-    // In case of vertical tab strip is allowed, we need to have ability to
-    // show title bar on Windows.
-    return tabs::utils::ShouldShowBraveVerticalTabs(&browser_.get()) &&
-           tabs::utils::ShouldShowWindowTitleForVerticalTabs(&browser_.get());
-  }
-#endif
-
-  return WindowFeatureController::
-      NormalBrowserSupportsWindowFeature_ChromiumImpl(feature,
-                                                      check_can_support);
-}

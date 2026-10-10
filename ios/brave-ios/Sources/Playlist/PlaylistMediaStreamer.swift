@@ -4,20 +4,19 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import AVFoundation
+import BraveCore
 import BraveShared
 import Combine
 import Data
 import Foundation
 import MediaPlayer
 import Shared
-import Storage
 import UserAgent
 import WebKit
 import os.log
 
 public class PlaylistMediaStreamer {
   private weak var playerView: UIView?
-  private weak var certStore: CertStore?
   private var webLoader: (any PlaylistWebLoader)?
   private var webLoaderFactory: any PlaylistWebLoaderFactory
 
@@ -36,11 +35,12 @@ public class PlaylistMediaStreamer {
 
   @MainActor
   public func loadMediaStreamingAsset(_ item: PlaylistInfo) async throws -> PlaylistInfo {
-    // We need to check if the item is cached locally.
-    // If the item is cached (downloaded)
-    // then we can play it directly without having to stream it.
-    let cacheState = await PlaylistManager.shared.downloadState(for: item.tagId)
-    if cacheState != .invalid {
+    // If the item is fully cached we can play it directly without streaming.
+    // A cache that is only *in progress* must NOT short-circuit here because the item's stored `src`
+    // may be stale or not directly playable. So we still resolve a fresh streamable
+    // URL while the cache continues downloading in the background.
+    let cacheState = await PlaylistManager.shared.cacheState(for: item.tagId)
+    if cacheState == .cached {
       return item
     }
 
@@ -57,6 +57,14 @@ public class PlaylistMediaStreamer {
     // It's possible the URL expired..
     if !isStreamable {
       return try await streamingFallback(item)
+    }
+
+    // Cache-first: the stored URL is still valid, so `streamingFallback` (which would otherwise kick off caching via `autoDownload`)
+    // isn't reached. Start a background cache here so the item is available locally next time. Gated on the kPlaylistCacheFirstEnabled
+    // flag so the kPlaylistOfflineCacheEnabled offline-cache path  is unaffected.
+    // Skip if a download is already pending or in progress (e.g. triggered when the item was added).
+    if FeatureList.kPlaylistCacheFirstEnabled.enabled, cacheState == .invalid {
+      PlaylistManager.shared.autoDownload(item: item)
     }
 
     return item
@@ -130,8 +138,10 @@ public class PlaylistMediaStreamer {
       }
 
       Task {
-        try await Task.sleep(nanoseconds: NSEC_PER_SEC)
-        PlaylistManager.shared.autoDownload(item: newItem)
+        do {
+          try await Task.sleep(nanoseconds: NSEC_PER_SEC)
+          PlaylistManager.shared.autoDownload(item: newItem)
+        } catch {}
       }
       return item
     } onCancel: {

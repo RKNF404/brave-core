@@ -7,6 +7,9 @@
 /* The name of the feature */
 "widgets.braveLeo" = "레오 AI";
 
+/* Title for the Leo AI voice input shortcut. Leo is the name of a product and should not be translated */
+"widgets.braveLeoVoiceInput" = "Leo 음성 입력";
+
 /* The name of the feature */
 "widgets.braveNews" = "Brave News";
 
@@ -15,9 +18,6 @@
 
 /* Description for favorites widget on 'add widget' screen. */
 "widgets.favoritesWidgetDescription" = "즐겨찾는 웹사이트에 빠르게 액세스할 수 있습니다.";
-
-/* Title for favorites widget on 'add widget' screen. */
-"widgets.favoritesWidgetTitle" = "즐겨찾기";
 
 /* Title for history menu item */
 "widgets.HistoryMenuItem" = "방문 기록";
@@ -33,6 +33,12 @@
 
 /* Title for Brave News widgets that display the top news */
 "widgets.newsClusteringWidgetTitle" = "인기 뉴스";
+
+/* Displayed on a news widget wont load due to admin policies */
+"widgets.newsUnavailableByPolicy" = "Brave 뉴스 비활성화됨";
+
+/* Displayed on a news widget wont load due to admin policies */
+"widgets.newsUnavailableByPolicyDescription" = "조직의 정책에 의해 꺼짐";
 
 /* This shows when you add a widget but have no favorites added in your app */
 "widgets.noFavoritesFound" = "여기서 즐겨찾기를 보려면 Brave를 여세요.";

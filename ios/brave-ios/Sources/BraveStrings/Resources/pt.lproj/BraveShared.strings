@@ -1,12 +1,6 @@
 /* About settings section title */
 "About" = "Acerca de";
 
-/* The title of the screen explaining Brave Shields */
-"AboutBraveShields" = "Sobre as Proteções do Brave";
-
-/* The body of the screen explaining Brave Shields */
-"AboutBraveShieldsBody" = "Geralmente, os sites contêm cookies e scripts que tentam identificar você e seu dispositivo. Eles querem descobrir quem você é e seguir você pela web, monitorando o que você faz em todos os sites.\n\nO Brave bloqueia esses itens para que você possa navegar sem ser vigiado.";
-
 /* See http://mzl.la/1G7uHo7 */
 "AccessPhotoDeniedAlertMessage" = "Isso permite que você salve a imagem no Rolo da Câmera.";
 
@@ -36,9 +30,6 @@
 
 /* Text for the toggle switch to clear 'Brave Ads' data in settings */
 "ads.braveAdsDataToggleOption" = "Dados dos Anúncios Brave";
-
-/* individual blocking statistic title */
-"AdsAndTrackers" = "Anúncios e rastreadores";
 
 /* Setting to always request the desktop version of a website. */
 "AlwaysRequestDesktopSite" = "Sempre solicitar site para computador";
@@ -79,6 +70,9 @@
 /* Label for account when indicating that a domain has multiple accounts */
 "autofill.managePassword.multipleAccounts" = "Contas";
 
+/* The reason string shown in the biometric/passcode authentication prompt when the user tries to access autofill management. */
+"autofill.managePasswords.authenticationReason" = "Autentique-se para gerir as suas palavras-passe.";
+
 /* Alert message warning the user that deleting non-synced passwords will permanently remove them */
 "autofill.managePasswords.deleteCredentialConfirmMessage" = "Isto removerá a(s) palavra-passe guardada(s) para %@ da sua cadeia de sincronização e do seu dispositivo.";
 
@@ -87,6 +81,9 @@
 
 /* Label for the button used to delete the current login. */
 "autofill.managePasswords.deleteManagePasswordButtonTitle" = "Eliminar";
+
+/* Label for the button used to confirm delete action for the current password. */
+"autofill.managePasswords.deleteManagePasswordConfrimButtonTitle" = "Eliminar palavra-passe";
 
 /* Title for the section header in the Manage Passwords list screen, that lists the saved sites */
 "autofill.managePasswords.headerTitle" = "Salva";
@@ -100,6 +97,18 @@
 /* Display text for the option to offer to save passwords */
 "autofill.managePasswords.offerToSavePasswords" = "Oferecer para guardar palavras-passe";
 
+/* Navigation title when creating a new saved login from password management */
+"autofill.managePasswords.passwordDetail.addCredentialTitle" = "Adicionar palavra-passe";
+
+/* Alert message warning the user that deleting the password will remove it from their sync chain and device */
+"autofill.managePasswords.passwordDetail.deleteConfirmMessage" = "Esta palavra-passe será removida da sua cadeia de sincronização e do seu dispositivo.";
+
+/* Placeholder for the password field when adding or editing a login */
+"autofill.managePasswords.passwordDetail.inputPasswordPlaceholder" = "Introduzir palavra-passe";
+
+/* Reveal password label */
+"autofill.managePasswords.passwordDetail.revealPassword" = "Exibir";
+
 /* Prompt that is diplayed in the search bar of the Manage Passwords list screen */
 "autofill.managePasswords.searchWebsitesPrompt" = "Pesquisar websites";
 
@@ -111,18 +120,6 @@
 
 /* Settings autofill section title */
 "autofill.settings.title" = "Preenchimento automático";
-
-/* This is a title for a setting toggle that enables/disables auto-redirect of Google's AMP (Accelerated Mobile Page) pages to the original (non-AMP) pages. The text 'AMP' is not to be translated. */
-"AutoRedirectAMPPages" = "Redireccionamento automático para páginas AMP";
-
-/* This is a description for a setting toggle that enables/disables auto-redirect of Google's AMP (Accelerated Mobile Page) pages to the original (non-AMP) pages. The text 'AMP' and 'Accelerated Mobile Page' is not to be translated. */
-"AutoRedirectAMPPagesDescription" = "Aceda sempre aos URL originais das páginas (não AMP), em vez de às versões de páginas aceleradas para dispositivos móveis (AMP — \"Accelerated Mobile Page\") do Google";
-
-/* This is a title for a setting toggle that enables/disables auto-redirection of tracking pages (Debouncing). Debouncing skips certain intermediate tracker pages and goes directly to the target without the intermediate tracker page. */
-"AutoRedirectTrackingURLs" = "Redirecionamento automático de URLs de monitorização";
-
-/* This is a description for a setting toggle that enables/disables auto-redirect of tracking URLs (i.e. Debouncing). */
-"AutoRedirectTrackingURLsDescription" = "Ative o suporte para ignorar o redirecionamento principal de URLs de monitorização";
 
 /* cookie settings option */
 "Block3rdPartyCookies" = "Bloquear cookies de terceiros";
@@ -142,20 +139,11 @@
 /* Message of alert displayed to user when block all cookie operation fails */
 "BlockAllCookiesFailedAlertMsg" = "Não foi possível definir a preferência. Tente novamente.";
 
-/* A title for a setting that enables cookie consent notices */
-"BlockCookieConsentNotices" = "Bloquear avisos de consentimento para cookies";
-
 /* title for section showing page blocking statistics */
 "BlockingMonitor" = "Monitor de bloqueios";
 
 /* Setting to enable popup blocking */
 "BlockPopups" = "Bloquear pop-ups";
-
-/* No comment provided by engineer. */
-"BlockScripts" = "Bloquear scripts";
-
-/* No comment provided by engineer. */
-"BlockScriptsDescription" = "Bloqueia JavaScript (alguns sites podem não funcionar corretamente).";
 
 /* Action item title of long press for Adding Bookmark for All Tabs in Tab List - The parameter indicates the number of tabs like Add Bookmark for 5 Tabs */
 "BookmarkAllTabsTitle" = "Adicionar marcador para %lld separadores";
@@ -221,46 +209,10 @@
 "braveSearchPromotion.braveSearchPromotionBannerDismissButtonTitle" = "Ignorar";
 
 /* No comment provided by engineer. */
-"BraveShieldsAdvancedControls" = "Controlos avançados";
-
-/* No comment provided by engineer. */
 "BraveShieldsAndPrivacy" = "Escudos Brave e Privacidade";
 
 /* No comment provided by engineer. */
 "BraveShieldsAndPrivacyTitle" = "Escudos e Privacidade";
-
-/* The number of ads and trackers blocked will be next to this */
-"BraveShieldsBlockedCountLabel" = "Anúncios e outras coisas arrepiantes bloqueadas";
-
-/* What the screen reader will read out when the user has VoiceOver on and taps on the question-mark info button on the shields panel */
-"BraveShieldsBlockedInfoButtonAccessibilityLabel" = "Aprenda mais";
-
-/* No comment provided by engineer. */
-"BraveShieldsGlobalChangeButton" = "Alterar padrões globais do Shields";
-
-/* No comment provided by engineer. */
-"BraveShieldsGlobalControls" = "Controles gerais";
-
-/* Shields panel toggle label that would save webcompat report contact info data when enabled. */
-"BraveShieldsSaveContactInfo" = "Armazenar informações de contacto para futuros relatórios de websites com erros";
-
-/* Description for shields panel toggle label that would save webcompat report contact info data when enabled. */
-"BraveShieldsSaveContactInfoDescription" = "Se fornecer informações de contacto, as mesmas serão armazenadas para relatórios futuros";
-
-/* No comment provided by engineer. */
-"BraveShieldsSiteBroken" = "Se este site não estiver funcionando, tente desativar as Proteções";
-
-/* Context: 'Brave Shields Up' or 'Brave Shields Down' */
-"BraveShieldsStatusTitle" = "Proteções Brave";
-
-/* Context: The 'Down' in 'Brave Shields Down' */
-"BraveShieldsStatusValueDown" = "Desativadas";
-
-/* Context: The 'Up' in 'Brave Shields Up' */
-"BraveShieldsStatusValueUp" = "Ativadas";
-
-/* The accessibility hint spoken when focused on the main shields toggle */
-"BraveShieldsToggleHint" = "Toque duas vezes para ativar/desativar o Brave Shields";
 
 /* The name of the feature */
 "bravetalk.braveTalkTitle" = "Conversa Brave";
@@ -718,6 +670,18 @@
 /* Accessibility Title for the button that edits the quick-search engines list. */
 "EditQuickSearchEnginesAccessibilityTitle" = "Editar motores de pesquisa rápida";
 
+/* The message on an alert presented to the user after the app crashes */
+"EnableCrashReporterAlertMessage" = "Se você tiver uma falha ou congelamento, o Brave pode enviar automaticamente relatórios de diagnóstico anônimos para corrigir o problema. Você sempre pode desativar isso nas Configurações mais tarde.";
+
+/* The title on an alert presented to the user after the app crashes */
+"EnableCrashReporterAlertTitle" = "Ativar relatórios de falhas automáticos";
+
+/* The confirmation button title on an alert presented to the user after the app crashes which will enable crash reporting */
+"EnableCrashReporterConfirmButtonTitle" = "Ativar";
+
+/* The button title on an alert presented to the user after the app crashes that ignores the alert */
+"EnableCrashReporterDenyButtonTitle" = "Não agora";
+
 /* Describes whether or not the feature that allows the user to pull down from the top of a web page a certain amount before it triggers a page refresh */
 "enablePullToRefresh" = "Ativar o recurso \"puxar para atualizar\"";
 
@@ -814,15 +778,6 @@
 /* Label to display in the Discoverability overlay for keyboard shortcuts */
 "findPreviousTitle" = "Encontrar anterior";
 
-/* individual blocking statistic title */
-"FingerprintingMethods" = "Métodos de impressão digital";
-
-/* No comment provided by engineer. */
-"FingerprintingProtection" = "Bloquear Impressão Digital";
-
-/* No comment provided by engineer. */
-"FingerprintingProtectionDescription" = "Dificulta para os sites o reconhecimento das características específicas do seu dispositivo.";
-
 /* Setting to follow universal links */
 "FollowUniversalLinks" = "Permitir a abertura de links universais em apps externos";
 
@@ -889,15 +844,6 @@
 /* No comment provided by engineer. */
 "Home" = "Página inicial";
 
-/* No comment provided by engineer. */
-"HTTPSEverywhere" = "Fazer upgrade das conexões para HTTPS";
-
-/* No comment provided by engineer. */
-"HTTPSEverywhereDescription" = "Sempre que possível, abre sites usando HTTPS seguro em vez de HTTP.";
-
-/* individual blocking statistic title */
-"HTTPSUpgrades" = "Atualizações de HTTPS";
-
 /* Title of the button in settings where the user can import browsing data from other browsers. */
 "importBrowsingDataSettingsMenuTitle" = "Importar Dados de Navegação";
 
@@ -918,6 +864,9 @@
 
 /* Title for Brave Leo menu item. Brave Leo is the name of a product and should not be translated */
 "LeoMenuItem" = "Leo";
+
+/* Title for Brave Leo voice input menu item. Brave Leo is the name of a product and should not be translated */
+"LeoVoiceInputMenuItem" = "Introdução por voz do Leo";
 
 /* The message displayed in alert when a login entry deleted */
 "login.loginEntryDeleteAlertMessage" = "O login salvo será removido permanentemente.";
@@ -999,12 +948,6 @@
 
 /* Abbreviation for 'Month', use full word' Month' if this word can't be shortened in your language */
 "monthAbbreviation" = "mês";
-
-/* No comment provided by engineer. */
-"MyFirstAdBody" = "Toque aqui para saber mais.";
-
-/* No comment provided by engineer. */
-"MyFirstAdTitle" = "Este é seu primeiro anúncio do Brave";
 
 /* Bookmark title / Device name */
 "Name" = "Nome";
@@ -1092,9 +1035,6 @@
 
 /* A selection to let the users only see a set of predefined, default images on the background of the app. */
 "ntp.settingsDefaultImagesOnly" = "Imagens padrão";
-
-/* A selection to let the users see sponsored image and video backgrounds when opening a new tab. */
-"ntp.settingsSponsoredImagesAndVideosSelection" = "Imagens Patrocinadas e Vídeos";
 
 /* A selection to let the users see sponsored image backgrounds when opening a new tab. */
 "ntp.settingsSponsoredImagesSelection" = "Imagens patrocinadas";
@@ -1534,7 +1474,7 @@
 /* Title for the Playlist Settings Option for Enable/Disable Auto-Play */
 "playlist.playlistAutoPlaySettingsOptionTitle" = "Reprodução automática";
 
-/* Auto Download turn Off Option */
+/* Auto Cache turn Off Option */
 "playlist.playlistAutoSaveOptionOff" = "Desativada";
 
 /* Auto Save turn On Option */
@@ -1543,10 +1483,10 @@
 /* Option Text for Auto Save Only Wi-Fi Option */
 "playlist.playlistAutoSaveOptionOnlyWifi" = "Somente Wi-Fi";
 
-/* Description for the Playlist Settings Option for Auto Save Videos for Offline (Off/On/Only Wi-fi) */
-"playlist.playlistAutoSaveSettingsDescription" = "A adição de arquivos de vídeo e áudio para uso off-line pode consumir muito espaço de armazenamento no seu dispositivo, além de utilizar seus dados móveis";
+/* Description for the Playlist Settings Option for Auto Caching media (Off/On/Only Wi-fi) */
+"playlist.playlistAutoSaveSettingsDescription" = "O armazenamento em cache de arquivos de vídeo e áudio pode consumir tanto dados móveis quanto espaço de armazenamento no seu dispositivo";
 
-/* Footer Text for the Playlist Settings Option for Auto Save Videos for Offline (Off/On/Only Wi-fi)) */
+/* Footer Text for the Playlist Settings Option for media Auto Cache (Off/On/Only Wi-fi)) */
 "playlist.playlistAutoSaveSettingsFooterText" = "Depois de abrir um conteúdo na Lista de Reprodução, esta opção irá manter os artigos da lista de reprodução abertos no seu dispositivo, para que os possa reproduzir sem uma ligação à Internet.";
 
 /* Title for the Playlist Settings Option for Auto Save Videos for Offline (Off/On/Only Wi-fi) */
@@ -1556,7 +1496,7 @@
 "playlist.playlistDiskSpaceAddAnywayButtonTitle" = "Adicionar Mesmo Assim";
 
 /* When the user's disk space is almost full */
-"playlist.playlistDiskSpaceWarningMessage" = "Seu dispositivo está com pouco espaço. Adicionar este vídeo à Playlist pode falhar ou afetar outros downloads.";
+"playlist.playlistDiskSpaceWarningMessage" = "Seu dispositivo está com pouco espaço. Adicionar este vídeo à Playlist pode falhar ou afetar outros vídeos em cache.";
 
 /* When the user's disk space is almost full */
 "playlist.playlistDiskSpaceWarningTitle" = "O armazenamento está quase cheio";
@@ -1567,20 +1507,17 @@
 /* Title for the Playlist Settings Option for long press gesture */
 "playlist.playlistLongPressSettingsOptionTitle" = "Ativar pressionamento longo";
 
-/* Text for Playlist Media & Offline Data Toggle while clearing the offline data storage in settings */
-"playlist.playlistMediaAndOfflineDataToggleOption" = "Ficheiros da Lista de Reprodução e Dados Offline";
-
-/* Text for Playlist Offline Data Toggle while clearing the offline data storage in settings */
-"playlist.playlistOfflineDataToggleOption" = "Dados off-line da playlist";
+/* Text for Playlist Data Toggle for clearing the cache in settings */
+"playlist.playlistOfflineDataToggleOption" = "Dados da Playlist";
 
 /* Title of a button displayed when first adding some media to Playlist. Its shown next to the name of a folder that the item is recently added to to imply that you are changing the folder it was saved to */
 "playlist.playlistPopoverChangeFoldersButtonTitle" = "Alterar";
 
-/* The title for the alert that shows up when removing all videos and their offline mode storage. */
+/* The title for the alert that shows up when removing all playlist data. */
 "playList.playlistResetAlertTitle" = "Repor";
 
 /* Footer Text for the Playlist Settings Option for resetting Playlist. */
-"playlist.playlistResetPlaylistOptionFooterText" = "Esta opção removerá todos os vídeos da playlist, além do armazenamento do modo off-line.";
+"playlist.playlistResetPlaylistOptionFooterText" = "Esta opção removerá todos os dados da Playlist.";
 
 /* Title Playlist (used for back button, and playlist settings) */
 "playList.playListSettingTitle" = "Playlist";
@@ -1591,7 +1528,7 @@
 /* Title for the Playlist Settings Option for Enable/Disable ability to start playing from the point where user last left-off */
 "playlist.playlistStartPlaybackSettingsOptionTitle" = "Memorizar a posição de reprodução do ficheiro";
 
-/* Title for removing offline mode storage */
+/* Title for removing cached media from the playlist */
 "playList.removeActionButtonTitle" = "Remover";
 
 /* A message shown when the user removes media from the playlist. '%@' will be replaced by the folder it was added to. Example: 'Removed from Play Later' */
@@ -1611,9 +1548,6 @@
 
 /* The title for the toast that shows up on a page containing a playlist item */
 "playList.toastAddToPlaylistTitle" = "Adicionar à lista de reprodução";
-
-/* The title for the toast that shows up on a page when an item that has already been added, was updated. */
-"playList.toastExitingItemPlaylistTitle" = "Ver na Brave Playlist";
 
 /* A button title that when tapped will re-add the media item (undo the removal) that the user recently removed. */
 "playList.undoRemoveButtonTitle" = "Anular";
@@ -1650,9 +1584,6 @@
 
 /* The title of a folder when the user enters no name (untitled) */
 "playlistFolders.untitledFolderTitle" = "Lista de reprodução sem título";
-
-/* Description for closing the `Brave Shields` popover menu that is displayed. */
-"PopoverShieldsMenuClose" = "Fechar menu de proteções";
 
 /* Settings privacy section title */
 "Privacy" = "Privacidade";
@@ -2002,41 +1933,8 @@
 /* Button to remove a favorite */
 "RemoveFavorite" = "Remover favorito em destaque";
 
-/* No comment provided by engineer. */
-"ReportABrokenSite" = "Informar sobre um Site Danificado";
-
 /* Providers the user an email page where they can submit a but report. */
 "ReportABug" = "Relatar a existência de um bug";
-
-/* A label for a text entry field where the user can provide additional details for a web-compatibility report */
-"ReportBrokenAdditionalDetails" = "Detalhes adicionais (opcional)";
-
-/* A label for a text entry field where the user can provide additional details for a web-compatibility report */
-"reportBrokenAdditionalDetailsRequired" = "Detalhes adicionais";
-
-/* A label for a drop down where the user provides a category for a web-compatibility report */
-"reportBrokenCategory" = "Qual é o principal problema com que se está a deparar?";
-
-/* A label for a text entry field where the user can provide contact details within a web-compatibilty report */
-"ReportBrokenContactMe" = "Entrem em contacto comigo: (opcional)";
-
-/* Contact info storing description */
-"ReportBrokenContactMeDescription" = "Se fornecer informações de contacto, as mesmas serão armazenadas para comunicar websites com problemas, futuramente.";
-
-/* A placeholder for a text entry field within a web-compatibilty report which shows a few suggestions of what the user should enter for their contact contact details (in a 'Contact me at: (optional)' field). */
-"ReportBrokenContactMeSuggestions" = "E-mail, Twitter, etc.";
-
-/* A placeholder for a drop down where the user provides a category for a web-compatibility report */
-"ReportBrokenPlaceholder" = "Selecione uma opção";
-
-/* First part of the report a broken site copy. After the colon is a new line and then a website address */
-"ReportBrokenSiteBody1" = "Permita que os programadores do Brave saibam que este website não está a funcionar corretamente:";
-
-/* This is the info text that is presented when a user is submitting a web-compatibility report. */
-"ReportBrokenSiteBody2" = "Nota: o relatório enviado para os servidores do Brave inclui o endereço do site, a versão do Brave utilizada, as definições das proteções, o estado da VPN e as definições de idioma.";
-
-/* No comment provided by engineer. */
-"ReportBrokenSubmitButtonTitle" = "Submeter";
 
 /* A title that appears on a permissions dialog on whether or not the user wants to allow a web page to access their device's camera & microphone. %@ will be replaced with the websites address (for example: "talk.brave.com") */
 "requestCameraAndMicrophonePermissionPrompt" = "\"%@\" Gostaria de acessar a câmera e o microfone";
@@ -2071,21 +1969,6 @@
 /* Restore Tabs Prompt Title */
 "RestoreTabOnCrashAlertTitle" = "O Brave fechou inesperadamente.";
 
-/* Body for Brave Talk rewards opt-in screen */
-"rewards.braveTalkRewardsOptInBody" = "Com o Brave Rewards, você pode visualizar anúncios da rede do Brave Ads que preservam sua privacidade. Sem rastreadores. Sem lentidão. E seus dados ficam totalmente seguros.";
-
-/* Title for Brave Talk rewards opt-in screen button */
-"rewards.braveTalkRewardsOptInButtonTitle" = "Ativar Recompensas";
-
-/* Body for successful Brave Talk rewards opt-in */
-"rewards.braveTalkRewardsOptInSuccessBody" = "Clique em qualquer parte da tela para ir para o Brave Talk.";
-
-/* Title for successful Brave Talk rewards opt-in */
-"rewards.braveTalkRewardsOptInSuccessTitle" = "Agora você pode iniciar uma chamada gratuita";
-
-/* Title for Brave Talk rewards opt-in screen */
-"rewards.braveTalkRewardsOptInTitle" = "Para iniciar uma chamada gratuita, ative o Brave Rewards";
-
 /* Displayed when Brave Rewards is disabled */
 "rewards.disabledBody" = "Ative para apoiar o Brave e a comunidade BAT.";
 
@@ -2098,8 +1981,14 @@
 /* Displayed in the status container when rewards is enabled but you're not currently supporting any publishers (0 AC count) */
 "rewards.enabledStatusBody" = "Obrigado por apoiar o Brave e a comunidade BAT.";
 
-/* The placeholders say 'Terms of Service' and 'Privacy Policy'. So full sentence goes like: 'By clicking, you agree to the Terms of Service and Privacy Policy...' */
-"rewards.optInDisclaimer" = "Ao clicar, você concorda com os %1$@ e a %2$@. Desative quando quiser nas Configurações.";
+/* Message of a confirmation dialog shown before resetting Brave Rewards */
+"rewards.settingsResetConfirmationMessage" = "Ao repor, o seu perfil atual das Recompensas Brave será eliminado e as Recompensas Brave deixarão de estar ativadas.";
+
+/* Title of a confirmation dialog shown before resetting Brave Rewards */
+"rewards.settingsResetConfirmationTitle" = "Reiniciar Brave - Recompensas";
+
+/* Title of a button that resets the user's Brave Rewards profile */
+"rewards.settingsResetTitle" = "Repor";
 
 /* No comment provided by engineer. */
 "rewards.settingsToggleMessage" = "Contribua para apoiar o Brave e a comunidade BAT ativando as Brave Rewards e vendo Anúncios Brave.";
@@ -2323,9 +2212,6 @@
 /* Setting to enable the built-in password manager */
 "SaveLogins" = "Salvar logins";
 
-/* individual blocking statistic title */
-"ScriptsBlocked" = "Scripts bloqueados";
-
 /* The placeholder text for bookmark search */
 "searchBookmarksTitle" = "Pesquisar favoritos";
 
@@ -2482,17 +2368,17 @@
 /* Title for the quality settings view */
 "settings.qualitySettings" = "Definições de qualidade";
 
+/* Description to explain the send crash reports toggle */
+"settings.sendCrashReportsDescription" = "Envie relatórios de diagnóstico anónimos em caso de falha ou congelamento.";
+
+/* Title to explain the send crash reports toggle */
+"settings.sendCrashReportsTitle" = "Enviar relatórios de falha";
+
 /* Description to explain the daily usage ping toggle */
 "settings.sendUsagePingDescription" = "Este ping privado permite à Brave estimar os utilizadores ativos.";
 
 /* Title to explain the daily usage ping toggle */
 "settings.sendUsagePingTitle" = "Enviar automaticamente ping de utilização diária para a Brave";
-
-/* Description to explain the survey panelist toggle */
-"settings.surveyPanelistDescription" = "Permite que o Brave mostre links para inquéritos privados na página do novo separador. Os inquéritos ajudam-nos a criar melhores funcionalidades e a medir a eficácia das campanhas publicitárias do navegador. [Learn more](%@)";
-
-/* Title to explain the survey panelist toggle */
-"settings.surveyPanelistTitle" = "Permitir inquéritos do Brave";
 
 /* Header for the YouTube settings section */
 "settings.youtube" = "Youtube";
@@ -2565,21 +2451,6 @@
 
 /* Title for Shield Education Tracker Video Ad Block */
 "shieldEducation.videoAdBlockTitle" = "Os anúncios são bloqueados enquanto você assiste a vídeos neste site.";
-
-/* Section title for adbblock, tracking protection, HTTPS-E, and cookies */
-"ShieldsDefaults" = "Padrões globais do Brave Shields";
-
-/* Section footer for global shields defaults */
-"ShieldsDefaultsFooter" = "Estas são as definições predefinidas das proteções para os novos sites. Alterá-las não irá afetar as definições existentes para o site.";
-
-/* No comment provided by engineer. */
-"ShieldsDownDisclaimer" = "Está a navegar neste ''site'' sem as proteções de privacidade do Brave. Não funciona direito com as «Proteções» ativadas?";
-
-/* shields overview message */
-"ShieldsOverview" = "As Proteções de site permitem que você controle quando anúncios e rastreadores são bloqueados em cada site que você acessa. Se preferir ver anúncios em um site específico, você poderá ativá-los aqui.";
-
-/* shields overview footer message */
-"ShieldsOverviewFooter" = "Observação: como é possível que alguns sites exijam scripts para funcionar corretamente, esta proteção está desativada por padrão.";
 
 /* Quick Action for 3D-Touch on the Application Icon */
 "ShortcutItemTitleNewPrivateTab" = "Novo separador privado";
@@ -2766,15 +2637,6 @@
 
 /* Settings item for clearing site-specific settings and shields settings. */
 "SiteAndShieldsSettings" = "Definições das Proteções e de Site";
-
-/* No comment provided by engineer. */
-"SiteReportedBody" = "Obrigado por comunicar aos desenvolvedores da Brave que há algo de errado com o site. Daremos o nosso melhor para o consertar.";
-
-/* No comment provided by engineer. */
-"SiteReportedTitle" = "Obrigado";
-
-/* Brave panel topmost title */
-"SiteShieldSettings" = "Proteções";
 
 /* Title used when in warning pop-over when domain specific data save appears */
 "socialSharing.domainSpecificDataSavedTitle" = "Economizo dados diariamente navegando na web com o Brave.";
@@ -2966,7 +2828,7 @@
 "sync.maximumDeviceReachedErrorTitle" = "Limite de dispositivos";
 
 /* New sync code button title */
-"sync.newSyncCode" = "Inicie uma nova Cadeia de Sincronização";
+"sync.newSyncCode" = "Nova Cadeia de Sincronização";
 
 /* No internet connection alert body. */
 "sync.noConnectionBody" = "Verifique sua conexão com a internet e tente novamente.";
@@ -3136,6 +2998,9 @@
 /* Accessibility label for the regular browsing option in the browsing mode picker */
 "tabGrid.privateBrowsingModeAccessibilityLabel" = "Navegação privada";
 
+/* A label in the tab tray mode switcher for private browsing mode */
+"tabGrid.privateBrowsingModeTitle" = "Privado";
+
 /* A button title which when tapped will present settings for private tabs */
 "tabGrid.privateTabsSettingsTitle" = "Configurações da guia privada";
 
@@ -3160,11 +3025,23 @@
 /* Accessibility label for a button that allows users to shred their tabs (erase them & associated data) */
 "tabGrid.shredTabsAccessibilityLabel" = "Fragmentar abas";
 
+/* A label in the tab tray mode switcher shown when there are 0 or more than 1 regular tabs open e.g. '129 Tabs' */
+"tabGrid.tabsCountFormatPlural" = "%lld Abas";
+
+/* A label in the tab tray mode switcher shown when there is 1 regular tab open e.g. '1 Tab' */
+"tabGrid.tabsCountFormatSingular" = "%lld Aba";
+
 /* Accessibility label for a button that when tapped presents the users history & recently closed tabs */
 "tabGrid.viewHistoryAccessibilityLabel" = "Visualizar Histórico";
 
+/* Label for history menu item button that when tapped presents the users history & recently closed tabs */
+"tabGrid.viewHistoryMenuItemLabel" = "Histórico";
+
 /* Accessibility label for a button that when tapped presents the users synced tabs */
 "tabGrid.viewSyncedTabsAccessibilityLabel" = "Visualizar Abas Sincronizadas";
+
+/* Label for synced tabs menu item that when tapped presents the users synced tabs */
+"tabGrid.viewSyncedTabsMenuItemLabel" = "Sincronização";
 
 /* Accessiblity hint for toggling on/off private mode */
 "TabPrivateModeToggleAccessibilityHint" = "Ativa ou desativa o modo privado";
@@ -3183,6 +3060,12 @@
 
 /* The title of the toggle for user to turn on auto-open keyboard when creating a new tab. */
 "tabs.settings.autoOpenKeyboardTitle" = "Abrir o teclado automaticamente";
+
+/* The description of the toggle for user to turn on open link in quick view mode. */
+"tabs.settings.openLinkInQuickViewModeDescription" = "Abrir links do Ask Brave e da Pesquisa Brave em separadores de pré-visualização";
+
+/* The title of the toggle for user to turn on open link in quick view mode. */
+"tabs.settings.openLinkInQuickViewModeTitle" = "Ativar separadores de visualização rápida";
 
 /* No comment provided by engineer. */
 "tabs.settings.persistentPrivateBrowsingDescription" = "Mantenha as abas de navegação privada abertas ao fechar o aplicativo, garantindo que as sessões de navegação privada continuem sem problemas.";
@@ -3531,9 +3414,6 @@
 
 /* Error message if the payment workflow is canceled by the user */
 "userCancelledMessage" = "Cancelado pelo usuário";
-
-/* Setting to allow user in non-english locale to use adblock rules specifc to their language */
-"UseRegionalAdblock" = "Usar bloqueador de anúncios regional";
 
 /* No comment provided by engineer. */
 "UserWalletCloseButtonTitle" = "Fechar";

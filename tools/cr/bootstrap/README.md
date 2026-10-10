@@ -1,13 +1,7 @@
 # `tools/cr/bootstrap`
 
-Provides shims for `plaster`, `brockit`, `node` and `npm`, selecting them
-relative to the Brave repository in the current directory.
-
-`plaster` / `brockit` dispatch to the matching `tools/cr` script. `node` / `npm`
-are a prototype front-end for the node delivered into `third_party/node` by
-`gclient sync` (see [Node delivery](#node-delivery) below): inside a checkout
-that has a downloaded node they run _that_ node, and everywhere else they fall
-back transparently to the system `node` / `npm`.
+This path incubates a boostrap module, to provide shims as ergonomics for tools
+we use to build Brave.
 
 ## Install
 
@@ -51,11 +45,12 @@ checkout than the one that was installed.
 cd ~/browser/src/brave/components # anywhere inside a checkout
 plaster check                     # runs that checkout's plaster.py
 brockit lift --to=1.2.3.4         # runs that checkout's brockit.py
+git cr commit -m "…"              # runs that checkout's alias/cmd.py
 ```
 
-`plaster` / `brockit` are resolved relative to `brave-core`, so calling them
-from a directory that is not inside `brave-core` will fail. `node` / `npm`
-instead fall back to the system tool in that case (see below).
+`plaster` / `brockit` / `git cr` are resolved relative to `brave-core`, so
+calling them from a directory that is not inside `brave-core` will fail. `node`
+/ `npm` instead fall back to the system tool in that case (see below).
 
 ```sh
 cd ~/browser/src/brave
@@ -63,3 +58,16 @@ node --version                    # runs third_party/node's node
 cd /tmp
 node --version                    # falls back to the system node
 ```
+
+## Vendored depot_tools
+
+This process will take care of cloning `depot_tools` for `brave-core` if one is
+not present already, so all scripts run under `vpython3`.
+
+## The chicken-and-egg `node` problem
+
+The shims for `node`/`npm` run cheap checks for the tarball installations, to
+determine if a new file needs to be downloaded. This is done through the
+`EXTRA_DEPS` mechanism itself, which makes this a lightweight sync check. For
+repos with no mechanism for self-updating, the path resolution degrades back to
+whatever is the system underlying binaries.

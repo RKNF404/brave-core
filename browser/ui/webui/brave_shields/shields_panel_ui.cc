@@ -9,8 +9,10 @@
 
 #include "base/check.h"
 #include "base/feature_list.h"
+#include "brave/browser/brave_shields/brave_shields_settings_service_factory.h"
 #include "brave/browser/ui/brave_browser_window.h"
 #include "brave/browser/ui/webui/brave_webui_source.h"
+#include "brave/components/brave_shields/core/browser/brave_shields_settings_service.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "brave/components/brave_shields/core/common/brave_shield_localized_strings.h"
 #include "brave/components/brave_shields/core/common/features.h"
@@ -21,8 +23,7 @@
 #include "brave/components/webcompat/core/common/features.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -115,9 +116,12 @@ void ShieldsPanelUI::CreatePanelHandler(
   CHECK(browser);
   auto* favicon_service = FaviconServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
+  auto* brave_shields_settings =
+      BraveShieldsSettingsServiceFactory::GetForProfile(profile);
+  CHECK(brave_shields_settings);
   data_handler_ = std::make_unique<ShieldsPanelDataHandler>(
       std::move(data_handler_receiver), this, browser->GetTabStripModel(),
-      favicon_service);
+      favicon_service, *brave_shields_settings);
 }
 
 ShieldsPanelUIConfig::ShieldsPanelUIConfig()

@@ -101,12 +101,34 @@ void MyComponent::Init(PrefService* prefs) {
 }
 ```
 
+This also applies when an object is passed in only to look up another service
+from it. If a class holds a `Profile*` solely to call
+`SomeService::Get(profile)`, inject the service instead — the class doesn't
+depend on `Profile`, only on the service.
+
+```cpp
+// ❌ WRONG - holding Profile only to fetch another service
+BraveExtensionService::BraveExtensionService(Profile* profile)
+    : profile_(profile) {}
+
+void BraveExtensionService::OnMalwareListUpdated() {
+  ExtensionSystem* extension_system = ExtensionSystem::Get(profile_);
+  // ...only ever used to reach extension_system
+}
+
+// ✅ CORRECT - inject the service actually needed
+BraveExtensionService::BraveExtensionService(ExtensionSystem* extension_system)
+    : extension_system_(extension_system) {}
+```
+
 Common substitutions:
 
 - `Profile*` → `PrefService*` (when only prefs are needed)
 - `Profile*` → `BrowserContext*` (in components)
 - `BrowserContext*` → `scoped_refptr<URLLoaderFactory>` (when only network is
   needed)
+- `Profile*` → the specific service you fetch (e.g. `ExtensionSystem*`), when
+  `Profile` is used only as a lookup handle for that service
 
 ---
 
@@ -151,8 +173,16 @@ if (rewards_service) {  // Returns null when disabled
 **Don't use `shared_ptr` to take ownership of something you don't own.**
 
 Using `shared_ptr` on memory owned by another class causes crashes when the
-`shared_ptr` frees memory that is still referenced elsewhere. Avoid shared
-pointers unless there is a strong reason for shared ownership.
+`shared_ptr` frees memory that is still referenced elsewhere.
+
+**`std::shared_ptr` is banned in Chromium code outright** — there is no "strong
+reason for shared ownership" exception (see
+[CSM-005](coding-standards-memory.md#CSM-005) and the
+[Chromium smart pointer guidelines](https://www.chromium.org/developers/smart-pointer-guidelines/)).
+If you think you need shared ownership, rethink the design first; where it is
+genuinely unavoidable, use `scoped_refptr<T>` with a `base::RefCounted` type —
+but prefer redesign over reference counting (see
+[CSM-032](coding-standards-memory.md#CSM-032)).
 
 **BAD:**
 
@@ -612,16 +642,21 @@ if (!service)
 
 <a id="ARCH-028"></a>
 
-## ✅ Use `MaybeCreateForWebContents` for Conditional Tab Helpers
+## ✅ Use `MaybeCreateForWebContents` for Conditional WebContents Helpers
 
-**When a tab helper should not be attached to all web contents (e.g., skipped
+**This applies only to helpers that must be attached to the `WebContents`
+itself, because they also run on WebContents that are not tabs** (see
+[ARCH-074](#ARCH-074)). Tab-scoped features belong in `BraveTabFeatures`
+instead, where the same guards go in `BraveTabFeatures::Init()`.
+
+**When such a helper should not be attached to all web contents (e.g., skipped
 for incognito or when a feature is disabled), use a static
 `MaybeCreateForWebContents` method** with the appropriate guards instead of
 always creating and checking internally.
 
 ```cpp
 // ❌ WRONG - always create, check internally
-SerpMetricsTabHelper::CreateForWebContents(web_contents);
+FooHelper::CreateForWebContents(web_contents);
 
 // ✅ CORRECT - conditionally create with proper guards
 static void MaybeCreateForWebContents(content::WebContents* web_contents) {
@@ -629,9 +664,9 @@ static void MaybeCreateForWebContents(content::WebContents* web_contents) {
       web_contents->GetBrowserContext());
   if (!profile->IsRegularProfile())
     return;
-  if (!base::FeatureList::IsEnabled(kSerpMetrics))
+  if (!base::FeatureList::IsEnabled(kFoo))
     return;
-  SerpMetricsTabHelper::CreateForWebContents(web_contents);
+  FooHelper::CreateForWebContents(web_contents);
 }
 ```
 
@@ -1196,7 +1231,7 @@ feature's data and lifetime requirements. See
 
 | Scope              | Owner                               | Examples                                  |
 | ------------------ | ----------------------------------- | ----------------------------------------- |
-| **Tab**            | `TabFeatures`                       | Find-in-page, print preview, page actions |
+| **Tab**            | `TabFeatures` (`BraveTabFeatures`)  | Find-in-page, print preview, page actions |
 | **Browser Window** | `BrowserWindowFeatures`             | Omnibox, bookmarks bar, vertical tabs     |
 | **Profile**        | `BrowserContextKeyedServiceFactory` | Rewards, Wallet, sync services            |
 | **Global**         | `GlobalFeatures`                    | Process-wide features spanning profiles   |
@@ -1306,8 +1341,8 @@ class MyServiceFactory : public ProfileKeyedServiceFactory {
 };
 ```
 
-For tab/window features, create them in `TabFeatures::Init()` or
-`BrowserWindowFeatures::Init()` respectively.
+For tab/window features, create them in `BraveTabFeatures::Init()` (see
+[ARCH-074](#ARCH-074)) or `BrowserWindowFeatures::Init()` respectively.
 
 <a id="ARCH-068"></a>
 
@@ -1754,3 +1789,153 @@ BraveWalletServiceFactory::BuildServiceInstanceForBrowserContext(
 If a feature must be fully disable-able at runtime, the service should remain
 instantiated and expose an `IsEnabled()` accessor, or callers should observe the
 pref directly.
+
+<a id="ARCH-073"></a>
+
+## ✅ Inject Dependencies at Construction; Don't Reach for Global State or `Browser*`
+
+**Features should take exactly the dependencies they need as constructor
+parameters, rather than reaching out to global state (`g_browser_process`,
+singletons, `NoDestructor` globals) or accepting a `Browser*` and drilling
+through it.** Per the Chromium browser design principles, construction-time
+dependency injection is what makes a feature modular, testable, and free of
+hidden coupling — this is a design default for all features, not just a fix for
+`components/` layering violations (see [ARCH-002](#ARCH-002)).
+
+```cpp
+// ❌ WRONG - god-object Browser* drilled for whatever it needs (untestable,
+// hidden dependencies, makes modularization impossible)
+FooFeature(Browser* browser) : browser_(browser) {}
+void FooFeature::DoStuff() {
+  DoStuffWith(browser_->GetProfile()->GetPrefs());
+}
+
+// ❌ ALSO WRONG - reaching for ambient global state
+void FooFeature::DoStuff() {
+  auto factory = g_browser_process->shared_url_loader_factory();
+}
+
+// ✅ CORRECT - inject exactly what the feature needs at construction
+FooFeature(tabs::TabInterface& tab,
+           page_actions::PageActionController& page_action_controller)
+    : tab_(tab), page_action_controller_(page_action_controller) {}
+```
+
+Why construction-time injection is the default:
+
+- **Testability:** dependencies can be substituted directly in unit tests,
+  reducing flakiness and preventing test behavior from diverging from
+  production.
+- **Exposes circular dependencies:** injecting deps surfaces cycles at
+  construction/BUILD.gn time — a common source of fragility — instead of hiding
+  them behind globals.
+- **Reduces coupling:** avoids "spooky action at a distance" where an innocuous
+  change breaks a seemingly unrelated feature.
+
+`class Browser` is a god-object anti-pattern; depending on it makes
+modularization impossible. Prefer the narrow, specific objects a feature
+actually uses (see also [ARCH-003](#ARCH-003) on passing the most specific
+dependency).
+
+This applies to any "lookup key" object — a broad handle used to fetch a wide
+graph of services, such as `Profile`, `BrowserContext`, `WebContents`,
+`TabInterface`, or `Browser`. Prefer injecting the specific dependencies
+resolved from the key rather than the key itself, since injecting the key still
+lets a feature reach anything reachable from it (undermining testability and
+hiding coupling). When a feature genuinely needs the key, inject the key rather
+than pulling it from a global.
+
+```cpp
+// ❌ WRONG - reaching for a lookup key via global state, then resolving from it
+void FooFeature::DoStuff() {
+  Profile* profile = ProfileManager::GetActiveUserProfile();
+  UseKeyedService(BarServiceFactory::GetForProfile(profile));
+}
+
+// ✅ BEST - inject the specific dependency resolved from the key
+FooFeature(BarService& bar_service) : bar_service_(bar_service) {}
+void FooFeature::DoStuff() { UseKeyedService(bar_service_); }
+
+// ✅ ACCEPTABLE - inject the key itself when it is genuinely required (e.g. tab
+// features taking TabInterface); still better than reaching for a global, but
+// prefer injecting the resolved dependencies above where practical
+FooFeature(Profile& profile) : profile_(profile) {}
+```
+
+---
+
+---
+
+<a id="ARCH-074"></a>
+
+## ✅ Own Tab-Scoped Features in `BraveTabFeatures`
+
+**A Brave feature scoped to a tab is a plain class held as a `std::unique_ptr`
+member of `BraveTabFeatures` and created in its `Init()`, not a
+`WebContentsUserData` tab helper attached in `brave::AttachTabHelpers()`.**
+Upstream is moving every desktop tab helper this way
+([crbug.com/540709814](https://crbug.com/540709814)), and per the
+[Chromium Browser Design Principles](https://chromium.googlesource.com/chromium/src/+/main/docs/chrome_browser_design_principles.md)
+`TabHelpers::AttachTabHelpers` becomes remove-only on desktop.
+
+- Desktop: `browser/ui/tabs/brave_tab_features.cc`.
+- Android: `browser/android/brave_tab_features.cc`, where the feature also runs
+  there.
+- If other code needs to reach the feature, expose it with UnownedUserData
+  (`X::From(tab)`), not `X::FromWebContents()`.
+
+```cpp
+// ❌ WRONG - a tab-scoped feature attached to the WebContents
+// browser/brave_tab_helpers.cc
+FooTabHelper::MaybeCreateForWebContents(web_contents);
+
+// ✅ CORRECT - owned by BraveTabFeatures
+// browser/ui/tabs/brave_tab_features.cc
+void BraveTabFeatures::Init(TabInterface& tab, Profile* profile) {
+  TabFeatures::Init(tab, profile);
+  if (base::FeatureList::IsEnabled(kFoo)) {
+    foo_ = std::make_unique<FooTabFeature>(tab);
+  }
+}
+```
+
+`brave::AttachTabHelpers()` and `brave::AttachPrivacySensitiveTabHelpers()`
+remain only for helpers that must also attach to WebContents that are not tabs
+(for example, AI chat's associated contents or background contents), which is
+the same exception upstream allows. A presubmit check rejects `CreateFor*` calls
+in `brave_tab_features.cc` and new ones in `brave_tab_helpers.cc` unless the
+helper is on its allowlist.
+
+---
+
+<a id="ARCH-075"></a>
+
+## ❌ Don't Cache the Tab's `WebContents` in a Tab Feature
+
+**On desktop, a tab's `WebContents` is replaced when the tab is discarded, so a
+tab feature must not hold on to the `WebContents` it was created with.** The
+feature outlives the old contents: an observer bound to it stops receiving
+events, and a `WeakPtr` to it becomes null. See the contract on
+`TabInterface::GetContents()` in `components/tabs/public/tab_interface.h`.
+
+```cpp
+// ❌ WRONG - bound to the contents the tab had at Init()
+class FooTabFeature : public content::WebContentsObserver {
+ public:
+  explicit FooTabFeature(tabs::TabInterface& tab)
+      : WebContentsObserver(tab.GetContents()) {}
+};
+
+// ✅ CORRECT - follows the tab's contents across discards
+class FooTabFeature : public tabs::ContentsObservingTabFeature {
+ public:
+  explicit FooTabFeature(tabs::TabInterface& tab)
+      : ContentsObservingTabFeature(tab) {}
+};
+```
+
+When a feature only needs the contents occasionally, hold
+`raw_ref<tabs::TabInterface>` and call `tab_->GetContents()` at the point of
+use. Otherwise subscribe with `TabInterface::RegisterWillDiscardContents()`,
+which `ContentsObservingTabFeature` does for you. Android does not replace a
+tab's contents, but follow the same pattern there for portability.

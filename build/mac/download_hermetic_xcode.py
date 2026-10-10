@@ -28,23 +28,38 @@ from urllib.error import URLError  # pylint: disable=no-name-in-module,import-er
 
 from packaging.version import parse as parse_version
 
-# Importing script explicitly, so we can call this script from the terminal
-# without needing to set up the PYTHONPATH.
-sys.path.append(str(Path(__file__).resolve().parents[2] / 'script'))
-
-import deps  # pylint: disable=wrong-import-position
+sys.path.append(str(Path(__file__).resolve().parents[2] / 'tools' / 'cr'))
+from tarball_installer import (  # pylint: disable=wrong-import-position
+    TarballInstaller,
+)
 
 # The hash sum for the archive expected to be downloaded.
-MAC_BINARIES_HASH = '0e1a4db4cb6fc9ca78cc71872ff57f837226f1004a7fbf6ce73a5cd89345c289'
+MAC_BINARIES_HASH = (
+    '0e1a4db4cb6fc9ca78cc71872ff57f837226f1004a7fbf6ce73a5cd89345c289'
+)
+
+# The exact size of the archive in bytes, checked on download.
+MAC_BINARIES_SIZE = 883762569
 
 # This contains binaries from Xcode 26.5 (17F42) along with the macOS 26.5 SDK
 # (25F70) and the Metal toolchain (17F42).
 MAC_SDK_OFFICIAL_VERSION = '26.5'
 MAC_SDK_OFFICIAL_BUILD_VERSION = '25F70'
-XCODE_TOOLCHAIN_DOWNLOAD_URL = (
+
+# The bucket prefix the archive object name is appended to.
+XCODE_TOOLCHAIN_BUCKET = (
     'https://vhemnu34de4lf5cj6bx2wwshyy0egdxk.lambda-url.us-west-2.on.aws'
-    '/xcode-hermetic-toolchain/xcode-hermetic-toolchain-'
-    f'{MAC_SDK_OFFICIAL_VERSION}-{MAC_SDK_OFFICIAL_BUILD_VERSION}.tar.gz')
+    '/xcode-hermetic-toolchain/'
+)
+
+# The archive object name; also drives the sidecar file names TarballInstaller
+# writes into MAC_BINARIES_ROOT to record what is deployed.
+XCODE_TOOLCHAIN_OBJECT = (
+    'xcode-hermetic-toolchain-'
+    f'{MAC_SDK_OFFICIAL_VERSION}-{MAC_SDK_OFFICIAL_BUILD_VERSION}.tar.gz'
+)
+
+XCODE_TOOLCHAIN_DOWNLOAD_URL = XCODE_TOOLCHAIN_BUCKET + XCODE_TOOLCHAIN_OBJECT
 
 # The toolchain will not be downloaded if the minimum OS version is not met. 19
 # is the Darwin major version number for macOS 10.15. Xcode 26.4 17E192 only
@@ -54,13 +69,11 @@ XCODE_TOOLCHAIN_DOWNLOAD_URL = (
 MAC_MINIMUM_OS_VERSION = [19, 4]
 
 # Destination for the hermetic Xcode binaries to be extracted at.
-MAC_BINARIES_ROOT = Path(
-    __file__).resolve().parents[3] / 'build' / 'mac_files' / 'xcode_binaries'
-
-# The name for the hash file use to track the installation of the toolchain.
-DOWNLOADED_TOOLCHAIN_HASH = (
-    MAC_BINARIES_ROOT /
-    f'.{os.path.basename(XCODE_TOOLCHAIN_DOWNLOAD_URL).replace(".", "_")}_hash'
+MAC_BINARIES_ROOT = (
+    Path(__file__).resolve().parents[3]
+    / 'build'
+    / 'mac_files'
+    / 'xcode_binaries'
 )
 
 
@@ -73,7 +86,7 @@ def _platform_meets_hermetic_xcode_requirements() -> bool:
     if sys.platform == 'darwin':
         needed = MAC_MINIMUM_OS_VERSION
         major_version = [
-            int(v) for v in platform.release().split('.')[:len(needed)]
+            int(v) for v in platform.release().split('.')[: len(needed)]
         ]
         return major_version >= needed
     return sys.platform.startswith('linux')
@@ -90,84 +103,57 @@ def _get_hermetic_xcode_version() -> str:
     return _load_plist(plist_path)['CFBundleShortVersionString']
 
 
-class SdkInstaller:
-    """A basic installer to handle the SDK archive.
-
-    This installer is designed to download and extract the SDK archive when
-    needed. It relies on a sidecar file to record the hash of the currently
-    installed SDK, rather than keying up the install merely by the SDK version
-    present in the destination.
-    """
-
-    def is_installed(self) -> bool:
-        """Returns True if the sidecar exists and has the expected hash.
-
-        A symlinked destination is never treated as installed, so the caller
-        always redeploys a real directory on top of it.
-        """
-        if MAC_BINARIES_ROOT.is_symlink():
-            return False
-        if not DOWNLOADED_TOOLCHAIN_HASH.is_file():
-            return False
-        return DOWNLOADED_TOOLCHAIN_HASH.read_text().rstrip(
-        ) == MAC_BINARIES_HASH
-
-    def install(self) -> bool:
-        """Downloads and extracts the SDK archive if it is not already present.
-
-        Returns True if the archive was downloaded and extracted, or False if
-        the expected hash was already in place and nothing needed to be done.
-        Also writes the expected hash to the sidecar file, which is used to
-        detect the current install. On a download failure it prints a
-        diagnostic and re-raises.
-        """
-        if self.is_installed():
-            return False
-        print(f'Downloading hermetic Xcode: {XCODE_TOOLCHAIN_DOWNLOAD_URL}')
-        try:
-            deps.DownloadAndUnpack(XCODE_TOOLCHAIN_DOWNLOAD_URL,
-                                   MAC_BINARIES_ROOT,
-                                   sha256=MAC_BINARIES_HASH)
-        except URLError:
-            print(
-                f'Failed to download hermetic Xcode: {XCODE_TOOLCHAIN_DOWNLOAD_URL}'
-            )
-            raise
-        DOWNLOADED_TOOLCHAIN_HASH.write_text(MAC_BINARIES_HASH)
-        return True
-
-
 def _install_xcode_binaries() -> int:
     """Installs the Xcode binaries needed to build Brave and accepts the
     license."""
-    SdkInstaller().install()
+    installer = TarballInstaller.for_object(
+        MAC_BINARIES_ROOT,
+        XCODE_TOOLCHAIN_BUCKET,
+        {
+            'object_name': XCODE_TOOLCHAIN_OBJECT,
+            'sha256sum': MAC_BINARIES_HASH,
+            'size_bytes': MAC_BINARIES_SIZE,
+        },
+    )
+    try:
+        installer.install()
+    except URLError:
+        print(
+            f'Failed to download hermetic Xcode: {XCODE_TOOLCHAIN_DOWNLOAD_URL}'
+        )
+        raise
 
     if sys.platform != 'darwin':
         return 0
 
     # Accept the license for this version of Xcode if it's newer than the
     # currently accepted version.
-    hermetic_xcode_version_plist_path = (MAC_BINARIES_ROOT /
-                                         'Contents/version.plist')
+    hermetic_xcode_version_plist_path = (
+        MAC_BINARIES_ROOT / 'Contents/version.plist'
+    )
     hermetic_xcode_version_plist = _load_plist(
-        hermetic_xcode_version_plist_path)
-    hermetic_xcode_version = (
-        hermetic_xcode_version_plist['CFBundleShortVersionString'])
+        hermetic_xcode_version_plist_path
+    )
+    hermetic_xcode_version = hermetic_xcode_version_plist[
+        'CFBundleShortVersionString'
+    ]
 
-    hermetic_xcode_license_path = (MAC_BINARIES_ROOT /
-                                   'Contents/Resources/LicenseInfo.plist')
+    hermetic_xcode_license_path = (
+        MAC_BINARIES_ROOT / 'Contents/Resources/LicenseInfo.plist'
+    )
     hermetic_xcode_license_plist = _load_plist(hermetic_xcode_license_path)
     hermetic_xcode_license_version = hermetic_xcode_license_plist['licenseID']
 
     should_overwrite_license = True
-    current_license_path = Path(
-        '/Library/Preferences/com.apple.dt.Xcode.plist')
+    current_license_path = Path('/Library/Preferences/com.apple.dt.Xcode.plist')
     if current_license_path.exists():
         current_license_plist = _load_plist(current_license_path)
         xcode_version = current_license_plist.get(
-            'IDEXcodeVersionForAgreedToGMLicense')
-        if (xcode_version is not None and parse_version(xcode_version)
-                >= parse_version(hermetic_xcode_version)):
+            'IDEXcodeVersionForAgreedToGMLicense'
+        )
+        if xcode_version is not None and parse_version(
+            xcode_version
+        ) >= parse_version(hermetic_xcode_version):
             should_overwrite_license = False
 
     if not should_overwrite_license:
@@ -177,8 +163,10 @@ def _install_xcode_binaries() -> int:
     license_accept_script = Path('/usr/local/bin/xcode_accept_license.py')
     if license_accept_script.exists():
         args = [
-            'sudo', license_accept_script, hermetic_xcode_version,
-            hermetic_xcode_license_version
+            'sudo',
+            license_accept_script,
+            hermetic_xcode_version,
+            hermetic_xcode_license_version,
         ]
         subprocess.check_call(args)
         return 0
@@ -187,13 +175,21 @@ def _install_xcode_binaries() -> int:
     print('Accepting new Xcode license. Requires sudo.')
     sys.stdout.flush()
     args = [
-        'sudo', 'defaults', 'write', current_license_path,
-        'IDEXcodeVersionForAgreedToGMLicense', hermetic_xcode_version
+        'sudo',
+        'defaults',
+        'write',
+        current_license_path,
+        'IDEXcodeVersionForAgreedToGMLicense',
+        hermetic_xcode_version,
     ]
     subprocess.check_call(args)
     args = [
-        'sudo', 'defaults', 'write', current_license_path,
-        'IDELastGMLicenseAgreedTo', hermetic_xcode_license_version
+        'sudo',
+        'defaults',
+        'write',
+        current_license_path,
+        'IDELastGMLicenseAgreedTo',
+        hermetic_xcode_license_version,
     ]
     subprocess.check_call(args)
     args = ['sudo', 'plutil', '-convert', 'xml1', current_license_path]

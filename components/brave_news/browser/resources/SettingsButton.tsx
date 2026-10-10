@@ -8,17 +8,15 @@ import { radius, spacing } from "@brave/leo/tokens/css/variables";
 import styled from "styled-components";
 
 
-const SettingsButton = styled(Button)`
-  --leo-button-color: var(--bn-glass-50);
+const SettingsButton = styled(Button).attrs({
+  fab: true,
+  kind: 'plain-faint'
+})`
+  --leo-button-color: var(--leo-color-icon-default);
   --leo-button-radius: ${radius.s};
   --leo-button-padding: ${spacing.s};
 
   flex: 0;
 `
-
-SettingsButton.defaultProps = {
-  fab: true,
-  kind: 'outline'
-}
 
 export default SettingsButton

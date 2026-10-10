@@ -36,7 +36,8 @@ class PrefService;
 namespace ntp_background_images {
 
 struct NTPBackgroundImagesData;
-struct NTPSponsoredImagesData;
+struct NTPSponsoredContentData;
+struct NTPSponsoredSitesData;
 
 class NTPBackgroundImagesService {
  public:
@@ -48,10 +49,14 @@ class NTPBackgroundImagesService {
 
     // Called when the sponsored content component is updated. This is
     // deprecated, use `OnSponsoredContentDidUpdate`.
-    virtual void OnSponsoredImagesDataDidUpdate(NTPSponsoredImagesData* data) {}
+    virtual void DeprecatedOnSponsoredContentDidUpdate(
+        NTPSponsoredContentData* data) {}
 
     // Called when the sponsored content component is updated.
     virtual void OnSponsoredContentDidUpdate(const base::DictValue& data) {}
+
+    // Called when the sponsored sites component is updated.
+    virtual void OnSponsoredSitesDataDidUpdate() {}
 
    protected:
     virtual ~Observer() = default;
@@ -67,8 +72,8 @@ class NTPBackgroundImagesService {
   virtual ~NTPBackgroundImagesService();
 
   NTPBackgroundImagesService(const NTPBackgroundImagesService&) = delete;
-  NTPBackgroundImagesService& operator=(
-      const NTPBackgroundImagesService&) = delete;
+  NTPBackgroundImagesService& operator=(const NTPBackgroundImagesService&) =
+      delete;
 
   void Init();
   void StartTearDown();
@@ -78,9 +83,23 @@ class NTPBackgroundImagesService {
   bool HasObserver(Observer* observer);
 
   NTPBackgroundImagesData* GetBackgroundImagesData() const;
-  NTPSponsoredImagesData* GetSponsoredImagesData(
-      bool supports_rich_media) const;
+  NTPSponsoredContentData* GetNewTabTakeover(
+      bool supports_dynamic_new_tab_takeover) const;
+  NTPSponsoredSitesData* GetSponsoredSitesData() const;
+  // Returns the absolute file path for a sponsored site image request path
+  // (e.g. "amazon.png"), or nullopt if unavailable or invalid.
+  std::optional<base::FilePath> MaybeGetSponsoredSiteImageFilePath(
+      const base::FilePath& request_path) const;
+  const std::optional<std::string>& GetSponsoredImagesComponentId() const;
   virtual void RegisterSponsoredImagesComponent();
+  virtual void UnregisterSponsoredImagesComponent();
+
+  // Each profile's `ViewCounterService` calls one of these when its opt-in
+  // state changes. The component stays registered as long as at least one
+  // loaded profile is opted in, so opting out in one profile does not clear
+  // the sponsored images data still used by other loaded profiles.
+  void AddSponsoredImagesOptedInProfile();
+  void RemoveSponsoredImagesOptedInProfile();
 
   void MaybeCheckForSponsoredComponentUpdate();
   void ForceSponsoredComponentUpdate();
@@ -138,18 +157,24 @@ class NTPBackgroundImagesService {
   static std::optional<base::DictValue> HandleSponsoredComponentData(
       const base::FilePath& installed_dir,
       const std::string& variations_country_code);
-  void OnHandledSponsoredComponentData(std::optional<base::DictValue> dict);
+  static std::optional<NTPSponsoredSitesData> HandleSponsoredSitesData(
+      const base::FilePath& installed_dir);
+  void OnHandledSponsoredSitesData(
+      std::optional<NTPSponsoredSitesData> sites_data);
   void OnComponentReady(const base::FilePath& installed_dir);
   void OnGetComponentJsonData(const std::string& json_string);
   void OnVariationsCountryPrefChanged();
 
   void ScheduleNextSponsoredImagesComponentUpdate();
-  void CheckSponsoredImagesComponentUpdate(const std::string& component_id);
+  void CheckSponsoredContentComponentUpdate(const std::string& component_id);
+  void ResetSponsoredContentData();
 
   // virtual for test.
   virtual void RegisterBackgroundImagesComponent();
   virtual std::string GetCountryCode() const;
   virtual void OnSponsoredComponentReady(const base::FilePath& installed_dir);
+  virtual void OnHandledSponsoredComponentData(
+      std::optional<base::DictValue> dict);
 
   std::optional<base::Time> last_updated_at_;
 
@@ -169,14 +194,19 @@ class NTPBackgroundImagesService {
   base::WallClockTimer sponsored_images_update_check_timer_;
   base::RepeatingClosure sponsored_images_update_check_callback_;
   std::optional<std::string> sponsored_images_component_id_;
-  base::FilePath sponsored_images_installed_dir_;
-  std::unique_ptr<NTPSponsoredImagesData> sponsored_images_data_;
-  std::unique_ptr<NTPSponsoredImagesData>
-      sponsored_images_data_excluding_rich_media_;
+  std::optional<base::FilePath> sponsored_content_installed_dir_;
+  std::unique_ptr<NTPSponsoredContentData> sponsored_content_data_;
+  std::unique_ptr<NTPSponsoredContentData>
+      sponsored_content_data_excluding_dynamic_;
+  std::unique_ptr<NTPSponsoredSitesData> sponsored_sites_data_;
+
+  size_t sponsored_images_opted_in_profile_count_ = 0;
 
   base::ObserverList<Observer>::Unchecked observers_;
 
   base::WeakPtrFactory<NTPBackgroundImagesService> weak_factory_{this};
+  base::WeakPtrFactory<NTPBackgroundImagesService>
+      sponsored_images_weak_factory_{this};
 };
 
 }  // namespace ntp_background_images

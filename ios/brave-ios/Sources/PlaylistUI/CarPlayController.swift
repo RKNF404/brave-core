@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import BraveCore
 import BraveStrings
 import CarPlay
 import Combine
@@ -35,7 +36,7 @@ public class CarPlayController {
     foldersFRC.delegate = fetchResultsDelegate
     try? foldersFRC.performFetch()
 
-    Task { @MainActor in
+    Task { @MainActor [self] in
       await player.prepareItemQueue()
 
       let folderList = folderListTemplate
@@ -71,8 +72,7 @@ public class CarPlayController {
   private var currentFolderListTemplate: CPListTemplate?
   private var currentItemListTemplate: CPListTemplate?
   private var selectedFolderID: PlaylistFolder.ID?
-  private var isErrorPresented: Bool = false
-  private var downloadStates: [String: PlaylistDownloadManager.DownloadState] = [:]
+  private var downloadStates: [String: PlaylistDownloadManager.CacheState] = [:]
 
   @MainActor private func updateFoldersList() {
     let folderListTemplate = self.folderListTemplate
@@ -86,55 +86,11 @@ public class CarPlayController {
   }
 
   @MainActor private func handlePlayerError() {
-    if isErrorPresented, player.error == nil, interface.presentedTemplate is CPAlertTemplate {
-      // Handle the case where a user dismisses an error in the app while CarPlay is open
-      interface.dismissTemplate(animated: true) { [weak self] _, _ in
-        self?.isErrorPresented = false
-      }
-      return
-    }
-
-    guard let error = player.error, let title = error.failureReason ?? error.errorDescription,
-      !isErrorPresented
-    else {
-      return
-    }
-
-    let alert = CPAlertTemplate(
-      titleVariants: [title],
-      actions: [
-        CPAlertAction(
-          title: Strings.PlayList.okayButtonTitle,
-          style: .default,
-          handler: { [weak self] _ in
-            self?.interface.dismissTemplate(
-              animated: true,
-              completion: { success, error in
-                guard let self else { return }
-                self.player.error?.handler?()
-                self.player.error = nil
-                self.isErrorPresented = false
-                if self.interface.topTemplate == CPNowPlayingTemplate.shared {
-                  self.interface.popTemplate(animated: true, completion: nil)
-                }
-              }
-            )
-          }
-        )
-      ]
-    )
-
-    // Preemptively set this so repeat object changes dont present multiple times
-    isErrorPresented = true
-    interface.presentTemplate(
-      alert,
-      animated: true,
-      completion: { [weak self] success, _ in
-        if !success {
-          self?.isErrorPresented = false
-        }
-      }
-    )
+    // Avoid showing error alerts so as not to distract the driver in scenarios where the where the user is the driver.
+    // Invoke the error's recovery handler which advances to the next item (for better user experience)
+    guard let error = player.error else { return }
+    error.handler?()
+    player.error = nil
   }
 
   private var cancellables: Set<AnyCancellable> = []
@@ -204,7 +160,8 @@ public class CarPlayController {
         guard let itemUUID = item.uuid else { return nil }
         let listItem = item.listItem
         listItem.accessoryType =
-          downloadStates[itemUUID] != .downloaded ? .cloud : .none
+          !FeatureList.kPlaylistCacheFirstEnabled.enabled && downloadStates[itemUUID] != .cached
+          ? .cloud : .none
         listItem.isPlaying = player.isPlaying && player.selectedItemID == item.id
         listItem.playingIndicatorLocation = .trailing
         listItem.userInfo = ["id": item.id, "uuid": itemUUID]
@@ -293,14 +250,14 @@ public class CarPlayController {
 
     // Fetch each item's download state concurrently so list refresh stays O(1) wall-clock in the number of items.
     let resolvedStates = await withTaskGroup(
-      of: (String, PlaylistDownloadManager.DownloadState).self
+      of: (String, PlaylistDownloadManager.CacheState).self
     ) { group in
       for uuid in uuids {
         group.addTask {
-          (uuid, await PlaylistManager.shared.downloadState(for: uuid))
+          (uuid, await PlaylistManager.shared.cacheState(for: uuid))
         }
       }
-      var result: [String: PlaylistDownloadManager.DownloadState] = [:]
+      var result: [String: PlaylistDownloadManager.CacheState] = [:]
       for await (uuid, state) in group {
         result[uuid] = state
       }

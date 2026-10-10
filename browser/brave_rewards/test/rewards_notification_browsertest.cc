@@ -17,7 +17,6 @@
 #include "brave/components/brave_rewards/content/rewards_notification_service_observer.h"
 #include "brave/components/brave_rewards/content/rewards_service_impl.h"
 #include "brave/components/constants/brave_paths.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/network_session_configurator/common/network_switches.h"
@@ -58,7 +57,7 @@ class RewardsNotificationBrowserTest
     ASSERT_TRUE(https_server_->Start());
 
     // Rewards service
-    auto* profile = browser()->profile();
+    auto* profile = browser()->GetProfile();
     rewards_service_ = static_cast<RewardsServiceImpl*>(
         RewardsServiceFactory::GetForProfile(profile));
 

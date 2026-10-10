@@ -9,9 +9,8 @@
 #include <utility>
 
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/bubble/bubble_border.h"
@@ -26,12 +25,12 @@ BraveRoundedOmniboxResultsFrame::BraveRoundedOmniboxResultsFrame(
 
   show_vertical_tabs_.Init(
       brave_tabs::kVerticalTabsEnabled,
-      browser_->profile()->GetOriginalProfile()->GetPrefs(),
+      browser_->GetProfile()->GetOriginalProfile()->GetPrefs(),
       base::BindRepeating(&BraveRoundedOmniboxResultsFrame::UpdateShadowBorder,
                           base::Unretained(this)));
   show_window_title_for_vertical_tabs_.Init(
       brave_tabs::kVerticalTabsShowTitleOnWindow,
-      browser_->profile()->GetOriginalProfile()->GetPrefs(),
+      browser_->GetProfile()->GetOriginalProfile()->GetPrefs(),
       base::BindRepeating(&BraveRoundedOmniboxResultsFrame::UpdateShadowBorder,
                           base::Unretained(this)));
 }
@@ -48,8 +47,9 @@ void BraveRoundedOmniboxResultsFrame::UpdateShadowBorder() {
   border->set_rounded_corners(gfx::RoundedCornersF(corner_radius));
   border->set_md_shadow_elevation(
       RoundedOmniboxResultsFrame::kDefaultElevation);
-  if (tabs::utils::ShouldShowBraveVerticalTabs(browser_) &&
-      !tabs::utils::ShouldShowWindowTitleForVerticalTabs(browser_)) {
+  if (auto* vtc = VerticalTabController::From(browser_);
+      vtc && vtc->ShouldShowBraveVerticalTabs() &&
+      !vtc->ShouldShowWindowTitleForVerticalTabs()) {
     // Remove top shadow inset so that omnibox popup stays inside browser
     // widget. Especially on Mac, Widgets can't be out of screen so we need to
     // adjust popup position.

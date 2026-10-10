@@ -10,12 +10,13 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/types/optional_ref.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 #include "brave/components/brave_ads/core/public/ad_units/new_tab_page_ad/new_tab_page_ad_info.h"
 #include "brave/components/brave_ads/core/public/ad_units/new_tab_page_ad/new_tab_page_ad_util.h"
 #include "brave/components/brave_ads/core/public/ad_units/notification_ad/notification_ad_info.h"
-#include "brave/components/brave_ads/core/public/ad_units/notification_ad/notification_ad_value_util.h"
+#include "brave/components/brave_ads/core/public/ad_units/notification_ad/notification_ad_util.h"
 #include "brave/components/brave_ads/core/public/ads.h"
 #include "brave/components/brave_ads/core/public/ads_constants.h"
 #include "brave/components/brave_ads/core/public/ads_observer.h"
@@ -116,13 +117,7 @@ void BatAdsImpl::MaybeGetNotificationAd(
           base::BindOnce(
               [](MaybeGetNotificationAdCallback callback,
                  base::optional_ref<const brave_ads::NotificationAdInfo> ad) {
-                if (!ad) {
-                  return std::move(callback).Run(/*ad*/ std::nullopt);
-                }
-
-                std::optional<base::DictValue> dict =
-                    brave_ads::NotificationAdToDict(*ad);
-                std::move(callback).Run(std::move(dict));
+                std::move(callback).Run(brave_ads::ToMojom(ad));
               },
               std::move(callback)),
           /*ad=*/std::nullopt));
@@ -230,6 +225,23 @@ void BatAdsImpl::GetInternals(GetInternalsCallback callback) {
 void BatAdsImpl::GetDiagnostics(GetDiagnosticsCallback callback) {
   GetAds()->GetDiagnostics(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
       std::move(callback), /*value=*/std::nullopt));
+}
+
+void BatAdsImpl::EvaluateConditionMatcher(
+    const std::string& pref_path,
+    const std::string& condition,
+    const std::optional<std::string>& test_value,
+    EvaluateConditionMatcherCallback callback) {
+  GetAds()->EvaluateConditionMatcher(
+      pref_path, condition, test_value,
+      base::BindOnce(
+          [](EvaluateConditionMatcherCallback callback,
+             const std::string& current_value, const std::string& matches) {
+            std::move(callback).Run(current_value, matches);
+          },
+          mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+              std::move(callback), /*current_value=*/"Unknown",
+              /*matches=*/"N/A")));
 }
 
 void BatAdsImpl::ToggleLikeAd(brave_ads::mojom::ReactionInfoPtr reaction,

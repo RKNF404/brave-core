@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/side_panel/side_panel.cc b/chrome/browser/ui/views/side_panel/side_panel.cc
-index 767354aa29145298e41a155b8a0355433436e691..62cf2c1d7b8a16b769fa0230be8a7ad2bab89ead 100644
+index 48d9dd08489dddd43374ad71836f1a2773daa554..4b724b5e0bf01855b6cd1a4685d90af3dfb0e8a8 100644
 --- a/chrome/browser/ui/views/side_panel/side_panel.cc
 +++ b/chrome/browser/ui/views/side_panel/side_panel.cc
 @@ -218,6 +218,7 @@ class ContentParentView : public views::View, public views::ViewObserver {

@@ -1,8 +1,8 @@
 diff --git a/tools/perf/core/services/dashboard_service.py b/tools/perf/core/services/dashboard_service.py
-index bde5630a6ea555b265a47991d21bc4c140bd0cba..34ddb9736b2a0fb5a85acfd92b0fd756954ddd5a 100644
+index 6b8450c254bfc1f88df64d80ab3300f848473819..d3006653ef73f70ab089e9f8ea9c58366e9f1b4a 100644
 --- a/tools/perf/core/services/dashboard_service.py
 +++ b/tools/perf/core/services/dashboard_service.py
-@@ -12,7 +12,7 @@ import six.moves.urllib.parse  # pylint: disable=import-error
+@@ -12,7 +12,7 @@ import urllib.parse
  
  from core.services import request
  

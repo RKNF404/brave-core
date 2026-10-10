@@ -30,6 +30,7 @@
     E_CPONLY(kColorWebDiscoveryInfoBarNoThanks)      \
     E_CPONLY(kColorWebDiscoveryInfoBarClose)         \
     E_CPONLY(kColorBraveDownloadToolbarButtonActive) \
+    E_CPONLY(kColorBraveContentsOutline)           \
     E_CPONLY(kColorToolbarButtonActivated)
 
 #define BRAVE_SEARCH_CONVERSION_COLOR_IDS                             \
@@ -95,8 +96,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_WAYBACK_MACHINE)
-#define BRAVE_WAYBACK_MACHINE_COLOR_IDS      \
-    E_CPONLY(kColorWaybackMachineURLLoaded)  \
+#define BRAVE_WAYBACK_MACHINE_COLOR_IDS \
     E_CPONLY(kColorWaybackMachineURLNotAvailable)
 #else
 #define BRAVE_WAYBACK_MACHINE_COLOR_IDS

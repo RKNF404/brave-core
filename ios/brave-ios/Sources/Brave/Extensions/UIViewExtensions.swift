@@ -12,18 +12,18 @@ extension UIView {
 
     let offset = offset ?? .zero
 
-    // Temporary check to handle _UIGraphicsBeginImageContextWithOptions zero size error
-    // Should be replaced with UIGraphicsImageRenderer
-    guard size.width > 0, size.height > 0 else {
+    guard size.width.isFinite, size.height.isFinite, size.width > 0, size.height > 0 else {
       return nil
     }
 
-    UIGraphicsBeginImageContextWithOptions(size, false, UIScreen.main.scale * quality)
-    drawHierarchy(in: CGRect(origin: offset, size: frame.size), afterScreenUpdates: false)
-    let image = UIGraphicsGetImageFromCurrentImageContext()
-    UIGraphicsEndImageContext()
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = UIScreen.main.scale * quality
+    format.opaque = false
 
-    return image
+    let renderer = UIGraphicsImageRenderer(size: size, format: format)
+    return renderer.image { _ in
+      drawHierarchy(in: CGRect(origin: offset, size: frame.size), afterScreenUpdates: false)
+    }
   }
 
   /// Takes a screenshot of the view with the given aspect ratio.
@@ -58,29 +58,6 @@ extension UIView {
     UIGraphicsImageRenderer(size: bounds.size).image { _ in
       drawHierarchy(in: bounds, afterScreenUpdates: true)
     }
-  }
-
-  /// rounds the requested corners of a view with the provided radius
-  func addRoundedCorners(_ cornersToRound: UIRectCorner, cornerRadius: CGSize, color: UIColor) {
-    let rect = bounds
-    let maskPath = UIBezierPath(
-      roundedRect: rect,
-      byRoundingCorners: cornersToRound,
-      cornerRadii: cornerRadius
-    )
-
-    // Create the shape layer and set its path
-    let maskLayer = CAShapeLayer()
-    maskLayer.frame = rect
-    maskLayer.path = maskPath.cgPath
-
-    let roundedLayer = CALayer()
-    roundedLayer.backgroundColor = color.cgColor
-    roundedLayer.frame = rect
-    roundedLayer.mask = maskLayer
-
-    layer.insertSublayer(roundedLayer, at: 0)
-    backgroundColor = .clear
   }
 
   /// This allows us to find the view in a current view hierarchy that is currently the first responder

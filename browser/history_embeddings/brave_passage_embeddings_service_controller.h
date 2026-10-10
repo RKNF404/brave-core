@@ -6,58 +6,30 @@
 #ifndef BRAVE_BROWSER_HISTORY_EMBEDDINGS_BRAVE_PASSAGE_EMBEDDINGS_SERVICE_CONTROLLER_H_
 #define BRAVE_BROWSER_HISTORY_EMBEDDINGS_BRAVE_PASSAGE_EMBEDDINGS_SERVICE_CONTROLLER_H_
 
-#include <memory>
-#include <string>
-#include <vector>
+#include <optional>
 
 #include "base/files/file_path.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
 #include "base/types/optional_ref.h"
-#include "brave/browser/history_embeddings/brave_passage_embeddings_service.h"
-#include "brave/components/local_ai/core/local_ai.mojom.h"
 #include "brave/components/local_ai/core/local_models_updater.h"
-#include "chrome/browser/passage_embeddings/chrome_passage_embeddings_service_controller.h"
-#include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_observer.h"
 #include "components/optimization_guide/core/delivery/model_info.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
 
 namespace passage_embeddings {
 
-// Brave's subclass of ChromePassageEmbeddingsServiceController. We
-// inherit from the Chrome class (rather than the base directly) so
-// that our chromium_src override of
-// ChromePassageEmbeddingsServiceController::Get() can return the Brave
-// singleton — upstream factories call Get() and pick us up without needing
-// per-factory chromium_src swaps.
+// Runs EmbeddingGemma through the native LiteRT embedder in the sandboxed
+// passage embeddings utility process. A single instance is shared across
+// profiles, accessed via Get(), to avoid loading the model more than once.
 //
-// Our overrides of MaybeLaunchService() and ResetServiceRemote()
-// construct/tear down an in-process BravePassageEmbeddingsService
-// (bound to the base class's service_remote_) instead of launching a
-// sandboxed utility process as Chrome's defaults do.
-//
-// Upstream's SchedulingEmbedder, owned by PassageEmbeddingsServiceController,
-// drives the actual job queue; we just provide the transport.
-//
-// Note on the per-profile PassageEmbedderModelObserver:
-// PassageEmbedderModelObserverFactory creates one observer per profile
-// that registers with OptimizationGuide to receive tflite model
-// updates. Brave doesn't use that model, but letting the observer
-// exist is safe because:
-//  (1) MaybeUpdateModelInfo below is a no-op override — the observer's
-//      notifications become dead callbacks.
-//  (2) IsUserPermittedToFetchFromRemoteOptimizationGuide returns false
-//      in Brave (chromium_src/.../optimization_guide_permissions_util.cc),
-//      so OptimizationGuide never actually downloads the tflite model.
-// That means we no longer need a chromium_src override of
-// PageEmbeddingsServiceFactory to skip the observer — upstream's
-// factory works as-is with Brave routing through
-// ChromePassageEmbeddingsServiceController::Get().
+// Brave does not use the optimization guide tflite model that upstream's
+// embedder relies on. The model is delivered by the local AI component updater
+// (LocalModelsUpdaterState) as a model dir laid out the way optimization guide
+// expects, so OnLocalModelsReady loads its model-info.pb into a ModelInfo and
+// feeds that to the base class.
 class BravePassageEmbeddingsServiceController
-    : public ChromePassageEmbeddingsServiceController,
-      public ProfileObserver,
+    : public PassageEmbeddingsServiceController,
       public local_ai::LocalModelsUpdaterState::Observer {
  public:
   static BravePassageEmbeddingsServiceController* Get();
@@ -67,19 +39,6 @@ class BravePassageEmbeddingsServiceController
   BravePassageEmbeddingsServiceController& operator=(
       const BravePassageEmbeddingsServiceController&) = delete;
 
-  // Called by CreateBackgroundWebContents once the guest OTR profile is
-  // available. Observes the profile so we can tear the service down
-  // before it is destroyed on browser shutdown (otherwise the WebContents
-  // inside the service would outlive its BrowserContext, tripping
-  // BrowserContextImpl's `rph_with_bc_reference` NOTREACHED).
-  void ObserveGuestOTRProfile(Profile* otr_profile);
-
-  // Routes a renderer-side LocalAIService binding from
-  // UntrustedLocalAIUI::BindInterface to the active embedder. No-op
-  // when no service is alive.
-  void BindLocalAIReceiver(
-      mojo::PendingReceiver<local_ai::mojom::LocalAIService> receiver);
-
  private:
   friend class base::NoDestructor<BravePassageEmbeddingsServiceController>;
 
@@ -87,51 +46,30 @@ class BravePassageEmbeddingsServiceController
   ~BravePassageEmbeddingsServiceController() override;
 
   // PassageEmbeddingsServiceController:
-  // Swallow optimization_guide updates. Upstream's PassageEmbedderModelObserver
-  // (created per-profile by PassageEmbedderModelObserverFactory) calls this
-  // whenever the tflite model component changes; the base implementation
-  // clears model paths and resets embedder_remote_ without touching service_,
-  // which leaves the next GetEmbeddings to fail the new embedder against a
-  // still-bound batch_embedder_ on the old service_. We don't use the
-  // upstream model at all, so the notification is noise.
+  // Ignores optimization_guide updates. Upstream's PassageEmbedderModelObserver
+  // calls this whenever the tflite model component changes; we don't use that
+  // model at all, so the notification is noise. The component's own model info
+  // reaches the base implementation from OnLitertModelInfoLoaded().
   bool MaybeUpdateModelInfo(
       base::optional_ref<const optimization_guide::ModelInfo> model_info)
       override;
-  void MaybeLaunchService() override;
-  void ResetServiceRemote() override;
-  bool EmbedderReady() override;
-  EmbedderMetadata GetEmbedderMetadata() override;
-  void GetEmbeddings(std::vector<std::string> passages,
-                     PassagePriority priority,
-                     GetEmbeddingsResultCallback callback) override;
-
-  // ProfileObserver:
-  void OnProfileWillBeDestroyed(Profile* profile) override;
 
   // local_ai::LocalModelsUpdaterState::Observer:
   void OnLocalModelsReady(const base::FilePath& install_dir) override;
+  void OnLocalModelsUnavailable() override;
 
-  // Posts the disk read for the five EmbeddingGemma files. Wired to
-  // OnLocalModelFilesLoaded; the receiver waits on the mojo pipe until
-  // BindPassageEmbedder is invoked there.
-  void LoadModelFilesAndBind(
-      mojo::PendingReceiver<mojom::PassageEmbedder> receiver);
-  void OnLocalModelFilesLoaded(
-      mojo::PendingReceiver<mojom::PassageEmbedder> receiver,
-      local_ai::mojom::ModelFilesPtr model_files);
+  // Reply for the model dir load posted by OnLocalModelsReady. `model_info` is
+  // empty when the component ships no usable model.
+  void OnLitertModelInfoLoaded(
+      std::optional<optimization_guide::ModelInfo> model_info);
 
-  std::unique_ptr<BravePassageEmbeddingsService> service_;
-  base::ScopedObservation<Profile, ProfileObserver> otr_profile_observation_{
-      this};
   base::ScopedObservation<local_ai::LocalModelsUpdaterState,
                           local_ai::LocalModelsUpdaterState::Observer>
       updater_state_observation_{this};
 
-  // Set true when LocalModelsUpdaterState reports the EmbeddingGemma
-  // component is installed. Required for EmbedderReady() to return
-  // true.
-  bool model_dir_ready_ = false;
-
+  // Guards the in-flight model dir load. Invalidated whenever the install dir
+  // changes, so a load started for a dir that is no longer current cannot
+  // publish the model it read.
   base::WeakPtrFactory<BravePassageEmbeddingsServiceController>
       weak_ptr_factory_{this};
 };

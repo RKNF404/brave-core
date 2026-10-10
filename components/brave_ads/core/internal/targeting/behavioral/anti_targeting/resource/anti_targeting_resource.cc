@@ -24,16 +24,15 @@ namespace {
 
 bool DoesRequireResourceForNewTabPageAds() {
   // Require resource only if:
-  // - The user has opted into new tab page ads and joined Brave Rewards.
-  return UserHasJoinedBraveRewards() && UserHasOptedInToNewTabPageAds();
+  // - New tab page ads are enabled and the user has joined Brave Rewards.
+  return UserHasJoinedBraveRewards() && IsNewTabPageAdsEnabled();
 }
 
 bool DoesRequireResource() {
   // Require resource only if:
-  // - The user has opted into new tab page ads and and joined Brave Rewards.
-  // - The user has joined Brave Rewards and opted into notification ads.
-  return DoesRequireResourceForNewTabPageAds() ||
-         UserHasOptedInToNotificationAds();
+  // - New tab page ads are enabled and the user has joined Brave Rewards.
+  // - The user has joined Brave Rewards and notification ads are enabled.
+  return DoesRequireResourceForNewTabPageAds() || IsNotificationAdsEnabled();
 }
 
 }  // namespace
@@ -63,13 +62,18 @@ AntiTargetingSiteList AntiTargetingResource::GetSites(
 ///////////////////////////////////////////////////////////////////////////////
 
 void AntiTargetingResource::MaybeLoad() {
-  if (manifest_version_ && DoesRequireResource()) {
-    Load();
+  if (!manifest_version_ || !DoesRequireResource()) {
+    // No longer required, so a previous failure to load is no longer
+    // relevant.
+    load_state_ = ResourceLoadStateType::kNotLoaded;
+    return;
   }
+
+  Load();
 }
 
 void AntiTargetingResource::MaybeLoadOrUnload() {
-  IsLoaded() ? MaybeUnload() : MaybeLoad();
+  GetLoadState() == ResourceLoadStateType::kLoaded ? MaybeUnload() : MaybeLoad();
 }
 
 void AntiTargetingResource::Load() {
@@ -80,17 +84,28 @@ void AntiTargetingResource::Load() {
 }
 
 void AntiTargetingResource::LoadCallback(
-    std::optional<AntiTargetingResourceInfo> resource) {
-  if (!resource) {
-    return BLOG(0, "Failed to load and parse " << kAntiTargetingResourceId
-                                               << " anti-targeting resource");
-  }
-
-  if (!resource->version) {
+    std::optional<AntiTargetingResourceInfo> resource,
+    bool exists) {
+  if (!exists) {
+    load_state_ = ResourceLoadStateType::kNotLoaded;
     return BLOG(1, kAntiTargetingResourceId
                        << " anti-targeting resource is unavailable");
   }
 
+  if (!resource) {
+    load_state_ = ResourceLoadStateType::kFailedToLoad;
+    return BLOG(0, "Failed to load and parse " << kAntiTargetingResourceId
+                                               << " anti-targeting resource");
+  }
+
+  if (!resource->version ||
+      *resource->version != kAntiTargetingResourceVersion.Get()) {
+    load_state_ = ResourceLoadStateType::kNotLoaded;
+    return BLOG(1, kAntiTargetingResourceId
+                       << " anti-targeting resource is unavailable");
+  }
+
+  load_state_ = ResourceLoadStateType::kLoaded;
   resource_ = std::move(resource);
 
   BLOG(1, "Successfully loaded and parsed "
@@ -109,12 +124,13 @@ void AntiTargetingResource::Unload() {
        "Unloaded " << kAntiTargetingResourceId << " anti-targeting resource");
 
   resource_.reset();
+  load_state_ = ResourceLoadStateType::kNotLoaded;
 }
 
 void AntiTargetingResource::OnNotifyPrefDidChange(const std::string& path) {
   if (DoesMatchUserHasJoinedBraveRewardsPrefPath(path) ||
-      DoesMatchUserHasOptedInToNewTabPageAdsPrefPath(path) ||
-      DoesMatchUserHasOptedInToNotificationAdsPrefPath(path)) {
+      DoesMatchNewTabPageAdsEnabledPrefPath(path) ||
+      DoesMatchNotificationAdsEnabledPrefPath(path)) {
     // This condition should include all the preferences that are present in the
     // `DoesRequireResource` function.
     MaybeLoadOrUnload();

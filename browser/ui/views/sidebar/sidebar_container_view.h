@@ -11,7 +11,9 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/timer/timer.h"
+#include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "brave/browser/ui/sidebar/sidebar.h"
 #include "brave/browser/ui/views/sidebar/sidebar_control_view.h"
 #include "brave/components/sidebar/browser/sidebar_service.h"
@@ -29,8 +31,8 @@ namespace sidebar {
 class SidebarBrowserTest;
 }  // namespace sidebar
 
-class BraveBrowser;
-class Browser;
+class BrowserWindowInterface;
+class BrowserWindowInterface;
 
 // This view is the parent view of all sidebar ui.
 // Direct child views are control view and panel view.
@@ -44,10 +46,11 @@ class Browser;
 class SidebarContainerView : public sidebar::Sidebar,
                              public SidebarControlView::Delegate,
                              public views::View,
-                             public views::AnimationDelegateViews {
+                             public views::AnimationDelegateViews,
+                             public FocusModeController::Observer {
   METADATA_HEADER(SidebarContainerView, views::View)
  public:
-  explicit SidebarContainerView(Browser* browser);
+  explicit SidebarContainerView(BrowserWindowInterface* browser);
   ~SidebarContainerView() override;
 
   SidebarContainerView(const SidebarContainerView&) = delete;
@@ -90,6 +93,9 @@ class SidebarContainerView : public sidebar::Sidebar,
   void AnimationProgressed(const gfx::Animation* animation) override;
   void AnimationEnded(const gfx::Animation* animation) override;
 
+  // FocusModeController::Observer overrides:
+  void OnFocusModeToggled(bool enabled) override;
+
  private:
   friend class sidebar::SidebarBrowserTest;
 
@@ -100,6 +106,9 @@ class SidebarContainerView : public sidebar::Sidebar,
 
   void AddChildViews();
   bool ShouldUseAnimation();
+
+  void ApplyShowOption();
+  bool ShouldShowOnHover() const;
 
   void ShowSidebar(AnimationStyle animation = AnimationStyle::kAnimated);
   void HideSidebar();
@@ -123,11 +132,7 @@ class SidebarContainerView : public sidebar::Sidebar,
   void StartBrowserWindowEventMonitoring();
   void StopBrowserWindowEventMonitoring();
 
-  // Casts |browser_| to BraveBrowser, as storing it as BraveBrowser would cause
-  // a precocious downcast.
-  BraveBrowser* GetBraveBrowser() const;
-
-  raw_ptr<Browser> browser_ = nullptr;
+  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
   raw_ptr<SidebarControlView> sidebar_control_view_ = nullptr;
   bool initialized_ = false;
   bool sidebar_on_left_ = true;
@@ -140,6 +145,8 @@ class SidebarContainerView : public sidebar::Sidebar,
   std::unique_ptr<BrowserWindowEventObserver> browser_window_event_observer_;
   std::unique_ptr<views::EventMonitor> browser_window_event_monitor_;
   base::RepeatingClosure sidebar_control_view_visibility_changed_callback_;
+  base::ScopedObservation<FocusModeController, FocusModeController::Observer>
+      focus_mode_observation_{this};
 };
 
 #endif  // BRAVE_BROWSER_UI_VIEWS_SIDEBAR_SIDEBAR_CONTAINER_VIEW_H_

@@ -42,9 +42,9 @@ class BraveContentSettingsAgentImpl
       const BraveContentSettingsAgentImpl&) = delete;
   ~BraveContentSettingsAgentImpl() override;
 
-  bool IsCosmeticFilteringEnabled(const GURL& url) override;
+  bool IsCosmeticFilteringEnabled() override;
 
-  bool IsFirstPartyCosmeticFilteringEnabled(const GURL& url) override;
+  bool IsFirstPartyCosmeticFilteringEnabled() override;
 
   // RenderFrameObserver:
   void DidCommitProvisionalLoad(ui::PageTransition transition) override;
@@ -70,6 +70,8 @@ class BraveContentSettingsAgentImpl
       ContentSettingsType webcompat_settings_type) override;
 
   bool IsReduceLanguageEnabled() override;
+
+  bool AllowHidRequestDeviceWithoutTransientActivation() override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(BraveContentSettingsAgentImplAutoplayBrowserTest,

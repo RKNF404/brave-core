@@ -15,9 +15,9 @@ import {
   CrLitElement,
   PropertyValues,
 } from 'chrome://resources/lit/v3_0/lit.rollup.js'
+import { PrefServiceObserverMixinLit } from '/shared/settings/prefs2/pref_service_observer_mixin_lit.js'
 
 import { ContainersStrings } from '../brave_generated_resources_webui_strings.js'
-import type { SettingsToggleButtonElement } from '../controls/settings_toggle_button.js'
 import {
   Container,
   ContainerOperationError,
@@ -30,8 +30,11 @@ import { getHtml } from './containers.html.js'
 import type { ColorSelectedEvent } from './containers_background_chip.js'
 import { ContainersSettingsHandlerBrowserProxy } from './containers_browser_proxy.js'
 import type { IconSelectedEvent } from './containers_icon.js'
+import { DragReorderMixin, getDragReorderCss } from './drag_reorder_mixin.js'
 
-const SettingsBraveContentContainersElementBase = I18nMixinLit(CrLitElement)
+const SettingsBraveContentContainersElementBase = DragReorderMixin(
+  PrefServiceObserverMixinLit(I18nMixinLit(CrLitElement)),
+)
 
 /**
  * 'settings-brave-content-containers' is the settings page containing settings for Containers
@@ -42,7 +45,7 @@ export class SettingsBraveContentContainersElement extends SettingsBraveContentC
   }
 
   static override get styles() {
-    return getCss()
+    return [getCss(), getDragReorderCss()]
   }
 
   override render() {
@@ -51,8 +54,8 @@ export class SettingsBraveContentContainersElement extends SettingsBraveContentC
 
   static override get properties() {
     return {
-      containersEnabled_: {
-        type: Boolean,
+      containersEnabledPref_: {
+        type: Object,
       },
       containersList_: {
         type: Array,
@@ -76,7 +79,9 @@ export class SettingsBraveContentContainersElement extends SettingsBraveContentC
   }
 
   private browserProxy = ContainersSettingsHandlerBrowserProxy.getInstance()
-  accessor containersEnabled_ = true
+  accessor containersEnabledPref_:
+    | chrome.settingsPrivate.PrefObject<boolean>
+    | undefined
   accessor containersList_: Container[] = []
   accessor editingContainer_: Container | undefined
   accessor deletingContainer_: Container | undefined
@@ -86,42 +91,44 @@ export class SettingsBraveContentContainersElement extends SettingsBraveContentC
 
   override connectedCallback() {
     super.connectedCallback()
-    this.browserProxy.handler.getContainersEnabled().then(({ enabled }) => {
-      this.containersEnabled_ = enabled
-    })
     this.browserProxy.handler.getContainers().then(({ containers }) => {
       this.onContainersListUpdated_(containers)
     })
+    this.mirrorPref('brave.containers.enabled', 'containersEnabledPref_')
     this.browserProxy.callbackRouter.onContainersChanged.addListener(
       this.onContainersListUpdated_.bind(this),
-    )
-    this.browserProxy.callbackRouter.onContainersEnabledChanged.addListener(
-      this.onContainersEnabledChanged_.bind(this),
     )
   }
 
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties)
     if (
-      changedProperties.has('containersEnabled_')
-      && !this.containersEnabled_
+      changedProperties.has('containersEnabledPref_')
+      && !this.containersEnabledPref_?.value
     ) {
       this.editingContainer_ = undefined
       this.deletingContainer_ = undefined
     }
   }
 
-  private onContainersEnabledChanged_(enabled: boolean) {
-    this.containersEnabled_ = enabled
-  }
-
-  onContainersEnabledChange_(e: Event) {
-    const toggle = e.target as SettingsToggleButtonElement
-    this.browserProxy.handler.setContainersEnabled(toggle.checked)
-  }
-
   onContainersListUpdated_(containers: Container[]) {
     this.containersList_ = containers
+    this.onReorderableItemsUpdated_()
+  }
+
+  override getReorderableIds_(): string[] {
+    return this.containersList_.map((c) => c.id)
+  }
+
+  override onItemsReordered_(orderedIds: string[]) {
+    this.browserProxy.handler
+      .reorderContainers(orderedIds)
+      .then(({ error }) => {
+        if (!error) {
+          this.onReorderableItemsUpdated_()
+        }
+      })
+      .catch(() => this.onReorderableItemsUpdated_())
   }
 
   onAddContainerClick_() {

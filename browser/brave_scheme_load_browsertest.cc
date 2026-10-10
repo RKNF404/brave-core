@@ -10,7 +10,6 @@
 #include "brave/components/constants/brave_paths.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/incognito_allowed_url.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -43,7 +42,7 @@ class BraveSchemeLoadBrowserTest : public InProcessBrowserTest,
   }
 
   PrefService* prefs() {
-    return user_prefs::UserPrefs::Get(browser()->profile());
+    return user_prefs::UserPrefs::Get(browser()->GetProfile());
   }
 
   // TabStripModelObserver overrides:
@@ -80,7 +79,7 @@ class BraveSchemeLoadBrowserTest : public InProcessBrowserTest,
 
   // Check loading |url| in guest window is not allowed for an url.
   void TestURLIsNotLoadedInGuestWindow(const GURL& url) {
-    Browser* guest_browser = CreateGuestBrowser();
+    BrowserWindowInterface* guest_browser = CreateGuestBrowser();
     TabStripModel* guest_model = guest_browser->tab_strip_model();
 
     // Check guest window has one blank tab.
@@ -96,17 +95,16 @@ class BraveSchemeLoadBrowserTest : public InProcessBrowserTest,
                       ->GetController()
                       .GetLastCommittedEntry();
     EXPECT_EQ(entry->GetPageType(), content::PageType::PAGE_TYPE_ERROR);
-    EXPECT_EQ("about:blank", base::UTF16ToUTF8(browser()
-                                                   ->GetFeatures()
-                                                   .location_bar_model()
-                                                   ->GetFormattedFullURL()));
+    EXPECT_EQ("about:blank",
+              base::UTF16ToUTF8(
+                  LocationBarModel::From(browser())->GetFormattedFullURL()));
     EXPECT_EQ(1, browser()->tab_strip_model()->count());
   }
 
   // Check loading |url| in private window is redirected to normal
   // window.
   void TestURLIsNotLoadedInPrivateWindow(const std::string& url) {
-    Browser* private_browser = CreateIncognitoBrowser(nullptr);
+    BrowserWindowInterface* private_browser = CreateIncognitoBrowser(nullptr);
     TabStripModel* private_model = private_browser->tab_strip_model();
 
     // Check normal & private window have one blank tab.
@@ -130,10 +128,8 @@ class BraveSchemeLoadBrowserTest : public InProcessBrowserTest,
 
     browser()->tab_strip_model()->RemoveObserver(this);
 
-    EXPECT_EQ(
-        url,
-        base::UTF16ToUTF8(
-            browser()->GetFeatures().location_bar_model()->GetURLForDisplay()));
+    EXPECT_EQ(url, base::UTF16ToUTF8(
+                       LocationBarModel::From(browser())->GetURLForDisplay()));
     EXPECT_EQ(2, browser()->tab_strip_model()->count());
     // Private window stays as initial state.
     EXPECT_EQ("about:blank",
@@ -143,7 +139,7 @@ class BraveSchemeLoadBrowserTest : public InProcessBrowserTest,
 
   // Check loading |url| wallet URL in private window results in a load failure
   void TestURLIsNotLoadedInPrivateWindowOrRedirected(const std::string& url) {
-    Browser* private_browser = CreateIncognitoBrowser(nullptr);
+    BrowserWindowInterface* private_browser = CreateIncognitoBrowser(nullptr);
     TabStripModel* private_model = private_browser->tab_strip_model();
 
     // Check normal & private window have one blank tab.
@@ -160,15 +156,14 @@ class BraveSchemeLoadBrowserTest : public InProcessBrowserTest,
                       ->GetController()
                       .GetLastCommittedEntry();
     EXPECT_EQ(entry->GetPageType(), content::PageType::PAGE_TYPE_ERROR);
-    EXPECT_EQ(
-        "about:blank",
-        base::UTF16ToUTF8(
-            browser()->GetFeatures().location_bar_model()->GetURLForDisplay()));
+    EXPECT_EQ("about:blank",
+              base::UTF16ToUTF8(
+                  LocationBarModel::From(browser())->GetURLForDisplay()));
     EXPECT_EQ(1, browser()->tab_strip_model()->count());
   }
 
   void TestURLIsLoadedInPrivateWindow(const std::string& url) {
-    Browser* private_browser = CreateIncognitoBrowser();
+    BrowserWindowInterface* private_browser = CreateIncognitoBrowser();
     TabStripModel* private_model = private_browser->tab_strip_model();
     EXPECT_EQ("about:blank",
               private_model->GetActiveWebContents()->GetVisibleURL().spec());

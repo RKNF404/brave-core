@@ -9,7 +9,6 @@
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "brave/components/brave_shields/core/common/features.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
@@ -34,7 +33,7 @@ class EphemeralStorageAutoShredBrowserTest
   void SetUpOnMainThread() override {
     EphemeralStorageBrowserTest::SetUpOnMainThread();
 
-    auto* profile = browser()->profile();
+    auto* profile = browser()->GetProfile();
     brave_shields_settings_ =
         BraveShieldsSettingsServiceFactory::GetForProfile(profile);
   }
@@ -120,7 +119,7 @@ IN_PROC_BROWSER_TEST_F(EphemeralStorageAutoShredBrowserTest,
   EXPECT_EQ(1u, GetAllCookies().size());
   // Make sure that only b.com has not been cleaned
   EXPECT_EQ("name=bcom",
-            content::GetCookies(browser()->profile(),
+            content::GetCookies(browser()->GetProfile(),
                                 https_server_.GetURL("b.com", "/")));
 }
 

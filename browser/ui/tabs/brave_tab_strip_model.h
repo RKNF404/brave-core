@@ -65,9 +65,31 @@ class BraveTabStripModel : public TabStripModel {
   const tree_tab::TreeTabNodeId* GetTreeTabNodeIdForGroup(
       tab_groups::TabGroupId group_id) const;
 
+  // Returns the recursive tab indices of every tab in the tree tab subtree
+  // rooted at |index|, excluding |index| itself. Returns an empty vector if
+  // tree tabs are disabled or |index|'s tab has no tree tab descendants. Used
+  // by BraveBrowserTabStripController::SelectTab() to expand a mouse click on
+  // a tree-tab parent to select its whole subtree.
+  std::vector<int> GetTreeTabDescendantIndices(int index);
+
+  // Returns true iff the current selection consists of exactly the active
+  // tab and the tree tab descendants returned by
+  // GetTreeTabDescendantIndices() for it (no more, no fewer, no other
+  // tabs/trees). Always false when tree tabs are disabled or the active tab
+  // has no descendants. Used by chrome::CloseTab()/ReloadInternal() to
+  // detect an ordinary subtree-selection-on-activate so those commands can
+  // be scoped to just the active tab, mirroring how they already handle
+  // split tabs.
+  bool IsOnlyActiveTabAndTreeDescendantsSelected();
+
   // TabStripModel:
   void SelectRelativeTab(TabRelativeDirection direction,
                          TabStripUserGestureDetails detail) override;
+
+  std::vector<std::variant<std::unique_ptr<DetachedTab>,
+                           std::unique_ptr<DetachedTabCollection>>>
+  DetachTabsAndCollectionsForInsertion(
+      const std::vector<int>& tab_indices) override;
 
  private:
   friend class TreeTabsBrowserTest;
@@ -79,6 +101,7 @@ class BraveTabStripModel : public TabStripModel {
   void NotifyTreeTabNodeCreated(const tabs::TreeTabNode& node);
   void NotifyTreeTabNodeWillBeDestroyed(const tree_tab::TreeTabNodeId& id);
   void NotifyTreeTabNodeReparented(const tree_tab::TreeTabNodeId& id);
+  void NotifyTreeTabNodeChildrenChanged(const tree_tab::TreeTabNodeId& id);
 
   tabs::BraveTabStripCollection* contents_data() {
     return static_cast<tabs::BraveTabStripCollection*>(contents_data_.get());
@@ -107,6 +130,8 @@ class BraveTabStripModel : public TabStripModel {
       tree_tab_node_will_be_destroyed_subscription_;
   std::unique_ptr<base::CallbackListSubscription>
       tree_tab_node_moved_subscription_;
+  std::unique_ptr<base::CallbackListSubscription>
+      tree_tab_node_children_changed_subscription_;
 };
 
 #endif  // BRAVE_BROWSER_UI_TABS_BRAVE_TAB_STRIP_MODEL_H_

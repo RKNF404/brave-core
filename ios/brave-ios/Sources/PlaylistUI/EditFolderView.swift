@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import CoreData
 import Data
 import Foundation
 import Playlist
@@ -56,7 +57,7 @@ struct EditFolderView: View {
             duration: .init(item.duration),
             isSelected: false,
             isPlaying: false,
-            downloadState: nil
+            cacheState: nil
           )
         }
         .onMove { indexSet, offset in

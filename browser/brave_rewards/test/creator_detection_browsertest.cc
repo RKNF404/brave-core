@@ -20,7 +20,6 @@
 #include "brave/components/brave_rewards/core/features.h"
 #include "brave/components/brave_rewards/core/pref_names.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -106,13 +105,13 @@ class CreatorDetectionBrowserTest : public PlatformBrowserTest {
 
   RewardsService& GetRewardsService() {
     auto* rewards_service =
-        RewardsServiceFactory::GetForProfile(browser()->profile());
+        RewardsServiceFactory::GetForProfile(browser()->GetProfile());
     CHECK(rewards_service);
     return *rewards_service;
   }
 
   void EnableRewards() {
-    auto* prefs = browser()->profile()->GetPrefs();
+    auto* prefs = browser()->GetProfile()->GetPrefs();
     prefs->SetBoolean(brave_rewards::prefs::kEnabled, true);
 
     TestFuture<mojom::CreateRewardsWalletResult> future;

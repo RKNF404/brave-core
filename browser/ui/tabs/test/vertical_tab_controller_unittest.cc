@@ -8,26 +8,34 @@
 #include <memory>
 
 #include "base/test/scoped_feature_list.h"
+#include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/features.h"
-#include "components/prefs/pref_registry_simple.h"
-#include "components/prefs/testing_pref_service.h"
+#include "chrome/browser/ui/tabs/tab_strip_prefs.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 class VerticalTabControllerUnitTest : public testing::Test {
  public:
   void SetUp() override {
+    tabs::RegisterProfilePrefs(pref_service_.registry());
     brave_tabs::RegisterBraveProfilePrefs(pref_service_.registry());
   }
 
  protected:
   std::unique_ptr<VerticalTabController> MakeController(
-      BrowserWindowInterface::Type type = BrowserWindowInterface::TYPE_NORMAL) {
-    return std::make_unique<VerticalTabController>(type, &pref_service_);
+      BrowserWindowInterface::Type type = BrowserWindowInterface::TYPE_NORMAL,
+      FocusModeController* focus_mode_controller = nullptr) {
+    return std::make_unique<VerticalTabController>(
+        user_data_host_, type, &pref_service_, focus_mode_controller);
   }
 
-  TestingPrefServiceSimple pref_service_;
+  sync_preferences::TestingPrefServiceSyncable pref_service_;
+  // Each test creates at most one controller of each type, which registers
+  // itself here.
+  ui::UnownedUserDataHost user_data_host_;
 };
 
 TEST_F(VerticalTabControllerUnitTest, SupportsBraveVerticalTabsNormalWindow) {
@@ -73,6 +81,22 @@ TEST_F(VerticalTabControllerUnitTest,
   EXPECT_FALSE(controller->ShouldShowWindowTitleForVerticalTabs());
 }
 
+TEST_F(VerticalTabControllerUnitTest, ShouldShowWindowTitleFalseInFocusMode) {
+  pref_service_.SetBoolean(brave_tabs::kVerticalTabsEnabled, true);
+  pref_service_.SetBoolean(brave_tabs::kVerticalTabsShowTitleOnWindow, true);
+
+  FocusModeController focus_mode_controller(user_data_host_);
+  auto controller = MakeController(BrowserWindowInterface::TYPE_NORMAL,
+                                   &focus_mode_controller);
+  EXPECT_TRUE(controller->ShouldShowWindowTitleForVerticalTabs());
+
+  focus_mode_controller.SetEnabled(true);
+  EXPECT_FALSE(controller->ShouldShowWindowTitleForVerticalTabs());
+
+  focus_mode_controller.SetEnabled(false);
+  EXPECT_TRUE(controller->ShouldShowWindowTitleForVerticalTabs());
+}
+
 TEST_F(VerticalTabControllerUnitTest, IsFloatingVerticalTabsEnabledDefault) {
   pref_service_.SetBoolean(brave_tabs::kVerticalTabsEnabled, true);
   // kVerticalTabsFloatingEnabled defaults to true
@@ -84,6 +108,32 @@ TEST_F(VerticalTabControllerUnitTest,
        IsFloatingVerticalTabsDisabledWhenVerticalTabsOff) {
   auto controller = MakeController();
   EXPECT_FALSE(controller->IsFloatingVerticalTabsEnabled());
+}
+
+TEST_F(VerticalTabControllerUnitTest,
+       ShouldShowVerticalTabToggleButtonDefault) {
+  pref_service_.SetBoolean(brave_tabs::kVerticalTabsEnabled, true);
+  // kVerticalTabsShowToggleButton defaults to true
+  auto controller = MakeController();
+  EXPECT_TRUE(controller->ShouldShowVerticalTabToggleButton());
+}
+
+TEST_F(VerticalTabControllerUnitTest,
+       ShouldShowVerticalTabToggleButtonFalseWhenVerticalTabsOff) {
+  auto controller = MakeController();
+  EXPECT_FALSE(controller->ShouldShowVerticalTabToggleButton());
+}
+
+TEST_F(VerticalTabControllerUnitTest,
+       IsFloatingVerticalTabsEnabledWhenToggleButtonHidden) {
+  pref_service_.SetBoolean(brave_tabs::kVerticalTabsEnabled, true);
+  pref_service_.SetBoolean(brave_tabs::kVerticalTabsFloatingEnabled, false);
+  pref_service_.SetBoolean(brave_tabs::kVerticalTabsShowToggleButton, false);
+  auto controller = MakeController();
+  EXPECT_FALSE(controller->ShouldShowVerticalTabToggleButton());
+  // Floating mode is forced on when there is no toggle button to expand
+  // collapsed tabs, regardless of kVerticalTabsFloatingEnabled.
+  EXPECT_TRUE(controller->IsFloatingVerticalTabsEnabled());
 }
 
 TEST_F(VerticalTabControllerUnitTest, IsVerticalTabOnRightDefault) {

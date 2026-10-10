@@ -18,12 +18,14 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
+#include "ui/decoration/shadow.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/gfx/skia_paint_util.h"
@@ -185,8 +187,8 @@ void BraveTooltipPopup::OnPaintBackground(gfx::Canvas* canvas) {
   // Draw drop shadow
   cc::PaintFlags shadow_flags;
   shadow_flags.setAntiAlias(true);
-  const gfx::ShadowDetails& shadow_details = GetShadowDetails();
-  shadow_flags.setLooper(gfx::CreateShadowDrawLooper(shadow_details.values));
+  const ui::decoration::ShadowDetails& shadow_details = GetShadowDetails();
+  shadow_flags.setLooper(gfx::CreateShadowDrawLooper(shadow_details.spec));
   canvas->DrawRoundRect(bounds, kCornerRadius, shadow_flags);
 
   // Draw background
@@ -299,14 +301,16 @@ void BraveTooltipPopup::RecomputeAlignment() {
   GetWidget()->SetBounds(bounds);
 }
 
-const gfx::ShadowDetails& BraveTooltipPopup::GetShadowDetails() const {
-  return gfx::ShadowDetails::Get(kShadowElevation, kCornerRadius);
+const ui::decoration::ShadowDetails& BraveTooltipPopup::GetShadowDetails()
+    const {
+  return ui::decoration::ShadowDetails::Get(
+      gfx::RoundedCornersF(kCornerRadius),
+      ui::Shadow::MakeShadowValues(kShadowElevation));
 }
 
 gfx::Insets BraveTooltipPopup::GetShadowMargin() const {
-  const gfx::ShadowDetails& shadow_details = GetShadowDetails();
-  gfx::Insets shadow_margin =
-      gfx::ShadowValue::GetMargin(shadow_details.values);
+  const ui::decoration::ShadowDetails& shadow_details = GetShadowDetails();
+  gfx::Insets shadow_margin = gfx::ShadowValue::GetMargin(shadow_details.spec);
   shadow_margin.set_left(-kBorderThickness);
   shadow_margin.set_top(0);
   return shadow_margin;

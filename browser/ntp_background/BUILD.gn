@@ -53,6 +53,10 @@ source_set("ntp_background") {
     ]
   }
 
+  if (!is_android) {
+    deps += [ "//brave/browser/infobars" ]
+  }
+
   if (enable_custom_background) {
     sources += [
       "brave_ntp_custom_background_service_delegate.cc",
@@ -89,12 +93,17 @@ source_set("unit_tests") {
     "//brave/components/ntp_background_images/common",
     "//brave/components/p3a",
     "//chrome/test:test_support",
+    "//chrome/test/base:chrome_render_view_host_test_harness",
     "//components/infobars/content",
     "//components/prefs:test_support",
     "//components/sync_preferences:test_support",
     "//content/test:test_support",
     "//testing/gtest",
   ]
+
+  if (toolkit_views) {
+    deps += [ "//chrome/browser/ui/views:layout_provider" ]
+  }
 
   if (enable_custom_background) {
     sources += [
@@ -117,8 +126,8 @@ if (enable_custom_background) {
 
     sources = [
       "custom_background_file_manager_browsertest.cc",
-      "ntp_sponsored_rich_media_browsertest.cc",
-      "ntp_sponsored_rich_media_with_csp_violation_browsertest.cc",
+      "ntp_dynamic_new_tab_takeover_browsertest.cc",
+      "ntp_dynamic_new_tab_takeover_with_csp_violation_browsertest.cc",
     ]
 
     deps = [
@@ -130,6 +139,7 @@ if (enable_custom_background) {
       "//brave/components/ntp_background_images/browser:test_support",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui",
+      "//chrome/common",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
       "//content/test:test_support",

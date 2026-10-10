@@ -5,17 +5,20 @@
 
 #include <memory>
 
+#include "base/command_line.h"
+#include "base/test/scoped_feature_list.h"
 #include "brave/browser/ui/tabs/brave_tab_menu_model.h"
-#include "brave/browser/ui/tabs/brave_tab_menu_model_factory.h"
+#include "brave/browser/ui/tabs/public/switches.h"
 #include "brave/browser/ui/views/tabs/brave_browser_tab_strip_controller.h"
 #include "brave/components/containers/buildflags/buildflags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_menu_model.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/tabs/tab_menu_model_delegate.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
@@ -56,11 +59,9 @@ class BraveTabMenuBrowserTest : public InProcessBrowserTest {
   ui::SimpleMenuModel* CreateMenuModelAt(
       TabContextMenuController* context_menu_controller,
       int tab_index) {
-    brave::BraveTabMenuModelFactory factory;
-    auto model =
-        factory.Create(context_menu_controller,
-                       browser()->GetFeatures().tab_menu_model_delegate(),
-                       browser()->tab_strip_model(), tab_index);
+    auto model = std::make_unique<BraveTabMenuModel>(
+        context_menu_controller, TabMenuModelDelegate::From(browser()),
+        browser()->tab_strip_model(), tab_index);
 
     auto* model_ptr = model.get();
     context_menu_controller->LoadModel(std::move(model));
@@ -71,10 +72,11 @@ class BraveTabMenuBrowserTest : public InProcessBrowserTest {
   BrowserWindowInterface* CreateBrowser(bool incognito) {
     if (incognito) {
       return chrome::OpenEmptyWindow(
-          browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true),
+          browser()->GetProfile()->GetPrimaryOTRProfile(
+              /*create_if_needed=*/true),
           /*should_trigger_session_restore=*/false);
     }
-    return chrome::OpenEmptyWindow(browser()->profile(),
+    return chrome::OpenEmptyWindow(browser()->GetProfile(),
                                    /*should_trigger_session_restore=*/false);
   }
 
@@ -112,7 +114,7 @@ IN_PROC_BROWSER_TEST_F(BraveTabMenuBrowserTest, Basics) {
   EXPECT_FALSE(menu->IsCommandIdEnabled(TabStripModel::CommandRestoreTab));
   EXPECT_FALSE(menu->IsCommandIdEnabled(TabStripModel::CommandBookmarkAllTabs));
 
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   // Still restore tab menu is disabled because there is no closed tab.
   EXPECT_FALSE(menu->IsCommandIdEnabled(TabStripModel::CommandRestoreTab));
   // Bookmark all tabs item is enabled if the number of tabs are 2 or more.
@@ -479,6 +481,19 @@ IN_PROC_BROWSER_TEST_F(BraveTabMenuBrowserTest,
   }
 }
 
+IN_PROC_BROWSER_TEST_F(BraveTabMenuBrowserTest,
+                       UpstreamVerticalTabsToggleIsNotDuplicated) {
+  auto menu = CreateMenuControllerAt(0);
+  auto* menu_model = CreateMenuModelAt(menu.get(), 0);
+
+  EXPECT_TRUE(
+      menu_model->GetIndexOfCommandId(TabStripModel::CommandShowVerticalTabs)
+          .has_value());
+  EXPECT_FALSE(
+      menu_model->GetIndexOfCommandId(TabStripModel::CommandToggleVertical)
+          .has_value());
+}
+
 #if BUILDFLAG(ENABLE_CONTAINERS)
 class BraveTabMenuWithContainersBrowserTest : public BraveTabMenuBrowserTest {
  public:
@@ -487,7 +502,7 @@ class BraveTabMenuWithContainersBrowserTest : public BraveTabMenuBrowserTest {
 
   void SetUpOnMainThread() override {
     BraveTabMenuBrowserTest::SetUpOnMainThread();
-    containers::SetContainersEnabled(true, browser()->profile()->GetPrefs());
+    containers::SetContainersEnabled(true, browser()->GetProfile()->GetPrefs());
   }
 
  private:
@@ -506,7 +521,7 @@ IN_PROC_BROWSER_TEST_F(BraveTabMenuWithContainersBrowserTest,
       menu_model->GetIndexOfCommandId(TabStripModel::CommandOpenInContainer);
   EXPECT_TRUE(index.has_value());
 
-  chrome::NewEmptyWindow(browser()->profile());
+  chrome::NewEmptyWindow(browser()->GetProfile());
 
   menu = CreateMenuControllerAt(0);
   menu_model = CreateMenuModelAt(menu.get(), 0);
@@ -515,3 +530,37 @@ IN_PROC_BROWSER_TEST_F(BraveTabMenuWithContainersBrowserTest,
   EXPECT_TRUE(index.has_value());
 }
 #endif  // BUILDFLAG(ENABLE_CONTAINERS)
+
+class BraveTabMenuVerticalTabsBrowserTest : public BraveTabMenuBrowserTest {
+ public:
+  BraveTabMenuVerticalTabsBrowserTest() = default;
+  ~BraveTabMenuVerticalTabsBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    BraveTabMenuBrowserTest::SetUpOnMainThread();
+
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+        tabs::switches::kVerticalTabMigrationSwitch,
+        tabs::switches::kVerticalTabMigrationForceUpstreamValue);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(BraveTabMenuVerticalTabsBrowserTest,
+                       ShowVerticalTabsAndToggleVerticalAreMutuallyExclusive) {
+  // Regression test for the vertical tab migration effort: when upstream's
+  // vertical tab is enabled, VerticalTabController::
+  // SupportsBraveVerticalTabs() returns false, so Brave's own
+  // CommandShowVerticalTabs item must not be present, and upstream's
+  // CommandToggleVertical item (added because
+  // VerticalTabStripStateController::From() now returns non-null) must be
+  // the one shown instead.
+  auto menu = CreateMenuControllerAt(0);
+  auto* menu_model = CreateMenuModelAt(menu.get(), 0);
+
+  EXPECT_FALSE(
+      menu_model->GetIndexOfCommandId(TabStripModel::CommandShowVerticalTabs)
+          .has_value());
+  EXPECT_TRUE(
+      menu_model->GetIndexOfCommandId(TabStripModel::CommandToggleVertical)
+          .has_value());
+}

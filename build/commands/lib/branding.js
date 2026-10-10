@@ -8,7 +8,7 @@ import path from 'node:path'
 import config from './config.ts'
 import l10nUtil from './l10nUtil.js'
 import * as Log from './log.ts'
-import util from './util.js'
+import util from './util.ts'
 
 const update = () => {
   Log.progressStart('update branding')
@@ -463,23 +463,6 @@ const update = () => {
       'java',
       'res',
     )
-    const androidFeaturesTabUiResSource = path.join(
-      config.braveCoreDir,
-      'android',
-      'features',
-      'tab_ui',
-      'java',
-      'res',
-    )
-    const androidFeaturesTabUiDest = path.join(
-      config.srcDir,
-      'chrome',
-      'android',
-      'features',
-      'tab_ui',
-      'java',
-      'res',
-    )
     const androidDownloadInternalResSource = path.join(
       config.braveCoreDir,
       'browser',
@@ -531,7 +514,6 @@ const update = () => {
     // Mapping for copying Brave's Android resource into chromium folder.
     const copyAndroidResourceMapping = {
       [androidResSource]: [androidResDest],
-      [androidFeaturesTabUiResSource]: [androidFeaturesTabUiDest],
       [androidDownloadInternalResSource]: [androidDownloadInternalResDest],
       [androidIconSource]: [androidIconDest],
       [androidIconBaseSource]: [androidIconBaseDest],

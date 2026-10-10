@@ -13,6 +13,13 @@
 #error "This file requires ARC support."
 #endif
 
+namespace {
+// iOS compiles all of its filter lists into a single engine, so per-list
+// permissions can't be honoured. Grant every permission instead of dropping
+// privileged filters entirely.
+constexpr uint8_t kFullPermissionMask = 0xFF;
+}  // namespace
+
 @interface AdblockEngineMatchResult ()
 @property(nonatomic, readwrite) bool didMatchRule;
 @property(nonatomic, readwrite) bool didMatchException;
@@ -84,7 +91,18 @@ class AdblockEngineBox final {
         [data getBytes:vecRules.data() length:data.length];
       }
 
-      auto result = adblock::engine_with_rules(vecRules);
+      auto filter_set = adblock::new_filter_set(false);
+      auto add_result = filter_set->add_filter_list_with_permissions(
+          vecRules, kFullPermissionMask);
+      if (add_result.result_kind != adblock::ResultKind::Success) {
+        if (error) {
+          *error = [[self class] adblockErrorForKind:add_result.result_kind
+                                             message:add_result.error_message];
+        }
+        return nil;
+      }
+
+      auto result = adblock::engine_from_filter_set(std::move(filter_set));
       if (result.result_kind == adblock::ResultKind::Success) {
         adblock_engine = std::move(result.value);
       } else {
@@ -153,7 +171,7 @@ class AdblockEngineBox final {
   auto engine_result = adblock_engine->matches(
       base::SysNSStringToUTF8(url), base::SysNSStringToUTF8(host),
       base::SysNSStringToUTF8(tabHost), base::SysNSStringToUTF8(resourceType),
-      isThirdParty, previouslyMatchedRule, forceCheckExceptions);
+      isThirdParty, "", previouslyMatchedRule, forceCheckExceptions);
   auto result = [[AdblockEngineMatchResult alloc] init];
   result.didMatchRule = engine_result.matched;
   result.didMatchException = engine_result.has_exception;
@@ -179,7 +197,7 @@ class AdblockEngineBox final {
       static_cast<std::string>(adblock_engine->get_csp_directives(
           base::SysNSStringToUTF8(url), base::SysNSStringToUTF8(host),
           base::SysNSStringToUTF8(tabHost),
-          base::SysNSStringToUTF8(resourceType), isThirdParty)));
+          base::SysNSStringToUTF8(resourceType), isThirdParty, "")));
 }
 
 - (bool)deserialize:(NSData*)data {

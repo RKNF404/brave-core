@@ -27,8 +27,11 @@ std::string AppendBraveServiceKeyHeaderString() {
 
 BraveSyncAuthManager::BraveSyncAuthManager(
     signin::IdentityManager* identity_manager,
-    SyncAuthManager::Delegate* delegate)
-    : SyncAuthManager(identity_manager, delegate) {}
+    SyncAuthManager::Delegate* delegate,
+    base::TimeDelta account_managed_status_finder_timeout)
+    : SyncAuthManager(identity_manager,
+                      delegate,
+                      account_managed_status_finder_timeout) {}
 
 BraveSyncAuthManager::~BraveSyncAuthManager() = default;
 
@@ -76,7 +79,7 @@ SyncAccountInfo BraveSyncAuthManager::DetermineAccountToUse(
     const signin::IdentityManager* identity_manager) const {
   if (!public_key_.empty()) {
     const std::string client_id = base::HexEncode(public_key_);
-    AccountInfo account_info;
+    CoreAccountInfo account_info;
     account_info.account_id = CoreAccountId::FromString(client_id);
     account_info.gaia = GaiaId(client_id);
     // about:sync-internals needs space separator in order to confine table

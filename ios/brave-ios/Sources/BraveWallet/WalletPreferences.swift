@@ -10,38 +10,6 @@ import struct Shared.Strings
 
 extension Preferences {
   public final class Wallet {
-    public enum WalletType: Int, Identifiable, CaseIterable {
-      case none
-      case brave
-
-      public var id: Int {
-        rawValue
-      }
-
-      public var name: String {
-        switch self {
-        case .none:
-          return Strings.Wallet.walletTypeNone
-        case .brave:
-          return Strings.Wallet.braveWallet
-        }
-      }
-    }
-    /// The default wallet to use for Ethereum to communicate with web3
-    public static let defaultEthWallet = Option<Int>(
-      key: "wallet.default-wallet",
-      default: WalletType.brave.rawValue
-    )
-    /// The default wallet to use for Solana to communicate with web3
-    public static let defaultSolWallet = Option<Int>(
-      key: "wallet.default-sol-wallet",
-      default: WalletType.brave.rawValue
-    )
-    /// The default wallet to use for Cardano to communicate with web3
-    public static let defaultCardanoWallet = Option<Int>(
-      key: "wallet.default-cardano-wallet",
-      default: WalletType.brave.rawValue
-    )
     /// Whether or not webpages can use the Ethereum Provider API to communicate with users Ethereum wallet
     public static let allowEthProviderAccess: Option<Bool> = .init(
       key: "wallet.allow-eth-provider-access",
@@ -71,55 +39,14 @@ extension Preferences {
     /// The option for users to turn off aurora popup
     public static let showAuroraPopup = Option<Bool>(key: "wallet.show-aurora-popup", default: true)
 
-    // MARK: Portfolio settings
-    public static let isShowingGraph = Option<Bool>(key: "wallet.isShowingGraph", default: true)
-    public static let isShowingBalances = Option<Bool>(
-      key: "wallet.isShowingBalances",
-      default: true
-    )
-    public static let isShowingNFTsTab = Option<Bool>(key: "wallet.isShowingNFTsTab", default: true)
-
-    // MARK: Portfolio & NFT filters
-    public static let groupByFilter = Option<Int>(
-      key: "wallet.groupByFilter",
-      default: GroupBy.none.rawValue
-    )
-    public static let sortOrderFilter = Option<Int>(
-      key: "wallet.sortOrderFilter",
-      default: SortOrder.valueDesc.rawValue
-    )
-    public static let isHidingSmallBalancesFilter = Option<Bool>(
-      key: "wallet.isHidingSmallBalancesFilter",
-      default: false
-    )
-    public static let isHidingUnownedNFTsFilter = Option<Bool>(
-      key: "wallet.isHidingUnownedNFTsFilter",
-      default: false
-    )
-    public static let isShowingNFTNetworkLogoFilter = Option<Bool>(
-      key: "wallet.isShowingNFTNetworkLogoFilter",
-      default: false
-    )
-    public static let nonSelectedAccountsFilter = Option<[String]>(
-      key: "wallet.nonSelectedAccountsFilter",
-      default: []
-    )
-    public static let nonSelectedNetworksFilter = Option<[String]>(
-      key: "wallet.nonSelectedNetworksFilter",
-      default: WalletConstants.supportedTestNetworkChainIds
-    )
-
     /// Reset Wallet Preferences based on coin type
     public static func reset(for coin: BraveWallet.CoinType) {
       switch coin {
       case .eth:
-        Preferences.Wallet.defaultEthWallet.reset()
         Preferences.Wallet.allowEthProviderAccess.reset()
       case .sol:
-        Preferences.Wallet.defaultSolWallet.reset()
         Preferences.Wallet.allowSolProviderAccess.reset()
       case .ada:
-        Preferences.Wallet.defaultCardanoWallet.reset()
         Preferences.Wallet.allowCardanoProviderAccess.reset()
       case .fil, .btc, .zec, .dot:
         // not supported

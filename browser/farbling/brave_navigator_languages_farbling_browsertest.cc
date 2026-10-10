@@ -18,7 +18,6 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/language/core/browser/pref_names.h"
@@ -123,7 +122,8 @@ class BraveNavigatorLanguagesFarblingBrowserTest : public InProcessBrowserTest {
   std::optional<size_t> accept_language_position_;
 
   HostContentSettingsMap* content_settings() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 
   void AllowFingerprinting(std::string domain) {
@@ -150,7 +150,7 @@ class BraveNavigatorLanguagesFarblingBrowserTest : public InProcessBrowserTest {
 
   void SetAcceptLanguages(const std::string& accept_languages) {
     content::BrowserContext* context =
-        static_cast<content::BrowserContext*>(browser()->profile());
+        static_cast<content::BrowserContext*>(browser()->GetProfile());
     PrefService* prefs = user_prefs::UserPrefs::Get(context);
     prefs->Set(language::prefs::kSelectedLanguages,
                base::Value(accept_languages));

@@ -20,8 +20,8 @@ class TreeTabNodeId;
 
 // Add a method to TabSlotController to determine whether to hide the close
 // button regardless of its state.
-#define ShouldCompactLeadingEdge()      \
-  ShouldCompactLeadingEdge() const = 0; \
+#define IsFocusInTabStrip()      \
+  IsFocusInTabStrip() const = 0; \
   virtual bool ShouldAlwaysHideCloseButton()
 
 // Add a method to TabSlotController to check if vertical tabs are in floating
@@ -48,6 +48,9 @@ class TreeTabNodeId;
   /* painted. Returns an empty ImageModel if the tab should not have an */     \
   /* accent or icon cannot be determined. */                                   \
   virtual ui::ImageModel GetTabAccentIcon(const Tab* tab) const = 0;           \
+  /* Returns whether tabs should always show the mini (small) accent icon */   \
+  /* instead of the large one, regardless of the tab's width. */               \
+  virtual bool ShouldAlwaysShowMiniTabAccent() const = 0;                      \
   /* Method to TabSlotController to determine whether tabs can be closed */    \
   /* via middle mouse button click. */                                         \
   virtual bool CanCloseTabViaMiddleButtonClick() const = 0;                    \
@@ -75,7 +78,7 @@ class TreeTabNodeId;
 #undef ShiftGroupRight
 #undef CanPaintThrobberToLayer
 #undef EndDrag
-#undef ShouldCompactLeadingEdge
+#undef IsFocusInTabStrip
 #undef ShiftGroupLeft
 
 #endif  // BRAVE_CHROMIUM_SRC_CHROME_BROWSER_UI_VIEWS_TABS_TAB_SLOT_CONTROLLER_H_

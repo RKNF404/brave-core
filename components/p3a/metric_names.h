@@ -35,12 +35,17 @@ inline constexpr auto kCollectedTypicalHistograms =
     {"Brave.AIChat.ContextMenu.FreeUsages", MetricConfig{.ephemeral = true}},
     {"Brave.AIChat.ContextMenu.MostUsedAction", MetricConfig{.ephemeral = true}},
     {"Brave.AIChat.ContextMenu.PremiumUsages", MetricConfig{.ephemeral = true}},
+    {"Brave.AIChat.ConversationCount", MetricConfig{.ephemeral = true}},
     {"Brave.AIChat.Enabled.2", {}},
     {"Brave.AIChat.FirstChatPrompts", MetricConfig{.ephemeral = true}},
     {"Brave.AIChat.FullPageSwitches", MetricConfig{.ephemeral = true}},
     {"Brave.AIChat.MaxChatDuration", MetricConfig{.ephemeral = true}},
     {"Brave.AIChat.MostUsedContextSource", MetricConfig{.ephemeral = true}},
-    {"Brave.AIChat.MostUsedEntryPoint", MetricConfig{.ephemeral = true}},
+    {"Brave.AIChat.MostUsedEntryPoint", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kCustomAttribute, MetricAttribute::kAnswerIndex, MetricAttribute::kYoi, MetricAttribute::kChannel, MetricAttribute::kPlatform, MetricAttribute::kCountryCode, MetricAttribute::kWoi},
+      .custom_attributes = {"day_zero"},
+    }},
     {"Brave.AIChat.NewUserReturning", {}},
     {"Brave.AIChat.OmniboxOpens", MetricConfig{.ephemeral = true}},
     {"Brave.AIChat.OmniboxWeekCompare", MetricConfig{.ephemeral = true}},
@@ -120,7 +125,6 @@ inline constexpr auto kCollectedTypicalHistograms =
     {"Brave.Rewards.NonBraveSearchWalletConnected", {}},
     {"Brave.Rewards.OfferClicks", MetricConfig{.ephemeral = true}},
     {"Brave.Rewards.OffersViewed", MetricConfig{.ephemeral = true}},
-    {"Brave.Rewards.SearchResultAdsOptin", MetricConfig{.ephemeral = true}},
     {"Brave.Rewards.TipsState.2", {}},
     {"Brave.Rewards.ToolbarButtonTrigger", MetricConfig{.ephemeral = true}},
     {"Brave.Rewards.WalletBalance.3", {}},
@@ -148,6 +152,66 @@ inline constexpr auto kCollectedTypicalHistograms =
     {"Brave.Shields.DevModeEnabled", {}},
     {"Brave.Shields.DomainAdsSettingsAboveGlobal", {}},
     {"Brave.Shields.DomainAdsSettingsBelowGlobal", {}},
+    {"Brave.Shields.FPInput.Canvas", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.DeviceMemory", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.DevicePixelRatio", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.Fonts", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.HardwareConcurrency", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.Languages", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.ScreenAvailSize", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.ScreenPixelDepth", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.ScreenSize", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.Timezone", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.UserAgent", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.WebAudio", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.WebGLExtensions", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.WebGLRenderer", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
+    {"Brave.Shields.FPInput.WebGLVendor", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform},
+    }},
     {"Brave.Shields.FilterLists.2", {}},
     {"Brave.Shields.FingerprintBlockSetting", {}},
     {"Brave.Shields.ManualShred", {}},
@@ -177,6 +241,8 @@ inline constexpr auto kCollectedTypicalHistograms =
     {"Brave.VerticalTabs.GroupTabs", MetricConfig{.ephemeral = true}},
     {"Brave.VerticalTabs.OpenTabs", MetricConfig{.ephemeral = true}},
     {"Brave.VerticalTabs.PinnedTabs", MetricConfig{.ephemeral = true}},
+    {"Brave.Wallet.UsageWeekly", MetricConfig{.ephemeral = true}},
+    {"Brave.Web3.DappVisited", MetricConfig{.ephemeral = true}},
     {"Brave.WebTorrent.UsageWeekly", MetricConfig{.ephemeral = true}},
 });
 
@@ -205,16 +271,26 @@ inline constexpr auto kCollectedSlowHistograms =
     {"Brave.Today.DirectFeedsTotal.3", MetricConfig{.ephemeral = true}},
     {"Brave.Today.PublisherCount.2", MetricConfig{.ephemeral = true}},
     {"Brave.Today.UsageMonthly", MetricConfig{.ephemeral = true}},
+    {"Brave.Wallet.UsageMonthly", MetricConfig{.ephemeral = true}},
 });
 
 inline constexpr auto kCollectedExpressHistograms =
   base::MakeFixedFlatMap<std::string_view, std::optional<MetricConfig>>({
-    {"Brave.Ads.SurveyPanelistEnabled", {}},
+    {"Brave.Ads.SponsoredEnabled", {}},
     {"Brave.AIChat.UsageDaily.2", MetricConfig{
       .ephemeral = true,
       .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kDateOfActivation, MetricAttribute::kVersion, MetricAttribute::kYoi, MetricAttribute::kChannel, MetricAttribute::kPlatform, MetricAttribute::kCountryCode, MetricAttribute::kWoi},
       .record_activation_date = true,
     }},
+    {"Brave.CaptchaCount.Cloudflare", MetricConfig{.ephemeral = true}},
+    {"Brave.CaptchaCount.Cloudflare.UserActivated", MetricConfig{.ephemeral = true}},
+    {"Brave.CaptchaCount.Google", MetricConfig{.ephemeral = true}},
+    {"Brave.CaptchaCount.Google.UserActivated", MetricConfig{.ephemeral = true}},
+    {"Brave.CaptchaCount.Total", MetricConfig{.ephemeral = true}},
+    {"Brave.CaptchaCount.Total.UserActivated", MetricConfig{.ephemeral = true}},
+    {"Brave.CaptchaCount.hCaptcha", MetricConfig{.ephemeral = true}},
+    {"Brave.CaptchaCount.hCaptcha.UserActivated", MetricConfig{.ephemeral = true}},
+
     {"Brave.Core.IsDefaultDaily.2", MetricConfig{
       .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kDateOfInstall, MetricAttribute::kDateOfActivation, MetricAttribute::kGeneralPlatform, MetricAttribute::kSubregion, MetricAttribute::kVersion},
       .record_activation_date = true,
@@ -222,6 +298,11 @@ inline constexpr auto kCollectedExpressHistograms =
     {"Brave.Core.BookmarksSourcePercent", MetricConfig{
       .ephemeral = true,
       .attributes = MetricAttributes{MetricAttribute::kIsBrowserDefault, MetricAttribute::kAnswerIndex, MetricAttribute::kCountryCode, MetricAttribute::kPlatform, MetricAttribute::kYoi},
+    }},
+    {"Brave.Core.CombinedSearchStudy", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kIsBrowserDefault, MetricAttribute::kCustomAttribute, MetricAttribute::kCustomAttribute, MetricAttribute::kCustomAttribute, MetricAttribute::kCustomAttribute, MetricAttribute::kCountryCode, MetricAttribute::kPlatform},
+      .custom_attributes = {"search_query", "media_usage_min", "unique_pages", "search_default"},
     }},
     {"Brave.Core.CustomTopSitesSourcePercent", MetricConfig{
       .ephemeral = true,
@@ -261,7 +342,7 @@ inline constexpr auto kCollectedExpressHistograms =
     {"Brave.NTP.NewTabsCreatedDaily", MetricConfig{.ephemeral = true}},
     {"Brave.PermissionLifetime.24Hours", MetricConfig{.ephemeral = true}},
     {"Brave.Rewards.EnabledInstallationTime", MetricConfig{.ephemeral = true}},
-    {"Brave.Search.BackupResultsFailures", MetricConfig{
+    {"Brave.Search.BackupResultsFailures.2", MetricConfig{
       .ephemeral = true,
       .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kVersion, MetricAttribute::kChannel, MetricAttribute::kPlatform, MetricAttribute::kCountryCode},
     }},
@@ -309,6 +390,26 @@ inline constexpr auto kCollectedExpressHistograms =
       .ephemeral = true,
       .attributes = MetricAttributes{MetricAttribute::kIsBrowserDefault, MetricAttribute::kAnswerIndex, MetricAttribute::kCountryCode, MetricAttribute::kPlatform, MetricAttribute::kYoi},
     }},
+    {"Brave.Search.SERPBrave", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kPlatform},
+      .priority = true,
+    }},
+    {"Brave.Search.SERPGoogle", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kPlatform},
+      .priority = true,
+    }},
+    {"Brave.Search.SERPOther", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kPlatform},
+      .priority = true,
+    }},
+    {"Brave.Search.SERPStale", MetricConfig{
+      .ephemeral = true,
+      .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kPlatform},
+      .priority = true,
+    }},
     {"Brave.Search.SwitchEngine.2", MetricConfig{
       .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform, MetricAttribute::kDateOfInstall, MetricAttribute::kVersion, MetricAttribute::kLocaleCountryCode},
     }},
@@ -334,6 +435,7 @@ inline constexpr auto kCollectedExpressHistograms =
       .record_activation_date = true
     }},
     {"Brave.Uptime.BrowserOpenTime.2", MetricConfig{.ephemeral = true}},
+    {"Brave.Wallet.UsageDaily", MetricConfig{.ephemeral = true}},
     {"Brave.Welcome.InteractionStatus.2", MetricConfig{
       .attributes = MetricAttributes{MetricAttribute::kAnswerIndex, MetricAttribute::kChannel, MetricAttribute::kPlatform, MetricAttribute::kDateOfInstall, MetricAttribute::kSubregion, MetricAttribute::kVersion},
     }},

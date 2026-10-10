@@ -2,6 +2,7 @@ include_rules = [
   "+brave/content/public/browser",
   "+brave/components/brave_shields/core/browser",
   "+brave/components/brave_shields/content/test",
+  "+brave/components/brave_user_agent/common/brand_names.h",
   "+brave/components/brave_user_agent/common/features.h",
   "+brave/components/geolocation",
   "+brave/components/update_client/buildflags.h",
@@ -19,5 +20,9 @@ specific_include_rules = {
   ],
   "search_ads_header_network_delegate_helper_unittest\.cc": [
     "+brave/components/l10n/common/test/scoped_default_locale.h",
+  ],
+  "brave_network_audit_search_ad_browsertest\.cc": [
+    "+brave/components/brave_ads/core/browser/service/ads_service.h",
+    "+brave/components/brave_ads/core/browser/service/test/ads_service_waiter.h",
   ],
 }

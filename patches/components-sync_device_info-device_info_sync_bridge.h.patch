@@ -1,17 +1,17 @@
 diff --git a/components/sync_device_info/device_info_sync_bridge.h b/components/sync_device_info/device_info_sync_bridge.h
-index 6a9020e3d7a4fbe5788deb8d7a3e5c897115ed78..531d8c40b63545252ffecccf94df1c60698630a8 100644
+index 863108376ef41530fb462ebcf0a10af3f1031bd0..bdda50f27a214a50023e3949ca256a81190e34ca 100644
 --- a/components/sync_device_info/device_info_sync_bridge.h
 +++ b/components/sync_device_info/device_info_sync_bridge.h
-@@ -61,6 +61,12 @@ class DeviceInfoSyncBridge : public DataTypeSyncBridge,
-   DeviceInfoSyncBridge& operator=(const DeviceInfoSyncBridge&) = delete;
+@@ -114,6 +114,12 @@ class DeviceInfoSyncBridge : public DataTypeSyncBridge,
+   bool IsPulseTimerRunningForTest() const;
+   void ForcePulseForTest() override;
  
-   ~DeviceInfoSyncBridge() override;
 +  void DeleteDeviceInfo(const std::string& client_id,
 +                        base::OnceClosure callback) override;
-+  std::vector<std::unique_ptr<DeviceInfo>> GetAllBraveDeviceInfo()
-+      const override;
++  std::vector<DeviceInfo> GetAllBraveDeviceInfo() const override;
 +  void OnDeviceInfoDeleted(const std::string& client_id, const int attempt,
 +                           base::OnceClosure callback);
- 
-   LocalDeviceInfoProvider* GetLocalDeviceInfoProvider();
- 
++
+  private:
+   class ImmutableDeviceInfoAndSpecifics {
+    public:

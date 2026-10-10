@@ -12,15 +12,10 @@ public class BraveNtpCustomizationUtilsClassAdapter extends BraveClassVisitor {
             "org/chromium/chrome/browser/ntp_customization/NtpCustomizationUtils";
     static String sBraveNtpCustomizationUtilsClassName =
             "org/chromium/chrome/browser/ntp_customization/BraveNtpCustomizationUtils";
-    static String sMethodIsInNarrowWindowOnTablet = "isInNarrowWindowOnTablet";
     static String sMethodIsNtpThemeCustomizationEnabled = "isNtpThemeCustomizationEnabled";
 
     public BraveNtpCustomizationUtilsClassAdapter(ClassVisitor visitor) {
         super(visitor);
-        changeMethodOwner(
-                sNtpCustomizationUtilsClassName,
-                sMethodIsInNarrowWindowOnTablet,
-                sBraveNtpCustomizationUtilsClassName);
         changeMethodOwner(
                 sNtpCustomizationUtilsClassName,
                 sMethodIsNtpThemeCustomizationEnabled,

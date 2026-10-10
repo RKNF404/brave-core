@@ -7,13 +7,14 @@
 #define BRAVE_COMPONENTS_BRAVE_ADS_CORE_BROWSER_SERVICE_ADS_SERVICE_CALLBACK_H_
 
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom-forward.h"
 
 namespace base {
 class DictValue;
-class ListValue;
 }  // namespace base
 
 // Callback types for the `AdsService` browser-layer interface. `AdsService`
@@ -28,7 +29,11 @@ using GetInternalsCallback =
     base::OnceCallback<void(std::optional<base::DictValue> internals)>;
 
 using GetDiagnosticsCallback =
-    base::OnceCallback<void(std::optional<base::ListValue> diagnostics)>;
+    base::OnceCallback<void(std::optional<base::DictValue> diagnostics)>;
+
+using EvaluateConditionMatcherCallback =
+    base::OnceCallback<void(const std::string& current_value,
+                            const std::string& matches)>;
 
 using GetStatementOfAccountsCallback =
     base::OnceCallback<void(mojom::StatementInfoPtr mojom_statement)>;
@@ -39,8 +44,8 @@ using MaybeServeMojomNewTabPageAdCallback =
 using MaybeGetSearchResultAdCallback = base::OnceCallback<void(
     mojom::CreativeSearchResultAdInfoPtr mojom_creative_ad)>;
 
-using GetAdHistoryForUICallback =
-    base::OnceCallback<void(std::optional<base::ListValue> ad_history)>;
+using GetAdHistoryForUICallback = base::OnceCallback<void(
+    std::optional<std::vector<mojom::AdHistoryItemInfoPtr>> mojom_ad_history)>;
 
 }  // namespace brave_ads
 

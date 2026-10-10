@@ -18,9 +18,8 @@
 #include "brave/components/speedreader/common/buildflags/buildflags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
@@ -75,17 +74,16 @@ class AIChatPolicyTest : public InProcessBrowserTest,
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
-  Profile* profile() { return browser()->profile(); }
+  Profile* profile() { return browser()->GetProfile(); }
 
   PrefService* prefs() { return profile()->GetPrefs(); }
 
   sidebar::SidebarModel* sidebar_model() const {
-    return browser()->GetFeatures().sidebar_controller()->model();
+    return sidebar::SidebarController::From(browser())->model();
   }
 
   AutocompleteController* GetAutocompleteController() {
-    return browser()
-        ->window()
+    return BrowserWindow::FromBrowser(browser())
         ->GetLocationBar()
         ->GetOmniboxController()
         ->autocomplete_controller();
@@ -150,7 +148,7 @@ IN_PROC_BROWSER_TEST_P(AIChatPolicyTest, Autocomplete) {
   const auto& providers = autocomplete_controller->providers();
   bool is_in_providers =
       std::ranges::any_of(providers, [](const auto& provider) {
-        return provider->type() == AutocompleteProvider::TYPE_BRAVE_LEO;
+        return provider->type() == AutocompleteProvider::Type::kBraveLeo;
       });
   if (IsAIChatEnabledTest()) {
     EXPECT_TRUE(is_in_providers);
@@ -209,7 +207,7 @@ IN_PROC_BROWSER_TEST_P(AIChatPolicyTest, SpeedreaderToolbar) {
 
 IN_PROC_BROWSER_TEST_P(AIChatPolicyTest, Command) {
   chrome::BrowserCommandController* command_controller =
-      browser()->command_controller();
+      chrome::BrowserCommandController::From(browser());
   EXPECT_EQ(command_controller->IsCommandEnabled(IDC_TOGGLE_AI_CHAT),
             IsAIChatEnabledTest());
 }

@@ -4,6 +4,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import AVKit
+import BraveCore
+import BraveShared
 import BraveStrings
 import Combine
 import Data
@@ -43,7 +45,7 @@ public final class PlayerModel: ObservableObject {
     setupPlaylistManagerObservation()
 
     Task { @MainActor in
-      updateSystemPlayer()
+      await updateSystemPlayer()
       UIApplication.shared.beginReceivingRemoteControlEvents()
     }
 
@@ -164,6 +166,9 @@ public final class PlayerModel: ObservableObject {
     if case .seconds(let duration) = duration, currentTime == duration {
       player.seek(to: .zero)
     }
+    if let uuid = selectedItemUUID {
+      PlaylistItem.updateLastPlayedDate(uuid: uuid, date: .now)
+    }
     player.play()
   }
 
@@ -246,7 +251,7 @@ public final class PlayerModel: ObservableObject {
     .init(rawValue: Preferences.Playlist.repeatMode.value) ?? .none
   {
     didSet {
-      updateSystemPlayer()
+      Task { await updateSystemPlayer() }
       Preferences.Playlist.repeatMode.value = repeatMode.rawValue
     }
   }
@@ -255,7 +260,7 @@ public final class PlayerModel: ObservableObject {
     didSet {
       if oldValue != isShuffleEnabled {
         makeItemQueue(selectedItemID: selectedItemID)
-        updateSystemPlayer()
+        Task { await updateSystemPlayer() }
         Preferences.Playlist.isShuffleEnabled.value = isShuffleEnabled
       }
     }
@@ -293,33 +298,28 @@ public final class PlayerModel: ObservableObject {
       if isPlaying {
         player.rate = playbackSpeed.rate
       }
-      updateSystemPlayer()
+      Task { await updateSystemPlayer() }
     }
   }
 
-  private var sleepTimer: Timer?
+  private var sleepTimer: Task<Void, Never>?
   enum SleepTimerCondition {
     case date(Date)
     case itemPlaybackCompletion
   }
   @MainActor @Published var sleepTimerCondition: SleepTimerCondition? {
     didSet {
-      sleepTimer?.invalidate()
+      sleepTimer?.cancel()
       guard let sleepTimerCondition else {
         return
       }
       if case .date(let date) = sleepTimerCondition {
-        let timer = Timer(
-          fire: date,
-          interval: 0,
-          repeats: false,
-          block: { [weak self] _ in
-            self?.pause()
-            self?.sleepTimerCondition = nil
-          }
-        )
-        RunLoop.main.add(timer, forMode: .default)
-        self.sleepTimer = timer
+        sleepTimer = Task { @MainActor [weak self] in
+          try? await Task.sleep(for: .seconds(max(0, date.timeIntervalSinceNow)))
+          guard !Task.isCancelled else { return }
+          self?.pause()
+          self?.sleepTimerCondition = nil
+        }
       }
     }
   }
@@ -400,6 +400,8 @@ public final class PlayerModel: ObservableObject {
   public let mediaStreamer: PlaylistMediaStreamer?
   public let initialPlaybackInfo: InitialPlaybackInfo?
 
+  private(set) var selectedItemUUID: String?
+
   @MainActor @Published var selectedItemID: PlaylistItem.ID? {
     willSet {
       if selectedItem != nil {
@@ -412,7 +414,8 @@ public final class PlayerModel: ObservableObject {
       }
     }
     didSet {
-      updateSystemPlayer(loadArtwork: true)
+      selectedItemUUID = selectedItemID.flatMap { PlaylistItem.getItem(id: $0)?.uuid }
+      Task { await updateSystemPlayer(loadArtwork: true) }
     }
   }
 
@@ -428,6 +431,10 @@ public final class PlayerModel: ObservableObject {
 
   @MainActor private var selectedItem: PlaylistItem? {
     selectedItemID.flatMap { PlaylistItem.getItem(id: $0) }
+  }
+
+  public var currentlyPlayingItemUUID: String? {
+    selectedItemUUID
   }
 
   @MainActor public func prepareItemQueue() async {
@@ -605,9 +612,6 @@ public final class PlayerModel: ObservableObject {
     }
   }
 
-  @MainActor var isErrorAlertPresented: Binding<Bool> {
-    .init(get: { self.error != nil }, set: { if !$0 { self.error = nil } })
-  }
   @MainActor @Published var error: PlayerModelError?
 
   @MainActor func prepareToPlaySelectedItem(
@@ -620,9 +624,29 @@ public final class PlayerModel: ObservableObject {
     if let cachedData = item.cachedData {
       if let cachedDataURL = await PlaylistItem.resolvingCachedData(cachedData) {
         playerItemToReplace = await Task.detached {
-          .init(asset: .init(url: cachedDataURL))
+          .init(asset: AVURLAsset(url: cachedDataURL))
         }.value
       }
+    }
+    if playerItemToReplace == nil,
+      Reachability.shared.status.connectionType == .offline
+    {
+      // Completely offline with no local cache to fall back on, so surface error immediately instead
+      // of waiting on a doomed stream resolution.
+      if isPictureInPictureActive {
+        // Can't show any error in PiP, so skip to the next item
+        await playNextItem()
+      } else {
+        self.error = .init(
+          reason: .loadingStreamingURLFailed(.cannotLoadMedia),
+          handler: { [weak self] in
+            Task {
+              await self?.playNextItem()
+            }
+          }
+        )
+      }
+      return
     }
     if playerItemToReplace == nil, let mediaStreamer {
       if !isPictureInPictureActive {
@@ -711,8 +735,8 @@ public final class PlayerModel: ObservableObject {
     player.replaceCurrentItem(with: item)
     await MainActor.run {
       setupPlayerItemKeyPathObservation()
-      updateSystemPlayer()
     }
+    await updateSystemPlayer()
   }
   private(set) var playerLayer: AVPlayerLayer = .init()
 
@@ -833,13 +857,13 @@ public final class PlayerModel: ObservableObject {
   /// from an earlier prepare — typically a streaming URL that was resolved because the item's `cachedData` bookmark survived an
   /// eviction of the actual file. In that state, `play()`'s smart recovery doesn't fire (it only triggers when `currentItem == nil`),
   /// so a tap on play just runs `seek+play` against the stale asset and the user sees nothing happen. Replacing `currentItem`
-  /// with one backed by the freshly downloaded file unblocks the next play tap deterministically.
+  /// with one backed by the freshly cached file unblocks the next play tap deterministically.
   ///
   /// Note: The player is not interrupted if it is actively playing a different content
   private func setupPlaylistManagerObservation() {
     PlaylistManager.shared.downloadStateChanged
       .sink { [weak self] event in
-        guard let self, event.state == .downloaded else { return }
+        guard let self, event.state == .cached else { return }
         Task { @MainActor in
           // Skip when an initial prepare is still in flight: it would race ours and could
           // overwrite the local `AVPlayerItem` we install with a streaming one once it
@@ -867,8 +891,8 @@ public final class PlayerModel: ObservableObject {
     }
     let timeControlStatusObservable = player.observe(\.timeControlStatus, options: [.new]) {
       [weak self] _, _ in
-      DispatchQueue.main.async {
-        self?.updateSystemPlayer()
+      Task { @MainActor in
+        await self?.updateSystemPlayer()
       }
     }
     cancellables.formUnion([
@@ -887,8 +911,8 @@ public final class PlayerModel: ObservableObject {
       objectWillChangeSubscriber(on: item, for: keyPath)
     }
     let statusObservable = item.observe(\.status) { [weak self] _, _ in
-      DispatchQueue.main.async {
-        self?.updateSystemPlayer()
+      Task { @MainActor in
+        await self?.updateSystemPlayer()
       }
     }
     itemCancellables.formUnion([
@@ -932,14 +956,14 @@ extension AVPlayer {
 // MARK: - System Media Player
 
 extension PlayerModel {
-  @MainActor private func updateSystemPlayer(loadArtwork: Bool = false) {
+  @MainActor private func updateSystemPlayer(loadArtwork: Bool = false) async {
     guard let selectedItem else {
       MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
       return
     }
 
     let mediaType: MPNowPlayingInfoMediaType =
-      currentItem?.isVideoTracksAvailable() == true ? .video : .audio
+      await currentItem?.isVideoTrackAvailable == true ? .video : .audio
     let nowPlayingInfo: [String: Any] = [
       MPNowPlayingInfoPropertyAssetURL: selectedItem.pageSrc.asURL as Any,
       MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,

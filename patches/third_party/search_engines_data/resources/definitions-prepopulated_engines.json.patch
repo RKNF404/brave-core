@@ -1,8 +1,8 @@
 diff --git a/definitions/prepopulated_engines.json b/definitions/prepopulated_engines.json
-index 0865e26a306f036f2747a5cdcb8c1e66b26959ab..c30dee5be3108e84f79f7a83ef33a948dc409ade 100644
+index 88df150d3749e8e92f74480eeea9ab051dabe139..77748fac9276e7a517718017fd1221393e39ec9c 100644
 --- a/definitions/prepopulated_engines.json
 +++ b/definitions/prepopulated_engines.json
-@@ -118,25 +118,6 @@
+@@ -119,25 +119,6 @@
        "id": 68
      },
  
@@ -28,7 +28,7 @@ index 0865e26a306f036f2747a5cdcb8c1e66b26959ab..c30dee5be3108e84f79f7a83ef33a948
      "ecosia": {
        "name": "Ecosia",
        "keyword": "ecosia.org",
-@@ -354,30 +335,6 @@
+@@ -379,30 +360,6 @@
        "id": 108
      },
  

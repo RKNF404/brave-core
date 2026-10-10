@@ -6,6 +6,7 @@
 #ifndef BRAVE_COMPONENTS_BRAVE_ADS_BROWSER_TEST_FAKE_BAT_ADS_H_
 #define BRAVE_COMPONENTS_BRAVE_ADS_BROWSER_TEST_FAKE_BAT_ADS_H_
 
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -27,9 +28,13 @@ namespace brave_ads::test {
 // all other methods are no-ops.
 class FakeBatAds : public bat_ads::mojom::BatAds {
  public:
-  // `initialize_callback` is called when `Initialize` succeeds.
+  // `initialize_callback` is called when `Initialize` succeeds. When
+  // `simulate_shutdown_disconnect` is true, `Shutdown` severs the pipe
+  // instead of replying, simulating the bat ads utility process
+  // disconnecting mid-shutdown.
   FakeBatAds(base::RepeatingClosure initialize_callback,
-             bool simulate_initialization_failure);
+             bool simulate_initialization_failure,
+             bool simulate_shutdown_disconnect);
 
   FakeBatAds(const FakeBatAds&) = delete;
   FakeBatAds& operator=(const FakeBatAds&) = delete;
@@ -54,6 +59,12 @@ class FakeBatAds : public bat_ads::mojom::BatAds {
   void Shutdown(ShutdownCallback callback) override;
   void GetInternals(GetInternalsCallback callback) override;
   void GetDiagnostics(GetDiagnosticsCallback callback) override;
+  void EvaluateConditionMatcher(
+      const std::string& pref_path,
+      const std::string& condition,
+      const std::optional<std::string>& test_value,
+      bat_ads::mojom::BatAds::EvaluateConditionMatcherCallback callback)
+      override;
   void GetStatementOfAccounts(GetStatementOfAccountsCallback callback) override;
   void ParseAndSaveNewTabPageAds(
       base::DictValue /*value*/,
@@ -101,6 +112,7 @@ class FakeBatAds : public bat_ads::mojom::BatAds {
  private:
   base::RepeatingClosure initialize_callback_;
   bool simulate_initialization_failure_;
+  bool simulate_shutdown_disconnect_;
 
   mojo::AssociatedReceiver<bat_ads::mojom::BatAds> bat_ads_associated_receiver_{
       this};

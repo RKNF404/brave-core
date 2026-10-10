@@ -9,11 +9,16 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "brave/components/misc_metrics/web3_metrics.h"
 #include "build/build_config.h"
 #include "components/prefs/pref_change_registrar.h"
 
 class PrefRegistrySimple;
 class PrefService;
+
+namespace serp_metrics {
+class SerpMetricsP3A;
+}  // namespace serp_metrics
 
 namespace misc_metrics {
 
@@ -29,9 +34,10 @@ class SplitViewMetrics;
 class PrivacyHubMetrics;
 class TabMetrics;
 #endif
+class CaptchaMetrics;
 class DefaultBrowserMonitor;
 class DohMetrics;
-class MediaSessionMetrics;
+class MediaSessionMetricsImpl;
 class UptimeMonitorImpl;
 
 class ProcessMiscMetrics {
@@ -44,6 +50,8 @@ class ProcessMiscMetrics {
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
+  Web3Metrics& web3_metrics();
+
 #if !BUILDFLAG(IS_ANDROID)
   MenuMetrics* menu_metrics();
   NewTabMetrics* new_tab_metrics();
@@ -55,13 +63,18 @@ class ProcessMiscMetrics {
 #endif
   DefaultBrowserMonitor* default_browser_monitor();
   UptimeMonitorImpl* uptime_monitor();
-  MediaSessionMetrics* media_session_metrics();
+  MediaSessionMetricsImpl* media_session_metrics();
+  CaptchaMetrics* captcha_metrics();
+
+  serp_metrics::SerpMetricsP3A* serp_metrics_p3a();
 
  private:
   void ReportSimpleMetrics();
 
   raw_ptr<PrefService> local_state_;
   PrefChangeRegistrar pref_change_registrar_;
+
+  Web3Metrics web3_metrics_;
 
 #if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<MenuMetrics> menu_metrics_;
@@ -73,9 +86,11 @@ class ProcessMiscMetrics {
   std::unique_ptr<TabMetrics> tab_metrics_;
 #endif
   std::unique_ptr<DefaultBrowserMonitor> default_browser_monitor_;
+  std::unique_ptr<CaptchaMetrics> captcha_metrics_;
   std::unique_ptr<DohMetrics> doh_metrics_;
   std::unique_ptr<UptimeMonitorImpl> uptime_monitor_;
-  std::unique_ptr<MediaSessionMetrics> media_session_metrics_;
+  std::unique_ptr<MediaSessionMetricsImpl> media_session_metrics_;
+  std::unique_ptr<serp_metrics::SerpMetricsP3A> serp_metrics_p3a_;
 };
 
 }  // namespace misc_metrics

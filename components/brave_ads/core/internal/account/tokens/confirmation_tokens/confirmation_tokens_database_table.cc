@@ -18,6 +18,7 @@
 #include "brave/components/brave_ads/core/internal/common/challenge_bypass_ristretto/public_key.h"
 #include "brave/components/brave_ads/core/internal/common/challenge_bypass_ristretto/unblinded_token.h"
 #include "brave/components/brave_ads/core/internal/common/database/database_column_util.h"
+#include "brave/components/brave_ads/core/internal/common/database/database_table_util.h"
 #include "brave/components/brave_ads/core/internal/common/database/database_transaction_util.h"
 #include "brave/components/brave_ads/core/internal/common/logging_util.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
@@ -61,7 +62,7 @@ size_t BindColumns(const mojom::DBActionInfoPtr& mojom_db_action,
   return row_count;
 }
 
-void GetAllCallback(
+void LoadCallback(
     GetConfirmationTokensCallback callback,
     mojom::DBTransactionResultInfoPtr mojom_db_transaction_result) {
   if (!IsTransactionSuccessful(mojom_db_transaction_result)) {
@@ -171,7 +172,7 @@ void ConfirmationTokens::DeleteAll(ResultCallback callback) {
                  std::move(callback));
 }
 
-void ConfirmationTokens::GetAll(GetConfirmationTokensCallback callback) const {
+void ConfirmationTokens::Load(GetConfirmationTokensCallback callback) const {
   mojom::DBTransactionInfoPtr mojom_db_transaction =
       mojom::DBTransactionInfo::New();
   mojom::DBActionInfoPtr mojom_db_action = mojom::DBActionInfo::New();
@@ -189,7 +190,7 @@ void ConfirmationTokens::GetAll(GetConfirmationTokensCallback callback) const {
   mojom_db_transaction->actions.push_back(std::move(mojom_db_action));
 
   RunTransaction(FROM_HERE, std::move(mojom_db_transaction),
-                 base::BindOnce(&GetAllCallback, std::move(callback)));
+                 base::BindOnce(&LoadCallback, std::move(callback)));
 }
 
 void ConfirmationTokens::Create(
@@ -212,6 +213,11 @@ void ConfirmationTokens::Migrate(
   switch (to_version) {
     case 56: {
       Create(mojom_db_transaction);
+      break;
+    }
+
+    case 58: {
+      DeleteTable(mojom_db_transaction, kTableName);
       break;
     }
 

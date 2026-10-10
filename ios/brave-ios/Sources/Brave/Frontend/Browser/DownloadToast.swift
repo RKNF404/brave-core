@@ -92,10 +92,7 @@ class DownloadToast: Toast {
 
     self.addSubview(createView(download.filename, descriptionText: self.descriptionText))
 
-    self.toastView.snp.makeConstraints { make in
-      make.left.right.height.equalTo(self)
-      self.animationConstraint = make.top.equalTo(self.snp.bottom).constraint
-    }
+    self.setupToastConstraints()
 
     self.snp.makeConstraints { make in
       make.height.equalTo(ButtonToastUX.toastHeight)
@@ -120,12 +117,16 @@ class DownloadToast: Toast {
 
   func updatePercent() {
     DispatchQueue.main.async {
-      guard let combinedTotalBytesExpected = self.combinedTotalBytesExpected else {
+      guard let combinedTotalBytesExpected = self.combinedTotalBytesExpected,
+        combinedTotalBytesExpected > 0
+      else {
         self.percent = 0.0
         return
       }
 
-      self.percent = CGFloat(self.combinedBytesDownloaded) / CGFloat(combinedTotalBytesExpected)
+      let percent =
+        CGFloat(self.combinedBytesDownloaded) / CGFloat(combinedTotalBytesExpected)
+      self.percent = min(max(percent, 0.0), 1.0)
     }
   }
 
@@ -194,14 +195,13 @@ class DownloadToast: Toast {
   }
 
   @objc func buttonPressed(_ gestureRecognizer: UIGestureRecognizer) {
-    let alert = AlertController(
+    let alert = UIAlertController(
       title: Strings.cancelDownloadDialogTitle,
       message: Strings.cancelDownloadDialogMessage,
       preferredStyle: .alert
     )
     alert.addAction(
-      UIAlertAction(title: Strings.cancelDownloadDialogResume, style: .cancel, handler: nil),
-      accessibilityIdentifier: "cancelDownloadAlert.resume"
+      UIAlertAction(title: Strings.cancelDownloadDialogResume, style: .cancel, handler: nil)
     )
     alert.addAction(
       UIAlertAction(
@@ -211,8 +211,7 @@ class DownloadToast: Toast {
           self.completionHandler?(true)
           self.dismiss(true)
         }
-      ),
-      accessibilityIdentifier: "cancelDownloadAlert.cancel"
+      )
     )
 
     viewController?.present(alert, animated: true, completion: nil)

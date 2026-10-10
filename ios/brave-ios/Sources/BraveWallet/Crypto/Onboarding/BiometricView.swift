@@ -53,11 +53,10 @@ struct BiometricView: View {
         VStack {
           ZStack {
             Circle()
+              .strokeBorder(Color(braveSystemName: .systemfeedbackInfoIcon).opacity(0.2))
               .background(
                 Circle()
-                  .foregroundColor(
-                    Color(braveSystemName: .systemfeedbackInfoBackground).opacity(0.5)
-                  )
+                  .foregroundColor(Color(braveSystemName: .systemfeedbackInfoBackground))
               )
               .frame(width: 240, height: 240)
             Rectangle()
@@ -129,10 +128,7 @@ struct BiometricView: View {
         .padding(.bottom, 40)
       }
       .alert(
-        isPresented: Binding(
-          get: { biometricError != nil },
-          set: { _, _ in }
-        )
+        isPresented: .constant(biometricError != nil)
       ) {
         Alert(
           title: Text(Strings.Wallet.biometricsSetupErrorTitle),

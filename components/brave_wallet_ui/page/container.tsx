@@ -45,38 +45,32 @@ import { useLocalStorage } from '../common/hooks/use_local_storage'
 
 // style
 import 'emptykit.css'
-import {
-  FullScreenWrapper,
-  SimplePageWrapper,
-  AlertCenter,
-} from './screens/page-screen.styles'
+import { FullScreenWrapper, AlertCenter } from './screens/page-screen.styles'
 
 // components
-import { LockScreen } from '../components/desktop/lock-screen/index'
+import { UnlockWallet } from './screens/unlock_wallet/unlock_wallet'
 import {
   WalletPageLayout, //
-} from '../components/desktop/wallet-page-layout/index'
-import {
-  WalletSubViewLayout, //
-} from '../components/desktop/wallet-sub-view-layout/index'
+} from './components/wallet_page_layout/wallet_page_layout'
 import { OnboardingRoutes } from './screens/onboarding/onboarding.routes'
 import { DevBitcoin } from './screens/dev-bitcoin/dev-bitcoin'
 import { RestoreWallet } from './screens/restore-wallet/restore-wallet'
 import {
   WalletPageWrapper, //
-} from '../components/desktop/wallet-page-wrapper/wallet-page-wrapper'
+} from './components/wallet_page_wrapper/wallet_page_wrapper'
 import {
   ProtectedRoute, //
 } from '../components/shared/protected-routing/protected-route'
 import { UnlockedWalletRoutes } from './router/unlocked_wallet_routes'
-import { Swap } from './screens/swap/swap'
-import { SendScreen } from './screens/send/send_screen/send_screen'
 import { DevZCash } from './screens/dev-zcash/dev-zcash'
 import {
   PartnersConsentModal, //
 } from '../components/desktop/popup-modals/partners_consent_modal/partners_consent_modal'
 import { Connections } from '../components/extension/connections/connections'
 import { PageNotFound } from './screens/page_not_found/page_not_found'
+import {
+  DesktopTransactionConfirmation, //
+} from './components/desktop_transaction_confirmation/desktop_transaction_confirmation'
 
 export const Container = () => {
   // routing — persist search + hash so e.g. (Buy, Send, Swap and Bridge) query params survive lock/unlock
@@ -104,8 +98,10 @@ export const Container = () => {
 
   // ui selectors (safe)
   const isPanel = useSafeUISelector(UISelectors.isPanel)
+  const isSidePanel = useSafeUISelector(UISelectors.isSidePanel)
+  const isMobile = useSafeUISelector(UISelectors.isMobile)
 
-  const initialSessionRoute = getInitialSessionRoute(isPanel)
+  const initialSessionRoute = getInitialSessionRoute(isPanel, isSidePanel)
 
   // state
   const [sessionRoute, setSessionRoute] = React.useState(initialSessionRoute)
@@ -126,6 +122,11 @@ export const Container = () => {
       ? WalletRoutes.Unlock
       : sessionRoute || WalletRoutes.PortfolioAssets
 
+  const isSendSwapOrBridgePage =
+    pathname.includes(WalletRoutes.Send)
+    || pathname.includes(WalletRoutes.Swap)
+    || pathname.includes(WalletRoutes.Bridge)
+
   // Methods
   const handleAcceptPartnerConsent = () => {
     setAcceptedPartnerConsentTerms(true)
@@ -135,7 +136,7 @@ export const Container = () => {
   const handleDeclinePartnerConsent = () => {
     setShowPartnerConsentModal(false)
     // Not able to use history.goBack() in this instance
-    // since users could manually navigate to brave://wallet/crypto/fund-wallet
+    // since users could manually navigate to brave://wallet/crypto/buy
     // in a new tab and there would be no history to go back to.
     history.push(WalletRoutes.Portfolio)
   }
@@ -147,7 +148,9 @@ export const Container = () => {
 
     // store the last url before wallet lock
     // so that we can return to that page after unlock
-    if (isPersistableSessionRoute(walletSessionLocation, isPanel)) {
+    if (
+      isPersistableSessionRoute(walletSessionLocation, isPanel, isSidePanel)
+    ) {
       window.localStorage.setItem(
         LOCAL_STORAGE_KEYS.SAVED_SESSION_ROUTE,
         walletSessionLocation,
@@ -159,7 +162,11 @@ export const Container = () => {
     // current location.
     if (
       previousLocationRef.current
-      && isPersistableSessionRoute(previousLocationRef.current, isPanel)
+      && isPersistableSessionRoute(
+        previousLocationRef.current,
+        isPanel,
+        isSidePanel,
+      )
     ) {
       window.localStorage.setItem(
         LOCAL_STORAGE_KEYS.PREVIOUS_LOCATION_ROUTE,
@@ -168,7 +175,9 @@ export const Container = () => {
     }
 
     // Update the ref with current location for next route change
-    if (isPersistableSessionRoute(walletSessionLocation, isPanel)) {
+    if (
+      isPersistableSessionRoute(walletSessionLocation, isPanel, isSidePanel)
+    ) {
       previousLocationRef.current = walletSessionLocation
     }
     // clean recovery phrase if not backing up or onboarding on route change
@@ -179,12 +188,19 @@ export const Container = () => {
     ) {
       dispatch(WalletPageActions.recoveryWordsAvailable({ mnemonic: '' }))
     }
-  }, [walletSessionLocation, pathname, isPanel, mnemonic, dispatch])
+  }, [
+    walletSessionLocation,
+    pathname,
+    isPanel,
+    isSidePanel,
+    mnemonic,
+    dispatch,
+  ])
 
   React.useEffect(() => {
     if (
       !acceptedPartnerConsentTerms
-      && pathname.includes(WalletRoutes.FundWalletPageStart)
+      && pathname.includes(WalletRoutes.BuyPageStart)
       && !walletNotYetCreated
     ) {
       setShowPartnerConsentModal(true)
@@ -221,11 +237,7 @@ export const Container = () => {
           exact={true}
         >
           <WalletPageLayout>
-            <WalletSubViewLayout>
-              <SimplePageWrapper>
-                <RestoreWallet />
-              </SimplePageWrapper>
-            </WalletSubViewLayout>
+            <RestoreWallet />
           </WalletPageLayout>
         </Route>
 
@@ -242,13 +254,17 @@ export const Container = () => {
             noBorderRadius={true}
             useDarkBackground={isPanel}
           >
-            <LockScreen />
+            <UnlockWallet />
           </WalletPageWrapper>
         </ProtectedRoute>
 
+        {/* Keep this route in the page container so panels can use it, but
+            redirect if opened from the full wallet page. */}
         <ProtectedRoute
           path={WalletRoutes.Connections}
-          requirement={!isWalletLocked && !walletNotYetCreated}
+          requirement={
+            !isWalletLocked && !walletNotYetCreated && isPanel && !isSidePanel
+          }
           redirectRoute={defaultRedirect}
           exact={true}
         >
@@ -256,38 +272,11 @@ export const Container = () => {
         </ProtectedRoute>
 
         <ProtectedRoute
-          path={WalletRoutes.Swap}
-          requirement={!isWalletLocked && !walletNotYetCreated}
-          redirectRoute={defaultRedirect}
-          exact={true}
-        >
-          <Swap key='swap' />
-        </ProtectedRoute>
-
-        <ProtectedRoute
-          path={WalletRoutes.Bridge}
-          requirement={!isWalletLocked && !walletNotYetCreated}
-          redirectRoute={defaultRedirect}
-          exact={true}
-        >
-          <Swap key='bridge' />
-        </ProtectedRoute>
-
-        <ProtectedRoute
-          path={WalletRoutes.Send}
-          requirement={!isWalletLocked && !walletNotYetCreated}
-          redirectRoute={defaultRedirect}
-          exact={true}
-        >
-          <SendScreen key='send' />
-        </ProtectedRoute>
-
-        <ProtectedRoute
           path={WalletRoutes.CryptoPage}
           requirement={!isWalletLocked && !walletNotYetCreated}
           redirectRoute={defaultRedirect}
         >
-          <UnlockedWalletRoutes sessionRoute={sessionRoute} />
+          <UnlockedWalletRoutes />
         </ProtectedRoute>
 
         <ProtectedRoute
@@ -311,6 +300,19 @@ export const Container = () => {
         >
           <DevZCash />
         </ProtectedRoute>
+
+        {/* Deprecated routes, kept for redirecting to the new routes */}
+        <Route path={WalletRoutes.SwapDeprecated}>
+          <Redirect to={WalletRoutes.Swap} />
+        </Route>
+
+        <Route path={WalletRoutes.SendDeprecated}>
+          <Redirect to={WalletRoutes.Send} />
+        </Route>
+
+        <Route path={WalletRoutes.BridgeDeprecated}>
+          <Redirect to={WalletRoutes.Bridge} />
+        </Route>
 
         {/* Insures that we redirect to the default route if the user
             manually navigates to the root url. */}
@@ -344,6 +346,9 @@ export const Container = () => {
         onClose={handleDeclinePartnerConsent}
         onContinue={handleAcceptPartnerConsent}
       />
+      {!isWalletLocked && !isMobile && isSendSwapOrBridgePage && (
+        <DesktopTransactionConfirmation />
+      )}
     </>
   )
 }

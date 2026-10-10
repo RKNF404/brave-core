@@ -6,6 +6,8 @@
 #ifndef BRAVE_BROWSER_UI_TABS_BRAVE_TAB_PREFS_H_
 #define BRAVE_BROWSER_UI_TABS_BRAVE_TAB_PREFS_H_
 
+#include "build/build_config.h"
+
 class PrefRegistrySimple;
 class PrefService;
 
@@ -27,6 +29,8 @@ inline constexpr char kVerticalTabsHideCompletelyWhenCollapsed[] =
     "brave.tabs.vertical_tabs_hide_completely_when_collapsed";
 inline constexpr char kVerticalTabsFloatingEnabled[] =
     "brave.tabs.vertical_tabs_floating_enabled";
+inline constexpr char kVerticalTabsShowToggleButton[] =
+    "brave.tabs.vertical_tabs_show_toggle_button";
 inline constexpr char kVerticalTabsExpandedWidth[] =
     "brave.tabs.vertical_tabs_expanded_width";
 inline constexpr char kVerticalTabsOnRight[] =
@@ -62,6 +66,12 @@ inline constexpr char kTabMinWidthMode[] = "brave.tabs.min_width_mode";
 inline constexpr char kScrollableHorizontalTabStrip[] =
     "brave.tabs.scrollable_horizontal_tab_strip";
 
+// When true, tabs that have an accent (e.g. container tabs) always show the
+// mini (small) accent icon instead of the large one, regardless of the tab's
+// width.
+inline constexpr char kAlwaysUseMiniAccentIcon[] =
+    "brave.tabs.always_use_mini_accent_icon";
+
 // Integer values stored in prefs; stable for migration. kDefault is reserved so
 // the product default can change without migrating explicit user choices.
 enum class TabMinWidthMode {
@@ -74,6 +84,18 @@ enum class TabMinWidthMode {
 
 void RegisterBraveProfilePrefs(PrefRegistrySimple* registry);
 void MigrateBraveProfilePrefs(PrefService* prefs);
+
+#if !BUILDFLAG(IS_ANDROID)
+// Dev/QA-only: applies a forced override of Chromium's native
+// `prefs::kVerticalTabsEnabled` pref based on the
+// `tabs::switches::kVerticalTabMigrationSwitch` command-line switch, to force
+// or reset which vertical-tab backend (Brave's or upstream's) is active for
+// this launch. See docs/chrome/browser/ui/tabs/vertical_tab_migration.md §8.
+// Deliberately NOT part of MigrateBraveProfilePrefs() above — that function's
+// one-time/default-guarded migration semantics must stay uncontaminated by
+// this unconditional, every-launch dev override.
+void MaybeApplyVerticalTabMigrationTestingOverride(PrefService* prefs);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
 

@@ -1,28 +1,60 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index b669d4f3ee5f390b5b30ea4343b0cf082b72ac02..e51230a7c4d503ee4b0262923bb5383d213c79c3 100644
+index 238f8625e42d8703c72c266c36e32bbfb2113095..d1564ebb7e55fe04900ba5d600983b848c6984ee 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -921,6 +921,7 @@ static_library("ui") {
-     # split out yet.
-     "//chrome/browser/webauthn:impl",
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file.
+ 
++import("//brave/browser/sources.gni")
+ import("//build/config/buildflags_paint_preview.gni")
+ import("//build/config/chrome_build.gni")
+ import("//build/config/compiler/compiler.gni")
+@@ -1512,6 +1513,7 @@ if (!is_android) {
+       ":ui",
+       "//chrome/browser/ui/browser_window/internal",
+     ]
++    visibility += brave_chrome_browser_ui_browser_header_visibility
+     public_deps = [
+       ":browser_window_deleter",
+       "//base",
+@@ -1568,6 +1570,7 @@ static_library("ui") {
+     ":simple_message_box_headers",
+     ":tab_dialogs",
+     ":tab_modal_confirm_dialog",
++    "//brave/browser/ui",
+     "//chrome/browser:browser_public_dependencies",
+     "//chrome/browser/feedback",
+     "//chrome/browser/headless",
+@@ -1845,6 +1848,8 @@ static_library("ui") {
+     "//ui/strings",
+     "//ui/webui",
    ]
-+  import("//brave/browser/sources.gni") import("//brave/components/brave_wallet/sources.gni") public_deps += [ "//brave/browser/ui" ] deps += brave_chrome_browser_ui_allow_circular_includes_from + brave_chrome_browser_ui_deps allow_circular_includes_from += brave_chrome_browser_ui_allow_circular_includes_from
++  deps += brave_chrome_browser_ui_allow_circular_includes_from
++  deps += brave_chrome_browser_ui_deps
  
-   if (enable_vr && is_win) {
-     deps += [ "//chrome/browser/vr:vr_base" ]
-@@ -3371,7 +3372,10 @@ static_library("ui") {
-         "//chrome/updater/app/server/win:updater_legacy_idl",
-       ]
-     } else {
--      sources += [ "webui/help/version_updater_basic.cc" ]
-+      if (!is_official_build) {
-+        # In official build, //brave/browser/ui handles.
-+        sources += [ "webui/help/version_updater_basic.cc" ]
-+      }
-     }
-   }
+   allow_circular_includes_from = [
+     # page_load_metrics's :impl includes headers from //chrome/browser/ui that
+@@ -1868,9 +1873,11 @@ static_library("ui") {
+     # - c/b/ui/views/frame/browser_view.h
+     "//chrome/browser/ui/views/file_system_access:impl",
+   ]
++  allow_circular_includes_from +=
++      brave_chrome_browser_ui_allow_circular_includes_from
  
-@@ -5423,6 +5427,7 @@ group("ui_public_dependencies") {
+   # Desktop-Android-only dependencies.
+-  if (is_desktop_android) {
++  if (is_desktop_android || (is_android && enable_extensions_core)) {
+     deps += [
+       "//chrome/browser/ui/android/extensions/side_panel/internal",
+       "//chrome/browser/ui/android/extensions/windowing/internal",
+@@ -4703,11 +4710,13 @@ static_library("ui") {
+ group("ui_public_dependencies") {
+   visibility = [ "//chrome/browser:browser_public_dependencies" ]
+   public_deps = [
++    "//brave/browser/ui:ui_public_dependencies",
+     "//components/cross_device/logging",
+     "//components/dom_distiller/core",
      "//components/enterprise/buildflags",
      "//components/paint_preview/buildflags",
      "//components/safe_browsing:buildflags",
@@ -30,19 +62,3 @@ index b669d4f3ee5f390b5b30ea4343b0cf082b72ac02..e51230a7c4d503ee4b0262923bb5383d
      "//components/segmentation_platform/public",
      "//components/sync",
      "//components/sync_user_events",
-@@ -5435,6 +5440,7 @@ group("ui_public_dependencies") {
-   if (enable_extensions_core) {
-     public_deps += [ "//extensions/browser" ]
-   }
-+  public_deps += [ "//brave/browser/ui:ui_public_dependencies" ]
-   if (!is_android) {
-     public_deps += [
-       "//build:branding_buildflags",
-@@ -5550,6 +5556,7 @@ source_set("tab_search_feature") {
-     "//chrome/common:buildflags",
-     "//components/variations/service",
-   ]
-+  if (!is_android) { deps += [ "//chrome/browser/ui/tabs:features" ] }
- }
- 
- if (!is_android) {

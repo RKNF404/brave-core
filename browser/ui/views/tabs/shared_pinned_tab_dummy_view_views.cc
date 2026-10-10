@@ -12,10 +12,10 @@
 #include "brave/browser/ui/color/brave_color_id.h"
 #include "brave/browser/ui/tabs/shared_pinned_tab_dummy_view.h"
 #include "brave/grit/brave_generated_resources.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "components/tabs/public/tab_interface.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRect.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -26,6 +26,7 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/view_class_properties.h"
@@ -38,15 +39,16 @@ void SharedPinnedTabDummyView::CreateAndInstall(
       new SharedPinnedTabDummyViewViews(shared_contents, dummy_contents));
   auto* dummy_view_ptr = dummy_view.get();
 
-  auto* browser = chrome::FindBrowserWithTab(dummy_view->dummy_contents_);
+  auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+      dummy_view->dummy_contents_);
   CHECK(browser);
 
   // Transfer ownership to WebView via TakeCrashedOverlayView(), which hides
   // the native content holder and shows the overlay in its place.
   // TODO(sko) We should take split view into account. This is the same problem
   // as with SadTabView.
-  static_cast<BrowserView*>(browser->window())
-      ->contents_web_view()
+  BrowserView::GetBrowserViewForBrowser(browser)
+      ->GetActiveContentsWebView()
       ->TakeCrashedOverlayView(std::move(dummy_view));
 
   // WebView hides the crash overlay when web contents is not crashed. The
@@ -60,8 +62,9 @@ SharedPinnedTabDummyViewViews::SharedPinnedTabDummyViewViews(
     content::WebContents* shared_contents,
     content::WebContents* dummy_contents)
     : SharedPinnedTabDummyView(shared_contents, dummy_contents),
-      thumbnail_(
-          ThumbnailTabHelper::FromWebContents(shared_contents)->thumbnail()),
+      thumbnail_(ThumbnailTabHelper::From(
+                     tabs::TabInterface::GetFromContents(dummy_contents))
+                     ->thumbnail()),
       subscription_(thumbnail_->Subscribe()) {
   SetPaintToLayer();
   SetLayoutManager(std::make_unique<views::FlexLayout>())

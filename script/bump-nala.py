@@ -13,6 +13,7 @@ and links to the commits in Nala, to make it obvious what's new.
 import argparse
 import sys
 import os
+import shutil
 import subprocess
 import tempfile
 import json
@@ -25,6 +26,8 @@ nala_clone_dir = tempfile.mkdtemp()
 SF_SYMBOLS_REPO_ID = 'brave/leo-sf-symbols'
 SF_SYMBOLS_REPO = f'https://github.com/{SF_SYMBOLS_REPO_ID}'
 sf_symbols_clone_dir = tempfile.mkdtemp()
+
+PNPM_WORKSPACE = 'pnpm-workspace.yaml'
 
 
 class Commit:
@@ -41,8 +44,9 @@ class Commit:
 
     def __str__(self):
         # Update the PR links to point to the repo
-        return re.sub(r'\((#(\d+))\)$', rf'([\1]({self.repo_url}/pull/\2))',
-                      self.message)
+        return re.sub(
+            r'\((#(\d+))\)$', rf'([\1]({self.repo_url}/pull/\2))', self.message
+        )
 
     def __repr__(self):
         return self.__str__()
@@ -53,11 +57,14 @@ def parse_args():
     parser.add_argument(
         '--target',
         help='The version to bump to. Can be a commit, tag or branch.',
-        default="main")
-    parser.add_argument('--push',
-                        help='Push the changes to the remote repository',
-                        action='store_true',
-                        default=False)
+        default="main",
+    )
+    parser.add_argument(
+        '--push',
+        help='Push the changes to the remote repository',
+        action='store_true',
+        default=False,
+    )
     return parser.parse_args()
 
 
@@ -65,7 +72,8 @@ def clone_repo(url, clone_dir):
     """Clones a repository to the given directory."""
     subprocess.run(
         ['git', 'clone', url + '.git', clone_dir, '--filter', 'blob:none'],
-        check=True)
+        check=True,
+    )
 
 
 def get_full_sha(target, clone_dir):
@@ -73,25 +81,141 @@ def get_full_sha(target, clone_dir):
     cwd = os.getcwd()
     try:
         os.chdir(clone_dir)
-        return subprocess.run(
-            ['git', 'rev-parse', target], check=True,
-            capture_output=True).stdout.decode('utf-8').strip()
+        return (
+            subprocess.run(
+                ['git', 'rev-parse', target], check=True, capture_output=True
+            )
+            .stdout.decode('utf-8')
+            .strip()
+        )
     finally:
         os.chdir(cwd)
 
 
 def get_nala_current_sha():
     """Gets the current sha of Nala from the package.json file."""
-    with open('package.json', 'r') as f:
+    with open('package.json', 'r', encoding='utf-8') as f:
         package_json = json.load(f)
     return package_json['dependencies']['@brave/leo'].split('#')[1]
 
 
 def get_sf_symbols_current_sha():
     """Gets the current sha of leo-sf-symbols from the package.json file."""
-    with open('package.json', 'r') as f:
+    with open('package.json', 'r', encoding='utf-8') as f:
         package_json = json.load(f)
     return package_json['dependencies']['@brave/leo-sf-symbols'].split('#')[1]
+
+
+def detect_package_manager():
+    """Detects whether npm or pnpm is used based on the lockfile present."""
+    has_npm_lock = os.path.isfile('package-lock.json')
+    has_pnpm_lock = os.path.isfile('pnpm-lock.yaml')
+    if has_npm_lock and has_pnpm_lock:
+        sys.exit('Both package-lock.json and pnpm-lock.yaml exist.')
+    if has_pnpm_lock:
+        return 'pnpm'
+    if has_npm_lock:
+        return 'npm'
+    sys.exit('No package-lock.json or pnpm-lock.yaml found.')
+
+
+def get_package_manager_cmd(package_manager):
+    """Returns the path to the package manager executable."""
+    cmd = shutil.which(package_manager)
+    if not cmd:
+        sys.exit(f'{package_manager} not found in PATH.')
+    return cmd
+
+
+def to_npm_packages(*package_refs):
+    """Returns a list of npm package strings for the given packages."""
+    return [f'github:{repo_id}#{sha}' for repo_id, sha in package_refs]
+
+
+def update_pnpm_allow_builds(*package_refs):
+    """Rewrites allowBuilds SHAs for known packages in pnpm-workspace.yaml.
+
+    pnpm's --allow-build flag replaces the entire allowBuilds list, so we update
+    the two known entries in place before running pnpm add.
+    """
+    with open(PNPM_WORKSPACE, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    for repo_id, sha in package_refs:
+        pattern = (
+            rf"('@{re.escape(repo_id)}"
+            rf"@https://codeload\.github\.com/{re.escape(repo_id)}"
+            rf"/tar\.gz/)[0-9a-f]+(')"
+        )
+        content, count = re.subn(pattern, rf'\g<1>{sha}\g<2>', content)
+        if count != 1:
+            sys.exit(
+                f'Expected exactly one allowBuilds entry for {repo_id} '
+                f'in {PNPM_WORKSPACE}, found {count}.'
+            )
+
+    with open(PNPM_WORKSPACE, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(content)
+
+
+def allow_builds_entry(repo_id, sha):
+    """Returns the allowBuilds line for a git-hosted package revision."""
+    return (
+        f"  '@{repo_id}@https://codeload.github.com/{repo_id}"
+        f"/tar.gz/{sha}': true\n"
+    )
+
+
+def install_dependencies(package_manager, new_sha, new_sf_symbols_sha):
+    """Installs bumped Nala dependencies with npm or pnpm."""
+    cmd = get_package_manager_cmd(package_manager)
+    package_refs = [
+        (REPO_ID, new_sha),
+        (SF_SYMBOLS_REPO_ID, new_sf_symbols_sha),
+    ]
+    packages = to_npm_packages(*package_refs)
+    if package_manager == 'pnpm':
+        outgoing_refs = [
+            (REPO_ID, get_nala_current_sha()),
+            (SF_SYMBOLS_REPO_ID, get_sf_symbols_current_sha()),
+        ]
+        update_pnpm_allow_builds(*package_refs)
+        with open(PNPM_WORKSPACE, 'r', encoding='utf-8') as f:
+            bumped = f.read()
+
+        # pnpm rebuilds the revisions being replaced as well as the incoming
+        # ones, so both have to be allowlisted while it installs. Listing only
+        # the incoming ones fails the install with
+        # ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED for the outgoing revision.
+        outgoing_entries = ''.join(
+            allow_builds_entry(repo_id, sha)
+            for repo_id, sha in outgoing_refs
+            if (repo_id, sha) not in package_refs
+        )
+        with open(PNPM_WORKSPACE, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(
+                bumped.replace(
+                    'allowBuilds:\n', 'allowBuilds:\n' + outgoing_entries
+                )
+            )
+
+        subprocess.run([cmd, 'add', *packages], check=True)
+
+        # Drop the outgoing entries now that nothing needs them.
+        with open(PNPM_WORKSPACE, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(bumped)
+    else:
+        subprocess.run([cmd, 'install', *packages], check=True)
+
+
+def get_commit_files(package_manager):
+    """Returns the files that should be committed for the package manager."""
+    files = ['package.json']
+    if package_manager == 'pnpm':
+        files.extend(['pnpm-lock.yaml', PNPM_WORKSPACE])
+    else:
+        files.append('package-lock.json')
+    return files
 
 
 def get_changes(old_sha, new_sha, clone_dir, repo_url=NALA_REPO):
@@ -102,12 +226,17 @@ def get_changes(old_sha, new_sha, clone_dir, repo_url=NALA_REPO):
     cwd = os.getcwd()
     try:
         os.chdir(clone_dir)
-        result = subprocess.run([
-            'git', 'log', '--oneline', '--no-decorate',
-            f'{old_sha}...{new_sha}'
-        ],
-                                check=True,
-                                capture_output=True)
+        result = subprocess.run(
+            [
+                'git',
+                'log',
+                '--oneline',
+                '--no-decorate',
+                f'{old_sha}...{new_sha}',
+            ],
+            check=True,
+            capture_output=True,
+        )
         commits = result.stdout.decode('utf-8').split('\n')
         return [Commit(commit, repo_url) for commit in commits if commit]
     finally:
@@ -139,16 +268,18 @@ def bump_nala(target):
 Changes {NALA_REPO}/compare/{old_sha}...{new_sha}
 {changes_text}"""
 
-    subprocess.run([
-        'npm', 'install', f'github:{REPO_ID}#{new_sha}',
-        f'github:{SF_SYMBOLS_REPO_ID}#{new_sf_symbols_sha}'
-    ],
-                   check=True)
-    subprocess.run([
-        'git', 'commit', 'package.json', 'package-lock.json', '-m',
-        commit_message
-    ],
-                   check=True)
+    package_manager = detect_package_manager()
+    install_dependencies(package_manager, new_sha, new_sf_symbols_sha)
+    subprocess.run(
+        [
+            'git',
+            'commit',
+            *get_commit_files(package_manager),
+            '-m',
+            commit_message,
+        ],
+        check=True,
+    )
 
 
 def main():

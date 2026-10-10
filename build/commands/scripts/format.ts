@@ -13,7 +13,7 @@ import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
 import prettier from 'prettier'
 
 import config from '../lib/config.ts'
-import util from '../lib/util.js'
+import util from '../lib/util.ts'
 import * as Log from '../lib/log.ts'
 
 program
@@ -72,7 +72,7 @@ const getAllFiles = () => {
     .split('\n')
 }
 
-const formatOutput = (result: SpawnSyncReturns<NonSharedBuffer>) => {
+const formatOutput = (result: SpawnSyncReturns<string | NonSharedBuffer>) => {
   return [result.stdout, result.stderr]
     .filter((v) => v.length)
     .join('\nstderr:\n')
@@ -100,6 +100,9 @@ async function runFormat(options: {
 
   args.push('--python')
 
+  // Disable clang-formatting .ts/.js files. We use prettier instead.
+  args.push('--no-js')
+
   if (options.full) {
     args.push('--full')
   }
@@ -126,6 +129,12 @@ async function runFormat(options: {
       continueOnFail: true,
       skipLogging,
       stdio: 'pipe',
+      env: {
+        ...cmdOptions.env,
+        // Prevent HotSpot hsperfdata warnings from contaminating
+        // google-java-format stdout.
+        JAVA_TOOL_OPTIONS: '-XX:-UsePerfData',
+      },
     })
 
     const clFormatOutput = formatOutput(clFormatResult)

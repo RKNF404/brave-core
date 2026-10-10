@@ -41,13 +41,16 @@ public class BraveEditUrlSuggestionProcessor extends EditUrlSuggestionProcessor 
     }
 
     /*
-     * Compared to upstream, we have different behaviour on clicking url bar https://github.com/brave/brave-browser/issues/10524
-     * Instead of clearing it, we keep url showing. Default behavior on Chromium Desktop is to keep the url showing and we match that behavior for Brave Android.
+     * Compared to upstream, we have different behaviour on clicking url bar
+     * https://github.com/brave/brave-browser/issues/10524
+     * Instead of clearing it, we keep url showing. Default behavior on Chromium Desktop
+     * is to keep the url showing and we match that behavior for Brave Android.
      * This, however, changes showed suggestions on clicking url bar when we manually type url.
-     * In this case the first suggestion shown has type `URL_WHAT_YOU_TYPED`,
-     * suggestion's url hasn't been resolved and only contains typed text.
-     * Here, for the above case, we create a new copy of the suggestion with properly resolved url from the active tab
-     * to feed it to the upstream's `EditUrlSuggestionProcessor.onCopyLink` method.
+     * In this case the first suggestion shown has type `URL_WHAT_YOU_TYPED`, suggestion's url
+     * hasn't been resolved and only contains typed text.
+     * Here, for the above case, we create a new copy of the suggestion with properly resolved
+     * url from the active tab to feed it to the upstream's `EditUrlSuggestionProcessor.onCopyLink`
+     * method.
      */
     public AutocompleteMatch maybeUpdateSuggestionForCopyLink(AutocompleteMatch suggestion) {
         Tab activeTab = mTabSupplier.get();
@@ -60,6 +63,7 @@ public class BraveEditUrlSuggestionProcessor extends EditUrlSuggestionProcessor 
                     OmniboxSuggestionType.URL_WHAT_YOU_TYPED,
                     suggestion.getSubtypes(),
                     suggestion.isSearchSuggestion(),
+                    suggestion.getSuggestionKind(),
                     suggestion.getIconType(),
                     suggestion.getTransition(),
                     suggestion.getDisplayText(),
@@ -67,7 +71,6 @@ public class BraveEditUrlSuggestionProcessor extends EditUrlSuggestionProcessor 
                     suggestion.getDescription(),
                     suggestion.getDescriptionClassifications(),
                     /* serializedAnswerTemplate */ null,
-                    suggestion.getAnswerType().getNumber(),
                     suggestion.getFillIntoEdit(),
                     activeTab.getUrl(),
                     suggestion.getImageUrl(),
@@ -77,16 +80,20 @@ public class BraveEditUrlSuggestionProcessor extends EditUrlSuggestionProcessor 
                     suggestion.getExtraHeaders().get("Content-Type"),
                     suggestion.getPostData(),
                     suggestion.getGroupId(),
+                    suggestion.shouldSwapContentsAndDescription(),
                     suggestion.getClipboardImageData(),
                     suggestion.hasTabMatch(),
                     suggestion.getAndroidTabId(),
                     suggestion.getActions(),
+                    suggestion.getTakeoverAction(),
                     suggestion.allowedToBeDefaultMatch(),
                     suggestion.getInlineAutocompletion(),
                     suggestion.getAdditionalText(),
                     suggestion.getTabGroupUuid(),
                     suggestion.getAssociatedKeyword(),
-                    /* serializedSuggestTemplate */ null);
+                    /* serializedSuggestTemplate */ null,
+                    suggestion.getDocumentType(),
+                    suggestion.isExtensionMatch());
         }
         return suggestion;
     }

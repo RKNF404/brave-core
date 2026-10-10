@@ -9,41 +9,62 @@ Actions to run before every build in the brave-ios Xcode project
 
 import argparse
 import os
-import subprocess
 import platform
 import sys
 import inspect
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 brave_root_dir = os.path.join(
-    os.path.join(os.path.join(this_dir, os.pardir), os.pardir), os.pardir)
+    os.path.join(os.path.join(this_dir, os.pardir), os.pardir), os.pardir
+)
 src_dir = os.path.join(brave_root_dir, os.pardir)
+scripts_dir = os.path.join(brave_root_dir, 'build', 'commands', 'scripts')
+
+sys.path.append(os.path.join(src_dir, 'third_party', 'node'))
+
+import node
 
 
 def main():
     description = 'Runs actions before each build'
     parser = argparse.ArgumentParser(description=description)
 
-    parser.add_argument('--configuration',
-                        nargs='?',
-                        default='Debug',
-                        help='Specify which configuration to build.')
-    parser.add_argument('--platform_name',
-                        nargs='?',
-                        help='Specify which platform to build.')
-    parser.add_argument('--only_update_symlink',
-                        action='store_true',
-                        default=False,
-                        help='Only update the symlink')
+    parser.add_argument(
+        '--configuration',
+        nargs='?',
+        default='Debug',
+        help='Specify which configuration to build.',
+    )
+    parser.add_argument(
+        '--platform_name', nargs='?', help='Specify which platform to build.'
+    )
+    parser.add_argument(
+        '--only_update_symlink',
+        action='store_true',
+        default=False,
+        help='Only update the symlink',
+    )
 
     options = parser.parse_args()
 
-    output_dir = BuildOutputDirectory(options.configuration,
-                                      options.platform_name)
-    target_arch = 'arm64' if platform.processor(
-    ) == 'arm' or options.platform_name == 'iphoneos' else 'x64'
-    target_environment = 'simulator' if (options.platform_name
-                                         == 'iphonesimulator') else 'device'
+    output_dir = BuildOutputDirectory(
+        options.configuration, options.platform_name
+    )
+    target_arch = (
+        'arm64'
+        if platform.processor() == 'arm' or options.platform_name == 'iphoneos'
+        else 'x64'
+    )
+    target_environment = (
+        'simulator'
+        if (options.platform_name == 'iphonesimulator')
+        else 'device'
+    )
+
+    # Ensure node is executed from the brave root directory, node.RunNode offers
+    # no option for passing in a custom working directory. This is required for
+    # paths in the webpack config to be parsed correctly.
+    os.chdir(brave_root_dir)
 
     if options.only_update_symlink:
         # If we're choosing to only update the symlink we should validate
@@ -54,12 +75,12 @@ def main():
 
             {output_dir}
 
-            Ensure you run the correct `npm run build` command prior to building
+            Ensure you run the correct `pnpm run build` command prior to building
             ''')
             raise Exception(err)
     else:
         BuildCore(options.configuration, target_arch, target_environment)
-        CallNpm(['npm', 'run', 'ios_pack_js'])
+        PackJavaScript()
     UpdateSymlink(options.configuration, target_arch, target_environment)
 
 
@@ -75,28 +96,41 @@ def BuildOutputDirectory(config, platform_name):
 def UpdateSymlink(config, target_arch, target_environment):
     """Updates the 'ios_current_link' symlink"""
     cmd_args = [
-        'npm', 'run', 'update_symlink', '--', config, '--symlink_dir',
-        os.path.join(src_dir, 'out/ios_current_link'), '--target_os', 'ios',
-        '--target_arch', target_arch, '--target_environment',
-        target_environment
+        os.path.join(scripts_dir, 'iosCommands.js'),
+        'ios_update_current_link',
+        config,
+        '--target_arch',
+        target_arch,
+        '--target_environment',
+        target_environment,
     ]
-    CallNpm(cmd_args)
+    node.RunNode(cmd_args)
+
+
+def PackJavaScript():
+    """Bundles the iOS user script JavaScript resources via webpack"""
+    webpack_cli = os.path.join(
+        brave_root_dir, 'node_modules', 'webpack-cli', 'bin', 'cli.js'
+    )
+    webpack_config = os.path.join(
+        brave_root_dir, 'ios', 'brave-ios', 'webpack.config.js'
+    )
+    node.RunNode([webpack_cli, '--config', webpack_config])
 
 
 def BuildCore(config, target_arch, target_environment):
     """Generates and builds the BraveCore.framework"""
     cmd_args = [
-        'npm', 'run', 'build', '--', config, '--target_os', 'ios',
-        '--target_arch', target_arch, '--target_environment',
-        target_environment
+        os.path.join(scripts_dir, 'build.ts'),
+        config,
+        '--target_os',
+        'ios',
+        '--target_arch',
+        target_arch,
+        '--target_environment',
+        target_environment,
     ]
-    CallNpm(cmd_args)
-
-
-def CallNpm(cmd):
-    retcode = subprocess.call(cmd, cwd=brave_root_dir, stderr=subprocess.STDOUT)
-    if retcode:
-        raise subprocess.CalledProcessError(retcode, cmd)
+    node.RunNode(cmd_args)
 
 
 if __name__ == '__main__':

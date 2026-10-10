@@ -14,6 +14,7 @@
 #include "base/no_destructor.h"
 #include "brave/browser/brave_adaptive_captcha/brave_adaptive_captcha_service_factory.h"
 #include "brave/browser/brave_ads/ads_service_delegate.h"
+#include "brave/browser/brave_ads/application_state/shutdown_monitor_impl.h"
 #include "brave/browser/brave_ads/device_id/device_id_impl.h"
 #include "brave/browser/brave_ads/services/bat_ads_service_factory_impl.h"
 #include "brave/browser/brave_ads/tooltips/ads_tooltips_delegate_impl.h"
@@ -22,10 +23,12 @@
 #include "brave/common/brave_channel_info.h"
 #include "brave/components/brave_ads/browser/ads_service_impl.h"
 #include "brave/components/brave_ads/browser/application_state/application_state_monitor.h"
+#include "brave/components/brave_ads/browser/application_state/shutdown_monitor.h"
 #include "brave/components/brave_ads/core/browser/service/ads_service.h"
 #include "brave/components/brave_ads/core/public/ads_util.h"
 #include "brave/components/brave_policy/policy_initialization_waiter.h"
 #include "brave/components/brave_rewards/core/buildflags/buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -100,6 +103,11 @@ AdsServiceFactory::CreateAdsTooltipsDelegate() const {
 #endif
 }
 
+std::unique_ptr<ShutdownMonitor> AdsServiceFactory::CreateShutdownMonitor()
+    const {
+  return std::make_unique<ShutdownMonitorImpl>();
+}
+
 std::unique_ptr<KeyedService>
 AdsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
@@ -137,7 +145,7 @@ AdsServiceFactory::BuildServiceInstanceForBrowserContext(
       HostContentSettingsMapFactory::GetForProfile(profile);
 
   auto http_client = std::make_unique<HttpClient>(
-      *local_state,
+      *prefs, *local_state,
       default_store_partition->GetURLLoaderFactoryForBrowserProcess(),
       base::BindRepeating(&GetNetworkContextForProfile, context),
       /*use_ohttp_staging=*/IsStagingEnvironment(*prefs));
@@ -145,7 +153,7 @@ AdsServiceFactory::BuildServiceInstanceForBrowserContext(
   ProfileManager* const profile_manager = g_browser_process->profile_manager();
   CHECK(profile_manager);
 
-  return std::make_unique<AdsServiceImpl>(
+  auto ads_service = std::make_unique<AdsServiceImpl>(
       std::move(delegate), *prefs, *local_state,
       std::move(policy_initialization_waiter), std::move(http_client),
       std::make_unique<VirtualPrefProviderDelegate>(
@@ -153,13 +161,15 @@ AdsServiceFactory::BuildServiceInstanceForBrowserContext(
       brave::GetChannelName(), profile->GetPath(), CreateAdsTooltipsDelegate(),
       std::make_unique<DeviceIdImpl>(),
       std::make_unique<BatAdsServiceFactoryImpl>(),
-      ApplicationStateMonitor::Create(),
+      ApplicationStateMonitor::Create(), CreateShutdownMonitor(),
       CHECK_DEREF(g_brave_browser_process->resource_component()),
       history_service,
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
       rewards_service,
 #endif
       host_content_settings_map);
+  ads_service->Init();
+  return ads_service;
 }
 
 bool AdsServiceFactory::ServiceIsNULLWhileTesting() const {

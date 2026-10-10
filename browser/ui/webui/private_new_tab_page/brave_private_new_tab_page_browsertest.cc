@@ -12,7 +12,6 @@
 #include "brave/components/search_engines/brave_prepopulated_engines.h"
 #include "brave/components/tor/buildflags/buildflags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -91,9 +90,9 @@ IN_PROC_BROWSER_TEST_F(BravePrivateNewTabPageBrowserTest,
                        BraveSearchForTorBrowser) {
   ui_test_utils::BrowserCreatedObserver tor_browser_creation_observer;
   brave::NewOffTheRecordWindowTor(browser());
-  Browser* tor_browser = tor_browser_creation_observer.Wait();
+  BrowserWindowInterface* tor_browser = tor_browser_creation_observer.Wait();
   DCHECK(tor_browser);
-  EXPECT_TRUE(tor_browser->profile()->IsTor());
+  EXPECT_TRUE(tor_browser->GetProfile()->IsTor());
 
   auto* tor_web_contents =
       tor_browser->tab_strip_model()->GetActiveWebContents();

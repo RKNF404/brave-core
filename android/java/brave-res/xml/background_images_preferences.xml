@@ -19,8 +19,9 @@
             android:key="show_sponsored_images"
             android:title="@string/show_sponsored_images" />
 
-        <org.chromium.components.browser_ui.settings.ChromeBasePreference
-            android:key="sponsored_images_learn_more" />
+        <org.chromium.chrome.browser.settings.BraveTextButtonPreference
+            android:key="sponsored_images_learn_more"
+            android:title="@string/sponsored_images_learn_more" />
 
     </PreferenceCategory>
 
@@ -29,12 +30,16 @@
         android:title="@string/widgets">
 
         <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+            android:key="show_brave_stats"
+            android:title="@string/show_brave_stats" />
+
+        <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
             android:key="show_top_sites"
             android:title="@string/show_top_sites" />
 
-        <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
-            android:key="show_brave_stats"
-            android:title="@string/show_brave_stats" />
+        <org.chromium.chrome.browser.settings.BraveRadioButtonGroupTopSitesDisplayModePreference
+            android:key="top_sites_display_mode"
+            android:selectable="false" />
 
     </PreferenceCategory>
 

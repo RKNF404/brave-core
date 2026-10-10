@@ -7,7 +7,10 @@
 
 #include <string>
 
+#include "base/check.h"
 #include "base/feature_list.h"
+#include "brave/components/brave_search/common/pref_names.h"
+#include "components/prefs/pref_service.h"
 
 namespace brave_search::features {
 
@@ -79,5 +82,44 @@ const base::FeatureParam<bool> kBackupResultsAllowCosmeticAssets{
 
 const base::FeatureParam<bool> kBackupResultsAllowUnclassifiedRequests{
     &kBackupResults, "allow_unclassified_requests", false};
+
+const base::FeatureParam<int> kBackupResultsFarbling{&kBackupResults,
+                                                     "farbling", 0};
+
+const base::FeatureParam<bool> kBackupResultsHistorySeed{&kBackupResults,
+                                                         "history_seed", true};
+
+const base::FeatureParam<bool> kBackupResultsZeroSize{&kBackupResults,
+                                                      "zero_size", false};
+
+const base::FeatureParam<bool> kBackupResultsCleanUrl{&kBackupResults,
+                                                      "clean_url", false};
+
+const base::FeatureParam<std::string> kBackupResultsRendererLanguages{
+    &kBackupResults, "renderer_languages", ""};
+
+const base::FeatureParam<std::string> kBackupResultsLanguagesHeader{
+    &kBackupResults, "languages_header", ""};
+
+BASE_FEATURE(kSearchNewTabV1Source, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsSearchNewTabV1SourceEnabled(PrefService* local_state,
+                                   bool is_first_run) {
+  CHECK(local_state);
+  if (local_state->GetString(prefs::kNewTabV1SourceSuffix).empty()) {
+    local_state->SetString(prefs::kNewTabV1SourceSuffix,
+                           is_first_run ? "c" : "b");
+  }
+  // If the feature was enabled at install time, leave it enabled forever.
+  if (local_state->GetBoolean(prefs::kNewTabV1SourceEnabledAtFirstRun)) {
+    return true;
+  }
+  if (!base::FeatureList::IsEnabled(kSearchNewTabV1Source) || !is_first_run) {
+    // Existing users are not included in the study.
+    return false;
+  }
+  local_state->SetBoolean(prefs::kNewTabV1SourceEnabledAtFirstRun, true);
+  return true;
+}
 
 }  // namespace brave_search::features

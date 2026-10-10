@@ -11,7 +11,6 @@ import Fuzi
 import Shared
 import SnapKit
 import Static
-import Storage
 import WebKit
 import os.log
 
@@ -77,7 +76,7 @@ class CustomEngineViewController: UIViewController {
       if doneButtonStatus == .disabled {
         isAutoAddEnabled = false
       }
-      ensureMainThread {
+      DispatchQueue.main.async {
         self.tableView.reloadRows(
           at: [IndexPath(row: 0, section: Section.button.rawValue)],
           with: .none
@@ -141,7 +140,6 @@ class CustomEngineViewController: UIViewController {
       $0.register(CustomEngineURLInputTableViewCell.self)
       $0.register(CustomEngineTitleInputTableViewCell.self)
       $0.register(CustomEngineAddButtonCell.self)
-      $0.registerHeaderFooter(SearchEngineTableViewHeader.self)
       $0.dataSource = self
       $0.delegate = self
     }
@@ -150,11 +148,10 @@ class CustomEngineViewController: UIViewController {
     doLayout()
 
     doneButtonStatus = customEngineActionType == .add ? .enabled : .disabled
-  }
 
-  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-    super.traitCollectionDidChange(previousTraitCollection)
-    setTheme()
+    registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+      self.setTheme()
+    }
   }
 
   // MARK: Internal
@@ -313,17 +310,14 @@ extension CustomEngineViewController: UITableViewDelegate, UITableViewDataSource
     footerView.textLabel?.textColor = UIColor.secondaryLabel
   }
 
-  func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+  func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
     guard section != Section.button.rawValue else { return nil }
-
-    let headerView = tableView.dequeueReusableHeaderFooter() as SearchEngineTableViewHeader
     switch section {
     case Section.title.rawValue:
-      headerView.titleLabel.text = Strings.title.uppercased()
+      return Strings.title
     default:
-      headerView.titleLabel.text = Strings.URL.uppercased()
+      return Strings.URL
     }
-    return headerView
   }
 }
 

@@ -10,6 +10,7 @@
 #include "base/containers/fixed_flat_set.h"
 #include "base/test/scoped_feature_list.h"
 #include "brave/browser/ui/screenshot/features.h"
+#include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/brave_rewards/core/buildflags/buildflags.h"
@@ -373,7 +374,9 @@ TEST_F(ListActionModifiersUnitTest,
 
 TEST_F(ListActionModifiersUnitTest,
        ApplyBraveSpecificModifications_ScreenshotNotAddedWhenFeatureDisabled) {
-  // Feature is disabled by default.
+  // Feature is enabled by default.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(screenshot::features::kBraveScreenshot);
   ASSERT_FALSE(screenshot::features::IsScreenshotEnabled());
   auto modified_actions = customize_chrome::ApplyBraveSpecificModifications(
       web_contents_.get(), GetBasicActions());
@@ -385,8 +388,6 @@ TEST_F(ListActionModifiersUnitTest,
 
 TEST_F(ListActionModifiersUnitTest,
        ApplyBraveSpecificModifications_ScreenshotAddedWhenFeatureEnabled) {
-  base::test::ScopedFeatureList feature_list(
-      screenshot::features::kBraveScreenshot);
   ASSERT_TRUE(screenshot::features::IsScreenshotEnabled());
   auto modified_actions = customize_chrome::ApplyBraveSpecificModifications(
       web_contents_.get(), GetBasicActions());
@@ -399,29 +400,28 @@ TEST_F(ListActionModifiersUnitTest,
 }
 
 TEST_F(ListActionModifiersUnitTest,
-       ApplyBraveSpecificModifications_ShareMenuShouldNotBeAddedWhenDisabled) {
-  // Share Menu should be added by default (Sharing Hub enabled by default)
-  ASSERT_FALSE(sharing_hub::SharingIsDisabledByPolicy(
-      web_contents_->GetBrowserContext()));
+       ApplyBraveSpecificModifications_VerticalTabToggleNotAddedByDefault) {
+  ASSERT_FALSE(prefs()->GetBoolean(brave_tabs::kVerticalTabsEnabled));
   auto modified_actions = customize_chrome::ApplyBraveSpecificModifications(
       web_contents_.get(), GetBasicActions());
-  auto share_menu_action_it =
-      std::ranges::find(modified_actions, ActionId::kShowShareMenu,
-                        &side_panel::customize_chrome::mojom::Action::id);
-  ASSERT_NE(share_menu_action_it, modified_actions.end());
+  auto toggle_it = std::ranges::find(
+      modified_actions, ActionId::kShowVerticalTabToggleButton,
+      &side_panel::customize_chrome::mojom::Action::id);
+  EXPECT_EQ(toggle_it, modified_actions.end());
+}
 
-  // Disable Sharing Hub using pref
-  prefs()->SetBoolean(prefs::kDesktopSharingHubEnabled, false);
-  ASSERT_TRUE(sharing_hub::SharingIsDisabledByPolicy(
-      web_contents_->GetBrowserContext()));
-
-  modified_actions = customize_chrome::ApplyBraveSpecificModifications(
+TEST_F(
+    ListActionModifiersUnitTest,
+    ApplyBraveSpecificModifications_VerticalTabToggleAddedWhenVerticalTabsEnabled) {
+  prefs()->SetBoolean(brave_tabs::kVerticalTabsEnabled, true);
+  auto modified_actions = customize_chrome::ApplyBraveSpecificModifications(
       web_contents_.get(), GetBasicActions());
-  share_menu_action_it =
-      std::ranges::find(modified_actions, ActionId::kShowShareMenu,
-                        &side_panel::customize_chrome::mojom::Action::id);
-  // Show Share Menu action should not be present
-  EXPECT_EQ(share_menu_action_it, modified_actions.end());
+  auto toggle_it = std::ranges::find(
+      modified_actions, ActionId::kShowVerticalTabToggleButton,
+      &side_panel::customize_chrome::mojom::Action::id);
+  ASSERT_NE(toggle_it, modified_actions.end());
+  EXPECT_EQ((*toggle_it)->category,
+            side_panel::customize_chrome::mojom::CategoryId::kNavigation);
 }
 
 TEST_F(ListActionModifiersUnitTest,
@@ -472,5 +472,5 @@ TEST_F(ListActionModifiersUnitTest,
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
           EqId(ActionId::kShowBraveNews),
 #endif
-          EqId(ActionId::kShowShareMenu), EqId(ActionId::kShowPwaInstall)));
+          EqId(ActionId::kShowPwaInstall)));
 }

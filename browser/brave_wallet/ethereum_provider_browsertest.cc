@@ -10,7 +10,6 @@
 #include "brave/components/brave_wallet/browser/keyring_service.h"
 #include "brave/components/brave_wallet/browser/test_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -69,7 +68,7 @@ class EthereumProviderBrowserTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     brave_wallet::SetDefaultEthereumWallet(
-        browser()->profile()->GetPrefs(),
+        browser()->GetProfile()->GetPrefs(),
         brave_wallet::mojom::DefaultWallet::BraveWallet);
     mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
     host_resolver()->AddRule("*", "127.0.0.1");
@@ -86,7 +85,8 @@ class EthereumProviderBrowserTest : public InProcessBrowserTest {
   net::EmbeddedTestServer* https_server() { return &https_server_; }
 
   KeyringService* keyring_service() {
-    return BraveWalletServiceFactory::GetServiceForContext(browser()->profile())
+    return BraveWalletServiceFactory::GetServiceForContext(
+               browser()->GetProfile())
         ->keyring_service();
   }
 
@@ -95,7 +95,7 @@ class EthereumProviderBrowserTest : public InProcessBrowserTest {
         kMnemonicDripCaution, kTestWalletPassword, false));
   }
 
-  void ReloadAndWaitForLoadStop(Browser* browser) {
+  void ReloadAndWaitForLoadStop(BrowserWindowInterface* browser) {
     chrome::Reload(browser, WindowOpenDisposition::CURRENT_TAB);
     ASSERT_TRUE(content::WaitForLoadStop(web_contents()));
   }

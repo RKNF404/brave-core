@@ -171,10 +171,10 @@ import os.log
   private let versions: Preferences.Option<[String: String]>
 
   init(
-    ruleStore: WKContentRuleListStore = .default(),
+    ruleStore: WKContentRuleListStore? = nil,
     container: UserDefaults = Preferences.defaultContainer
   ) {
-    self.ruleStore = ruleStore
+    self.ruleStore = ruleStore ?? .default()
     self.cachedRuleLists = [:]
     self.versions = Preferences.Option(
       key: "content-blocker.versions",
@@ -302,7 +302,7 @@ import os.log
     do {
       do {
         result = try await Task.detached {
-          let filterSet = try String(contentsOf: localFileURL)
+          let filterSet = try String(contentsOf: localFileURL, encoding: .utf8)
           return try AdblockEngine.contentBlockerRules(fromFilterSet: filterSet)
         }.value
         Self.signpost.endInterval("convertRules", state)
@@ -321,13 +321,6 @@ import os.log
       Self.signpost.endInterval("convertRules", state, "\(error.localizedDescription)")
       throw error
     }
-
-    try await compile(
-      encodedContentRuleList: result.rulesJSON,
-      for: blocklistType,
-      version: version,
-      modes: modes
-    )
   }
 
   /// Compile the given resource and store it in cache for the given blocklist type and specified modes

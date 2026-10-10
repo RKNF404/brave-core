@@ -19,7 +19,6 @@ static_assert(BUILDFLAG(ENABLE_BRAVE_ADS));
 namespace brave_ads {
 
 class AdsClientNotifierObserver;
-struct NotificationAdInfo;
 
 class AdsClient {
  public:
@@ -53,7 +52,7 @@ class AdsClient {
       const = 0;
 
   // Show notification `ad`.
-  virtual void ShowNotificationAd(const NotificationAdInfo& ad) = 0;
+  virtual void ShowNotificationAd(mojom::NotificationAdInfoPtr ad) = 0;
 
   // Close the notification ad for the specified `placement_id`.
   virtual void CloseNotificationAd(const std::string& placement_id) = 0;
@@ -88,11 +87,14 @@ class AdsClient {
   virtual void Load(const std::string& name, LoadCallback callback) = 0;
 
   // Load a resource component for the specified `id` and `version` from
-  // persistent storage. The callback takes one argument - `base::File` will be
-  // valid if successful otherwise invalid.
+  // persistent storage. The callback takes two arguments - `base::File` will
+  // be valid if successful otherwise invalid, and `exists` will be `false`
+  // if no resource with this `id` and `version` exists on this device
+  // (regardless of which, if any, component is installed), as opposed to
+  // an existing resource failing to open.
   virtual void LoadResourceComponent(const std::string& id,
                                      int version,
-                                     LoadFileCallback callback) = 0;
+                                     LoadResourceComponentCallback callback) = 0;
 
   // Show a notification indicating that a scheduled captcha with the given
   // `captcha_id` must be solved for the given `payment_id` before the user can

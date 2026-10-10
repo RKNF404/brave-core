@@ -32,7 +32,6 @@
 #include "brave/components/history_embeddings/test/fake_history_embeddings_search.h"
 #include "brave/components/local_ai/core/pref_names.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "components/history/core/browser/url_row.h"
 #include "components/history_embeddings/core/history_embeddings_features.h"
 #include "components/history_embeddings/core/history_embeddings_search.h"
@@ -80,7 +79,7 @@ class HistorySearchToolBrowserTest
     // brave-history-embeddings feature flag and a Brave-owned pref. Enable
     // the pref so BrowserToolProvider::CreateTools actually constructs the
     // HistorySearchTool we're exercising here.
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         local_ai::prefs::kBraveHistoryEmbeddingsEnabled, true);
     AIChatConversationUIBrowserTestBase::SetUpOnMainThread();
   }
@@ -117,7 +116,8 @@ class HistorySearchToolBrowserTest
       }
       return false;
     }));
-    conversation_handler_->ProcessPermissionChallenge(tool_id, true);
+    conversation_handler_->ProcessPermissionChallenge(
+        tool_id, mojom::PermissionChallengeDecision::kAllowOnce);
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;

@@ -1,28 +1,43 @@
-// Copyright (c) 2019 The Brave Authors. All rights reserved.
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this file,
-// you can obtain one at https://mozilla.org/MPL/2.0/.
+/* Copyright (c) 2026 The Brave Authors. All rights reserved.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js'
-import {BaseMixin} from '../base_mixin.js'
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js'
-import {loadTimeData} from '../i18n_setup.js'
+import { PrefService } from '/shared/settings/prefs2/pref_service.js'
+import { BaseMixin } from '../base_mixin.js'
+import { PolymerElement } from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js'
+import { loadTimeData } from '../i18n_setup.js'
+
 import '../settings_shared.css.js'
 import '../settings_vars.css.js'
 import '../controls/settings_checkbox.js'
-import {getTemplate} from './brave_clear_browsing_data_on_exit_page.html.js'
+import 'chrome://resources/cr_elements/cr_button/cr_button.js'
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js'
+import '../icons.html.js'
+
+import { getTemplate } from './brave_clear_browsing_data_on_exit_page.html.js'
+import { BrowsingDataType } from '../clear_browsing_data_dialog/clear_browsing_data_browser_proxy.js'
+import { ALL_BROWSING_DATATYPES_LIST, BrowsingDataTypeOption, getDataTypeLabel, getDataTypePrefName } from '../clear_browsing_data_dialog/clear_browsing_data_dialog.js'
+
+/**
+ * Returns the pref name for clearing data on exit.
+ * Reuses Chromium's getDataTypePrefName and appends '_on_exit' suffix.
+ */
+function getDataTypePrefNameOnExit(datatypes: BrowsingDataType) {
+  return getDataTypePrefName(datatypes) + '_on_exit';
+}
 
 export interface SettingsBraveClearBrowsingDataOnExitPageElement {
   $: {
-    checkboxes: HTMLElement,
+    checkboxContainer: HTMLElement,
   }
 }
 
 const SettingsBraveClearBrowsingDataOnExitPageElementBase =
-  PrefsMixin(BaseMixin(PolymerElement))
+  BaseMixin(PolymerElement)
 
 export class SettingsBraveClearBrowsingDataOnExitPageElement
-extends SettingsBraveClearBrowsingDataOnExitPageElementBase {
+  extends SettingsBraveClearBrowsingDataOnExitPageElementBase {
   static get is() {
     return 'settings-brave-clear-browsing-data-on-exit-page'
   }
@@ -31,21 +46,8 @@ extends SettingsBraveClearBrowsingDataOnExitPageElementBase {
     return getTemplate()
   }
 
-  static getProperties() {
+  static get properties() {
     return {
-      prefs: {
-        type: Object,
-        notify: true,
-      },
-
-      counters: {
-        type: Object,
-        // Will be filled as results are reported.
-        value() {
-          return {}
-        }
-      },
-
       isModified_: {
         type: Boolean,
         value: false,
@@ -58,52 +60,106 @@ extends SettingsBraveClearBrowsingDataOnExitPageElementBase {
         },
       },
 
-// <if expr="enable_ai_chat">
-      isAIChatAndHistoryAllowed_: {
+      browsingDataTypeOptionsList_: {
+        type: Array,
+        value: [],
+      },
+
+      // <if expr="enable_ai_chat">
+      isLeoAssistantAndHistoryAllowed_: {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean('isLeoAssistantAllowed')
-              && loadTimeData.getBoolean('isLeoAssistantHistoryAllowed')
+            && loadTimeData.getBoolean('isLeoAssistantHistoryAllowed')
         },
       }
-// </if>
+      // </if>
     }
   }
 
-  public isModified_: boolean
+  declare isModified_: boolean
+  declare private browsingDataTypeOptionsList_: BrowsingDataTypeOption[]
 
-  private counters: {[k: string]: string} = {}
-  private isChildAccount_: boolean
-// <if expr="enable_ai_chat">
-  private isAIChatAndHistoryAllowed_: boolean
-// </if>
+  declare private isChildAccount_: boolean
+  // <if expr="enable_ai_chat">
+  declare private isLeoAssistantAndHistoryAllowed_: boolean
+  // </if>
 
   override ready() {
     super.ready()
+
+    PrefService.getInstance().whenInitialized().then(() => {
+      this.setUpDataTypeOptionLists_();
+    });
+
     this.addEventListener(
       'settings-boolean-control-change', this.updateModified_)
   }
 
-  public setCounter(counter: string, text: string) {
-    this.set('counters.' + counter, text)
-  }
-
   public getChangedSettings() {
-    let changed: Array<{key: string, value: boolean}> = []
-    const boxes = this.$.checkboxes.querySelectorAll('settings-checkbox')
+    let changed: Array<{ key: string, value: boolean }> = []
+    const checkboxContainer = this.$.checkboxContainer
+    const boxes = checkboxContainer.querySelectorAll('settings-checkbox')
     boxes.forEach((checkbox) => {
-      if (checkbox.checked !== this.get(checkbox.pref!.key, this.prefs).value) {
-        changed.push({key:checkbox.pref!.key, value:checkbox.checked})
+      if (checkbox.checked !== this.getPrefValue_(checkbox.prefKey)) {
+        changed.push({ key: checkbox.prefKey, value: checkbox.checked })
       }
     })
     return changed
   }
 
+  private getPrefValue_(prefKey: string): boolean {
+    return PrefService.getInstance().getPref<boolean>(prefKey).value
+  }
+
+  /**
+   * Sets up the data type options list
+   */
+  private setUpDataTypeOptionLists_() {
+    const optionsList: BrowsingDataTypeOption[] = [];
+
+    ALL_BROWSING_DATATYPES_LIST.forEach((datatype: BrowsingDataType) => {
+      if (!this.shouldDataTypeBeIncluded_(datatype)) {
+        return;
+      }
+
+      const datatypeOption: BrowsingDataTypeOption = {
+        label: getDataTypeLabel(datatype),
+        prefKey: getDataTypePrefNameOnExit(datatype),
+      };
+
+      optionsList.push(datatypeOption);
+    });
+
+    this.browsingDataTypeOptionsList_ = optionsList;
+  }
+
+  /**
+   * Determines if a data type should be included in the lists
+   */
+  private shouldDataTypeBeIncluded_(datatype: BrowsingDataType): boolean {
+    // Skip browsing/download history for child accounts
+    if (this.isChildAccount_ &&
+      (datatype === BrowsingDataType.HISTORY ||
+        datatype === BrowsingDataType.DOWNLOADS)) {
+      return false;
+    }
+
+// <if expr="enable_ai_chat">
+    if (datatype === BrowsingDataType.BRAVE_AI_CHAT) {
+      return this.isLeoAssistantAndHistoryAllowed_;
+    }
+// </if>
+
+    return true;
+  }
+
   private updateModified_() {
     let modified = false
-    const boxes = this.$.checkboxes.querySelectorAll('settings-checkbox')
+    const checkboxContainer = this.$.checkboxContainer
+    const boxes = checkboxContainer.querySelectorAll('settings-checkbox')
     for (let checkbox of boxes) {
-      if (checkbox.checked !== this.get(checkbox.pref!.key, this.prefs).value) {
+      if (checkbox.checked !== this.getPrefValue_(checkbox.prefKey)) {
         modified = true
         break
       }

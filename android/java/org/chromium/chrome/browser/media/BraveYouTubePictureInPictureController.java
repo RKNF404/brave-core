@@ -41,6 +41,7 @@ import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.MediaSessionObserver;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.media_session.mojom.MediaSession.SuspendType;
 
 /**
  * Owns the lifecycle of a Brave-managed YouTube Picture-in-Picture session.
@@ -144,6 +145,13 @@ public class BraveYouTubePictureInPictureController {
      */
     private boolean mResumeMediaSessionOnPipEntry;
 
+    /**
+     * True when a dark/light theme change arrived while this session was active and its activity
+     * recreation was deferred by {@link #maybeDeferNightModeRecreate}. Consumed on PiP exit by
+     * {@link #maybeApplyDeferredNightModeRecreate} to apply the theme that was withheld.
+     */
+    private boolean mPendingNightModeRecreate;
+
     public BraveYouTubePictureInPictureController(BraveActivity activity) {
         mActivity = activity;
     }
@@ -244,7 +252,10 @@ public class BraveYouTubePictureInPictureController {
         if (webContents != null) {
             final MediaSession mediaSession = getMediaSession(webContents);
             if (mediaSession != null) {
-                mediaSession.resume();
+                // Must be UI, not SYSTEM: MediaSessionImpl::OnResumeInternal drops a SYSTEM
+                // resume unless the preceding suspend was also SYSTEM, and the pause this
+                // undoes comes from the page (YouTube pauses itself while entering fullscreen).
+                mediaSession.resume(SuspendType.UI);
             }
         }
         return true;
@@ -260,6 +271,47 @@ public class BraveYouTubePictureInPictureController {
             return;
         }
         handleSessionExited();
+        maybeApplyDeferredNightModeRecreate();
+    }
+
+    /**
+     * Called from {@link BraveActivity#onNightModeStateChanged}. A dark/light theme change
+     * recreates the activity; doing so while this session is active destroys the activity backing
+     * the PiP window, after which Android drops PiP shortly after the recreated activity resumes
+     * full-screen and this controller tears the session down as a normal PiP exit. Defer the
+     * recreation while the session is active; it is re-applied on PiP exit by {@link
+     * #maybeApplyDeferredNightModeRecreate}.
+     *
+     * @return true if the recreation was deferred and the caller should skip it.
+     */
+    public boolean maybeDeferNightModeRecreate() {
+        if (!mActive) {
+            return false;
+        }
+        mPendingNightModeRecreate = true;
+        return true;
+    }
+
+    /**
+     * Applies a night-mode recreation deferred by {@link #maybeDeferNightModeRecreate}. Posted so
+     * the PiP-exit teardown settles first, then guarded against a finishing/destroyed activity or a
+     * re-entered PiP window before asking the activity to recreate. Left untouched on the
+     * screen-lock exit path so the withheld theme is applied only once the session ends for real.
+     */
+    private void maybeApplyDeferredNightModeRecreate() {
+        if (!mPendingNightModeRecreate) {
+            return;
+        }
+        mPendingNightModeRecreate = false;
+        PostTask.postTask(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    if (mActivity.isActivityFinishingOrDestroyed()
+                            || mActivity.isInPictureInPictureMode()) {
+                        return;
+                    }
+                    mActivity.applyDeferredNightModeRecreate();
+                });
     }
 
     /**
@@ -724,7 +776,7 @@ public class BraveYouTubePictureInPictureController {
     protected void suspendMediaSession(final WebContents webContents) {
         final MediaSession mediaSession = getMediaSession(webContents);
         if (mediaSession != null) {
-            mediaSession.suspend();
+            mediaSession.suspend(SuspendType.SYSTEM);
         }
     }
 
@@ -880,6 +932,9 @@ public class BraveYouTubePictureInPictureController {
         mInterruptedByScreenLock = false;
         mWasPlayingBeforeScreenLock = false;
         mResumeMediaSessionOnPipEntry = false;
+        // Not applied via the normal PiP-exit path (new-tab teardown, enter failure, destroy);
+        // drop it so a withheld theme change cannot leak into a later session's exit.
+        mPendingNightModeRecreate = false;
         mWebContents = null;
         mTabId = Tab.INVALID_TAB_ID;
         stopObservingMediaSession();

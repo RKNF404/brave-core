@@ -33,7 +33,11 @@ import { BraveWallet, WalletRoutes } from '../../../../constants/types'
 import { getLocale } from '$web-common/locale'
 import Amount from '../../../../utils/amount'
 // FIXME(onyb): move makeNetworkAsset to utils/assets-utils
-import { isNativeAsset } from '../../../../utils/asset-utils'
+import {
+  isLegacyShieldedToken,
+  isNativeAsset,
+  isShieldedToken,
+} from '../../../../utils/asset-utils'
 import { makeNetworkAsset } from '../../../../options/asset-options'
 import {
   getPriceRequestsForTokens,
@@ -90,21 +94,25 @@ const getTokenFromParam = (
   contractOrSymbol: string,
   network: BraveWallet.NetworkInfo,
   tokenList: BraveWallet.BlockchainToken[],
-  isShielded: boolean,
+  zcashTokenType: BraveWallet.ZCashTokenType,
 ) => {
-  return tokenList.find(
+  const token = tokenList.find(
     (token) =>
       (token.chainId === network.chainId
         && token.coin === network.coin
         && token.contractAddress.toLowerCase()
           === contractOrSymbol.toLowerCase()
-        && token.isShielded === isShielded)
+        && token.zcashTokenType === zcashTokenType)
       || (token.chainId === network.chainId
         && token.coin === network.coin
         && token.contractAddress === ''
         && token.symbol.toLowerCase() === contractOrSymbol.toLowerCase()
-        && token.isShielded === isShielded),
+        && token.zcashTokenType === zcashTokenType),
   )
+  if (token && isLegacyShieldedToken(token)) {
+    return undefined
+  }
+  return token
 }
 
 const getAssetBalance = (
@@ -294,29 +302,36 @@ export const useSwap = () => {
       return
     }
 
-    const fromIsShielded = query.get('fromIsShielded') === 'true'
+    const fromZcashTokenTypeParam = Number(
+      query.get('fromZcashTokenType') ?? BraveWallet.ZCashTokenType.kNone,
+    ) as BraveWallet.ZCashTokenType
     return getTokenFromParam(
       fromContractOrSymbolFromParams,
       fromNetwork,
       fullTokenList,
-      fromIsShielded,
+      fromZcashTokenTypeParam,
     )
   }, [fullTokenList, fromContractOrSymbolFromParams, fromNetwork, query])
 
   const effectiveFromAccountAddress = useMemo(() => {
-    if (fromToken?.isShielded && fromZCashAccountInfo?.orchardAddress) {
+    if (
+      fromToken
+      && isShieldedToken(fromToken)
+      && fromZCashAccountInfo?.orchardAddress
+    ) {
       return fromZCashAccountInfo.orchardAddress
     }
     return fromAccountAddress
-  }, [fromToken?.isShielded, fromZCashAccountInfo, fromAccountAddress])
+  }, [fromToken, fromZCashAccountInfo, fromAccountAddress])
 
   const needsShieldedFromAddressResolution = useMemo(() => {
     return (
-      fromToken?.isShielded
+      fromToken
+      && isShieldedToken(fromToken)
       && fromAccount?.accountId.coin === BraveWallet.CoinType.ZEC
       && !fromZCashAccountInfo?.orchardAddress
     )
-  }, [fromToken?.isShielded, fromAccount, fromZCashAccountInfo])
+  }, [fromToken, fromAccount, fromZCashAccountInfo])
 
   const toToken = useMemo(() => {
     const contractOrSymbol = query.get('toToken')
@@ -324,29 +339,36 @@ export const useSwap = () => {
       return
     }
 
-    const toIsShielded = query.get('toIsShielded') === 'true'
+    const toZcashTokenTypeParam = Number(
+      query.get('toZcashTokenType') ?? BraveWallet.ZCashTokenType.kNone,
+    ) as BraveWallet.ZCashTokenType
     return getTokenFromParam(
       contractOrSymbol,
       toNetwork,
       fullTokenList,
-      toIsShielded,
+      toZcashTokenTypeParam,
     )
   }, [fullTokenList, query, toNetwork])
 
   const effectiveToAccountAddress = useMemo(() => {
-    if (toToken?.isShielded && toZCashAccountInfo?.orchardAddress) {
+    if (
+      toToken
+      && isShieldedToken(toToken)
+      && toZCashAccountInfo?.orchardAddress
+    ) {
       return toZCashAccountInfo.orchardAddress
     }
     return toAccountAddress
-  }, [toToken?.isShielded, toZCashAccountInfo, toAccountAddress])
+  }, [toToken, toZCashAccountInfo, toAccountAddress])
 
   const needsShieldedToAddressResolution = useMemo(() => {
     return (
-      toToken?.isShielded
+      toToken
+      && isShieldedToken(toToken)
       && toAccountId?.coin === BraveWallet.CoinType.ZEC
       && !toZCashAccountInfo?.orchardAddress
     )
-  }, [toToken?.isShielded, toAccountId, toZCashAccountInfo])
+  }, [toToken, toAccountId, toZCashAccountInfo])
 
   const needsAddressResolution = useMemo(() => {
     return (
@@ -372,7 +394,7 @@ export const useSwap = () => {
             network: fromNetwork,
             accounts: [fromAccount],
             tokens:
-              isNativeAsset(fromToken) && !fromToken.isShielded
+              isNativeAsset(fromToken) && !isShieldedToken(fromToken)
                 ? [nativeAsset]
                 : [nativeAsset, fromToken],
           }
@@ -725,6 +747,9 @@ export const useSwap = () => {
   //  - Refresh quotes based on the new fromAmount, with debouncing.
   const handleOnSetFromAmount = useCallback(
     async (value: string) => {
+      if (Amount.isNegativeOrPaddedZeroAmount(value)) {
+        return
+      }
       setFromAmount(value)
       setEditingFromOrToAmount('from')
       if (!value) {
@@ -745,6 +770,9 @@ export const useSwap = () => {
   //  - Refresh quotes based on the new toAmount, with debouncing.
   const handleOnSetToAmount = useCallback(
     async (value: string) => {
+      if (Amount.isNegativeOrPaddedZeroAmount(value)) {
+        return
+      }
       setToAmount(value)
       setEditingFromOrToAmount('to')
       if (!value) {
@@ -1207,26 +1235,26 @@ export const useSwap = () => {
 
   const submitButtonText = useMemo(() => {
     if (isFetchingQuote) {
-      return getLocale('braveWalletFetchingQuote')
+      return getLocale(S.BRAVE_WALLET_FETCHING_QUOTE)
     }
 
     const defaultText = isBridge
-      ? getLocale('braveWalletReviewBridge')
-      : getLocale('braveWalletReviewSwap')
+      ? getLocale(S.BRAVE_WALLET_REVIEW_BRIDGE)
+      : getLocale(S.BRAVE_WALLET_REVIEW_SWAP)
 
     if (!fromToken || !fromNetwork) {
       return defaultText
     }
 
     if (swapValidationError === 'insufficientBalance') {
-      return getLocale('braveSwapInsufficientBalance').replace(
+      return getLocale(S.BRAVE_SWAP_INSUFFICIENT_BALANCE).replace(
         '$1',
         fromToken.symbol,
       )
     }
 
     if (swapValidationError === 'insufficientFundsForGas') {
-      return getLocale('braveSwapInsufficientBalance').replace(
+      return getLocale(S.BRAVE_SWAP_INSUFFICIENT_BALANCE).replace(
         '$1',
         fromNetwork.symbol,
       )
@@ -1236,31 +1264,34 @@ export const useSwap = () => {
       fromNetwork.coin === BraveWallet.CoinType.ETH
       && swapValidationError === 'insufficientAllowance'
     ) {
-      return getLocale('braveSwapApproveToken').replace('$1', fromToken.symbol)
+      return getLocale(S.BRAVE_SWAP_APPROVE_TOKEN).replace(
+        '$1',
+        fromToken.symbol,
+      )
     }
 
     if (swapValidationError === 'insufficientLiquidity') {
-      return getLocale('braveSwapInsufficientLiquidity')
+      return getLocale(S.BRAVE_SWAP_INSUFFICIENT_LIQUIDITY)
     }
 
     if (swapValidationError === 'amountTooLow') {
-      return getLocale('braveSwapAmountTooLow')
+      return getLocale(S.BRAVE_SWAP_AMOUNT_TOO_LOW)
     }
 
     if (swapValidationError === 'unsupportedNetwork') {
-      return getLocale('braveSwapUnsupportedNetwork')
+      return getLocale(S.BRAVE_SWAP_UNSUPPORTED_NETWORK)
     }
 
     if (swapValidationError === 'unsupportedTokens') {
-      return getLocale('braveSwapUnsupportedTokens')
+      return getLocale(S.BRAVE_SWAP_UNSUPPORTED_TOKENS)
     }
 
     if (swapValidationError === 'invalidRequest') {
-      return getLocale('braveSwapInvalidRequest')
+      return getLocale(S.BRAVE_SWAP_INVALID_REQUEST)
     }
 
     if (swapValidationError === 'unknownError') {
-      return getLocale('braveWalletSwapUnknownError')
+      return getLocale(S.BRAVE_WALLET_SWAP_UNKNOWN_ERROR)
     }
 
     return defaultText

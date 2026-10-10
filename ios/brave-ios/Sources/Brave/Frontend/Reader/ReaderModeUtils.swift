@@ -15,7 +15,7 @@ struct ReaderModeUtils {
     } ?? domain
   }
 
-  static func generateReaderContent(
+  @concurrent static func generateReaderContent(
     _ readabilityResult: ReadabilityResult,
     initialStyle: ReaderModeStyle,
     titleNonce: String
@@ -25,50 +25,31 @@ struct ReaderModeUtils {
       let tmplPath = Bundle.module.url(forResource: "Reader", withExtension: "html"),
       let tmpl = await AsyncFileManager.default.utf8Contents(at: tmplPath)
     else { return nil }
+    let languageCode = Locale.LanguageCode(readabilityResult.documentLanguage)
 
-    // This MUST be the first line/replacement!
-    return tmpl.replacingOccurrences(of: "%READER-TITLE-NONCE%", with: titleNonce)
+    let substitutions = [
+      "%READER-TITLE-NONCE%": titleNonce,
+      "%READER-CSS%": css,
+      "%READER-STYLE%": initialStyle.encode(),
+      "%READER-DOMAIN%": simplifyDomain(readabilityResult.domain),
+      "%READER-URL%": readabilityResult.url,
+      "%READER-PAGE-LANGUAGE%": languageCode.isISOLanguage ? languageCode.identifier : "",
+      "%READER-TITLE%": readabilityResult.title.javaScriptEscapedString?.unquotedIfNecessary
+        ?? readabilityResult.title.htmlEntityEncodedString,
+      "%READER-CREDITS%": readabilityResult.credits.javaScriptEscapedString?.unquotedIfNecessary
+        ?? readabilityResult.credits.htmlEntityEncodedString,
+      "%READER-DIRECTION%": readabilityResult.direction.htmlEntityEncodedString,
+      "%READER-MESSAGE%": "",
+      "%READER-ORIGINAL-PAGE-META-TAGS%": readabilityResult.cspMetaTags
+        .flatMap { ReaderModeHandler.adoptedImageSourcePolicyContents(from: $0) }
+        .map {
+          "<meta http-equiv=\"Content-Security-Policy\" content=\"\($0.htmlEntityEncodedString)\">"
+        }
+        .joined(separator: "\n"),
+      "%READER-CONTENT%": readabilityResult.content,
+    ]
 
-      .replacingOccurrences(of: "%READER-CSS%", with: css)
-      .replacingOccurrences(of: "%READER-STYLE%", with: initialStyle.encode())
-      .replacingOccurrences(of: "%READER-DOMAIN%", with: simplifyDomain(readabilityResult.domain))
-      .replacingOccurrences(of: "%READER-URL%", with: readabilityResult.url)
-      .replacingOccurrences(
-        of: "%READER-PAGE-LANGUAGE%",
-        with: readabilityResult.documentLanguage.javaScriptEscapedString?.unquotedIfNecessary
-          ?? ""
-      )
-      .replacingOccurrences(
-        of: "%READER-TITLE%",
-        with: readabilityResult.title.javaScriptEscapedString?.unquotedIfNecessary
-          ?? readabilityResult.title.htmlEntityEncodedString
-      )
-      .replacingOccurrences(
-        of: "%READER-CREDITS%",
-        with: readabilityResult.credits.javaScriptEscapedString?.unquotedIfNecessary
-          ?? readabilityResult.credits.htmlEntityEncodedString
-      )
-      .replacingOccurrences(
-        of: "%READER-DIRECTION%",
-        with: readabilityResult.direction.javaScriptEscapedString?.unquotedIfNecessary
-          ?? readabilityResult.direction.htmlEntityEncodedString
-      )
-      .replacingOccurrences(of: "%READER-MESSAGE%", with: "")
-
-      // PAGE UNESCAPED REPLACEMENTS MUST BE DONE AFTER THIS LINE
-      .replacingOccurrences(
-        of: "%READER-ORIGINAL-PAGE-META-TAGS%",
-        with: readabilityResult.cspMetaTags
-          .map {
-            let content =
-              $0.javaScriptEscapedString?.unquotedIfNecessary ?? $0.htmlEntityEncodedString
-            return "<meta http-equiv=\"Content-Security-Policy\" content=\"\(content)\">"
-          }
-          .joined(separator: "\n")
-      )
-
-      // DO NOT DO ANY REPLACEMENTS AFTER THIS LINE
-      .replacingOccurrences(of: "%READER-CONTENT%", with: readabilityResult.content)
+    return tmpl.replacingOccurances(substitutions) ?? tmpl
   }
 }
 

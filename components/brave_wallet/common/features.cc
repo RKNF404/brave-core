@@ -32,7 +32,18 @@ BASE_FEATURE(kBraveWalletZCashFeature,
 
 BASE_FEATURE(kBraveWalletPolkadotFeature,
              "BraveWalletPolkadot",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+const base::FeatureParam<bool> kPolkadotAssetDiscovery{
+    &kBraveWalletPolkadotFeature, "polkadot_asset_discovery", false};
+
+const base::FeatureParam<bool> kPolkadotDAppSupport{
+    &kBraveWalletPolkadotFeature, "polkadot_dapp_support", false};
 
 #if !defined(OFFICIAL_BUILD)
 BASE_FEATURE(kBraveWalletDebugFeature,
@@ -57,6 +68,9 @@ const base::FeatureParam<bool> kCardanoDAppSupport{
 const base::FeatureParam<bool> kZCashShieldedTransactionsEnabled{
     &kBraveWalletZCashFeature, "zcash_shielded_transactions_enabled", true};
 
+const base::FeatureParam<bool> kZCashIronwoodEnabled{
+    &kBraveWalletZCashFeature, "zcash_ironwood_enabled", true};
+
 BASE_FEATURE(kBraveWalletAnkrBalancesFeature,
              "BraveWalletAnkrBalances",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -64,6 +78,9 @@ BASE_FEATURE(kBraveWalletAnkrBalancesFeature,
 BASE_FEATURE(kBraveWalletTransactionSimulationsFeature,
              "BraveWalletTransactionSimulations",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBraveWalletMojoForLedgerFeature,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBraveWalletAccountHidingFeature,
              "BraveWalletAccountHiding",
@@ -74,7 +91,12 @@ BASE_FEATURE(kBraveWalletAccountHidingFeature,
 #endif
 );
 
-#if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kBraveWalletWebUIFeature, base::FEATURE_ENABLED_BY_DEFAULT);
+#if BUILDFLAG(ENABLE_SNAP)
+BASE_FEATURE(kBraveWalletSnapFeature, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+BASE_FEATURE(kBraveWalletSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBraveWalletFilecoinLedger, base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace brave_wallet::features

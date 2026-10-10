@@ -34,7 +34,6 @@
 #include "brave/grit/brave_theme_resources.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/common/channel_info.h"
 #include "components/grit/brave_components_strings.h"
@@ -60,6 +59,7 @@
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #include "brave/browser/ai_chat/ai_chat_service_factory.h"
 #include "brave/browser/ui/ai_chat/utils.h"
+#include "brave/browser/ui/side_panel/ai_chat/ai_chat_side_panel_utils.h"
 #include "brave/components/ai_chat/content/browser/ai_chat_tab_helper.h"
 #include "brave/components/ai_chat/content/browser/associated_web_contents_content.h"
 #include "brave/components/ai_chat/core/browser/ai_chat_metrics.h"
@@ -97,19 +97,28 @@ AutocompleteMatch GetAutocompleteMatchForText(Profile* profile,
                   AutocompleteClassifier::DefaultOmniboxProviders()}),
       std::make_unique<BraveAutocompleteSchemeClassifier>(profile));
   classifier.Classify(text, false, false,
-                      metrics::OmniboxEventProto::INVALID_SPEC, &match, NULL);
+                      metrics::OmniboxEventProto::INVALID_SPEC, &match,
+                      nullptr);
   classifier.Shutdown();
   return match;
 }
 
-GURL GetSelectionNavigationURL(Profile* profile, const std::u16string& text) {
+// Upstream classifies the selection with AutocompleteClassifierFactory, which
+// has no service for off-the-record profiles, so classify with a temporary
+// classifier for those.
+GURL BraveResolveSelectionNavigationURL(Profile* profile,
+                                        const std::u16string& text,
+                                        const GURL& upstream_url) {
+  if (!profile->IsOffTheRecord()) {
+    return upstream_url;
+  }
   return GetAutocompleteMatchForText(profile, text).destination_url;
 }
 
 std::optional<GURL> GetSelectedURL(Profile* profile,
                                    const std::u16string& text) {
   auto match = GetAutocompleteMatchForText(profile, text);
-  if (match.type != AutocompleteMatchType::URL_WHAT_YOU_TYPED) {
+  if (match.type != omnibox::AutocompleteMatchType::kUrlWhatYouTyped) {
     return std::nullopt;
   }
   return match.destination_url;
@@ -123,33 +132,7 @@ base::OnceCallback<void(RenderViewContextMenu*)>* BraveGetMenuShownCallback() {
 
 }  // namespace
 
-void RenderViewContextMenu_Chromium::RegisterMenuShownCallbackForTesting(
-    base::OnceCallback<void(RenderViewContextMenu*)> cb) {
-  *BraveGetMenuShownCallback() = std::move(cb);
-}
-
-#define BRAVE_APPEND_SEARCH_PROVIDER                                     \
-  if (GetProfile()->IsOffTheRecord()) {                                  \
-    selection_navigation_url_ =                                          \
-        GetSelectionNavigationURL(GetProfile(), params_.selection_text); \
-    if (!selection_navigation_url_.is_valid())                           \
-      return;                                                            \
-  }
-
-// Use our subclass to initialize SpellingOptionsSubMenuObserver.
-#define SpellingOptionsSubMenuObserver BraveSpellingOptionsSubMenuObserver
-#define RegisterMenuShownCallbackForTesting \
-  RegisterMenuShownCallbackForTesting_unused
-#define RenderViewContextMenu RenderViewContextMenu_Chromium
-
 #include <chrome/browser/renderer_context_menu/render_view_context_menu.cc>
-
-#undef SpellingOptionsSubMenuObserver
-#undef RegisterMenuShownCallbackForTesting
-
-// Make it clear which class we mean here.
-#undef RenderViewContextMenu
-#undef BRAVE_APPEND_SEARCH_PROVIDER
 
 namespace {
 
@@ -170,6 +153,24 @@ constexpr char kAIChatRewriteDataKey[] = "ai_chat_rewrite_data";
 struct AIChatRewriteData : public base::SupportsUserData::Data {
   std::string accumulated_text;
 };
+
+// Opens (or focuses) AI Chat for `conversation` from a context-menu action on
+// `web_contents`. With the global side panel, open the panel directly on this
+// exact conversation (the one the selected text is submitted to). With a
+// per-tab / contextual side panel, open the tab-scoped panel instead - which
+// binds the tab-associated conversation, the same one used here.
+void OpenAIChatForContextMenuConversation(
+    content::WebContents* web_contents,
+    ai_chat::ConversationHandler* conversation) {
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  if (ai_chat::ShouldSidePanelBeGlobal(profile)) {
+    ai_chat::OpenConversationInSidePanel(profile,
+                                         conversation->get_conversation_uuid());
+  } else {
+    ai_chat::OpenAIChatForTab(web_contents);
+  }
+}
 
 bool IsRewriteCommand(int command) {
   static constexpr auto kRewriteCommands = base::MakeFixedFlatSet<int>(
@@ -298,7 +299,7 @@ void OnRewriteSuggestionCompleted(
     }
     conversation->MaybeUnlinkAssociatedContent();
 
-    ai_chat::OpenAIChatForTab(web_contents.get());
+    OpenAIChatForContextMenuConversation(web_contents.get(), conversation);
 
     conversation->AddSubmitSelectedTextError(selected_text, action_type,
                                              result.error().api_error);
@@ -314,7 +315,7 @@ email_aliases::EmailAliasesController* GetEmailAliasesController(
   if (!browser) {
     return nullptr;
   }
-  return browser->GetFeatures().email_aliases_controller();
+  return email_aliases::EmailAliasesController::From(browser);
 }
 #endif  // BUILDFLAG(ENABLE_EMAIL_ALIASES)
 
@@ -457,7 +458,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       if (auto* email_aliases = GetEmailAliasesController(GetBrowser())) {
         email_aliases->ShowBubble(
             source_web_contents_, GetRenderFrameHost(),
-            params_.field_renderer_id,
+            params_.field_renderer_id.value(),
             email_aliases::SettingsPageMethod::kContextMenu);
       }
       break;
@@ -558,8 +559,8 @@ void RenderViewContextMenu::ExecuteAIChatCommand(int command) {
     // current state.
     conversation->MaybeUnlinkAssociatedContent();
 
-    // Active the panel.
-    ai_chat::OpenAIChatForTab(embedder_web_contents_);
+    // Open the panel on this conversation.
+    OpenAIChatForContextMenuConversation(embedder_web_contents_, conversation);
     conversation->SubmitSelectedText(selected_text, action_type);
   }
 
@@ -680,8 +681,8 @@ void RenderViewContextMenu::BuildContainersMenu() {
   }
 }
 
-Browser* RenderViewContextMenu::GetBrowserToOpenSettings() {
-  return GetBrowser()->GetBrowserForMigrationOnly();
+BrowserWindowInterface* RenderViewContextMenu::GetBrowserToOpenSettings() {
+  return GetBrowser();
 }
 
 float RenderViewContextMenu::GetScaleFactor() {
@@ -722,7 +723,7 @@ void RenderViewContextMenu::AppendDeveloperItems() {
       brave_shields::BraveShieldsTabHelper::FromWebContents(
           source_web_contents_);
   bool add_block_elements = shields_tab_helper &&
-                            shields_tab_helper->GetBraveShieldsEnabled() &&
+                            shields_tab_helper->IsBraveShieldsEnabled() &&
                             shields_tab_helper->GetAdBlockMode() !=
                                 brave_shields::mojom::AdBlockMode::ALLOW;
   add_block_elements &=
@@ -759,7 +760,9 @@ void RenderViewContextMenu::OnContainerSelected(
     return;
   }
 
-  brave::OpenUrlInContainer(GetBrowser(), params_.link_url, container);
+  brave::OpenUrlInContainer(GetBrowser(), params_.link_url, container,
+                            /*is_link=*/true, params_.frame_origin,
+                            /*started_from_context_menu=*/true);
 }
 
 void RenderViewContextMenu::OnNoContainerSelected() {
@@ -767,7 +770,9 @@ void RenderViewContextMenu::OnNoContainerSelected() {
     return;
   }
 
-  brave::OpenUrlWithoutContainer(GetBrowser(), params_.link_url);
+  brave::OpenUrlWithoutContainer(GetBrowser(), params_.link_url,
+                                 /*is_link=*/true, params_.frame_origin,
+                                 /*started_from_context_menu=*/true);
 }
 
 void RenderViewContextMenu::OnNewTemporaryContainerSelected() {
@@ -775,7 +780,9 @@ void RenderViewContextMenu::OnNewTemporaryContainerSelected() {
     return;
   }
 
-  brave::CreateTemporaryContainerAndOpenUrl(GetBrowser(), params_.link_url);
+  brave::CreateTemporaryContainerAndOpenUrl(
+      GetBrowser(), params_.link_url, /*is_link=*/true, params_.frame_origin,
+      /*started_from_context_menu=*/true);
 }
 
 base::flat_set<std::string> RenderViewContextMenu::GetCurrentContainerIds() {
@@ -873,7 +880,10 @@ void RenderViewContextMenu::InitMenu() {
                : IDS_CONTENT_CONTEXT_OPENLINKTOR);
   }
 #endif
-  if (!params_.link_url.is_empty() && params_.link_url.SchemeIsHTTPOrHTTPS()) {
+  // Only offer "Copy clean link" when cleaning would actually change the link.
+  if (!params_.link_url.is_empty() && params_.link_url.SchemeIsHTTPOrHTTPS() &&
+      brave::GetLinkWithStrictCleaning(GetProfile(), params_.link_url) !=
+          params_.link_url) {
     std::optional<size_t> link_index =
         menu_model_.GetIndexOfCommandId(IDC_CONTENT_CONTEXT_COPYLINKLOCATION);
     if (link_index.has_value()) {
@@ -902,6 +912,12 @@ void RenderViewContextMenu::InitMenu() {
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
   BuildEmailAliasesMenu();
 #endif
+}
+
+// static
+void RenderViewContextMenu::RegisterMenuShownCallbackForTesting(
+    base::OnceCallback<void(RenderViewContextMenu*)> cb) {
+  *BraveGetMenuShownCallback() = std::move(cb);
 }
 
 void RenderViewContextMenu::NotifyMenuShown() {

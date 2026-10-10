@@ -18,8 +18,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -79,10 +79,10 @@ bool PromotionButtonController::PromotionEnabled(PrefService* prefs) {
 PromotionButtonController::PromotionButtonController(
     PromotionButtonView* button,
     OmniboxViewViews* omnibox_view,
-    Browser* browser)
+    BrowserWindowInterface* browser)
     : button_(button),
       omnibox_view_(omnibox_view),
-      prefs_(*browser->profile()->GetPrefs()),
+      prefs_(*browser->GetProfile()->GetPrefs()),
       browser_(*browser) {
   CHECK(button_ && omnibox_view);
   button_->SetDismissedCallback(base::BindOnce(
@@ -91,7 +91,7 @@ PromotionButtonController::PromotionButtonController(
       &PromotionButtonController::SetDefaultAndLoadBraveSearchWithCurrentInput,
       weak_factory_.GetWeakPtr()));
   template_url_service_ =
-      TemplateURLServiceFactory::GetForProfile(browser_->profile());
+      TemplateURLServiceFactory::GetForProfile(browser_->GetProfile());
   is_brave_search_default_ = IsBraveSearchDefault();
   view_observation_.AddObservation(button_);
   view_observation_.AddObservation(omnibox_view_);
@@ -135,7 +135,8 @@ bool PromotionButtonController::ShouldShowSearchPromotionButton() {
 
   // In browser test, this happens on x64 macOS release build.
   // https://github.com/brave/brave-browser/issues/51026
-  if (!browser_->window()) {
+  BrowserWindow* browser_window = BrowserWindow::FromBrowser(&browser_.get());
+  if (!browser_window) {
     return false;
   }
 
@@ -143,18 +144,15 @@ bool PromotionButtonController::ShouldShowSearchPromotionButton() {
   // Promotion button will be shown for current search provider's
   // suggestion entries to make users search with brave search with that
   // suggestion.
-  if (!browser_->window()
-           ->GetLocationBar()
+  if (!browser_window->GetLocationBar()
            ->GetOmniboxController()
            ->IsPopupOpen()) {
     return false;
   }
 
   // Only show promotion for search query. Not url.
-  OmniboxEditModel* edit_model = browser_->window()
-                                     ->GetLocationBar()
-                                     ->GetOmniboxController()
-                                     ->edit_model();
+  OmniboxEditModel* edit_model =
+      browser_window->GetLocationBar()->GetOmniboxController()->edit_model();
   if (edit_model->CurrentTextIsURL()) {
     return false;
   }
@@ -232,7 +230,7 @@ void PromotionButtonController::UpdateButtonUI() {
 
   const auto* template_url = template_url_service_->GetDefaultSearchProvider();
   auto* service = ImageFetcherServiceFactory::GetForKey(
-      browser_->profile()->GetProfileKey());
+      browser_->GetProfile()->GetProfileKey());
   CHECK(service);
   auto* fetcher = service->GetImageFetcher(
       image_fetcher::ImageFetcherConfig::kDiskCacheOnly);

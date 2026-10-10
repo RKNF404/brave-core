@@ -426,16 +426,18 @@ class TabLocationView: UIView {
 
     updateForTraitCollection()
     updateColors()
+
+    registerForTraitChanges([
+      UITraitPreferredContentSizeCategory.self,
+      UITraitUserInterfaceStyle.self,
+    ]) { (self: Self, _) in
+      self.updateForTraitCollection()
+      self.updateColors()
+    }
   }
 
   required init(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
-  }
-
-  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-    super.traitCollectionDidChange(previousTraitCollection)
-    updateForTraitCollection()
-    updateColors()
   }
 
   override var accessibilityElements: [Any]? {
@@ -493,7 +495,6 @@ class TabLocationView: UIView {
 
   private func updateColors() {
     let browserColors = privateBrowsingManager.browserColors
-    backgroundColor = browserColors.containerBackground
     urlDisplayLabel.textColor = browserColors.textPrimary
     placeholderLabel.textColor = browserColors.textTertiary
     readerModeButton.unselectedTintColor = browserColors.iconDefault
@@ -619,132 +620,5 @@ class TabLocationView: UIView {
 
   @objc func didTapWalletButton() {
     delegate?.tabLocationViewDidTapWalletButton(self)
-  }
-}
-
-// MARK: - TabEventHandler
-
-private class DisplayURLLabel: UILabel {
-  let pathPadding: CGFloat = 5.0
-
-  let clippingFade = GradientView(
-    colors: [
-      UIColor(braveSystemName: .containerBackground),
-      UIColor(braveSystemName: .containerBackground).withAlphaComponent(0.0),
-    ],
-    positions: [0, 1],
-    startPoint: .init(x: 0, y: 0.5),
-    endPoint: .init(x: 1, y: 0.5)
-  )
-
-  override init(frame: CGRect) {
-    super.init(frame: frame)
-    addSubview(clippingFade)
-  }
-
-  private var textSize: CGSize = .zero
-  fileprivate var isLeftToRight: Bool = true {
-    didSet {
-      updateText()
-      updateTextSize()
-      updateClippingDirection()
-      setNeedsLayout()
-      setNeedsDisplay()
-    }
-  }
-
-  override var font: UIFont! {
-    didSet {
-      updateText()
-      updateTextSize()
-    }
-  }
-
-  override var text: String? {
-    didSet {
-      clippingFade.isHidden = true
-      if oldValue != text {
-        updateText()
-        updateTextSize()
-        updateClippingDirection()
-      }
-      setNeedsDisplay()
-    }
-  }
-
-  private func updateTextSize() {
-    textSize = attributedText?.size() ?? .zero
-    setNeedsLayout()
-    setNeedsDisplay()
-  }
-
-  private func updateClippingDirection() {
-    // Update clipping fade direction
-    clippingFade.gradientLayer.startPoint = .init(x: isLeftToRight ? 1 : 0, y: 0.5)
-    clippingFade.gradientLayer.endPoint = .init(x: isLeftToRight ? 0 : 1, y: 0.5)
-  }
-
-  private func updateText() {
-    if let text = text {
-      // Without attributed string, the label will always render RTL characters even if you force LTR layout.
-      // This can introduce a security flaw! We must not flip the URL around based on RTL characters (Safari does not).
-      let paragraphStyle = NSMutableParagraphStyle()
-      paragraphStyle.lineBreakMode = .byClipping
-      paragraphStyle.baseWritingDirection = .leftToRight
-
-      self.attributedText = NSAttributedString(
-        string: text,
-        attributes: [
-          .font: font ?? .preferredFont(forTextStyle: .body),
-          .paragraphStyle: paragraphStyle,
-        ]
-      )
-    } else {
-      self.attributedText = nil
-    }
-  }
-
-  @available(*, unavailable)
-  required init(coder: NSCoder) {
-    fatalError()
-  }
-
-  override var accessibilityTraits: UIAccessibilityTraits {
-    get { [.staticText, .button] }
-    set {}
-  }
-
-  override var canBecomeFirstResponder: Bool {
-    return false
-  }
-
-  override func layoutSubviews() {
-    super.layoutSubviews()
-
-    clippingFade.frame = .init(
-      x: isLeftToRight ? bounds.width - 20 : 0,
-      y: 0,
-      width: 20,
-      height: bounds.height
-    )
-  }
-
-  // This override is done in case the eTLD+1 string overflows the width of textField.
-  // In that case the textRect is adjusted to show right aligned and truncate left.
-  // Since this textField changes with WebView domain change, performance implications are low.
-  override func drawText(in rect: CGRect) {
-    var rect = rect
-    if textSize.width > bounds.width {
-      let delta = (textSize.width - bounds.width)
-      if !isLeftToRight {
-        rect.origin.x -= delta
-        rect.size.width += delta
-      }
-      bringSubviewToFront(clippingFade)
-      clippingFade.isHidden = false
-    } else {
-      clippingFade.isHidden = true
-    }
-    super.drawText(in: rect)
   }
 }

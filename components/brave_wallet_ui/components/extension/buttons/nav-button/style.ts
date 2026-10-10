@@ -59,7 +59,7 @@ const StyledButtonCssMixin = (p: StyledButtonProps) => {
             || p.buttonType === 'sign'
           ? leo.color.primitive.primary[40]
           : p.buttonType === 'danger'
-            ? leo.color.systemfeedback.errorBackground
+            ? leo.color.button.errorBackground
             : 'transparent'};
 
     border: ${(p) =>
@@ -77,12 +77,12 @@ export const StyledButton = styled.button<StyledButtonProps>`
   ${(p) => StyledButtonCssMixin(p)}
 `
 
-export const StyledLink = styled(Link).withConfig<StyledButtonProps>({
+export const StyledLink = styled(Link).withConfig({
   shouldForwardProp: (prop) => {
     // prevents reactDOM errors (Link does not support these props)
     return prop !== 'minWidth' && prop !== 'maxHeight' && prop !== 'buttonType'
   },
-})`
+})<StyledButtonProps>`
   ${(p) => StyledButtonCssMixin(p)}
 `
 
@@ -97,7 +97,9 @@ export const ButtonText = styled(Text)<{
     || p.buttonType === 'reject'
     || p.buttonType === 'cancel'
       ? leo.color.text.secondary
-      : leo.color.white};
+      : p.buttonType === 'danger'
+        ? leo.color.button.errorText
+        : leo.color.white};
 `
 
 export const RejectIcon = styled.div`

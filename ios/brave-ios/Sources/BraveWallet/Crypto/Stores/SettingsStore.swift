@@ -76,6 +76,55 @@ public class SettingsStore: ObservableObject, WalletObserverStore {
     }
   }
 
+  /// The default wallet used to communicate with web3 for Ethereum
+  @Published var defaultEthWallet: BraveWallet.DefaultWallet = .braveWallet {
+    didSet {
+      guard oldValue != defaultEthWallet else { return }
+      walletService.setDefaultEthereumWallet(defaultWallet: defaultEthWallet)
+    }
+  }
+
+  /// The default wallet used to communicate with web3 for Solana
+  @Published var defaultSolWallet: BraveWallet.DefaultWallet = .braveWallet {
+    didSet {
+      guard oldValue != defaultSolWallet else { return }
+      walletService.setDefaultSolanaWallet(defaultWallet: defaultSolWallet)
+    }
+  }
+
+  /// The default wallet used to communicate with web3 for Cardano
+  @Published var defaultCardanoWallet: BraveWallet.DefaultWallet = .braveWallet {
+    didSet {
+      guard oldValue != defaultCardanoWallet else { return }
+      walletService.setDefaultCardanoWallet(defaultWallet: defaultCardanoWallet)
+    }
+  }
+
+  /// The default wallet for the given coin as presented on iOS.
+  ///
+  /// iOS only exposes `none` and `braveWallet` as options, so `braveWalletPreferExtension` is
+  /// reported as `braveWallet`. Unsupported coins report `braveWallet` and ignore writes.
+  subscript(defaultWalletFor coin: BraveWallet.CoinType) -> BraveWallet.DefaultWallet {
+    get {
+      let wallet: BraveWallet.DefaultWallet
+      switch coin {
+      case .eth: wallet = defaultEthWallet
+      case .sol: wallet = defaultSolWallet
+      case .ada: wallet = defaultCardanoWallet
+      default: wallet = .braveWallet
+      }
+      return wallet == .braveWalletPreferExtension ? .braveWallet : wallet
+    }
+    set {
+      switch coin {
+      case .eth: defaultEthWallet = newValue
+      case .sol: defaultSolWallet = newValue
+      case .ada: defaultCardanoWallet = newValue
+      default: break
+      }
+    }
+  }
+
   private let keyringService: BraveWalletKeyringService
   private let walletService: BraveWalletBraveWalletService
   private let rpcService: BraveWalletJsonRpcService
@@ -123,6 +172,15 @@ public class SettingsStore: ObservableObject, WalletObserverStore {
     )
     self.walletServiceObserver = WalletServiceObserver(
       walletService: walletService,
+      _onDefaultEthereumWalletChanged: { [weak self] wallet in
+        self?.defaultEthWallet = wallet
+      },
+      _onDefaultSolanaWalletChanged: { [weak self] wallet in
+        self?.defaultSolWallet = wallet
+      },
+      _onDefaultCardanoWalletChanged: { [weak self] wallet in
+        self?.defaultCardanoWallet = wallet
+      },
       _onDefaultBaseCurrencyChanged: { [weak self] currency in
         self?.currencyCode = CurrencyCode(code: currency)
       }
@@ -144,6 +202,10 @@ public class SettingsStore: ObservableObject, WalletObserverStore {
 
       self.isNFTDiscoveryEnabled = await walletService.nftDiscoveryEnabled()
       self.isBiometricsUnlockEnabled = isPasswordStoredInKeychain && isBiometricsAvailable
+
+      self.defaultEthWallet = await walletService.defaultEthereumWallet()
+      self.defaultSolWallet = await walletService.defaultSolanaWallet()
+      self.defaultCardanoWallet = await walletService.defaultCardanoWallet()
     }
   }
 
@@ -156,17 +218,13 @@ public class SettingsStore: ObservableObject, WalletObserverStore {
       Preferences.Wallet.reset(for: coin)
     }
 
+    defaultEthWallet = .braveWallet
+    defaultSolWallet = .braveWallet
+    defaultCardanoWallet = .braveWallet
+
     Preferences.Wallet.displayWeb3Notifications.reset()
     Preferences.Wallet.migrateCoreToWalletUserAssetCompleted.reset()
     Preferences.Wallet.migrateWalletUserAssetToCoreCompleted.reset()
-    // Portfolio/NFT Filters
-    Preferences.Wallet.groupByFilter.reset()
-    Preferences.Wallet.sortOrderFilter.reset()
-    Preferences.Wallet.isHidingSmallBalancesFilter.reset()
-    Preferences.Wallet.isHidingUnownedNFTsFilter.reset()
-    Preferences.Wallet.isShowingNFTNetworkLogoFilter.reset()
-    Preferences.Wallet.nonSelectedAccountsFilter.reset()
-    Preferences.Wallet.nonSelectedNetworksFilter.reset()
     // onboarding
     Preferences.Wallet.isOnboardingCompleted.reset()
     // meld

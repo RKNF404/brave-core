@@ -13,6 +13,7 @@ import org.chromium.base.BravePreferenceKeys;
 import org.chromium.base.IntentUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeInactivityTracker;
 import org.chromium.chrome.browser.ntp.BraveFreshNtpHelper;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -20,15 +21,15 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.components.browser_ui.media.MediaNotificationManager;
 import org.chromium.url.GURL;
 
 @NullMarked
 public final class BraveReturnToChromeUtil {
 
-    // Inactivity threshold for variants B and D: 1 hour in milliseconds
-    private static final long INACTIVITY_THRESHOLD_MS_VARIANT_B_D = 60 * 60 * 1000L; // 1 hour
-    // Inactivity threshold for variant C: 2 hours in milliseconds
-    private static final long INACTIVITY_THRESHOLD_MS_VARIANT_C = 2 * 60 * 60 * 1000L; // 2 hours
+    // Inactivity threshold for variant B: 12 hours in milliseconds. Keep in sync with
+    // BraveRadioButtonGroupOpeningScreenPreference.INACTIVITY_HOURS, which labels the setting.
+    private static final long INACTIVITY_THRESHOLD_MS = 12 * 60 * 60 * 1000L; // 12 hours
 
     /** Returns whether should show a NTP as the home surface at startup. */
     public static boolean shouldShowNtpAsHomeSurfaceAtStartup(
@@ -44,29 +45,12 @@ public final class BraveReturnToChromeUtil {
             return false;
         }
 
-        String variant = BraveFreshNtpHelper.getVariant();
-        boolean shouldShow = false;
-        switch (variant) {
-            case "A":
-                // Variant A: Brave's default behavior (no NTP at startup)
-                shouldShow = false;
-                break;
-            case "B":
-            case "D":
-                // Variants B and D: Show NTP if app has been backgrounded for ≥ 1 hour
-                // and OPTION_NEW_TAB_AFTER_INACTIVITY is selected
-                shouldShow =
-                        shouldShowNtpForInactivityVariant(
-                                inactivityTracker, INACTIVITY_THRESHOLD_MS_VARIANT_B_D);
-                break;
-            case "C":
-                // Variant C: Show NTP if app has been backgrounded for ≥ 2 hours
-                // and OPTION_NEW_TAB_AFTER_INACTIVITY is selected
-                shouldShow =
-                        shouldShowNtpForInactivityVariant(
-                                inactivityTracker, INACTIVITY_THRESHOLD_MS_VARIANT_C);
-                break;
-        }
+        // Variant B, the default, shows the NTP if the app has been backgrounded for ≥ 12 hours and
+        // OPTION_NEW_TAB_AFTER_INACTIVITY is selected. Variant A is the study's control arm and
+        // keeps the pre-experiment behavior of restoring the last open tab.
+        boolean shouldShow =
+                BraveFreshNtpHelper.getVariant().equals("B")
+                        && shouldShowNtpForInactivity(inactivityTracker);
 
         // Set flag only when shouldShowNtpAsHomeSurfaceAtStartup returns true
         // This ensures maybeShowRecentTabsDialog only executes when this method was called
@@ -82,11 +66,9 @@ public final class BraveReturnToChromeUtil {
      * Checks if NTP should be shown based on inactivity duration and preference.
      *
      * @param inactivityTracker The inactivity tracker to check background time
-     * @param inactivityThresholdMs The inactivity threshold in milliseconds
      * @return true if NTP should be shown, false otherwise
      */
-    private static boolean shouldShowNtpForInactivityVariant(
-            ChromeInactivityTracker inactivityTracker, long inactivityThresholdMs) {
+    private static boolean shouldShowNtpForInactivity(ChromeInactivityTracker inactivityTracker) {
         // Check opening screen option first
         int openingScreenOption =
                 ChromeSharedPreferences.getInstance()
@@ -116,10 +98,23 @@ public final class BraveReturnToChromeUtil {
                 || inactivityTracker == null) {
             return false;
         }
-        // Check if app has been backgrounded for ≥ threshold
+        // Show the NTP only if the app has been backgrounded for ≥ threshold and no media is
+        // playing in the background — background playback means the user is not truly idle.
         long timeSinceLastBackgroundedMs = inactivityTracker.getTimeSinceLastBackgroundedMs();
 
-        return timeSinceLastBackgroundedMs >= inactivityThresholdMs;
+        return timeSinceLastBackgroundedMs >= INACTIVITY_THRESHOLD_MS
+                && !isBackgroundMediaPlaying();
+    }
+
+    /**
+     * Returns whether media is actively playing in the background. Used to avoid replacing the
+     * user's current tab with a fresh NTP on return from idle while audio/video is playing, since
+     * background playback means the user is not truly idle.
+     */
+    private static boolean isBackgroundMediaPlaying() {
+        // Multiple playback notifications can coexist, one per tab, so ask for any non-paused
+        // controller of this media type rather than for a single controller.
+        return MediaNotificationManager.hasPlayingController(R.id.media_playback_notification);
     }
 
     /**
@@ -170,7 +165,7 @@ public final class BraveReturnToChromeUtil {
      * <p>Note: unlike upstream's shouldShowNtpAsHomeSurfaceAtStartup which bails out on activity
      * recreate (isFromRecreate check), we intentionally allow the NTP to show in recreate scenarios
      * (e.g., rotation, process death restore, foldable transitions). This is because our
-     * inactivity-based NTP logic should still apply — if the user was away for 1+ hours, we want
+     * inactivity-based NTP logic should still apply — if the user was away for 12+ hours, we want
      * the NTP shown regardless of whether the activity was recreated on return.
      */
     public static boolean setInitialOverviewStateOnResumeWithNtp(

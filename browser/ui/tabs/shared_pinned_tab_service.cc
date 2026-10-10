@@ -18,8 +18,6 @@
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/tabs/shared_pinned_tab_dummy_view.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -136,12 +134,13 @@ class SharedContentsData
 
       dummy_contents_data->SynchronizeURL();
 
-      Browser* browser = chrome::FindBrowserWithTab(dummy_contents);
-      DCHECK(browser);
+      BrowserWindow* browser_window =
+          BrowserWindow::FindBrowserWindowWithWebContents(dummy_contents);
+      DCHECK(browser_window);
 
       // Passing nullptr so that omnibox resets the URL based on the active web
       // contents.
-      browser->window()->UpdateToolbar(nullptr);
+      browser_window->UpdateToolbar(nullptr);
     }
   }
 
@@ -421,7 +420,6 @@ void SharedPinnedTabService::OnTabPinnedStateChanged(tabs::TabInterface* tab,
 }
 
 void SharedPinnedTabService::OnTabChangedAt(tabs::TabInterface* tab,
-                                            int index,
                                             TabChangeType change_type) {
   if (change_source_model_) {
     return;
@@ -440,6 +438,7 @@ void SharedPinnedTabService::OnTabChangedAt(tabs::TabInterface* tab,
 
   LOCK_REENTRANCE(iter->contents_owner_model);
 
+  const int index = iter->contents_owner_model->GetIndexOfTab(tab);
   iter->renderer_data = tabs::TabData::FromTabInterface(
       iter->contents_owner_model->GetTabAtIndex(index));
   for (auto* browser : browsers_) {
@@ -448,7 +447,8 @@ void SharedPinnedTabService::OnTabChangedAt(tabs::TabInterface* tab,
       continue;
     }
 
-    tab_strip_model->UpdateWebContentsStateAt(index, change_type);
+    tab_strip_model->UpdateWebContentsState(
+        tab_strip_model->GetWebContentsAt(index), change_type);
   }
 }
 
@@ -644,12 +644,12 @@ void SharedPinnedTabService::OnTabUnpinned(
     DCHECK_NE(iter->contents_owner_model, tab_strip_model);
 
     auto unique_shared_contents =
-        iter->contents_owner_model->DiscardWebContentsAt(
-            previous_index, CreateDummyWebContents(shared_contents));
+        iter->contents_owner_model->DiscardWebContents(
+            shared_contents, CreateDummyWebContents(shared_contents));
     SharedContentsData::RemoveFromWebContents(unique_shared_contents.get());
 
-    tab_strip_model->DiscardWebContentsAt(index,
-                                          std::move(unique_shared_contents));
+    tab_strip_model->DiscardWebContents(contents.get(),
+                                        std::move(unique_shared_contents));
   } else {
     SharedContentsData::RemoveFromWebContents(contents.get());
   }
@@ -808,8 +808,9 @@ void SharedPinnedTabService::MoveSharedWebContentsToBrowser(
   if (pinned_tab_data.contents_owner_model) {
     // Detach shared pinned tab from the current owner model.
     std::unique_ptr<content::WebContents> unique_shared_contents =
-        pinned_tab_data.contents_owner_model->DiscardWebContentsAt(
-            index, CreateDummyWebContents(pinned_tab_data.shared_contents));
+        pinned_tab_data.contents_owner_model->DiscardWebContents(
+            pinned_tab_data.shared_contents,
+            CreateDummyWebContents(pinned_tab_data.shared_contents));
     DCHECK_EQ(pinned_tab_data.shared_contents, unique_shared_contents.get());
 
     // Install DummyView to the dummy contents.
@@ -832,8 +833,8 @@ void SharedPinnedTabService::MoveSharedWebContentsToBrowser(
     dummy_contents_data->stop_propagation();
 
     auto discarded_content =
-        pinned_tab_data.contents_owner_model->DiscardWebContentsAt(
-            index, std::move(unique_shared_contents));
+        pinned_tab_data.contents_owner_model->DiscardWebContents(
+            dummy_contents, std::move(unique_shared_contents));
     // Need to clear tab interface before it's gone. Otherwise,
     // EmbeddingTabTracker will have dangling pointer to TabInterface.
     webui::SetTabInterface(discarded_content.get(), nullptr);
@@ -944,6 +945,5 @@ SharedPinnedTabService::CreateDummyWebContents(
 bool SharedPinnedTabService::IsBrowserInTabDragging(
     BrowserWindowInterface* browser) const {
   CHECK(browser);
-  return static_cast<BraveBrowserWindow*>(browser->GetWindow())
-      ->IsInTabDragging();
+  return BraveBrowserWindow::FromBrowser(browser)->IsInTabDragging();
 }

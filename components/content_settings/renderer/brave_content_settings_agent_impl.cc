@@ -20,7 +20,9 @@
 #include "brave/components/brave_shields/core/common/brave_shield_utils.h"
 #include "brave/components/brave_shields/core/common/brave_shields_settings_values.h"
 #include "brave/components/brave_shields/core/common/features.h"
+#include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
+#include "content/public/common/url_constants.h"
 #include "content/public/renderer/render_frame.h"
 #include "net/base/features.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
@@ -32,6 +34,10 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
+
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+#include "brave/components/brave_wallet/common/web_ui_constants.h"
+#endif
 
 namespace content_settings {
 namespace {
@@ -144,6 +150,26 @@ bool BraveContentSettingsAgentImpl::IsReduceLanguageEnabled() {
     return false;
   }
   return shields_settings_->reduce_language;
+}
+
+bool BraveContentSettingsAgentImpl::
+    AllowHidRequestDeviceWithoutTransientActivation() {
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+  // Calls to `navigator.hid.requestDevice()` from
+  // chrome-untrusted://ledger-bridge subframe dont't require transient user
+  // activation.
+  if (render_frame() && render_frame()->GetWebFrame() &&
+      !render_frame()->IsMainFrame()) {
+    auto origin = render_frame()->GetWebFrame()->GetSecurityOrigin();
+    if (origin.Protocol() == content::kChromeUIUntrustedScheme &&
+        (origin.Host() == kUntrustedLedgerHost)) {
+      return true;
+    }
+  }
+#endif
+
+  return ContentSettingsAgentImpl::
+      AllowHidRequestDeviceWithoutTransientActivation();
 }
 
 bool BraveContentSettingsAgentImpl::IsJsBlockingEnforced() const {
@@ -304,8 +330,7 @@ bool BraveContentSettingsAgentImpl::IsBraveShieldsDown(
              content_setting_rules_->brave_shields_rules);
 }
 
-bool BraveContentSettingsAgentImpl::IsCosmeticFilteringEnabled(
-    const GURL& url) {
+bool BraveContentSettingsAgentImpl::IsCosmeticFilteringEnabled() {
   blink::WebLocalFrame* frame = render_frame()->GetWebFrame();
   const GURL primary_url(GetTopFrameOriginAsURL(frame));
 
@@ -326,8 +351,7 @@ bool BraveContentSettingsAgentImpl::IsCosmeticFilteringEnabled(
          (setting != brave_shields::ControlType::ALLOW);
 }
 
-bool BraveContentSettingsAgentImpl::IsFirstPartyCosmeticFilteringEnabled(
-    const GURL& url) {
+bool BraveContentSettingsAgentImpl::IsFirstPartyCosmeticFilteringEnabled() {
   blink::WebLocalFrame* frame = render_frame()->GetWebFrame();
 
   brave_shields::ControlType setting = brave_shields::ControlType::DEFAULT;
@@ -403,7 +427,7 @@ BraveContentSettingsAgentImpl::GetBraveShieldsSettings(
                           HasContentSettingsRules());
     base::debug::DumpWithoutCrashing();
     return brave_shields::mojom::ShieldsSettings::New(
-        farbling_level, base::Token(), std::vector<std::string>(), false,
+        farbling_level, base::Token(), std::vector<std::string>(), false, false,
         false);
   }
 }

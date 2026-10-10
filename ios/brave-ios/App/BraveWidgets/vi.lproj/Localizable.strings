@@ -7,6 +7,9 @@
 /* The name of the feature */
 "widgets.braveLeo" = "Leo AI";
 
+/* Title for the Leo AI voice input shortcut. Leo is the name of a product and should not be translated */
+"widgets.braveLeoVoiceInput" = "Nhập giọng nói Leo";
+
 /* The name of the feature */
 "widgets.braveNews" = "Tin tức Brave";
 
@@ -15,9 +18,6 @@
 
 /* Description for favorites widget on 'add widget' screen. */
 "widgets.favoritesWidgetDescription" = "Truy cập nhanh các trang web yêu thích của bạn.";
-
-/* Title for favorites widget on 'add widget' screen. */
-"widgets.favoritesWidgetTitle" = "Yêu thích";
 
 /* Title for history menu item */
 "widgets.HistoryMenuItem" = "Lịch sử";
@@ -33,6 +33,12 @@
 
 /* Title for Brave News widgets that display the top news */
 "widgets.newsClusteringWidgetTitle" = "Tin tức hàng đầu";
+
+/* Displayed on a news widget wont load due to admin policies */
+"widgets.newsUnavailableByPolicy" = "Tin tức Brave đã bị tắt";
+
+/* Displayed on a news widget wont load due to admin policies */
+"widgets.newsUnavailableByPolicyDescription" = "Đã bị tắt bởi chính sách của tổ chức bạn";
 
 /* This shows when you add a widget but have no favorites added in your app */
 "widgets.noFavoritesFound" = "Vui lòng mở Brave để xem các trang yêu thích của bạn tại đây";

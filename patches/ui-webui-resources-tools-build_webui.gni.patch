@@ -1,5 +1,5 @@
 diff --git a/ui/webui/resources/tools/build_webui.gni b/ui/webui/resources/tools/build_webui.gni
-index 0bf652db13ee7ba2b7416566c5db3a45d220cc64..0158e7bb0d390ccd5e2074ebc2698284213a6b80 100644
+index a540948cca3c88e9360357e216f4ec36df6cde88..1294806eea2834f6462a11dc387054d4fb673585 100644
 --- a/ui/webui/resources/tools/build_webui.gni
 +++ b/ui/webui/resources/tools/build_webui.gni
 @@ -2,6 +2,7 @@
@@ -10,7 +10,7 @@ index 0bf652db13ee7ba2b7416566c5db3a45d220cc64..0158e7bb0d390ccd5e2074ebc2698284
  import("//build/config/features.gni")
  import(
      "//tools/code_coverage/js_source_maps/create_js_source_maps/create_js_source_maps.gni")
-@@ -225,6 +226,12 @@ template("build_webui") {
+@@ -245,6 +246,12 @@ template("build_webui") {
          enable_removal_comments = enable_source_maps
        }
        in_files = all_ts_files
@@ -23,7 +23,7 @@ index 0bf652db13ee7ba2b7416566c5db3a45d220cc64..0158e7bb0d390ccd5e2074ebc2698284
      }
    }
  
-@@ -275,6 +282,12 @@ template("build_webui") {
+@@ -303,6 +310,12 @@ template("build_webui") {
        if (defined(invoker.css_files)) {
          in_files += invoker.css_files
        }
@@ -36,7 +36,7 @@ index 0bf652db13ee7ba2b7416566c5db3a45d220cc64..0158e7bb0d390ccd5e2074ebc2698284
      }
    }
  
-@@ -541,7 +554,7 @@ template("build_webui") {
+@@ -569,7 +582,7 @@ template("build_webui") {
        }
  
        # Enable by default on non-Ash WebUIs.
@@ -45,15 +45,15 @@ index 0bf652db13ee7ba2b7416566c5db3a45d220cc64..0158e7bb0d390ccd5e2074ebc2698284
        if (is_ash_webui) {
          enable_web_component_missing_deps = false
        }
-@@ -626,6 +639,7 @@ template("build_webui") {
-         "//ui/webui/resources/cr_elements",
+@@ -653,6 +666,7 @@ template("build_webui") {
+         "//chrome/browser/resources/tab_search",
          "//ui/webui/resources/js",
        ]
 +      no_explicit_any_exceptions += [ "//brave/ui/webui/resources" ]
  
        if (is_android) {
          no_explicit_any_exceptions +=
-@@ -849,7 +863,8 @@ template("build_webui") {
+@@ -877,7 +891,8 @@ template("build_webui") {
    }
  
    if (!generate_grdp) {

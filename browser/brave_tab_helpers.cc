@@ -9,16 +9,16 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/unguessable_token.h"
 #include "brave/browser/brave_browser_process.h"
 #include "brave/browser/brave_shields/brave_shields_web_contents_observer.h"
+#include "brave/browser/ephemeral_storage/ephemeral_storage_service_factory.h"
 #include "brave/browser/ephemeral_storage/ephemeral_storage_tab_helper.h"
-#include "brave/browser/misc_metrics/page_metrics_tab_helper.h"
-#include "brave/browser/misc_metrics/process_misc_metrics.h"
 #include "brave/browser/serp_metrics/serp_metrics_tab_helper.h"
-#include "brave/browser/ui/brave_ui_features.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_ads/buildflags/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
@@ -27,7 +27,6 @@
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/brave_wayback_machine/buildflags/buildflags.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
-#include "brave/components/request_otr/common/buildflags/buildflags.h"
 #include "brave/components/serp_metrics/serp_metrics_feature.h"
 #include "brave/components/speedreader/common/buildflags/buildflags.h"
 #include "brave/components/tor/buildflags/buildflags.h"
@@ -35,8 +34,9 @@
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
+#include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -73,11 +73,6 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "brave/browser/brave_shields/brave_shields_tab_helper.h"
 #include "brave/browser/ui/geolocation/brave_geolocation_permission_tab_helper.h"
-#include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
-#endif
-
-#if BUILDFLAG(IS_WIN)
-#include "brave/browser/new_tab/background_color_tab_helper.h"
 #endif
 
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
@@ -109,14 +104,8 @@
 #include "brave/browser/web_discovery/web_discovery_tab_helper.h"
 #endif
 
-#if BUILDFLAG(ENABLE_REQUEST_OTR)
-#include "brave/browser/request_otr/request_otr_tab_helper.h"
-#include "brave/components/request_otr/common/features.h"
-#endif
-
 #if defined(TOOLKIT_VIEWS)
 #include "brave/browser/onboarding/onboarding_tab_helper.h"
-#include "brave/browser/ui/sidebar/sidebar_tab_helper.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
@@ -139,14 +128,7 @@ void AttachTabHelpers(content::WebContents* web_contents) {
 #else
   // Add tab helpers here unless they are intended for android too
   brave_shields::BraveShieldsTabHelper::CreateForWebContents(web_contents);
-  ThumbnailTabHelper::CreateForWebContents(web_contents);
   BraveGeolocationPermissionTabHelper::CreateForWebContents(web_contents);
-#endif
-
-#if BUILDFLAG(IS_WIN)
-  if (base::FeatureList::IsEnabled(features::kBraveWorkaroundNewWindowFlash)) {
-    BackgroundColorTabHelper::CreateForWebContents(web_contents);
-  }
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
@@ -161,12 +143,8 @@ void AttachTabHelpers(content::WebContents* web_contents) {
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
         std::make_unique<ai_chat::PrintPreviewExtractionDelegateImpl>(
             web_contents,
-            screenshot::CreatePrintPreviewExtractor(
-                base::BindRepeating(
-                    []() -> base::IDMap<printing::mojom::PrintPreviewUI*>& {
-                      return printing::PrintPreviewUI::GetPrintPreviewUIIdMap();
-                    }),
-                base::BindRepeating([]() -> base::flat_map<int, int>& {
+            screenshot::CreatePrintPreviewExtractor(base::BindRepeating(
+                []() -> base::flat_map<base::UnguessableToken, int>& {
                   return printing::PrintPreviewUI::
                       GetPrintPreviewUIRequestIdMap();
                 })))
@@ -217,21 +195,10 @@ void AttachTabHelpers(content::WebContents* web_contents) {
 
 #if defined(TOOLKIT_VIEWS)
   OnboardingTabHelper::MaybeCreateForWebContents(web_contents);
-  sidebar::SidebarTabHelper::MaybeCreateForWebContents(web_contents);
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
   brave_wallet::BraveWalletTabHelper::CreateForWebContents(web_contents);
-#endif
-
-  misc_metrics::PageMetricsTabHelper::CreateForWebContents(web_contents);
-
-#if BUILDFLAG(ENABLE_REQUEST_OTR)
-  if (!web_contents->GetBrowserContext()->IsOffTheRecord() &&
-      base::FeatureList::IsEnabled(
-          request_otr::features::kBraveRequestOTRTab)) {
-    RequestOTRTabHelper::CreateForWebContents(web_contents);
-  }
 #endif
 
 #if BUILDFLAG(ENABLE_PLAYLIST)
@@ -248,10 +215,17 @@ void AttachTabHelpers(content::WebContents* web_contents) {
 }
 
 void AttachPrivacySensitiveTabHelpers(content::WebContents* web_contents) {
+  content_settings::PageSpecificContentSettings::CreateForWebContents(
+      web_contents,
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents));
   brave_shields::BraveShieldsWebContentsObserver::CreateForWebContents(
       web_contents);
-  ephemeral_storage::EphemeralStorageTabHelper::CreateForWebContents(
-      web_contents);
+  if (auto* ephemeral_storage_service =
+          EphemeralStorageServiceFactory::GetForContext(
+              web_contents->GetBrowserContext())) {
+    ephemeral_storage::EphemeralStorageTabHelper::CreateForWebContents(
+        web_contents, ephemeral_storage_service);
+  }
 }
 
 }  // namespace brave

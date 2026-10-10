@@ -5,6 +5,7 @@
 
 #include "brave/components/brave_news/browser/direct_feed_controller.h"
 
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -104,14 +105,16 @@ class BraveNewsDirectFeedControllerTest : public testing::Test {
   std::tuple<bool, std::string> VerifyFeedUrl(GURL feed_url) {
     return WaitForCallback(base::BindOnce(
         &DirectFeedController::VerifyFeedUrl,
-        base::Unretained(&direct_feed_controller_), std::move(feed_url)));
+        base::Unretained(&direct_feed_controller_), std::move(feed_url),
+        /*initiator_origin=*/std::nullopt));
   }
 
   std::vector<mojom::FeedSearchResultItemPtr> FindFeeds(
       const GURL& possible_feed_or_site_url) {
     auto [feeds] = WaitForCallback(base::BindOnce(
         &DirectFeedController::FindFeeds,
-        base::Unretained(&direct_feed_controller_), possible_feed_or_site_url));
+        base::Unretained(&direct_feed_controller_), possible_feed_or_site_url,
+        /*initiator_origin=*/std::nullopt));
     return std::move(feeds);
   }
 

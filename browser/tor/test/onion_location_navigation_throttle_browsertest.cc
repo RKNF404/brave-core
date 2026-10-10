@@ -9,15 +9,15 @@
 #include "brave/browser/tor/tor_profile_manager.h"
 #include "brave/browser/tor/tor_profile_service_factory.h"
 #include "brave/browser/ui/browser_commands.h"
-#include "brave/browser/ui/views/location_bar/brave_location_bar_view.h"
-#include "brave/browser/ui/views/location_bar/onion_location_view.h"
 #include "brave/components/tor/onion_location_tab_helper.h"
 #include "brave/components/tor/tor_navigation_throttle.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "brave/net/proxy_resolution/proxy_config_service_tor.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_view.h"
+#include "chrome/browser/ui/views/page_action/test_support/page_action_test_accessor.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/download_manager.h"
@@ -46,6 +46,7 @@ constexpr char kTestNotOnionURL[] = "https://brave.com";
 constexpr char kTestErrorPage[] = "/errorpage";
 constexpr char kTestAttackerOnionURL[] = "https://attacker.onion";
 constexpr char kDownload[] = "/download";
+constexpr char k404Page[] = "/404";
 
 std::unique_ptr<net::test_server::HttpResponse> HandleOnionLocation(
     const net::test_server::HttpRequest& request) {
@@ -86,6 +87,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleOnionLocation(
     http_response->set_content("Some data");
     http_response->AddCustomHeader("onion-location", kTestAttackerOnionURL);
     http_response->AddCustomHeader("Content-Disposition", "attachment");
+  } else if (request.GetURL().path() == k404Page) {
+    http_response->set_code(net::HTTP_NOT_FOUND);
+    http_response->AddCustomHeader("onion-location", kTestOnionURL);
   }
   return std::move(http_response);
 }
@@ -118,32 +122,24 @@ class OnionLocationNavigationThrottleBrowserTest : public InProcessBrowserTest {
     return test_http_server_.get();
   }
 
-  PageActionIconView* GetOnionLocationView(Browser* browser) {
-    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-    if (!browser_view) {
-      return nullptr;
-    }
-    BraveLocationBarView* brave_location_bar_view =
-        static_cast<BraveLocationBarView*>(browser_view->GetLocationBarView());
-    if (!brave_location_bar_view) {
-      return nullptr;
-    }
-    return brave_location_bar_view->GetOnionLocationView();
+  IconLabelBubbleView* GetOnionLocationView(BrowserWindowInterface* browser) {
+    return page_actions::PageActionTestAccessor(browser,
+                                                kActionShowOnionLocation)
+        .view();
   }
 
-  void CheckOnionLocationLabel(Browser* browser,
+  void CheckOnionLocationLabel(BrowserWindowInterface* browser,
                                const GURL& url,
                                bool wait_for_tor_window = true) {
-    bool is_tor = browser->profile()->IsTor();
+    bool is_tor = browser->GetProfile()->IsTor();
     auto* onion_location_view = GetOnionLocationView(browser);
     ASSERT_TRUE(onion_location_view);
     EXPECT_TRUE(onion_location_view->GetVisible());
-    EXPECT_TRUE(
-        onion_location_view->GetTextForTooltipAndAccessibleName().starts_with(
-            l10n_util::GetStringFUTF16(
-                is_tor ? IDS_LOCATION_BAR_ONION_AVAILABLE_TOOLTIP_TEXT
-                       : IDS_LOCATION_BAR_OPEN_IN_TOR_TOOLTIP_TEXT,
-                u"")));
+    EXPECT_TRUE(onion_location_view->GetTooltipText().starts_with(
+        l10n_util::GetStringFUTF16(
+            is_tor ? IDS_LOCATION_BAR_ONION_AVAILABLE_TOOLTIP_TEXT
+                   : IDS_LOCATION_BAR_OPEN_IN_TOR_TOOLTIP_TEXT,
+            u"")));
 
     ui_test_utils::BrowserCreatedObserver browser_creation_observer;
 
@@ -162,11 +158,11 @@ class OnionLocationNavigationThrottleBrowserTest : public InProcessBrowserTest {
       browser_creation_observer.Wait();
     }
     ASSERT_EQ(2U, GlobalBrowserCollection::GetInstance()->GetSize());
-    Browser* tor_browser = nullptr;
+    BrowserWindowInterface* tor_browser = nullptr;
     GlobalBrowserCollection::GetInstance()->ForEach(
         [&tor_browser](BrowserWindowInterface* a_browser) {
           if (a_browser->GetProfile()->IsTor()) {
-            tor_browser = a_browser->GetBrowserForMigrationOnly();
+            tor_browser = a_browser;
           }
           return !tor_browser;
         });
@@ -181,8 +177,8 @@ class OnionLocationNavigationThrottleBrowserTest : public InProcessBrowserTest {
     EXPECT_EQ(tor_browser->GetTabStripModel()->count(), is_tor ? 2 : 1);
   }
 
-  Browser* OpenTorWindow() {
-    return TorProfileManager::SwitchToTorProfile(browser()->profile());
+  BrowserWindowInterface* OpenTorWindow() {
+    return TorProfileManager::SwitchToTorProfile(browser()->GetProfile());
   }
 
  private:
@@ -291,7 +287,7 @@ IN_PROC_BROWSER_TEST_F(OnionLocationNavigationThrottleBrowserTest,
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_EQ(1U, GlobalBrowserCollection::GetInstance()->GetSize());
-  ASSERT_FALSE(browser()->profile()->IsTor());
+  ASSERT_FALSE(browser()->GetProfile()->IsTor());
 
   web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   EXPECT_EQ(web_contents->GetVisibleURL(), url);
@@ -309,7 +305,7 @@ IN_PROC_BROWSER_TEST_F(OnionLocationNavigationThrottleBrowserTest, NotOnion) {
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_EQ(1U, GlobalBrowserCollection::GetInstance()->GetSize());
-  ASSERT_FALSE(browser()->profile()->IsTor());
+  ASSERT_FALSE(browser()->GetProfile()->IsTor());
 
   web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   EXPECT_EQ(web_contents->GetVisibleURL(), url);
@@ -327,7 +323,7 @@ IN_PROC_BROWSER_TEST_F(OnionLocationNavigationThrottleBrowserTest, HTTPHost) {
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_EQ(1U, GlobalBrowserCollection::GetInstance()->GetSize());
-  ASSERT_FALSE(browser()->profile()->IsTor());
+  ASSERT_FALSE(browser()->GetProfile()->IsTor());
 
   web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   EXPECT_EQ(web_contents->GetVisibleURL(), url);
@@ -422,7 +418,7 @@ IN_PROC_BROWSER_TEST_F(OnionLocationNavigationThrottleBrowserTest, Download) {
   };
 
   content::DownloadManager* download_manager =
-      browser()->profile()->GetDownloadManager();
+      browser()->GetProfile()->GetDownloadManager();
   auto download_awaiter = std::make_unique<DownloadAwaiter>();
   download_manager->AddObserver(download_awaiter.get());
 
@@ -436,4 +432,17 @@ IN_PROC_BROWSER_TEST_F(OnionLocationNavigationThrottleBrowserTest, Download) {
   auto* helper = tor::OnionLocationTabHelper::FromWebContents(web_contents);
   EXPECT_TRUE(helper->should_show_icon());
   EXPECT_EQ(helper->onion_location(), GURL(kTestOnionURL));
+}
+
+IN_PROC_BROWSER_TEST_F(OnionLocationNavigationThrottleBrowserTest,
+                       NotFoundPage) {
+  const GURL url = test_server()->GetURL(k404Page);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  tor::OnionLocationTabHelper* helper =
+      tor::OnionLocationTabHelper::FromWebContents(web_contents);
+  EXPECT_FALSE(helper->should_show_icon());
+  EXPECT_TRUE(helper->onion_location().is_empty());
+  EXPECT_FALSE(GetOnionLocationView(browser())->GetVisible());
 }

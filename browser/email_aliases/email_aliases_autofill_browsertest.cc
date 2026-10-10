@@ -11,11 +11,11 @@
 #include "base/test/run_until.h"
 #include "brave/components/constants/brave_paths.h"
 #include "brave/components/email_aliases/features.h"
+#include "brave/components/email_aliases/pref_names.h"
 #include "build/build_config.h"
 #include "chrome/browser/autofill/autofill_uitest_util.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
 #include "components/autofill/content/browser/test_autofill_manager_injector.h"
@@ -23,11 +23,8 @@
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_util.h"
 #include "components/grit/brave_components_strings.h"
-#include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/render_widget_host.h"
-#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -130,7 +127,7 @@ class EmailAliasesAutofillTest : public InProcessBrowserTest,
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    autofill::WaitForPersonalDataManagerToBeLoaded(browser()->profile());
+    autofill::WaitForPersonalDataManagerToBeLoaded(browser()->GetProfile());
 
     embedded_test_server()->ServeFilesFromDirectory(
         base::PathService::CheckedGet(brave::DIR_TEST_DATA));
@@ -142,16 +139,13 @@ class EmailAliasesAutofillTest : public InProcessBrowserTest,
   }
 
   void ImportAddress() {
-    autofill::AddTestProfile(browser()->profile(),
+    autofill::AddTestProfile(browser()->GetProfile(),
                              autofill::test::GetFullProfile());
   }
 
   void NavigateToTestPage(std::string_view path) {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
         browser(), embedded_test_server()->GetURL(path)));
-    content::MainThreadFrameObserver frame_observer(
-        GetWebContents()->GetRenderWidgetHostView()->GetRenderWidgetHost());
-    frame_observer.Wait();
   }
 
  protected:
@@ -247,6 +241,16 @@ IN_PROC_BROWSER_TEST_P(EmailAliasesAutofillTest,
       FindBraveEmailAliasSuggestion(autofill_client()->suggestions());
   ASSERT_NE(brave_suggestion, nullptr);
   ExpectBraveEmailAliasAddressEntry(*brave_suggestion);
+
+  autofill_client()->ResetSuggestions();
+
+  // Disable "New Email Alias" suggestion.
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
+      prefs::kEmailAliasesNewAliasAutofillSuggestionEnabled, false);
+
+  content::SimulateMouseClickOrTapElementWithId(GetWebContents(), "email");
+  autofill_manager()->WaitForAskForValuesToFill();
+  EXPECT_TRUE(autofill_client()->suggestions().empty());
 
   autofill_client()->ResetSuggestions();
 }

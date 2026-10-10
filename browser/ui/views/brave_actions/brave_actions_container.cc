@@ -16,10 +16,10 @@
 #include "brave/browser/ui/webui/brave_shields/shields_panel_ui.h"
 #include "brave/components/brave_rewards/core/buildflags/buildflags.h"
 #include "brave/components/constants/pref_names.h"
+#include "brave/ui/color/nala/nala_color_id.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "components/prefs/pref_service.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/layout/box_layout.h"
@@ -39,6 +39,9 @@ BraveActionsContainer::BraveActionsContainer(
 BraveActionsContainer::~BraveActionsContainer() = default;
 
 void BraveActionsContainer::Init() {
+  constexpr int kSeparatorMargin = 3;
+  constexpr int kSeparatorWidth = 1;
+
   // automatic layout
   auto vertical_container_layout = std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal);
@@ -46,32 +49,39 @@ void BraveActionsContainer::Init() {
       views::BoxLayout::MainAxisAlignment::kCenter);
   vertical_container_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
+  // Gap after the separator (and between action buttons). The separator's left
+  // border handles spacing from icons to its left; a right border alone is
+  // swallowed visually by the adjacent button's bounds, so use layout spacing.
+  vertical_container_layout->set_between_child_spacing(kSeparatorMargin);
   SetLayoutManager(std::move(vertical_container_layout));
 
   // children
-  RoundedSeparator* brave_button_separator_ = new RoundedSeparator();
-  // TODO(petemill): theme color
-  brave_button_separator_->SetColor(SkColorSetRGB(0xb2, 0xb5, 0xb7));
-  constexpr int kSeparatorMargin = 3;
-  constexpr int kSeparatorWidth = 1;
-  brave_button_separator_->SetPreferredSize(
-      gfx::Size(kSeparatorWidth + kSeparatorMargin * 2,
+  RoundedSeparator* brave_button_separator = new RoundedSeparator();
+  brave_button_separator->SetColorId(nala::kColorDividerSubtle);
+  brave_button_separator->SetPreferredSize(
+      gfx::Size(kSeparatorWidth + kSeparatorMargin,
                 GetLayoutConstant(LayoutConstant::kLocationBarIconSize)));
-  // separator left & right margin
-  brave_button_separator_->SetBorder(views::CreateEmptyBorder(
-      gfx::Insets::TLBR(0, kSeparatorMargin, 0, kSeparatorMargin)));
+  // Left margin only; right-side gap comes from between_child_spacing above.
+  brave_button_separator->SetBorder(
+      views::CreateEmptyBorder(gfx::Insets::TLBR(0, kSeparatorMargin, 0, 0)));
   // Just in case the extensions load before this function does (not likely!)
   // add children to the front in reverse order.
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
   AddActionViewForRewards();
 #endif
   AddActionViewForShields();
-  AddChildViewAt(brave_button_separator_, 0);
+  AddChildViewAt(brave_button_separator, 0);
 
 #if BUILDFLAG(ENABLE_BRAVE_REWARDS)
   // React to Brave Rewards preferences changes.
   show_brave_rewards_button_.Init(
       brave_rewards::prefs::kShowLocationBarButton,
+      browser_window_interface_->GetProfile()->GetPrefs(),
+      base::BindRepeating(
+          &BraveActionsContainer::OnBraveRewardsPreferencesChanged,
+          base::Unretained(this)));
+  rewards_disabled_by_policy_.Init(
+      brave_rewards::prefs::kDisabledByPolicy,
       browser_window_interface_->GetProfile()->GetPrefs(),
       base::BindRepeating(
           &BraveActionsContainer::OnBraveRewardsPreferencesChanged,
@@ -99,7 +109,7 @@ void BraveActionsContainer::AddActionViewForShields() {
   }
   shields_action_btn_ = AddChildViewAt(
       std::make_unique<BraveShieldsActionView>(
-          browser_window_interface_, *ChromeLayoutProvider::Get(),
+          browser_window_interface_,
           base::BindRepeating(&WebUIBubbleManager::Create<ShieldsPanelUI>)),
       0);
   shields_action_btn_->SetPreferredSize(GetActionSize());
@@ -151,9 +161,11 @@ void BraveActionsContainer::UpdateVisibility() {
 }
 
 gfx::Size BraveActionsContainer::GetActionSize() const {
-  return {34, GetLayoutConstant(LayoutConstant::kLocationBarHeight) -
-                  2 * GetLayoutConstant(
-                          LayoutConstant::kLocationBarElementPadding)};
+  constexpr int kBraveActionWidth = 30;
+  return {
+      kBraveActionWidth,
+      GetLayoutConstant(LayoutConstant::kLocationBarHeight) -
+          2 * GetLayoutConstant(LayoutConstant::kLocationBarElementPadding)};
 }
 
 void BraveActionsContainer::SetShouldHide(bool should_hide) {

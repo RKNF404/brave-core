@@ -8,6 +8,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace brave_news {
 
@@ -62,7 +64,7 @@ using DownloadFeedCallback = base::OnceCallback<void(DirectFeedResponse)>;
 
 // Exposed for testing.
 void ConvertFeedDataToArticles(std::vector<mojom::ArticlePtr>& articles,
-                               FeedData data,
+                               const FeedData& data,
                                const std::string& publisher_id);
 
 class DirectFeedFetcher {
@@ -89,7 +91,15 @@ class DirectFeedFetcher {
 
   // |publisher_id| can be empty, if one we're speculatively downloading a feed.
   // This |publisher_id| will be used for any returned articles.
+  // When |initiator_origin| is set, it is used as the request initiator so the
+  // request carries a Sec-Fetch-Site header reflecting its relationship to that
+  // origin (e.g. the active tab when the request comes from the toolbar). It
+  // also marks the request as being made on behalf of a web page, which means
+  // the request will fail if |url| resolves to a loopback or local network
+  // address. Leave it unset for feeds the user asked for directly (e.g. added
+  // via the Brave News settings), which are allowed to be local.
   void DownloadFeed(GURL url,
+                    std::optional<url::Origin> initiator_origin,
                     std::string publisher_id,
                     DownloadFeedCallback callback);
 
@@ -100,6 +110,7 @@ class DirectFeedFetcher {
   void DownloadFeedHelper(
       GURL url,
       GURL original_url,
+      std::optional<url::Origin> initiator_origin,
       std::string publisher_id,
       size_t redirect_count,
       DownloadFeedCallback callback,
@@ -109,6 +120,7 @@ class DirectFeedFetcher {
       DownloadFeedCallback callback,
       GURL url,
       GURL original_url,
+      std::optional<url::Origin> initiator_origin,
       std::string publisher_id,
       std::optional<Delegate::HTTPSUpgradeInfo> https_upgrade_info,
       bool https_upgraded,

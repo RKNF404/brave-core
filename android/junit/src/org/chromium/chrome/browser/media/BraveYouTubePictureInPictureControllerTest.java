@@ -51,6 +51,7 @@ import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.MediaSessionObserver;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.media_session.mojom.MediaSession.SuspendType;
 
 import java.util.concurrent.TimeUnit;
 
@@ -408,7 +409,9 @@ public class BraveYouTubePictureInPictureControllerTest {
     public void onEnterPictureInPictureMode_resumesSessionWebContents() {
         // The entry resume must target the session's own WebContents: after a screen-lock
         // re-entry the foreground tab can differ from the session tab, and resuming the
-        // foreground tab would start unrelated media while the PiP video stays paused.
+        // foreground tab would start unrelated media while the PiP video stays paused. It must
+        // also be a UI resume: the pause it undoes was issued by the page or by the system's
+        // sleep handling, and a SYSTEM resume is dropped unless the last suspend was SYSTEM too.
         BraveYouTubePictureInPictureController controller =
                 spy(new BraveYouTubePictureInPictureController(mBraveActivity));
         doReturn(mMediaSession).when(controller).getMediaSession(any());
@@ -416,7 +419,7 @@ public class BraveYouTubePictureInPictureControllerTest {
 
         assertTrue(controller.onEnterPictureInPictureMode());
 
-        verify(mMediaSession).resume();
+        verify(mMediaSession).resume(SuspendType.UI);
         verify(mBraveActivity, never()).getCurrentWebContents();
     }
 
@@ -618,5 +621,61 @@ public class BraveYouTubePictureInPictureControllerTest {
         verify(mBraveActivity, never()).getFullscreenManager();
         verify(mFullscreenManager, never()).exitPersistentFullscreenMode();
         verify(mBraveActivity, never()).exitOverviewModeForYouTubePictureInPicture();
+    }
+
+    @Test
+    public void maybeDeferNightModeRecreate_inactive_returnsFalse() {
+        // With no active session there is nothing to protect, so the theme recreate proceeds
+        // normally (the caller runs super.onNightModeStateChanged()).
+        BraveYouTubePictureInPictureController controller =
+                new BraveYouTubePictureInPictureController(mBraveActivity);
+
+        assertFalse(controller.maybeDeferNightModeRecreate());
+    }
+
+    @Test
+    public void maybeDeferNightModeRecreate_reenteredPip_skipsApply() {
+        WebContents observableWebContents =
+                mock(
+                        WebContents.class,
+                        withSettings().extraInterfaces(WebContentsObserver.Observable.class));
+        BraveYouTubePictureInPictureController controller =
+                spy(new BraveYouTubePictureInPictureController(mBraveActivity));
+        doReturn(null).when(controller).getMediaSession(any());
+        controller.onSessionRequested(observableWebContents);
+        controller.maybeDeferNightModeRecreate();
+
+        // The activity is back in a PiP window by the time the posted recreate runs; it must be
+        // skipped so we never recreate the activity backing a live PiP window.
+        when(mBraveActivity.isInPictureInPictureMode()).thenReturn(true);
+
+        controller.onExitPictureInPictureMode();
+        ShadowLooper.idleMainLooper(
+                BraveYouTubePictureInPictureController.DISMISS_CHECK_DELAY_MS,
+                TimeUnit.MILLISECONDS);
+
+        verify(mBraveActivity, never()).applyDeferredNightModeRecreate();
+    }
+
+    @Test
+    public void maybeDeferNightModeRecreate_screenLockExit_notApplied() {
+        BraveYouTubePictureInPictureController controller =
+                spy(new BraveYouTubePictureInPictureController(mBraveActivity));
+        doReturn(null).when(controller).getMediaSession(any());
+        doReturn(false).when(controller).isBackgroundVideoPlaybackEnabled(any());
+        controller.onSessionRequested(mWebContents);
+        controller.maybeDeferNightModeRecreate();
+
+        // Locking the screen parks the session rather than ending it, so the withheld theme
+        // change must wait for a real exit instead of recreating behind the lock.
+        setKeyguardLocked();
+
+        controller.onExitPictureInPictureMode();
+        ShadowLooper.idleMainLooper(
+                BraveYouTubePictureInPictureController.DISMISS_CHECK_DELAY_MS,
+                TimeUnit.MILLISECONDS);
+
+        verify(mBraveActivity, never()).applyDeferredNightModeRecreate();
+        assertTrue(controller.isInterruptedByScreenLockForTesting());
     }
 }

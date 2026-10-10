@@ -5,16 +5,13 @@
 
 #include "chrome/browser/ui/tabs/features.h"
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/feature_override.h"
+#include "brave/browser/ui/tabs/public/switches.h"
 
 #include <chrome/browser/ui/tabs/features.cc>
 
 namespace tabs {
-
-OVERRIDE_FEATURE_DEFAULT_STATES({{
-    {kVerticalTabsLaunch, base::FEATURE_DISABLED_BY_DEFAULT},
-}});
 
 #if BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kBraveChangeActiveTabOnScrollEvent,
@@ -29,12 +26,23 @@ BASE_FEATURE(kBraveVerticalTabScrollBar, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBraveVerticalTabHideCompletely, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kBraveTreeTab, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kBraveTreeTab, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBraveScrollableTabStrip, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kBraveBringAllTabsToThisWindow, base::FEATURE_ENABLED_BY_DEFAULT);
+
 bool HorizontalTabsUpdateEnabled() {
   return base::FeatureList::IsEnabled(kBraveHorizontalTabsUpdate);
+}
+
+bool IsUpstreamVerticalTabsForceEnabled() {
+  // Check for the force-upstream switch used by the vertical tab migration.
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  return command_line->HasSwitch(tabs::switches::kVerticalTabMigrationSwitch) &&
+         command_line->GetSwitchValueASCII(
+             tabs::switches::kVerticalTabMigrationSwitch) ==
+             tabs::switches::kVerticalTabMigrationForceUpstreamValue;
 }
 
 }  // namespace tabs

@@ -209,6 +209,7 @@ private struct WalletSettingsView: View {
             destination:
               DappsSettings(
                 coin: coin,
+                settingsStore: settingsStore,
                 siteConnectionStore: settingsStore.manageSiteConnectionsStore(
                   keyringStore: keyringStore
                 )
@@ -261,7 +262,7 @@ private struct WalletSettingsView: View {
 #if DEBUG
 struct WalletSettingsView_Previews: PreviewProvider {
   static var previews: some View {
-    NavigationView {
+    NavigationStack {
       WalletSettingsView(
         settingsStore: .previewStore,
         networkStore: .previewStore,

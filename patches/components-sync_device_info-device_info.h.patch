@@ -1,21 +1,24 @@
 diff --git a/components/sync_device_info/device_info.h b/components/sync_device_info/device_info.h
-index 980032a34b76c3e4f25c923812b37b2f3da57dc3..2d552fb0a68960a0c28bc9488e237100189f441e 100644
+index f3e9c8d882fc1cefc2e4f57515bc9eb2aea4e0f3..726cb2d81a910148a3248d0c6d5e7de63e34372b 100644
 --- a/components/sync_device_info/device_info.h
 +++ b/components/sync_device_info/device_info.h
-@@ -208,11 +208,28 @@ class DeviceInfo {
-              const MobilePromoOnDesktopPromoTypeSet&
-                  desktop_to_ios_promo_receiving_types,
-              GlicExperimentalTriggeringState glic_experimental_triggering_state,
--             std::optional<int> glic_experimental_triggering_version);
-+             std::optional<int> glic_experimental_triggering_version,
+@@ -225,7 +225,9 @@ class DeviceInfo {
+       std::optional<int> glic_experimental_triggering_version,
+       base::flat_set<std::string> glic_experimental_triggering_capabilities,
+       std::optional<std::string> android_os_build_fingerprint_prefix,
+-      std::optional<PersonalContextInfo> personal_context_info);
++      std::optional<PersonalContextInfo> personal_context_info,
 +             SelfDeleteSupport self_delete_support =
 +                 SelfDeleteSupport::kNotSupported);
  
    DeviceInfo& operator=(const DeviceInfo&) = delete;
  
+@@ -375,6 +377,22 @@ class DeviceInfo {
+   void set_glic_experimental_triggering_capabilities(
+       const base::flat_set<std::string>& capabilities);
+ 
 +  DeviceInfo(DeviceInfo&&);
 +
-   ~DeviceInfo();
 +  SelfDeleteSupport self_delete_support() const {
 +    return self_delete_support_;
 +  }
@@ -29,13 +32,14 @@ index 980032a34b76c3e4f25c923812b37b2f3da57dc3..2d552fb0a68960a0c28bc9488e237100
 +  // Converts the DeviceInfo values to a JS friendly DictionaryValue,
 +  // which extension APIs can expose to third party apps.
 +  base::DictValue ToValue() const;
- 
-   std::unique_ptr<DeviceInfo> DeepCopyForTesting() const;
- 
-@@ -414,6 +431,7 @@ class DeviceInfo {
-   // NOTE: when adding a member, don't forget to update
-   // |StoredDeviceInfoStillAccurate| in device_info_sync_bridge.cc or else
-   // changes in that member might not trigger uploads of updated DeviceInfos.
++
+  private:
+   // Used by DeepCopyForTesting().
+   DeviceInfo(const DeviceInfo& other);
+@@ -459,6 +477,7 @@ class DeviceInfo {
+   // |IsStoredLocalDeviceInfoStillAccurate| in device_info_sync_bridge.cc or
+   // else changes in that member might not trigger uploads of updated
+   // DeviceInfos.
 +  SelfDeleteSupport self_delete_support_;
  };
  

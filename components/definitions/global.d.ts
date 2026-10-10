@@ -15,33 +15,36 @@ type RequestIdleCallbackDeadline = {
 }
 
 declare global {
-  type StyleAction = {
-    type: 'style'
-    arg: string
-  }
-  type RemoveAction = {
-    type: 'remove'
-  }
-  type RemoveAttrAction = {
-    type: 'remove-attr'
-    arg: string
-  }
-  type RemoveClassAction = {
-    type: 'remove-class'
-    arg: string
+  // Typescript doesn't include Temporal or Intl.DurationFormat yet, but both
+  // are supported in Chromium. Only the parts we use are declared here.
+  // TODO: Remove this once upgrade to TS >= 6.0 is complete
+  namespace Temporal {
+    interface Duration {}
+
+    class Instant {
+      static fromEpochMilliseconds(epochMilliseconds: number): Instant
+      until(
+        other: Instant,
+        options: {
+          largestUnit: 'hours'
+          smallestUnit: 'minutes'
+          roundingMode: 'ceil'
+        },
+      ): Duration
+    }
+
+    namespace Now {
+      function instant(): Instant
+    }
   }
 
-  type CosmeticFilterAction = StyleAction | RemoveAction | RemoveAttrAction | RemoveClassAction;
+  namespace Intl {
+    class DurationFormat {
+      constructor(locales: undefined, options: { style: 'long' })
+      format(duration: Temporal.Duration): string
+    }
+  }
 
-  interface ProceduralOperator {
-    type: OperatorType
-    arg: string
-  }
-  type ProceduralSelector = ProceduralOperator[];
-  type ProceduralActionFilter = {
-    selector: ProceduralSelector
-    action?: CosmeticFilterAction
-  }
   interface Window {
     // Typescript doesn't include requestIdleCallback as it's non-standard.
     // Since it's supported in Chromium, we can include it here.
@@ -52,27 +55,5 @@ declare global {
     cancelIdleCallback: ((handle: RequestIdleCallbackHandle) => void)
     alreadyInserted: boolean
     web3: any
-    content_cosmetic: {
-      cosmeticStyleSheet: CSSStyleSheet
-      allSelectorsToRules: Map<string, number>
-      observingHasStarted: boolean
-      hide1pContent: boolean
-      generichide: boolean
-      firstRunQueue: Set<string>
-      secondRunQueue: Set<string>
-      finalRunQueue: Set<string>
-      allQueues: Set<string>[]
-      numQueues: any
-      alreadyUnhiddenSelectors: Set<string>
-      alreadyKnownFirstPartySubtrees: WeakSet
-      _hasDelayOcurred: boolean
-      _startCheckingId: number | undefined
-      firstSelectorsPollingDelayMs: number | undefined
-      switchToSelectorsPollingThreshold : number | undefined
-      fetchNewClassIdRulesThrottlingMs : number | undefined
-      tryScheduleQueuePump: (() => void)
-      proceduralActionFilters?: ProceduralActionFilter[]
-      hasProceduralActions: boolean
-    }
   }
 }

@@ -7,7 +7,11 @@ import { EntityId } from '@reduxjs/toolkit'
 
 // types
 import type { BaseQueryCache } from '../../async/base-query-cache'
-import { BraveWallet, WalletState } from '../../../constants/types'
+import {
+  BraveWallet,
+  RecoveryPhraseLengths,
+  WalletState,
+} from '../../../constants/types'
 import { WalletApiEndpointBuilderParams } from '../api-base.slice'
 import {
   ImportFromExternalWalletPayloadType,
@@ -27,7 +31,7 @@ import {
 import { suggestNewAccountName } from '../../../utils/address-utils'
 import { getEntitiesListFromEntityState } from '../../../utils/entities.utils'
 import { AddAccountArgs } from 'gen/brave/components/brave_wallet/common/brave_wallet.mojom.m'
-import { networkEntityAdapter } from '../entities/network.entity'
+import { getNetworkId, networkSelectors } from '../entities/network.entity'
 
 type ImportWalletResults = {
   errorMessage?: string
@@ -143,7 +147,10 @@ export const walletEndpoints = ({
       providesTags: ['ActiveOrigin'],
     }),
 
-    createWallet: mutation<true, { password: string }>({
+    createWallet: mutation<
+      true,
+      { password: string; recoveryPhraseLength?: RecoveryPhraseLengths }
+    >({
       queryFn: async (
         arg,
         { endpoint, dispatch, getState },
@@ -154,31 +161,53 @@ export const walletEndpoints = ({
           const { data: api, cache } = baseQuery(undefined)
           const { keyringService } = api
 
-          const result = await keyringService.createWallet(arg.password)
-          if (!result.mnemonic) {
-            throw new Error('Unable to create wallet')
-          }
+          let mnemonic: string | null = null
+          try {
+            if (arg.recoveryPhraseLength) {
+              const { mnemonic: generatedMnemonic } =
+                await keyringService.generateMnemonic(
+                  Number(arg.recoveryPhraseLength),
+                )
+              if (!generatedMnemonic) {
+                throw new Error('Unable to generate mnemonic')
+              }
+              const { mnemonic: createdMnemonic } =
+                await keyringService.createWalletWithMnemonic(
+                  generatedMnemonic,
+                  arg.password,
+                )
+              mnemonic = createdMnemonic
+            } else {
+              const { mnemonic: createdMnemonic } =
+                await keyringService.createWallet(arg.password)
+              mnemonic = createdMnemonic
+            }
 
-          dispatch(
-            WalletPageActions.walletCreated({ mnemonic: result.mnemonic }),
-          )
+            if (!mnemonic) {
+              throw new Error('Unable to create wallet')
+            }
 
-          const { allowedNewWalletAccountTypeNetworkIds } = (
-            getState() as { wallet: WalletState }
-          ).wallet
+            dispatch(WalletPageActions.walletCreated({ mnemonic }))
 
-          const accounts = await createDefaultAccounts({
-            allowedNewWalletAccountTypeNetworkIds,
-            keyringService,
-            cache,
-          })
+            const { allowedNewWalletAccountTypeNetworkIds } = (
+              getState() as { wallet: WalletState }
+            ).wallet
 
-          if (!accounts) {
-            throw new Error('Unable to create wallet')
-          }
+            const accounts = await createDefaultAccounts({
+              allowedNewWalletAccountTypeNetworkIds,
+              keyringService,
+              cache,
+            })
 
-          return {
-            data: true,
+            if (!accounts) {
+              throw new Error('Unable to create wallet')
+            }
+
+            return {
+              data: true,
+            }
+          } finally {
+            mnemonic = null
           }
         } catch (error) {
           return handleEndpointError(endpoint, 'Unable to create wallet', error)
@@ -349,7 +378,7 @@ export const walletEndpoints = ({
 
           // was the provided import password correct?
           const checkExistingPasswordError =
-            errorMessage === getLocale('braveWalletImportPasswordError')
+            errorMessage === getLocale(S.BRAVE_WALLET_IMPORT_PASSWORD_ERROR)
               ? errorMessage || undefined
               : undefined
 
@@ -585,10 +614,8 @@ async function createDefaultAccounts({
   const accountsRegistry = await cache.getAccountsRegistry()
   const { accounts: hiddenAccounts } = await keyringService.getHiddenAccounts()
 
-  const visibleNetworks = getEntitiesListFromEntityState(
-    networksRegistry,
-    networksRegistry.visibleIds,
-  )
+  const visibleNetworks =
+    networkSelectors.selectVisibleNetworks(networksRegistry)
 
   const networkKeyrings: number[] = []
   const networksWithUniqueKeyrings = []
@@ -614,9 +641,7 @@ async function createDefaultAccounts({
   const addAccountArgs = networksWithUniqueKeyrings
     .filter(
       (net) =>
-        allowedNewWalletAccountTypeNetworkIds.includes(
-          networkEntityAdapter.selectId(net),
-        )
+        allowedNewWalletAccountTypeNetworkIds.includes(getNetworkId(net))
         && net.coin !== BraveWallet.CoinType.ETH
         && net.coin !== BraveWallet.CoinType.SOL,
     )

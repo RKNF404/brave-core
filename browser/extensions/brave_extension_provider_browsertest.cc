@@ -12,7 +12,6 @@
 #include "brave/components/constants/url_constants.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -48,7 +47,7 @@ IN_PROC_BROWSER_TEST_F(BraveExtensionProviderTest,
   EXPECT_EQ(true, content::EvalJs(contents,
                                   "setExpectations(1, 0, 0, 0);"
                                   "addImage('ad_banner.png')"));
-  EXPECT_EQ(browser()->profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
+  EXPECT_EQ(browser()->GetProfile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
 }
 
 IN_PROC_BROWSER_TEST_F(BraveExtensionProviderTest, ExtensionsCanGetCookies) {

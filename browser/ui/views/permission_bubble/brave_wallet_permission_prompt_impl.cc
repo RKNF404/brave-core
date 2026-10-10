@@ -12,7 +12,6 @@
 #include "components/permissions/permission_uma_util.h"
 
 BraveWalletPermissionPromptImpl::BraveWalletPermissionPromptImpl(
-    Browser* browser,
     content::WebContents* web_contents,
     Delegate& delegate)
     : web_contents_(web_contents),
@@ -57,11 +56,6 @@ bool BraveWalletPermissionPromptImpl::IsAskPrompt() const {
 std::optional<gfx::Rect>
 BraveWalletPermissionPromptImpl::GetViewBoundsInScreen() const {
   return std::nullopt;
-}
-
-bool BraveWalletPermissionPromptImpl::ShouldFinalizeRequestAfterDecided()
-    const {
-  return true;
 }
 
 std::vector<permissions::ElementAnchoredBubbleVariant>

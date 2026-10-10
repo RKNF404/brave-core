@@ -7,9 +7,10 @@
 
 #include "brave/app/brave_command_ids.h"
 #include "brave/browser/ui/focus_mode/focus_mode_utils.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "ui/menus/simple_menu_model.h"
 
 BraveSystemMenuModelBuilder::~BraveSystemMenuModelBuilder() = default;
@@ -26,7 +27,26 @@ void BraveSystemMenuModelBuilder::InsertBraveSystemMenuForBrowserWindow(
     return insert_after;
   };
 
-  if (tabs::utils::SupportsBraveVerticalTabs(browser())) {
+  if (auto* vtc = VerticalTabController::From(browser());
+      vtc && vtc->SupportsBraveVerticalTabs()) {
+    // Upstream unconditionally adds its own vertical-tabs toggle plus a "Send
+    // feedback about the tab strip" item (preceded by a separator) to the menu
+    // built by the base class above. Remove them here so they don't duplicate
+    // the vertical tabs item we insert below.
+    if (auto feedback_index =
+            model->GetIndexOfCommandId(IDC_VERTICAL_TABS_SEND_FEEDBACK)) {
+      model->RemoveItemAt(*feedback_index);
+    }
+    if (auto toggle_index =
+            model->GetIndexOfCommandId(IDC_TOGGLE_VERTICAL_TABS)) {
+      size_t index = *toggle_index;
+      model->RemoveItemAt(index);
+      if (index > 0 &&
+          model->GetTypeAt(index - 1) == ui::MenuModel::TYPE_SEPARATOR) {
+        model->RemoveItemAt(index - 1);
+      }
+    }
+
     if (auto pos = get_next_position()) {
       model->InsertCheckItemWithStringIdAt(pos.value(),
                                            IDC_TOGGLE_VERTICAL_TABS,
@@ -35,9 +55,11 @@ void BraveSystemMenuModelBuilder::InsertBraveSystemMenuForBrowserWindow(
   }
 
   if (BrowserSupportsFocusMode(browser())) {
-    if (auto pos = get_next_position()) {
-      model->InsertCheckItemWithStringIdAt(pos.value(), IDC_TOGGLE_FOCUS_MODE,
-                                           IDS_SYSTEM_MENU_FOCUS_MODE);
+    if (!ImmersiveModeController::From(browser())->IsEnabled()) {
+      if (auto pos = get_next_position()) {
+        model->InsertCheckItemWithStringIdAt(pos.value(), IDC_TOGGLE_FOCUS_MODE,
+                                             IDS_SYSTEM_MENU_FOCUS_MODE);
+      }
     }
   }
 }

@@ -5,12 +5,10 @@
 
 import BraveCore
 import BraveUI
-import BraveWallet
 import Data
 import Foundation
 import Preferences
 import Shared
-import Storage
 import Web
 
 extension TabDataValues {
@@ -22,11 +20,6 @@ extension TabDataValues {
     get { self[TabBrowserDataKey.self] }
     set { self[TabBrowserDataKey.self] = newValue }
   }
-}
-
-protocol TabMiscDelegate {
-  func showWalletNotification(_ tab: some TabState, origin: URLOrigin)
-  func updateURLBarWalletButton()
 }
 
 /// A broad container of assorted data that was previously stored in Tab
@@ -69,9 +62,6 @@ class TabBrowserData: NSObject, TabObserver {
     var mojoObjects: [Any?] = [
       _faviconDriver,
       _syncTab,
-      _walletEthProvider,
-      _walletSolProvider,
-      _walletKeyringService,
     ]
 
     DispatchQueue.main.async {
@@ -95,17 +85,9 @@ class TabBrowserData: NSObject, TabObserver {
   var blockAllAlerts: Bool = false
 
   var responses = [URL: URLResponse]()
-  var miscDelegate: TabMiscDelegate?
 
   private var _syncTab: BraveSyncTab?
   private var _faviconDriver: FaviconDriver?
-  private var _walletEthProvider: BraveWalletEthereumProvider?
-  private var _walletSolProvider: BraveWalletSolanaProvider?
-  private var _walletKeyringService: BraveWalletKeyringService? {
-    didSet {
-      _walletKeyringService?.addObserver(self)
-    }
-  }
 
   weak var syncTab: BraveSyncTab? {
     _syncTab
@@ -115,31 +97,11 @@ class TabBrowserData: NSObject, TabObserver {
     _faviconDriver
   }
 
-  weak var walletEthProvider: BraveWalletEthereumProvider? {
-    get { _walletEthProvider }
-    set { _walletEthProvider = newValue }
-  }
-
-  weak var walletSolProvider: BraveWalletSolanaProvider? {
-    get { _walletSolProvider }
-    set { _walletSolProvider = newValue }
-  }
-
-  weak var walletKeyringService: BraveWalletKeyringService? {
-    get { _walletKeyringService }
-    set { _walletKeyringService = newValue }
-  }
-
-  var tabDappStore: TabDappStore = .init()
-  var isWalletIconVisible: Bool = false {
-    didSet {
-      tab?.miscDelegate?.updateURLBarWalletButton()
-    }
-  }
-
   var lastTitle: String?
 
-  var isDisplayingBasicAuthPrompt = false
+  /// Whether or not an HTTP authentication prompt is being presented for an origin other than the
+  /// one currently visible
+  var isDisplayingCrossOriginBasicAuthPrompt = false
 
   // This variable is used to keep track of current page. It is used to detect
   // and report same document navigations to Brave Rewards library.
@@ -152,15 +114,6 @@ class TabBrowserData: NSObject, TabObserver {
 
   var playlistItem: PlaylistInfo?
   var playlistItemState: PlaylistItemAddedState = .none
-
-  /// This is the request that was upgraded to HTTPS
-  /// This allows us to rollback the upgrade when we encounter a 4xx+
-  var upgradedHTTPSRequest: URLRequest?
-
-  /// This is a timer that's started on HTTPS upgrade
-  /// If the upgrade hasn't completed within 3s, it is cancelled
-  /// and we fallback to HTTP or cancel the request (strict vs. standard)
-  var upgradeHTTPSTimeoutTimer: Timer?
 
   /// This is the url for the current request
   var currentRequestURL: URL? {
@@ -220,21 +173,6 @@ class TabBrowserData: NSObject, TabObserver {
   weak var shownPromptAlert: UIAlertController?
 
   private(set) lazy var leoTabHelper = BraveLeoScriptTabHelper(tab: tab)
-
-  /// Boolean tracking custom url-scheme alert presented
-  var isExternalAppAlertPresented = false
-  var externalAppPopup: AlertPopupView?
-  var externalAppPopupContinuation: CheckedContinuation<Bool, Never>?
-  var externalAppAlertCounter = 0
-  var isExternalAppAlertSuppressed = false
-  var externalAppURLDomain: String?
-
-  func resetExternalAlertProperties() {
-    externalAppAlertCounter = 0
-    isExternalAppAlertPresented = false
-    isExternalAppAlertSuppressed = false
-    externalAppURLDomain = nil
-  }
 
   /// A list of domains that we want to proceed to anyways regardless of any ad-blocking
   var proceedAnywaysDomainList: Set<String> = []
@@ -338,10 +276,6 @@ class TabBrowserData: NSObject, TabObserver {
   }
 
   // MARK: - TabObserver
-
-  func tabDidStartNavigation(_ tab: some TabState) {
-    resetExternalAlertProperties()
-  }
 
   func tabDidChangeTitle(_ tab: some TabState) {
     syncTab?.setTitle(tab.displayTitle)

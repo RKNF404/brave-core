@@ -33,7 +33,17 @@ extern const size_t kExpressMaxEpochsToRetain;
 // the "keep epoch count".
 class ConstellationLogStore : public metrics::LogStore {
  public:
-  ConstellationLogStore(PrefService& local_state, MetricLogType log_type);
+  class Delegate {
+   public:
+    // Returns true if the metric should be staged ahead of non-priority
+    // metrics.
+    virtual bool IsPriorityMetric(std::string_view histogram_name) const = 0;
+    virtual ~Delegate() {}
+  };
+
+  ConstellationLogStore(Delegate& delegate,
+                        PrefService& local_state,
+                        MetricLogType log_type);
   ~ConstellationLogStore() override;
 
   ConstellationLogStore(const ConstellationLogStore&) = delete;
@@ -47,6 +57,13 @@ class ConstellationLogStore : public metrics::LogStore {
 
   void SetCurrentEpoch(uint8_t current_epoch);
 
+  // Returns true if any unsent message belongs to a priority metric.
+  bool has_unsent_priority_logs() const;
+
+  // Must be called whenever metric configurations may have changed. Re-routes
+  // unsent messages between the priority and standard pools.
+  void NotifyConfigReady();
+
   // metrics::LogStore:
   bool has_unsent_logs() const override;
   bool has_staged_log() const override;
@@ -57,7 +74,7 @@ class ConstellationLogStore : public metrics::LogStore {
   const std::string& staged_log_signature() const override;
   std::optional<uint64_t> staged_log_user_id() const override;
   void StageNextLog() override;
-  void DiscardStagedLog(std::string_view reason = "") override;
+  void DiscardStagedLogImpl(std::string_view reason) override;
   void MarkStagedLogAsSent() override;
   const metrics::LogMetadata staged_log_metadata() const override;
 
@@ -85,11 +102,15 @@ class ConstellationLogStore : public metrics::LogStore {
 
   size_t GetMaxEpochsToRetain() const;
 
+  void InsertUnsentEntry(const LogKey& key);
+
+  const raw_ref<Delegate> delegate_;
   const raw_ref<PrefService, DanglingUntriaged> local_state_;
   MetricLogType log_type_;
 
   base::flat_map<LogKey, std::string, LogKeyCompare> log_;
   base::flat_set<LogKey, LogKeyCompare> unsent_entries_;
+  base::flat_set<LogKey, LogKeyCompare> priority_unsent_entries_;
 
   std::unique_ptr<LogKey> staged_entry_key_;
   std::string staged_log_;

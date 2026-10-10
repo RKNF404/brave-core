@@ -12,8 +12,7 @@ import static org.junit.Assert.assertTrue;
 
 import android.view.View;
 import android.view.autofill.AutofillId;
-
-import androidx.test.filters.SmallTest;
+import android.view.inputmethod.EditorInfo;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +39,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     // --- hasAddressFields ---
 
     @Test
-    @SmallTest
     public void hasAddressFields_withPostalAddress_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -48,7 +46,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withName_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -56,7 +53,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withFirstName_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -64,7 +60,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withEmail_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -72,7 +67,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withPhone_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -80,7 +74,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withPostalCode_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -88,7 +81,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withCity_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -96,7 +88,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withState_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -104,7 +95,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withCountry_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -112,7 +102,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withCompany_returnsTrue() {
         assertTrue(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -120,13 +109,11 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_emptyMap_returnsFalse() {
         assertFalse(BraveAutofillViewStructureParser.hasAddressFields(new HashMap<>()));
     }
 
     @Test
-    @SmallTest
     public void hasAddressFields_withPasswordOnly_returnsFalse() {
         assertFalse(
                 BraveAutofillViewStructureParser.hasAddressFields(
@@ -136,7 +123,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     // --- mapAutofillHint: Android standard hints ---
 
     @Test
-    @SmallTest
     public void mapAutofillHint_androidNameHint_passesThrough() {
         assertEquals(
                 View.AUTOFILL_HINT_NAME,
@@ -144,7 +130,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_androidEmailHint_passesThrough() {
         assertEquals(
                 View.AUTOFILL_HINT_EMAIL_ADDRESS,
@@ -152,7 +137,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_androidPhoneHint_passesThrough() {
         assertEquals(
                 View.AUTOFILL_HINT_PHONE,
@@ -160,7 +144,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_androidPasswordHint_passesThrough() {
         assertEquals(
                 View.AUTOFILL_HINT_PASSWORD,
@@ -170,7 +153,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     // --- mapAutofillHint: W3C tokens ---
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cGivenName_returnsFirstName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_FIRST_NAME,
@@ -179,7 +161,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cFamilyName_returnsLastName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_LAST_NAME,
@@ -188,7 +169,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cAdditionalName_returnsMiddleName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_MIDDLE_NAME,
@@ -197,7 +177,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cStreetAddress_returnsPostalAddress() {
         assertEquals(
                 View.AUTOFILL_HINT_POSTAL_ADDRESS,
@@ -206,7 +185,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cAddressLine1_returnsPostalAddress() {
         assertEquals(
                 View.AUTOFILL_HINT_POSTAL_ADDRESS,
@@ -215,7 +193,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cAddressLine2_returnsAddressLine2() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_ADDRESS_LINE2,
@@ -224,7 +201,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cPostalCode_returnsPostalCode() {
         assertEquals(
                 View.AUTOFILL_HINT_POSTAL_CODE,
@@ -233,7 +209,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cOrganization_returnsCompany() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_COMPANY,
@@ -242,7 +217,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cTel_returnsPhone() {
         assertEquals(
                 View.AUTOFILL_HINT_PHONE,
@@ -251,7 +225,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cTelNational_returnsPhone() {
         assertEquals(
                 View.AUTOFILL_HINT_PHONE,
@@ -260,7 +233,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cAddressLevel1_returnsState() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_STATE,
@@ -269,7 +241,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cAddressLevel2_returnsCity() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_CITY,
@@ -278,7 +249,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cCountry_returnsCountry() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_COUNTRY,
@@ -287,7 +257,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_w3cCountryName_returnsCountry() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_COUNTRY,
@@ -296,7 +265,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapAutofillHint_unknownHint_returnsNull() {
         assertNull(BraveAutofillViewStructureParser.mapAutofillHint("some-unknown-hint"));
     }
@@ -304,7 +272,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     // --- mapComputedAutofillHint ---
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_nameFull_returnsName() {
         assertEquals(
                 View.AUTOFILL_HINT_NAME,
@@ -313,7 +280,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_nameFirst_returnsFirstName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_FIRST_NAME,
@@ -322,7 +288,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_nameMiddle_returnsMiddleName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_MIDDLE_NAME,
@@ -331,7 +296,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_nameMiddleInitial_returnsMiddleName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_MIDDLE_NAME,
@@ -340,7 +304,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_nameLast_returnsLastName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_LAST_NAME,
@@ -349,7 +312,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_nameLastFirst_returnsLastName() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_LAST_NAME,
@@ -358,7 +320,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_emailAddress_returnsEmail() {
         assertEquals(
                 View.AUTOFILL_HINT_EMAIL_ADDRESS,
@@ -367,7 +328,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_phoneHomeWholeNumber_returnsPhone() {
         assertEquals(
                 View.AUTOFILL_HINT_PHONE,
@@ -376,7 +336,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_addressHomeLine1_returnsPostalAddress() {
         assertEquals(
                 View.AUTOFILL_HINT_POSTAL_ADDRESS,
@@ -385,7 +344,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_addressHomeStreetAddress_returnsPostalAddress() {
         assertEquals(
                 View.AUTOFILL_HINT_POSTAL_ADDRESS,
@@ -394,7 +352,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_addressHomeLine2_returnsAddressLine2() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_ADDRESS_LINE2,
@@ -403,7 +360,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_addressHomeCity_returnsCity() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_CITY,
@@ -412,7 +368,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_addressHomeState_returnsState() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_STATE,
@@ -421,7 +376,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_addressHomeZip_returnsPostalCode() {
         assertEquals(
                 View.AUTOFILL_HINT_POSTAL_CODE,
@@ -430,7 +384,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_addressHomeCountry_returnsCountry() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_COUNTRY,
@@ -439,7 +392,6 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_companyName_returnsCompany() {
         assertEquals(
                 BraveAutofillViewStructureParser.HINT_COMPANY,
@@ -448,14 +400,169 @@ public class BraveAutofillViewStructureParserUnitTest {
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_null_returnsNull() {
         assertNull(BraveAutofillViewStructureParser.mapComputedAutofillHint(null));
     }
 
     @Test
-    @SmallTest
     public void mapComputedAutofillHint_unknownValue_returnsNull() {
         assertNull(BraveAutofillViewStructureParser.mapComputedAutofillHint("UNKNOWN_FIELD_TYPE"));
+    }
+
+    // --- isOmnibox ---
+
+    @Test
+    public void isOmnibox_uriInputType_returnsTrue() {
+        assertTrue(
+                BraveAutofillViewStructureParser.isOmnibox(
+                        EditorInfo.TYPE_CLASS_TEXT | EditorInfo.TYPE_TEXT_VARIATION_URI));
+    }
+
+    @Test
+    public void isOmnibox_postalAddressInputType_returnsFalse() {
+        // Variation values are not flags: TYPE_TEXT_VARIATION_POSTAL_ADDRESS (0x70) contains the
+        // bits of TYPE_TEXT_VARIATION_URI (0x10), so they must be compared after masking.
+        assertFalse(
+                BraveAutofillViewStructureParser.isOmnibox(
+                        EditorInfo.TYPE_CLASS_TEXT
+                                | EditorInfo.TYPE_TEXT_VARIATION_POSTAL_ADDRESS));
+    }
+
+    @Test
+    public void isOmnibox_webEmailInputType_returnsFalse() {
+        assertFalse(
+                BraveAutofillViewStructureParser.isOmnibox(
+                        EditorInfo.TYPE_CLASS_TEXT
+                                | EditorInfo.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS));
+    }
+
+    @Test
+    public void isOmnibox_plainTextInputType_returnsFalse() {
+        assertFalse(BraveAutofillViewStructureParser.isOmnibox(EditorInfo.TYPE_CLASS_TEXT));
+    }
+
+    // --- inferHint ---
+
+    @Test
+    public void inferHint_postalAddressInputType_returnsPostalAddress() {
+        // The postal-address input type must not be mistaken for the URL bar — see isOmnibox.
+        assertEquals(
+                View.AUTOFILL_HINT_POSTAL_ADDRESS,
+                BraveAutofillViewStructureParser.inferHint(
+                        EditorInfo.TYPE_CLASS_TEXT | EditorInfo.TYPE_TEXT_VARIATION_POSTAL_ADDRESS,
+                        "address_line_1"));
+    }
+
+    @Test
+    public void inferHint_uriInputType_returnsNull() {
+        assertNull(
+                BraveAutofillViewStructureParser.inferHint(
+                        EditorInfo.TYPE_CLASS_TEXT | EditorInfo.TYPE_TEXT_VARIATION_URI,
+                        "address"));
+    }
+
+    @Test
+    public void inferHint_unrecognizedText_returnsNull() {
+        // Null lets getHint() fall through to the HTML/computed-hint layer. Any non-null value
+        // here would end classification for the node before that layer runs.
+        assertNull(BraveAutofillViewStructureParser.inferHint(EditorInfo.TYPE_CLASS_TEXT, "notes"));
+    }
+
+    @Test
+    public void inferHint_null_returnsNull() {
+        assertNull(BraveAutofillViewStructureParser.inferHint(EditorInfo.TYPE_CLASS_TEXT, null));
+    }
+
+    @Test
+    public void inferHint_labelText_returnsNull() {
+        assertNull(
+                BraveAutofillViewStructureParser.inferHint(
+                        EditorInfo.TYPE_CLASS_TEXT, "address_label"));
+    }
+
+    @Test
+    public void inferHint_emailKeyword_returnsEmail() {
+        assertEquals(
+                View.AUTOFILL_HINT_EMAIL_ADDRESS,
+                BraveAutofillViewStructureParser.inferHint(
+                        EditorInfo.TYPE_CLASS_TEXT, "Enter your email"));
+    }
+
+    @Test
+    public void inferHint_cityKeyword_returnsCity() {
+        assertEquals(
+                BraveAutofillViewStructureParser.HINT_CITY,
+                BraveAutofillViewStructureParser.inferHint(EditorInfo.TYPE_CLASS_TEXT, "City"));
+    }
+
+    // --- isSaveableAddressForm ---
+
+    @Test
+    public void isSaveableAddressForm_emailAndPassword_returnsFalse() {
+        assertFalse(
+                BraveAutofillViewStructureParser.isSaveableAddressForm(
+                        mapWithKeys(
+                                View.AUTOFILL_HINT_EMAIL_ADDRESS, View.AUTOFILL_HINT_PASSWORD)));
+    }
+
+    @Test
+    public void isSaveableAddressForm_nameCompanyAndPhone_returnsFalse() {
+        // A contact editor: personal details, no address component anywhere.
+        assertFalse(
+                BraveAutofillViewStructureParser.isSaveableAddressForm(
+                        mapWithKeys(
+                                View.AUTOFILL_HINT_NAME,
+                                BraveAutofillViewStructureParser.HINT_COMPANY,
+                                View.AUTOFILL_HINT_PHONE)));
+    }
+
+    @Test
+    public void isSaveableAddressForm_noFields_returnsFalse() {
+        assertFalse(BraveAutofillViewStructureParser.isSaveableAddressForm(mapWithKeys()));
+    }
+
+    @Test
+    public void isSaveableAddressForm_streetAndCity_returnsTrue() {
+        assertTrue(
+                BraveAutofillViewStructureParser.isSaveableAddressForm(
+                        mapWithKeys(
+                                View.AUTOFILL_HINT_POSTAL_ADDRESS,
+                                BraveAutofillViewStructureParser.HINT_CITY)));
+    }
+
+    @Test
+    public void isSaveableAddressForm_streetAndCityWithPassword_returnsTrue() {
+        // Two components is a real address form even on a registration screen.
+        assertTrue(
+                BraveAutofillViewStructureParser.isSaveableAddressForm(
+                        mapWithKeys(
+                                View.AUTOFILL_HINT_POSTAL_ADDRESS,
+                                BraveAutofillViewStructureParser.HINT_CITY,
+                                View.AUTOFILL_HINT_PASSWORD)));
+    }
+
+    @Test
+    public void isSaveableAddressForm_postalCodeOnly_returnsFalse() {
+        assertFalse(
+                BraveAutofillViewStructureParser.isSaveableAddressForm(
+                        mapWithKeys(View.AUTOFILL_HINT_POSTAL_CODE)));
+    }
+
+    @Test
+    public void isSaveableAddressForm_postalCodeAndName_returnsTrue() {
+        assertTrue(
+                BraveAutofillViewStructureParser.isSaveableAddressForm(
+                        mapWithKeys(View.AUTOFILL_HINT_POSTAL_CODE, View.AUTOFILL_HINT_NAME)));
+    }
+
+    @Test
+    public void isSaveableAddressForm_postalCodeAndNameWithPassword_returnsFalse() {
+        // One component is not enough to override a sign-in screen.
+        assertFalse(
+                BraveAutofillViewStructureParser.isSaveableAddressForm(
+                        mapWithKeys(
+                                View.AUTOFILL_HINT_POSTAL_CODE,
+                                View.AUTOFILL_HINT_NAME,
+                                View.AUTOFILL_HINT_PASSWORD)));
     }
 }

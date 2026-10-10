@@ -51,6 +51,8 @@ import { getIsRewardsNetwork } from '../../../utils/rewards_utils'
 import {
   blockchainTokenEntityAdaptorInitialState, //
 } from '../entities/blockchain-token.entity'
+import { Uint128ToBigInt } from '../../../utils/polkadot-utils'
+import { ZCashTokenType } from 'gen/brave/components/brave_wallet/common/brave_wallet.mojom.m'
 
 type BalanceNetwork = Pick<
   BraveWallet.NetworkInfo,
@@ -273,7 +275,7 @@ export const tokenBalancesEndpoints = ({
                   contractAddress: balanceResult.contractAddress,
                   tokenId: balanceResult.tokenId,
                   tokenBalancesRegistry: registry,
-                  isShielded: balanceResult.isShielded,
+                  zcashTokenType: balanceResult.zcashTokenType,
                 }),
             })
           }
@@ -323,13 +325,14 @@ export const tokenBalancesEndpoints = ({
           const { data: api, cache } = baseQuery(undefined)
 
           const {
-            braveWalletService,
             jsonRpcService,
             bitcoinWalletService,
             zcashWalletService,
             cardanoWalletService,
             polkadotWalletService,
           } = api
+
+          const networksRegistry = await cache.getNetworksRegistry()
 
           const tokenBalancesRegistry = createEmptyTokenBalancesRegistry()
 
@@ -366,7 +369,7 @@ export const tokenBalancesEndpoints = ({
                   tokenBalancesRegistry,
                   coinType: BraveWallet.CoinType.ETH,
                   tokenId: '',
-                  isShielded: false,
+                  zcashTokenType: BraveWallet.ZCashTokenType.kNone,
                 },
               )
             }
@@ -392,7 +395,7 @@ export const tokenBalancesEndpoints = ({
                 tokenBalancesRegistry,
                 coinType: asset.coin,
                 tokenId: asset.tokenId,
-                isShielded: asset.isShielded,
+                zcashTokenType: asset.zcashTokenType,
               })
             }
           }
@@ -402,11 +405,8 @@ export const tokenBalancesEndpoints = ({
             arg.useAnkrBalancesFeature ? [] : arg.networks
 
           if (arg.useAnkrBalancesFeature) {
-            const { chainIds: ankrSupportedChainIds } =
-              await braveWalletService.getAnkrSupportedChainIds()
-
             for (const network of arg.networks) {
-              if (ankrSupportedChainIds.includes(network.chainId)) {
+              if (networksRegistry.ankrChainIds.includes(network.chainId)) {
                 ankrSupportedNetworks.push(network)
               } else {
                 nonAnkrSupportedNetworks.push(network)
@@ -450,7 +450,7 @@ export const tokenBalancesEndpoints = ({
                 await eachLimit(
                   nonAnkrSupportedAccountNetworks,
                   3,
-                  async (network: BraveWallet.NetworkInfo) => {
+                  async (network: BalanceNetwork) => {
                     assert(coinTypesMapping[network.coin] !== undefined)
                     try {
                       const tokens = arg.isSpamRegistry
@@ -462,10 +462,7 @@ export const tokenBalancesEndpoints = ({
                         : getEntitiesListFromEntityState(
                             userTokensRegistry,
                             userTokensRegistry.idsByChainId[
-                              getNetworkId({
-                                coin: network.coin,
-                                chainId: network.chainId,
-                              })
+                              getNetworkId(network)
                             ],
                           )
 
@@ -705,41 +702,12 @@ async function fetchAccountCurrentNativeBalance({
   cardanoWalletService: BraveWallet.CardanoWalletServiceRemote
   polkadotWalletService: BraveWallet.PolkadotWalletServiceRemote
 }): Promise<string> {
-  // LOCALHOST
-  if (
-    token.chainId === BraveWallet.LOCALHOST_CHAIN_ID
-    && accountId.coin !== BraveWallet.CoinType.SOL
-  ) {
-    const { balance, error, errorMessage } = await jsonRpcService.getBalance(
-      accountId.address,
-      accountId.coin,
-      token.chainId,
-    )
-
-    // LOCALHOST will error until a local instance is detected
-    // return a '0' balance until it's detected.
-    if (error !== 0) {
-      console.log(
-        `getBalance (LOCALHOST - ${accountId.coin}) error: ${errorMessage}`,
-      )
-      return Amount.zero().format()
-    }
-
-    return Amount.normalize(balance)
-  }
-
-  // NON-LOCALHOST
   switch (accountId.coin) {
     case BraveWallet.CoinType.SOL: {
-      const { balance, error } = await jsonRpcService.getSolanaBalance(
+      const { balance } = await jsonRpcService.getSolanaBalance(
         accountId.address,
         token.chainId,
       )
-
-      if (token.chainId === BraveWallet.LOCALHOST_CHAIN_ID && error !== 0) {
-        return Amount.zero().format()
-      }
-
       return Amount.normalize(balance.toString())
     }
 
@@ -785,9 +753,14 @@ async function fetchAccountCurrentNativeBalance({
         )
       }
 
-      return token.isShielded
-        ? Amount.normalize(balance.shieldedBalance.toString())
-        : Amount.normalize(balance.transparentBalance.toString())
+      switch (token.zcashTokenType) {
+        case BraveWallet.ZCashTokenType.kOrchard:
+          return Amount.normalize(balance.orchardBalance.toString())
+        case BraveWallet.ZCashTokenType.kIronwood:
+          return Amount.normalize(balance.ironwoodBalance.toString())
+        default:
+          return Amount.normalize(balance.transparentBalance.toString())
+      }
     }
 
     case BraveWallet.CoinType.ADA: {
@@ -816,14 +789,8 @@ async function fetchAccountCurrentNativeBalance({
         )
       }
 
-      // Convert uint128 to string: (high << 64) + low
-      const high = BigInt(account.data.free.high)
-      const low = BigInt(account.data.free.low)
-      const balance = (high << BigInt(64)) + low
-
-      const normalizedBalance = Amount.normalize(balance.toString())
-
-      return normalizedBalance
+      const balance = Uint128ToBigInt(account.data.free) ?? BigInt(0)
+      return Amount.normalize(balance.toString())
     }
 
     default: {
@@ -950,6 +917,32 @@ async function fetchAccountTokenCurrentBalance({
       return Amount.normalize(balance.totalBalance.toString())
     }
 
+    case BraveWallet.CoinType.DOT: {
+      // The asset id is stored as the (decimal) contract address.
+      const { assetAccounts, errorMessage } =
+        await polkadotWalletService.getAssetAccountBalances(
+          accountId,
+          [Number(token.contractAddress)],
+          token.chainId,
+        )
+
+      if (errorMessage || assetAccounts === null) {
+        throw new Error(
+          `getAssetAccountBalances (DOT) error: ${
+            errorMessage || 'Unknown error'
+          }`,
+        )
+      }
+
+      const assetAccount = assetAccounts[0]
+      if (!assetAccount) {
+        return Amount.zero().format()
+      }
+
+      const balance = Uint128ToBigInt(assetAccount.balance) ?? BigInt(0)
+      return Amount.normalize(balance.toString())
+    }
+
     // Other network type tokens
     default: {
       return Amount.zero().format()
@@ -1047,7 +1040,7 @@ async function fetchAccountTokenBalanceRegistryForChainId({
             balance: new Amount(balance).format(),
             coinType: arg.coin,
             tokenId: '', // these are ERC20 tokens,
-            isShielded: false,
+            zcashTokenType: BraveWallet.ZCashTokenType.kNone,
           })
         }
       }
@@ -1059,7 +1052,7 @@ async function fetchAccountTokenBalanceRegistryForChainId({
   await eachLimit(
     nativeTokenArgs,
     2,
-    async (token: BraveWallet.BlockchainToken) => {
+    async (token: GetBlockchainTokenIdArg) => {
       const balance = await fetchAccountTokenCurrentBalance({
         arg: {
           accountId: arg.accountId,
@@ -1080,7 +1073,7 @@ async function fetchAccountTokenBalanceRegistryForChainId({
           balance,
           coinType: token.coin,
           tokenId: '',
-          isShielded: token.isShielded,
+          zcashTokenType: token.zcashTokenType,
         })
       }
     },
@@ -1109,9 +1102,62 @@ async function fetchAccountTokenBalanceRegistryForChainId({
           balance: Amount.normalize(amount),
           coinType: arg.coin,
           tokenId: '',
-          isShielded: false,
+          zcashTokenType: BraveWallet.ZCashTokenType.kNone,
         })
       }
+    }
+
+    return
+  }
+
+  if (arg.coin === CoinTypes.DOT) {
+    const assetTokens = arg.tokens.filter((token) => !isNativeAsset(token))
+
+    if (assetTokens.length) {
+      const assetIds = assetTokens.map((token) => Number(token.contractAddress))
+      const { assetAccounts, errorMessage } =
+        await polkadotWalletService.getAssetAccountBalances(
+          arg.accountId,
+          assetIds,
+          arg.chainId,
+        )
+
+      if (errorMessage || assetAccounts === null) {
+        throw new Error(
+          `getAssetAccountBalances (DOT) error: ${
+            errorMessage || 'Unknown error'
+          }`,
+        )
+      }
+
+      // Balances are returned positionally, one per requested asset id. Bail
+      // out rather than misattribute them to the wrong tokens.
+      if (assetAccounts.length !== assetIds.length) {
+        throw new Error(
+          'getAssetAccountBalances (DOT) returned '
+            + `${assetAccounts.length} balances for ${assetIds.length} assets`,
+        )
+      }
+
+      assetTokens.forEach((token, index) => {
+        const assetAccount = assetAccounts[index]
+        if (!assetAccount) {
+          return
+        }
+
+        const balance = Uint128ToBigInt(assetAccount.balance) ?? BigInt(0)
+        if (balance > BigInt(0)) {
+          onBalance({
+            accountId: arg.accountId,
+            chainId: arg.chainId,
+            contractAddress: token.contractAddress,
+            balance: Amount.normalize(balance.toString()),
+            coinType: arg.coin,
+            tokenId: '',
+            zcashTokenType: ZCashTokenType.kNone,
+          })
+        }
+      })
     }
 
     return
@@ -1122,7 +1168,7 @@ async function fetchAccountTokenBalanceRegistryForChainId({
   await eachLimit(
     nonNativeTokens,
     10,
-    async (token: BraveWallet.BlockchainToken) => {
+    async (token: GetBlockchainTokenIdArg) => {
       const result = await fetchAccountTokenCurrentBalance({
         arg: {
           accountId: arg.accountId,
@@ -1143,7 +1189,7 @@ async function fetchAccountTokenBalanceRegistryForChainId({
           balance: result,
           coinType: token.coin,
           tokenId: token.tokenId,
-          isShielded: token.isShielded,
+          zcashTokenType: token.zcashTokenType,
         })
       }
     },
@@ -1281,7 +1327,7 @@ async function fetchNftBalancesForAccount({
           balance: nftBalance.toString(),
           coinType: token.coin,
           tokenId: token.tokenId,
-          isShielded: false,
+          zcashTokenType: BraveWallet.ZCashTokenType.kNone,
         })
       })
     }

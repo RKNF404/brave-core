@@ -31,17 +31,21 @@
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/test/values_test_util.h"
 #include "base/time/time.h"
 #include "brave/components/ai_chat/core/browser/ai_chat_credential_manager.h"
 #include "brave/components/ai_chat/core/browser/associated_content_manager.h"
+#include "brave/components/ai_chat/core/browser/constants.h"
 #include "brave/components/ai_chat/core/browser/conversation_handler.h"
 #include "brave/components/ai_chat/core/browser/engine/engine_consumer.h"
 #include "brave/components/ai_chat/core/browser/engine/mock_engine_consumer.h"
 #include "brave/components/ai_chat/core/browser/mock_conversation_handler_observer.h"
 #include "brave/components/ai_chat/core/browser/model_service.h"
+#include "brave/components/ai_chat/core/browser/sync/ai_chat_sync_backend.h"
 #include "brave/components/ai_chat/core/browser/tab_tracker_service.h"
 #include "brave/components/ai_chat/core/browser/test/mock_associated_content.h"
 #include "brave/components/ai_chat/core/browser/test_utils.h"
@@ -49,6 +53,7 @@
 #include "brave/components/ai_chat/core/browser/tools/tool.h"
 #include "brave/components/ai_chat/core/browser/types.h"
 #include "brave/components/ai_chat/core/browser/utils.h"
+#include "brave/components/ai_chat/core/common/constants.h"
 #include "brave/components/ai_chat/core/common/features.h"
 #include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"
 #include "brave/components/ai_chat/core/common/mojom/common.mojom.h"
@@ -85,6 +90,7 @@ class MockAIChatCredentialManager : public AIChatCredentialManager {
               GetPremiumStatus,
               (mojom::Service::GetPremiumStatusCallback callback),
               (override));
+  MOCK_METHOD(void, PutCredentialInCache, (CredentialCacheEntry), (override));
 };
 
 class MockServiceClient : public mojom::ServiceObserver {
@@ -172,6 +178,12 @@ class MockConversationHandlerClient : public mojom::ConversationUI {
               (std::vector<mojom::AssociatedContentPtr>),
               (override));
 
+  MOCK_METHOD(void,
+              OnContentToolsChanged,
+              (const std::string& content_uuid,
+               std::vector<mojom::ToolInfoPtr> tools),
+              (override));
+
   MOCK_METHOD(void, OnConversationDeleted, (), (override));
 
  private:
@@ -222,10 +234,15 @@ class MockAIChatDatabase : public AIChatDatabase {
               (std::string_view, uint64_t, uint64_t),
               (override));
 
+  MOCK_METHOD(bool,
+              UpdateThreadTokenInfo,
+              (std::string_view, uint64_t, uint64_t),
+              (override));
+
   MOCK_METHOD(bool, DeleteConversationEntry, (std::string_view), (override));
   MOCK_METHOD(bool, DeleteConversation, (std::string_view), (override));
   MOCK_METHOD(bool, DeleteAllData, (), (override));
-  MOCK_METHOD(bool,
+  MOCK_METHOD((std::optional<std::vector<ClearedAssociatedContentEntry>>),
               DeleteAssociatedWebContent,
               (std::optional<base::Time>, std::optional<base::Time>),
               (override));
@@ -237,6 +254,11 @@ class MockAIChatDatabase : public AIChatDatabase {
 
   MOCK_METHOD(mojom::ConversationArchivePtr,
               GetConversationData,
+              (std::string_view),
+              (override));
+
+  MOCK_METHOD(std::vector<mojom::ConversationTurnPtr>,
+              GetConversationThreadEntries,
               (std::string_view),
               (override));
 };
@@ -273,7 +295,8 @@ class AIChatServiceUnitTest : public testing::Test,
             &url_loader_factory_);
 
     model_service_ = std::make_unique<ModelService>(
-        &prefs_, os_crypt_.get(), network::NetworkContextGetter());
+        &prefs_, os_crypt_.get(), network::NetworkContextGetter(),
+        /*url_loader_factory=*/nullptr, base::FilePath());
     tab_tracker_service_ = std::make_unique<TabTrackerService>();
 
     CreateService();
@@ -367,6 +390,41 @@ class AIChatServiceUnitTest : public testing::Test,
   void WaitForConversationUnload() {
     task_environment_.AdvanceClock(base::Seconds(5));
     task_environment_.RunUntilIdle();
+  }
+
+  // Waits for asynchronous storage initialization to create the database, then
+  // flushes the database sequence so the sync bridge (re)install that
+  // OnOsCryptAsyncReady() posts behind it has run. Waits for that specific
+  // work rather than for the whole system to go idle.
+  void WaitForSyncBridgeReady() {
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return !ai_chat_service_->ai_chat_db_.is_null(); }));
+    base::RunLoop run_loop;
+    ai_chat_service_->db_task_runner_->PostTaskAndReply(
+        FROM_HERE, base::DoNothing(), run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // Raw pointer to the current sync backend (test-only accessor for the
+  // private member, since TEST_P bodies are not friends of AIChatService).
+  AIChatSyncBackend* SyncBackendPtr() {
+    return ai_chat_service_->sync_backend_.get();
+  }
+
+  // Returns whether the sync backend currently resolves a non-null controller
+  // delegate (i.e. the bridge is installed). Evaluated on the database
+  // sequence, where the backend is owned.
+  bool SyncControllerDelegateResolves() {
+    base::test::TestFuture<bool> future;
+    ai_chat_service_->db_task_runner_->PostTaskAndReplyWithResult(
+        FROM_HERE,
+        base::BindOnce(
+            [](scoped_refptr<AIChatSyncBackend> backend) {
+              return static_cast<bool>(backend->GetControllerDelegate());
+            },
+            ai_chat_service_->sync_backend_),
+        future.GetCallback());
+    return future.Take();
   }
 
   bool IsAIChatHistoryEnabled() { return GetParam(); }
@@ -478,7 +536,7 @@ TEST_P(AIChatServiceUnitTest,
   EXPECT_CALL(*engine, GenerateAssistantResponse)
       .WillOnce([&resolve](
                     PageContentsMap page_contents,
-                    const std::vector<mojom::ConversationTurnPtr>& history,
+                    const EngineConsumer::ConversationHistoryView& history,
                     bool is_temporary_chat,
                     const std::vector<base::WeakPtr<Tool>>& tools,
                     std::optional<std::string_view> preferred_tool_name,
@@ -488,18 +546,17 @@ TEST_P(AIChatServiceUnitTest,
                     base::OnceCallback<void(
                         base::expected<EngineConsumer::GenerationResultData,
                                        EngineConsumer::Error>)> done_callback) {
-        resolve =
-            base::BindOnce(
-                [](base::OnceCallback<void(
-                       base::expected<EngineConsumer::GenerationResultData,
-                                      EngineConsumer::Error>)> done_callback) {
-                  std::move(done_callback)
-                      .Run(base::ok(EngineConsumer::GenerationResultData(
-                          mojom::ConversationEntryEvent::NewCompletionEvent(
-                              mojom::CompletionEvent::New("")),
-                          std::nullopt /* model_key */)));
-                },
-                std::move(done_callback));
+        resolve = base::BindOnce(
+            [](base::OnceCallback<void(
+                   base::expected<EngineConsumer::GenerationResultData,
+                                  EngineConsumer::Error>)> done_callback) {
+              std::move(done_callback)
+                  .Run(base::ok(EngineConsumer::GenerationResultData(
+                      mojom::ConversationEntryEvent::NewCompletionEvent(
+                          mojom::CompletionEvent::New("")),
+                      std::nullopt /* model_key */)));
+            },
+            std::move(done_callback));
       });
 
   // Conversation should exist in memory.
@@ -542,29 +599,32 @@ TEST_P(AIChatServiceUnitTest, ConversationLifecycle_WithMessages) {
   EXPECT_CALL(*client_, OnConversationListChanged(testing::SizeIs(0)))
       .Times(IsAIChatHistoryEnabled() ? 0 : 1);
 
+  // Connect a client to each conversation as soon as it is created. A
+  // conversation with no connected client may be scheduled for unload as a side
+  // effect of other operations (e.g. listing conversations via
+  // GetConversations), so we keep a client connected to keep the handler alive
+  // rather than holding a raw ConversationHandler pointer across an unload
+  // wait.
   ConversationHandler* conversation_handler1 = CreateConversation();
   conversation_handler1->SetChatHistoryForTesting(CreateSampleChatHistory(1u));
+  auto client1 = CreateConversationClient(conversation_handler1);
 
   ConversationHandler* conversation_handler2 = CreateConversation();
   conversation_handler2->SetChatHistoryForTesting(CreateSampleChatHistory(1u));
+  auto client2 = CreateConversationClient(conversation_handler2);
 
   ConversationHandler* temporary_conversation = CreateConversation();
   temporary_conversation->SetTemporary(true);
   temporary_conversation->SetChatHistoryForTesting(CreateSampleChatHistory(1u));
+  auto temp_client = CreateConversationClient(temporary_conversation);
 
   ExpectConversationsSize(FROM_HERE, 3u);
 
-  // Make sure nothing is queued to unload.
+  // All conversations have a connected client, so none should be unloaded.
   WaitForConversationUnload();
-
-  // Before connecting any clients to the conversations, none should be deleted
   EXPECT_EQ(ai_chat_service_->GetInMemoryConversationCountForTesting(), 3u);
 
-  // Connect a client then disconnect
-  auto client1 = CreateConversationClient(conversation_handler1);
-  auto client2 = CreateConversationClient(conversation_handler2);
-  auto temp_client = CreateConversationClient(temporary_conversation);
-
+  // Disconnect one client at a time and verify only that conversation unloads.
   DisconnectConversationClient(client1.get());
   WaitForConversationUnload();
 
@@ -574,7 +634,6 @@ TEST_P(AIChatServiceUnitTest, ConversationLifecycle_WithMessages) {
 
   ExpectConversationsSize(FROM_HERE, IsAIChatHistoryEnabled() ? 3u : 2u);
 
-  // Connect a client then disconnect
   DisconnectConversationClient(client2.get());
   WaitForConversationUnload();
   EXPECT_EQ(ai_chat_service_->GetInMemoryConversationCountForTesting(), 1u);
@@ -880,6 +939,80 @@ TEST_P(AIChatServiceUnitTest, MaybeInitStorage_DisableStoragePref) {
   prefs_.SetBoolean(prefs::kBraveChatStorageEnabled, true);
   // Conversations are no longer in persistant storage
   ExpectConversationsSize(FROM_HERE, 0);
+}
+
+TEST_P(AIChatServiceUnitTest, GetConversations_AgainFromLoadCallback) {
+  if (IsAIChatHistoryEnabled()) {
+    WaitForSyncBridgeReady();
+  }
+  std::vector<std::string> calls;
+  base::RunLoop run_loop;
+  // The first request starts loading the conversations, and the second waits
+  // for it.
+  ai_chat_service_->GetConversations(
+      base::BindLambdaForTesting([&](std::vector<mojom::ConversationPtr>) {
+        calls.push_back("first");
+        ai_chat_service_->GetConversations(base::BindLambdaForTesting(
+            [&](std::vector<mojom::ConversationPtr>) {
+              calls.push_back("again");
+            }));
+      }));
+  ai_chat_service_->GetConversations(
+      base::BindLambdaForTesting([&](std::vector<mojom::ConversationPtr>) {
+        calls.push_back("second");
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+  EXPECT_THAT(calls, testing::ElementsAre("first", "again", "second"));
+}
+
+// With AI Chat sync enabled, toggling the storage pref off then on must keep
+// the sync backend usable. The backend (and the delegate the sync engine
+// holds) is long-lived and never swapped; disabling storage only detaches the
+// database from the bridge, and re-enabling re-attaches a fresh one. The
+// controller delegate must keep resolving throughout, so the data type does
+// not silently stop syncing after a toggle.
+TEST_P(AIChatServiceUnitTest, SyncBackendSurvivesStorageToggle) {
+  base::test::ScopedFeatureList sync_features;
+  sync_features.InitWithFeatures(
+      {features::kAIChatHistory, features::kBraveSyncAIChat}, {});
+  prefs_.SetBoolean(prefs::kBraveChatStorageEnabled, true);
+  // Rebuild the service so it picks up the sync feature and installs a bridge
+  // on the database sequence.
+  ResetService();
+  WaitForSyncBridgeReady();
+
+  AIChatSyncBackend* backend_before = SyncBackendPtr();
+  ASSERT_TRUE(backend_before);
+  EXPECT_TRUE(SyncControllerDelegateResolves());
+
+  // Toggle storage off then on.
+  prefs_.SetBoolean(prefs::kBraveChatStorageEnabled, false);
+  prefs_.SetBoolean(prefs::kBraveChatStorageEnabled, true);
+  WaitForSyncBridgeReady();
+
+  // The backend is the same object (not rebuilt), and its delegate still
+  // resolves — so the proxy delegate the sync engine holds is still valid.
+  EXPECT_EQ(SyncBackendPtr(), backend_before);
+  EXPECT_TRUE(SyncControllerDelegateResolves());
+
+  EXPECT_TRUE(ai_chat_service_->CreateConversation());
+}
+
+TEST_P(AIChatServiceUnitTest, GetConversations_StorageTurnedOffWhileLoading) {
+  if (!IsAIChatHistoryEnabled()) {
+    return;
+  }
+  WaitForSyncBridgeReady();
+  ConversationHandler* conversation_handler = CreateConversation();
+  auto client = CreateConversationClient(conversation_handler);
+  conversation_handler->SetChatHistoryForTesting(CreateSampleChatHistory(1u));
+
+  base::test::TestFuture<std::vector<mojom::ConversationPtr>> future;
+  ai_chat_service_->GetConversations(future.GetCallback());
+  prefs_.SetBoolean(prefs::kBraveChatStorageEnabled, false);
+  // The conversation, still open, is listed from memory.
+  EXPECT_EQ(future.Take().size(), 1u);
 }
 
 TEST_P(AIChatServiceUnitTest, OpenConversationWithStagedEntries_NoPermission) {
@@ -1358,6 +1491,86 @@ TEST_P(AIChatServiceUnitTest, GetSuggestedTopics_CacheTopics) {
   TestGetSuggestedTopics(topics2);
 }
 
+TEST_P(AIChatServiceUnitTest, GetSuggestedTopics_ModelChangeDropsCache) {
+  ai_chat_service_->SetTabOrganizationEngineForTesting(
+      std::make_unique<testing::NiceMock<ai_chat::MockEngineConsumer>>());
+  auto* engine = static_cast<MockEngineConsumer*>(
+      ai_chat_service_->GetTabOrganizationEngineForTesting());
+
+  std::vector<std::string> topics1{"topic1"};
+  EXPECT_CALL(*engine, GetSuggestedTopics(_, _))
+      .WillOnce(base::test::RunOnceCallback<1>(topics1));
+
+  TestGetSuggestedTopics(topics1);
+  TestGetSuggestedTopics(topics1);
+
+  // Topics describe what one model made of the tabs, so picking a different
+  // model for tab focus has to ask again rather than reuse them.
+  prefs_.SetString(prefs::kBraveAIChatTabOrganizationModelKey,
+                   kClaudeSonnetModelKey);
+
+  ai_chat_service_->SetTabOrganizationEngineForTesting(
+      std::make_unique<testing::NiceMock<ai_chat::MockEngineConsumer>>());
+  auto* new_engine = static_cast<MockEngineConsumer*>(
+      ai_chat_service_->GetTabOrganizationEngineForTesting());
+  std::vector<std::string> topics2{"topic2"};
+  EXPECT_CALL(*new_engine, GetSuggestedTopics(_, _))
+      .WillOnce(base::test::RunOnceCallback<1>(topics2));
+
+  TestGetSuggestedTopics(topics2);
+}
+
+TEST_P(AIChatServiceUnitTest,
+       GetSuggestedTopics_SendPageContentChangeDropsCache) {
+  ai_chat_service_->SetTabOrganizationEngineForTesting(
+      std::make_unique<testing::NiceMock<ai_chat::MockEngineConsumer>>());
+  auto* engine = static_cast<MockEngineConsumer*>(
+      ai_chat_service_->GetTabOrganizationEngineForTesting());
+
+  std::vector<std::string> topics1{"topic1"};
+  std::vector<std::string> topics2{"topic2"};
+  EXPECT_CALL(*engine, GetSuggestedTopics(_, _))
+      .WillOnce(base::test::RunOnceCallback<1>(topics1))
+      .WillOnce(base::test::RunOnceCallback<1>(topics2));
+
+  TestGetSuggestedTopics(topics1);
+  TestGetSuggestedTopics(topics1);
+
+  // Whether page excerpts went out is part of what the model was asked, so
+  // changing it has to ask again rather than reuse the previous answer.
+  prefs_.SetBoolean(prefs::kBraveAIChatTabOrganizationSendPageContent, true);
+
+  TestGetSuggestedTopics(topics2);
+}
+
+// Page excerpts arrive from background indexing, which is neither a pref
+// change nor a tab list change, so the cache has to notice them itself.
+TEST_P(AIChatServiceUnitTest, GetSuggestedTopics_PassagesArrivingDropCache) {
+  ai_chat_service_->SetTabOrganizationEngineForTesting(
+      std::make_unique<testing::NiceMock<ai_chat::MockEngineConsumer>>());
+  auto* engine = static_cast<MockEngineConsumer*>(
+      ai_chat_service_->GetTabOrganizationEngineForTesting());
+
+  std::vector<std::string> title_only_topics{"from the title"};
+  std::vector<std::string> content_topics{"from the page text"};
+  EXPECT_CALL(*engine, GetSuggestedTopics(_, _))
+      .WillOnce(base::test::RunOnceCallback<1>(title_only_topics))
+      .WillOnce(base::test::RunOnceCallback<1>(content_topics));
+
+  // The same tab either way: only its passages differ.
+  std::vector<Tab> before_indexing{{"id", "title", url::Origin()}};
+  std::vector<Tab> after_indexing{
+      {"id", "title", url::Origin(), {"an indexed excerpt"}}};
+
+  TestGetSuggestedTopics(title_only_topics, before_indexing);
+  // Still nothing indexed, so the answer is reused rather than asked again.
+  TestGetSuggestedTopics(title_only_topics, before_indexing);
+  // Passages showed up, so ask again instead of serving the title-only topics.
+  TestGetSuggestedTopics(content_topics, after_indexing);
+  // And the new count is what gets cached, so this one is reused too.
+  TestGetSuggestedTopics(content_topics, after_indexing);
+}
+
 TEST_P(AIChatServiceUnitTest, GetSuggestedTopics_EmptyTabs) {
   base::RunLoop run_loop;
   ai_chat_service_->GetSuggestedTopics(
@@ -1406,11 +1619,16 @@ TEST_P(AIChatServiceUnitTest, TemporaryConversation_NoDatabaseInteraction) {
     return;
   }
 
-  // Create a mock database
-  auto mock_ptr = std::make_unique<NiceMock<MockAIChatDatabase>>();
-  auto* mock_db_ptr = mock_ptr.get();
-  auto mock_db = base::SequenceBound<std::unique_ptr<AIChatDatabase>>(
-      task_environment_.GetMainThreadTaskRunner(), std::move(mock_ptr));
+  // Create a mock database. It is bound as its concrete type so the mock is
+  // constructed in place, then upcast-moved into the AIChatDatabase-typed
+  // SetDatabaseForTesting() below. Grab a pointer to it off the sequence to
+  // set expectations on.
+  auto mock_db = base::SequenceBound<NiceMock<MockAIChatDatabase>>(
+      task_environment_.GetMainThreadTaskRunner());
+  MockAIChatDatabase* mock_db_ptr = nullptr;
+  mock_db.PostTaskWithThisObject(base::BindLambdaForTesting(
+      [&](NiceMock<MockAIChatDatabase>* db) { mock_db_ptr = db; }));
+  ASSERT_TRUE(base::test::RunUntil([&] { return mock_db_ptr != nullptr; }));
 
   // Set up expectations - no database calls should be made
   EXPECT_CALL(*mock_db_ptr, AddConversation(_, _, _)).Times(0);
@@ -1419,6 +1637,7 @@ TEST_P(AIChatServiceUnitTest, TemporaryConversation_NoDatabaseInteraction) {
   EXPECT_CALL(*mock_db_ptr, UpdateConversationTitle(_, _)).Times(0);
   EXPECT_CALL(*mock_db_ptr, UpdateConversationModelKey).Times(0);
   EXPECT_CALL(*mock_db_ptr, UpdateConversationTokenInfo(_, _, _)).Times(0);
+  EXPECT_CALL(*mock_db_ptr, UpdateThreadTokenInfo(_, _, _)).Times(0);
   EXPECT_CALL(*mock_db_ptr, DeleteConversationEntry(_)).Times(0);
   EXPECT_CALL(*mock_db_ptr, DeleteConversation(_)).Times(0);
 
@@ -1439,7 +1658,7 @@ TEST_P(AIChatServiceUnitTest, TemporaryConversation_NoDatabaseInteraction) {
   ai_chat_service_->OnConversationTitleChanged(uuid, "New Title");
 
   // Test token info change
-  ai_chat_service_->OnConversationTokenInfoChanged(uuid, 100, 50);
+  ai_chat_service_->OnConversationTokenInfoChanged(uuid, std::nullopt, 100, 50);
 
   // Test removing a message
   ai_chat_service_->OnConversationEntryRemoved(conversation, "uuid");
@@ -1461,6 +1680,18 @@ TEST_P(AIChatServiceUnitTest, TemporaryConversation_NoDatabaseInteraction) {
   EXPECT_CALL(*mock_db_ptr, UpdateConversationModelKey).Times(1);
   DisconnectConversationClient(client2.get());
   testing::Mock::VerifyAndClearExpectations(mock_db_ptr);
+}
+
+TEST_P(AIChatServiceUnitTest, GetDefaultAIEngineFallsBackToAutomaticWhenStale) {
+  model_service_->SetDefaultModelKeyWithoutValidationForTesting(
+      "this-model-key-does-not-exist");
+
+  auto engine = ai_chat_service_->GetDefaultAIEngine();
+  ASSERT_TRUE(engine);
+  auto expected_name =
+      model_service_->GetLeoModelNameByKey(kChatAutomaticModelKey);
+  ASSERT_TRUE(expected_name.has_value());
+  EXPECT_EQ(engine->GetModelName(), expected_name.value());
 }
 
 TEST_P(AIChatServiceUnitTest,

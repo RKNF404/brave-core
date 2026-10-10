@@ -5,6 +5,7 @@
 
 #include <set>
 #include <string>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/path_service.h"
@@ -21,9 +22,11 @@
 #include "brave/components/ai_chat/core/browser/tools/tool.h"
 #include "brave/components/constants/brave_paths.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/reload_type.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_mock_cert_verifier.h"
@@ -38,8 +41,8 @@ namespace ai_chat {
 namespace {
 
 // Test pages served from test/data/leo/. The tool-registering page uses
-// navigator.modelContext, which is only available on secure contexts when
-// blink::features::kWebMCPTesting is enabled (which implies kWebMCP).
+// document.modelContext, which is only available on secure contexts when
+// blink::features::kWebMCP is enabled.
 constexpr char kPageWithToolsPath[] = "/web_mcp_tools.html";
 // A basic existing page that registers no tools.
 constexpr char kPageWithoutToolsPath[] = "/dummy.html";
@@ -49,11 +52,11 @@ constexpr char kPageWithoutToolsPath[] = "/dummy.html";
 class WebMcpBrowserTest : public InProcessBrowserTest {
  public:
   WebMcpBrowserTest() : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
-    // navigator.modelContext is gated by kWebMCPTesting (which implies
-    // kWebMCP). The base::Feature flips on the runtime-enabled feature in
-    // every renderer the browser spawns during this test.
+    // document.modelContext is gated by kWebMCP. The base::Feature flips on the
+    // runtime-enabled feature in every renderer the browser spawns during this
+    // test.
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{blink::features::kWebMCPTesting},
+        /*enabled_features=*/{blink::features::kWebMCP},
         /*disabled_features=*/{});
   }
 
@@ -73,11 +76,11 @@ class WebMcpBrowserTest : public InProcessBrowserTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
     mock_cert_verifier_.SetUpCommandLine(command_line);
-    // The runtime-enabled feature gating navigator.modelContext is marked
+    // The runtime-enabled feature gating document.modelContext is marked
     // "experimental" in runtime_enabled_features.json5 so the base::Feature
     // toggle alone isn't enough; the blink-feature switch turns it on in
     // every renderer for the duration of this test.
-    command_line->AppendSwitchASCII("enable-blink-features", "WebMCPTesting");
+    command_line->AppendSwitchASCII("enable-blink-features", "WebMCP");
   }
 
   void SetUpInProcessBrowserTestFixture() override {
@@ -100,6 +103,62 @@ class WebMcpBrowserTest : public InProcessBrowserTest {
     return helper ? &helper->web_contents_content() : nullptr;
   }
 
+  // Blocks until the tool-registering page has finished its async
+  // registerTool() calls, and evaluates to the number of tools the page itself
+  // sees via document.modelContext.getTools(). Callers should check this before
+  // probing the browser side, both to avoid racing registration and so that a
+  // page-side failure is reported here (as a promise rejection) rather than
+  // showing up as a confusing "zero tools" further down.
+  content::EvalJsResult WaitForPageToolCount() {
+    return content::EvalJs(GetActiveWebContents(), "__webmcpReady");
+  }
+
+  content::EvalJsResult GetPageToolCount() {
+    return content::EvalJs(
+        GetActiveWebContents(),
+        "(async () => (await document.modelContext.getTools()).length)()");
+  }
+
+  // Stashes each tool's AbortController so UnregisterPageTools() can
+  // unregister them later.
+  content::EvalJsResult RegisterPageTool(std::string_view name) {
+    return content::EvalJs(GetActiveWebContents(), content::JsReplace(R"JS(
+      (async () => {
+        window.__toolControllers = window.__toolControllers ?? [];
+        const controller = new AbortController();
+        window.__toolControllers.push(controller);
+        await document.modelContext.registerTool({
+          name: $1,
+          description: "A tool registered by the test",
+          execute: async () => "ok",
+        }, { signal: controller.signal });
+        return (await document.modelContext.getTools()).length;
+      })()
+    )JS",
+                                                                      name));
+  }
+
+  [[nodiscard]] bool UnregisterPageTools() {
+    return content::ExecJs(GetActiveWebContents(),
+                           "window.__toolControllers.forEach(c => c.abort())");
+  }
+
+  void ReloadActiveTab() {
+    auto* web_contents = GetActiveWebContents();
+    content::WaitForLoadStop(web_contents);
+    web_contents->GetController().Reload(content::ReloadType::NORMAL,
+                                         /*check_for_repost=*/false);
+    content::WaitForLoadStop(web_contents);
+  }
+
+  AssociatedContentManager* CreateConversationManager() {
+    auto* conversation =
+        AIChatServiceFactory::GetForBrowserContext(browser()->GetProfile())
+            ->CreateConversation();
+    EXPECT_TRUE(conversation);
+    return conversation->associated_content_manager();
+  }
+
   // Drives an empty new-generation-loop on the manager so it re-fetches the
   // current set of tools, then returns them.
   std::vector<base::WeakPtr<Tool>> RefreshAndGetTools(
@@ -118,7 +177,7 @@ class WebMcpBrowserTest : public InProcessBrowserTest {
   net::EmbeddedTestServer https_server_;
 };
 
-// Registering tools via navigator.modelContext on the active page should be
+// Registering tools via document.modelContext on the active page should be
 // observable through AssociatedContentManager::GetTools() once a generation
 // loop runs.
 // Diagnostic: confirms the renderer-side path returns script tools to brave's
@@ -127,9 +186,7 @@ IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
                        AssociatedWebContentsContent_DirectFetch) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), https_server()->GetURL("a.com", kPageWithToolsPath)));
-  ASSERT_EQ(
-      2, content::EvalJs(GetActiveWebContents(),
-                         "navigator.modelContextTesting.listTools().length"));
+  ASSERT_EQ(2, WaitForPageToolCount());
 
   AssociatedContentDelegate* content = GetActiveContent();
   ASSERT_TRUE(content);
@@ -144,29 +201,15 @@ IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), https_server()->GetURL("a.com", kPageWithToolsPath)));
 
-  // Make sure the WebMCP runtime feature is actually present in the renderer
-  // and the page-side registration didn't throw; without this the rest of the
-  // test would just see zero tools and the failure would be hard to diagnose.
-  EXPECT_EQ(true,
-            content::EvalJs(GetActiveWebContents(),
-                            "typeof navigator.modelContext === 'object'"));
-  EXPECT_EQ("null", content::EvalJs(GetActiveWebContents(),
-                                    "String(window.__webmcpRegisterError)"));
-  // Sanity check directly with the renderer that the tools are registered on
-  // navigator.modelContext at the moment the manager will fetch them.
-  ASSERT_EQ(
-      2, content::EvalJs(GetActiveWebContents(),
-                         "navigator.modelContextTesting.listTools().length"));
+  // Confirm the page-side registration completed before probing the browser
+  // side; without this the rest of the test would just see zero tools and the
+  // failure would be hard to diagnose.
+  ASSERT_EQ(2, WaitForPageToolCount());
 
   AssociatedContentDelegate* content = GetActiveContent();
   ASSERT_TRUE(content);
 
-  auto* ai_chat_service =
-      AIChatServiceFactory::GetForBrowserContext(browser()->profile());
-  auto* conversation = ai_chat_service->CreateConversation();
-  ASSERT_TRUE(conversation);
-
-  auto* manager = conversation->associated_content_manager();
+  auto* manager = CreateConversationManager();
   manager->AddContent(content);
 
   // AddContent attaches content that exposes tools, but the detection probe is
@@ -177,21 +220,20 @@ IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
   auto tools = RefreshAndGetTools(manager);
   ASSERT_EQ(2u, tools.size());
 
-  // Names are prefixed with the sanitized host and path
-  // ("a.com/web_mcp_tools.html" → "a_com_web_mcp_tools_html") to disambiguate
-  // page-defined tools across origins and pages.
+  // Names are prefixed with "web_" and the sanitized host ("a.com" → "a_com").
+  // Only the host is used (not the full path) to keep the name within Bedrock's
+  // 64-char tool-name limit.
   std::set<std::string> tool_names;
   for (const auto& tool : tools) {
     ASSERT_TRUE(tool);
     tool_names.insert(std::string(tool->Name()));
   }
-  EXPECT_THAT(tool_names,
-              ::testing::UnorderedElementsAre("a_com_web_mcp_tools_html_echo",
-                                              "a_com_web_mcp_tools_html_ping"));
+  EXPECT_THAT(tool_names, ::testing::UnorderedElementsAre("web_a_com_echo",
+                                                          "web_a_com_ping"));
 
   // Sanity check on metadata for the richer tool.
   for (const auto& tool : tools) {
-    if (tool->Name() == "a_com_web_mcp_tools_html_echo") {
+    if (tool->Name() == "web_a_com_echo") {
       // The description embeds the full page URL and the page-provided
       // description.
       std::string description(tool->Description());
@@ -215,12 +257,7 @@ IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
   auto* content = GetActiveContent();
   ASSERT_TRUE(content);
 
-  auto* ai_chat_service =
-      AIChatServiceFactory::GetForBrowserContext(browser()->profile());
-  auto* conversation = ai_chat_service->CreateConversation();
-  ASSERT_TRUE(conversation);
-
-  auto* manager = conversation->associated_content_manager();
+  auto* manager = CreateConversationManager();
   manager->AddContent(content);
 
   EXPECT_TRUE(RefreshAndGetTools(manager).empty());
@@ -230,14 +267,11 @@ IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
 // page's tools and drop the old page's tools.
 IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
                        AssociatedContentManager_RefreshesAcrossNavigations) {
-  auto* ai_chat_service =
-      AIChatServiceFactory::GetForBrowserContext(browser()->profile());
-  auto* conversation = ai_chat_service->CreateConversation();
-  ASSERT_TRUE(conversation);
-  auto* manager = conversation->associated_content_manager();
+  auto* manager = CreateConversationManager();
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), https_server()->GetURL("a.com", kPageWithToolsPath)));
+  ASSERT_EQ(2, WaitForPageToolCount());
   auto* content = GetActiveContent();
   manager->AddContent(content);
   // Wait for the async tool-detection probe to attach the content before the
@@ -248,6 +282,140 @@ IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), https_server()->GetURL("a.com", kPageWithoutToolsPath)));
   EXPECT_TRUE(RefreshAndGetTools(manager).empty());
+}
+
+// Late-registered tools attach the content via the `toolchange` notification.
+IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
+                       AssociatedContentManager_AttachesOnLateRegistration) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL("a.com", kPageWithoutToolsPath)));
+
+  auto* content = GetActiveContent();
+  ASSERT_TRUE(content);
+
+  auto* manager = CreateConversationManager();
+  manager->AddContent(content);
+  ASSERT_FALSE(content->tools_attached());
+
+  ASSERT_EQ(1, RegisterPageTool("late_tool"));
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return content->tools_attached(); }));
+  EXPECT_EQ(1u, RefreshAndGetTools(manager).size());
+}
+
+// Unregistering all of the page's tools detaches the staged content again.
+IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
+                       AssociatedContentManager_DetachesOnUnregistration) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL("a.com", kPageWithoutToolsPath)));
+
+  auto* content = GetActiveContent();
+  ASSERT_TRUE(content);
+
+  auto* manager = CreateConversationManager();
+  manager->AddContent(content);
+  ASSERT_FALSE(content->tools_attached());
+
+  ASSERT_EQ(1, RegisterPageTool("tool_one"));
+  ASSERT_EQ(2, RegisterPageTool("tool_two"));
+  ASSERT_TRUE(base::test::RunUntil([&] { return content->tools_attached(); }));
+
+  ASSERT_TRUE(UnregisterPageTools());
+  // Confirm the page saw the unregistration, so a failure below is
+  // browser-side.
+  ASSERT_EQ(0, GetPageToolCount());
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return !content->tools_attached(); }));
+  EXPECT_TRUE(RefreshAndGetTools(manager).empty());
+}
+
+// A reload re-establishes the subscription, so late-registered tools still
+// attach the content.
+IN_PROC_BROWSER_TEST_F(
+    WebMcpBrowserTest,
+    AssociatedContentManager_AttachesOnRegistrationAfterReload) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL("a.com", kPageWithoutToolsPath)));
+
+  auto* manager = CreateConversationManager();
+  auto* content = GetActiveContent();
+  ASSERT_TRUE(content);
+  manager->AddContent(content);
+  ASSERT_FALSE(content->tools_attached());
+
+  ReloadActiveTab();
+  ASSERT_FALSE(content->tools_attached());
+
+  ASSERT_EQ(1, RegisterPageTool("late_tool"));
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return content->tools_attached(); }));
+  EXPECT_EQ(1u, RefreshAndGetTools(manager).size());
+}
+
+// A reload keeps the content associated: the live delegate keeps its uuid, so
+// the page's re-registered tools re-attach without the frontend re-attaching.
+IN_PROC_BROWSER_TEST_F(WebMcpBrowserTest,
+                       AssociatedContentManager_ReloadKeepsAssociation) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL("a.com", kPageWithToolsPath)));
+  ASSERT_EQ(2, WaitForPageToolCount());
+
+  auto* manager = CreateConversationManager();
+  auto* content = GetActiveContent();
+  ASSERT_TRUE(content);
+  manager->AddContent(content);
+  ASSERT_TRUE(base::test::RunUntil([&] { return content->tools_attached(); }));
+
+  auto associated = manager->GetAssociatedContent();
+  ASSERT_EQ(1u, associated.size());
+  const std::string uuid_before = associated[0]->uuid;
+
+  ReloadActiveTab();
+  ASSERT_EQ(2, WaitForPageToolCount());
+
+  associated = manager->GetAssociatedContent();
+  ASSERT_EQ(1u, associated.size());
+  EXPECT_EQ(uuid_before, associated[0]->uuid);
+  EXPECT_EQ("WebMCP test", associated[0]->title);
+  ASSERT_TRUE(base::test::RunUntil([&] { return content->tools_attached(); }));
+  EXPECT_EQ(2u, RefreshAndGetTools(manager).size());
+}
+
+// A renderer-initiated reload is a converted reload, so the entry gets a new
+// UniqueID, which the delegate must track as the frontend's content_id.
+IN_PROC_BROWSER_TEST_F(
+    WebMcpBrowserTest,
+    AssociatedContentManager_LocationReloadKeepsAssociation) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL("a.com", kPageWithToolsPath)));
+  ASSERT_EQ(2, WaitForPageToolCount());
+
+  auto* manager = CreateConversationManager();
+  auto* content = GetActiveContent();
+  ASSERT_TRUE(content);
+  manager->AddContent(content);
+  ASSERT_TRUE(base::test::RunUntil([&] { return content->tools_attached(); }));
+
+  auto associated = manager->GetAssociatedContent();
+  ASSERT_EQ(1u, associated.size());
+  const std::string uuid_before = associated[0]->uuid;
+
+  auto* web_contents = GetActiveWebContents();
+  content::WaitForLoadStop(web_contents);
+  ASSERT_TRUE(content::ExecJs(web_contents, "location.reload()"));
+  content::WaitForLoadStop(web_contents);
+  ASSERT_EQ(2, WaitForPageToolCount());
+
+  associated = manager->GetAssociatedContent();
+  ASSERT_EQ(1u, associated.size());
+  EXPECT_EQ(uuid_before, associated[0]->uuid);
+  EXPECT_EQ("WebMCP test", associated[0]->title);
+  EXPECT_EQ(
+      web_contents->GetController().GetLastCommittedEntry()->GetUniqueID(),
+      associated[0]->content_id);
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return content->tools_attached(); }));
+  EXPECT_EQ(2u, RefreshAndGetTools(manager).size());
 }
 
 }  // namespace ai_chat

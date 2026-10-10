@@ -6,7 +6,7 @@
 #include "base/path_service.h"
 #include "brave/components/constants/brave_paths.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -37,8 +37,8 @@ class BraveCheckClientDownloadRequestBaseBrowserTest
 
     host_resolver()->AddRule("*", "127.0.0.1");
 
-    browser()->profile()->GetPrefs()->SetBoolean(prefs::kPromptForDownload,
-                                                 false);
+    browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kPromptForDownload,
+                                                    false);
 
     base::PathService::Get(brave::DIR_TEST_DATA, &test_data_dir_);
     https_server_.ServeFilesFromDirectory(test_data_dir_);

@@ -93,6 +93,7 @@ void PolkadotTxManager::ApproveTransaction(
   const auto& chain_id = tx_meta->chain_id();
   auto transfer_all = tx_meta->tx()->transfer_all();
   auto send_amount = tx_meta->tx()->amount();
+  auto asset_id = tx_meta->tx()->asset_id();
   auto recipient = tx_meta->tx()->recipient().pubkey;
 
   std::variant<uint128_t, TransferAll> transfer_amount = send_amount;
@@ -101,7 +102,8 @@ void PolkadotTxManager::ApproveTransaction(
   }
 
   polkadot_wallet_service_->SignAndSendTransaction(
-      chain_id, account_id->Clone(), std::move(transfer_amount), recipient,
+      chain_id, account_id->Clone(), std::move(transfer_amount), asset_id,
+      recipient,
       base::BindOnce(&PolkadotTxManager::OnApprovePolkadotTransaction,
                      weak_ptr_factory_.GetWeakPtr(), std::move(tx_meta),
                      std::move(callback)));
@@ -126,6 +128,8 @@ void PolkadotTxManager::OnApprovePolkadotTransaction(
     auto* tx = tx_meta->tx();
     CHECK(tx);
 
+    // Replace the payload we estimated with the one that was actually signed.
+    tx->set_signature_payload(extrinsic_metadata.signature_payload());
     tx->set_extrinsic_metadata(extrinsic_metadata);
   }
 
@@ -196,6 +200,10 @@ void PolkadotTxManager::OnGetChainMetadataForUnapproved(
   auto account_id = params->from.Clone();
   auto transfer_all = params->sending_max_amount;
   auto send_amount = MojomToUint128(params->amount);
+  std::optional<uint32_t> asset_id;
+  if (!params->asset_id.is_null()) {
+    asset_id = params->asset_id->id;
+  }
 
   std::variant<uint128_t, TransferAll> transfer_amount = send_amount;
   if (transfer_all) {
@@ -204,7 +212,7 @@ void PolkadotTxManager::OnGetChainMetadataForUnapproved(
 
   polkadot_wallet_service_->GetFeeEstimate(
       std::move(chain_id), std::move(account_id), std::move(transfer_amount),
-      recipient->pubkey,
+      asset_id, recipient->pubkey,
       base::BindOnce(&PolkadotTxManager::OnGetFeeForUnapproved,
                      weak_ptr_factory_.GetWeakPtr(),
                      std::move(chain_metadata.value()), std::move(params),
@@ -215,8 +223,9 @@ void PolkadotTxManager::OnGetFeeForUnapproved(
     PolkadotChainMetadata chain_metadata,
     mojom::NewPolkadotTransactionParamsPtr params,
     AddUnapprovedPolkadotTransactionCallback callback,
-    base::expected<uint128_t, std::string> partial_fee) {
-  if (!partial_fee.has_value()) {
+    base::expected<PolkadotWalletService::FeeEstimate, std::string>
+        fee_estimate) {
+  if (!fee_estimate.has_value()) {
     return std::move(callback).Run(false, "", WalletInternalErrorMessage());
   }
 
@@ -230,13 +239,13 @@ void PolkadotTxManager::OnGetFeeForUnapproved(
   CHECK(recipient.has_value());
 
   auto amount = MojomToUint128(params->amount);
-  if (params->sending_max_amount) {
+  if (params->sending_max_amount && params->asset_id.is_null()) {
     // If we're sending the maximum amount, the front-end will refuse to let the
     // user sign due to insufficient balances i.e. `(x + fee) > x` for all x. We
     // manually adjust this and if our fee is larger than our max send amount,
     // we can go ahead and reject the transaction.
     base::CheckedNumeric<uint128_t> checked_amount = amount;
-    checked_amount -= partial_fee.value();
+    checked_amount -= fee_estimate->partial_fee;
     if (!checked_amount.AssignIfValid(&amount)) {
       return std::move(callback).Run(false, "",
                                      WalletInsufficientBalanceErrorMessage());
@@ -247,9 +256,13 @@ void PolkadotTxManager::OnGetFeeForUnapproved(
 
   PolkadotTransaction tx;
   tx.set_amount(amount);
-  tx.set_fee(partial_fee.value());
+  tx.set_fee(fee_estimate->partial_fee);
   tx.set_recipient(*recipient);
   tx.set_transfer_all(params->sending_max_amount);
+  tx.set_signature_payload(std::move(fee_estimate->signature_payload));
+  if (!params->asset_id.is_null()) {
+    tx.set_asset_id(params->asset_id->id);
+  }
   tx_metadata.set_tx(std::move(tx));
 
   tx_metadata.set_from(params->from);
@@ -323,6 +336,11 @@ void PolkadotTxManager::UpdatePendingTransactions(
 
     new_pending_chain_ids.insert(polkadot_tx->chain_id());
 
+    auto tx_meta_id = polkadot_tx->id();
+    if (polkadot_transaction_status_tasks_.contains(tx_meta_id)) {
+      continue;
+    }
+
     auto task_ptr = PolkadotTransactionStatusTask::Create(
         *polkadot_wallet_service_, keyring_service(),
         polkadot_tx->from()->Clone(), polkadot_tx->chain_id(),
@@ -334,10 +352,11 @@ void PolkadotTxManager::UpdatePendingTransactions(
     }
 
     auto* task = task_ptr.get();
-    polkadot_transaction_status_tasks_.insert(std::move(task_ptr));
+    polkadot_transaction_status_tasks_.emplace(std::move(tx_meta_id),
+                                               std::move(task_ptr));
 
     task->Start(base::BindOnce(&PolkadotTxManager::OnTransactionStatusResolved,
-                               weak_ptr_factory_.GetWeakPtr(), task,
+                               weak_ptr_factory_.GetWeakPtr(),
                                std::move(polkadot_tx)));
   }
 
@@ -345,13 +364,12 @@ void PolkadotTxManager::UpdatePendingTransactions(
 }
 
 void PolkadotTxManager::OnTransactionStatusResolved(
-    PolkadotTransactionStatusTask* task,
     std::unique_ptr<PolkadotTxMeta> polkadot_tx,
     base::expected<
         std::pair<PolkadotTransactionStatus, std::optional<uint128_t>>,
         std::string> result) {
   CHECK(polkadot_tx->tx());
-  polkadot_transaction_status_tasks_.erase(task);
+  polkadot_transaction_status_tasks_.erase(polkadot_tx->id());
 
   if (!result.has_value()) {
     return;
@@ -360,7 +378,7 @@ void PolkadotTxManager::OnTransactionStatusResolved(
   auto [status, fee_paid] = result.value();
 
   const auto adjust_transfer_all_amount = [=](PolkadotTransaction* tx) {
-    if (tx->transfer_all()) {
+    if (tx->transfer_all() && !tx->asset_id().has_value()) {
       // If we're using transfer_all, we had to manually adjust the tx amount.
       // Because the actual fee can differ, our new amount can differ as well.
       // Undo our previous operation and apply the new fee, storing the

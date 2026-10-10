@@ -8,17 +8,35 @@ import("//mojo/public/tools/bindings/mojom.gni")
 
 assert(enable_local_ai)
 
-mojom_component("mojom") {
-  output_prefix = "local_ai_mojom"
-  macro_prefix = "LOCAL_AI_MOJOM"
+mojom_component("speech_recognition_mojom") {
+  output_prefix = "on_device_speech_recognition_mojom"
+  macro_prefix = "ON_DEVICE_SPEECH_RECOGNITION_MOJOM"
 
-  generate_java = true
   generate_legacy_js_bindings = true
   webui_module_path = "/"
 
-  sources = [ "local_ai.mojom" ]
+  sources = [ "on_device_speech_recognition.mojom" ]
 
-  public_deps = [ "//mojo/public/mojom/base" ]
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//services/on_device_model/public/mojom",
+  ]
+}
+
+source_set("test_support") {
+  testonly = true
+
+  sources = [
+    "test/fake_asr_session.cc",
+    "test/fake_asr_session.h",
+  ]
+
+  public_deps = [
+    ":speech_recognition_mojom",
+    "//base/test:test_support",
+    "//mojo/public/cpp/bindings",
+    "//services/on_device_model/public/mojom",
+  ]
 }
 
 component("features") {
@@ -43,6 +61,7 @@ static_library("core") {
     "on_device_speech_models_state.h",
     "pref_names.h",
     "url_constants.h",
+    "utils.h",
   ]
 
   sources = [
@@ -55,12 +74,14 @@ static_library("core") {
     "on_device_speech_models_state.h",
     "pref_names.cc",
     "pref_names.h",
+    "utils.cc",
+    "utils.h",
   ]
 
   public_deps = [
     ":features",
-    ":mojom",
     "//base",
+    "//mojo/public/cpp/base",
   ]
 
   deps = [
@@ -72,7 +93,6 @@ static_library("core") {
     "//components/prefs",
     "//components/update_client",
     "//crypto",
-    "//mojo/public/cpp/base",
     "//mojo/public/cpp/bindings",
   ]
 }
@@ -82,16 +102,19 @@ source_set("unit_tests") {
   sources = [
     "local_models_updater_unittest.cc",
     "on_device_speech_models_component_installer_unittest.cc",
+    "on_device_speech_models_state_unittest.cc",
   ]
 
   deps = [
     ":core",
     "//base",
     "//base/test:test_support",
+    "//brave/components/brave_component_updater/browser:public",
     "//brave/components/brave_component_updater/browser:test_support",
     "//components/component_updater:test_support",
     "//components/history_embeddings/core",
     "//components/prefs:test_support",
+    "//components/update_client",
     "//testing/gmock",
     "//testing/gtest",
   ]

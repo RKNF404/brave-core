@@ -39,7 +39,9 @@ source_set("containers") {
       "containers_bookmark_menu_model_delegate.h",
     ]
     deps += [
+      "//chrome/browser/ui:chrome_pages",
       "//chrome/browser/ui/views",
+      "//chrome/browser/ui/views/frame:browser_view_header",
       "//components/tabs:public",
     ]
   }

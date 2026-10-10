@@ -18,6 +18,18 @@ import os
 import subprocess
 import shlex
 import sys
+from pathlib import Path
+
+
+# Paths prefixed with abs@ will be converted to absolute paths.
+def maybe_abspath(value):
+    entries = value.split(os.pathsep)
+    for index, entry in enumerate(entries):
+        prefix, marker, path = entry.partition('abs@')
+        if marker:
+            entries[index] = prefix + os.path.abspath(path)
+
+    return os.pathsep.join(entries)
 
 
 def main():
@@ -27,14 +39,19 @@ def main():
 
     response_file = sys.argv[1]
     try:
-        with open(response_file, 'r') as f:
+        with open(response_file, 'r', encoding='utf-8') as f:
             content = f.read()
     except IOError as e:
-        print(f'Error reading response file {response_file}: {e}',
-              file=sys.stderr)
+        print(
+            f'Error reading response file {response_file}: {e}', file=sys.stderr
+        )
         sys.exit(1)
 
     args = shlex.split(content)
+
+    # Resolve any abs@ paths
+    for index, arg in enumerate(args):
+        args[index] = maybe_abspath(arg)
 
     # Parse environment variables from command line arguments.
     env_vars = {}
@@ -45,15 +62,18 @@ def main():
         else:
             break
 
-    # This script is designed to run binaries produced by the current build. We
-    # may prefix it with "./" to avoid picking up system versions that might
-    # also be on the path.
-    path = args[len(env_vars)]
-    if not os.path.isabs(path):
-        path = './' + path
+    # Ensure the command contains a path (absolute or relative)
+    cmd = args[len(env_vars)]
+    if os.path.basename(cmd) == cmd:
+        print(f'The command to run must have a path: {cmd}', file=sys.stderr)
+        sys.exit(1)
 
     # The rest of the arguments are passed directly to the executable.
-    args = [path] + args[len(env_vars) + 1:]
+    args = args[len(env_vars) :]
+
+    # Always prepend PATH if set
+    if env_vars.get('PATH') is not None:
+        env_vars['PATH'] = env_vars['PATH'] + os.pathsep + os.getenv('PATH')
 
     env = os.environ.copy()
     env.update(env_vars)
@@ -64,8 +84,10 @@ def main():
             # Windows error codes such as 0xC0000005 and 0xC0000409 are much
             # easier to recognize and differentiate in hex. In order to print
             # them as unsigned hex we need to add 4 Gig to them.
-            print('%s failed with exit code 0x%08X' % (response_file, ret +
-                                                       (1 << 32)))
+            print(
+                '%s failed with exit code 0x%08X'
+                % (response_file, ret + (1 << 32))
+            )
         else:
             print('%s failed with exit code %d' % (response_file, ret))
     sys.exit(ret)

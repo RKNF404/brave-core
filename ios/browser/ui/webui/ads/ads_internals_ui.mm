@@ -11,14 +11,18 @@
 
 #include "base/check.h"
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "brave/components/brave_ads/browser/resources/grit/ads_internals_generated_map.h"
+#include "brave/components/brave_ads/core/public/ads_internals/ads_internals_verbose_mode_feature.h"
 #include "brave/components/constants/webui_url_constants.h"
 #include "brave/ios/browser/brave_ads/ads_service_factory_ios.h"
 #include "brave/ios/browser/brave_ads/ads_service_impl_ios.h"
+#include "brave/ios/web/webui/brave_web_ui_ios_data_source.h"
 #include "brave/ios/web/webui/brave_webui_utils.h"
 #include "components/grit/brave_components_resources.h"
 #include "components/prefs/pref_service.h"
+#include "ios/chrome/browser/shared/model/application_context/application_context.h"
 #include "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #include "ios/web/public/web_state.h"
 #include "ios/web/public/webui/web_ui_ios.h"
@@ -29,10 +33,24 @@ AdsInternalsUI::AdsInternalsUI(web::WebUIIOS* web_ui, const GURL& url)
     : web::WebUIIOSController(web_ui, url.GetHost()),
       handler_(brave_ads::AdsServiceFactoryIOS::GetForProfile(
                    ProfileIOS::FromWebUIIOS(web_ui)),
-               *ProfileIOS::FromWebUIIOS(web_ui)->GetPrefs()) {
-  brave::CreateAndAddWebUIDataSource(web_ui, url.host(),
-                                     base::span(kAdsInternalsGenerated),
-                                     IDR_ADS_INTERNALS_HTML);
+               *ProfileIOS::FromWebUIIOS(web_ui)->GetPrefs(),
+               GetApplicationContext()->GetVariationsService(),
+               AdsInternalsHandler::GetComponentIdCallback(),
+               AdsInternalsHandler::GetComponentIdCallback(),
+               AdsInternalsHandler::GetComponentIdCallback(),
+               AdsInternalsHandler::GetIsSponsoredImagesLoadedCallback(),
+               AdsInternalsHandler::GetComponentIdCallback(),
+               AdsInternalsHandler::GetIsSponsoredTilesShownCallback()) {
+  BraveWebUIIOSDataSource* source = brave::CreateAndAddWebUIDataSource(
+      web_ui, url.host(), base::span(kAdsInternalsGenerated),
+      IDR_ADS_INTERNALS_HTML);
+  // iOS has no equivalent of `brave_rewards::RewardsService::
+  // LoadDiagnosticLog`, so the Logs tab has nothing to show here.
+  source->AddBoolean("logsSupported", false);
+  source->AddBoolean("verboseLoggingEnabled", false);
+  source->AddBoolean(
+      "adsInternalsVerboseModeEnabled",
+      base::FeatureList::IsEnabled(brave_ads::kAdsInternalsVerboseModeFeature));
 
   // Bind Mojom Interface
   web_ui->GetWebState()->GetInterfaceBinderForMainFrame()->AddInterface(

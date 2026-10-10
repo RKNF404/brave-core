@@ -50,7 +50,7 @@
 "vpn.popupCheckboxBlockAds" = "Блокирует нежелательные сетевые подключения";
 
 /* Text for a checkbox to present the user benefits for using Brave VPN */
-"vpn.popupCheckboxBlockAdsAlternate" = "Блокируй рекламу & трекеров во всех приложениях ";
+"vpn.popupCheckboxBlockAdsAlternate" = "Блокируй рекламу и трекеры во всех приложениях ";
 
 /* Text for a checkbox to present the user benefits for using Brave VPN */
 "vpn.popupCheckboxFast" = "Поддерживает скорость соединения до 100 Мб/с";
@@ -66,6 +66,9 @@
 
 /* It is used in context: 'Powered by BRAND_NAME' */
 "vpn.poweredBy" = "При поддержке";
+
+/* A VoiceOver label that describes the Guardian VPN image. Guardian is a company name */
+"vpn.poweredByGuardianAccessibilityLabel" = "На основе Guardian";
 
 /* Name of automatic vpn region selector */
 "vpn.regionPickerAutomaticModeCellText" = "Автоматически";

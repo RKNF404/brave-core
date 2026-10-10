@@ -11,7 +11,7 @@ import { addNewTopSite, editTopSite } from '../../api/topSites'
 import { recordClickedAdEvent } from '../../api/wallpaper'
 import * as BraveAds from 'gen/brave/components/brave_ads/core/mojom/brave_ads.mojom.m.js'
 import {
-  BraveTalkWidget as BraveTalk, Clock, EditTopSite, OverrideReadabilityColor, RewardsWidget as Rewards, SearchPromotion, VPNWidget
+  BraveTalkWidget as BraveTalk, Clock, EditTopSite, OverrideReadabilityColor, SearchPromotion, VPNWidget
 } from '../../components/default'
 import BrandedWallpaperLogo from '../../components/default/brandedWallpaper/logo'
 import BraveNews from '../../components/default/braveNews'
@@ -42,14 +42,11 @@ import BraveNewsHint from '../../components/default/braveNews/hint'
 import SponsoredImageClickArea from '../../components/default/sponsoredImage/sponsoredImageClickArea'
 import GridWidget from './gridWidget'
 
-import Icon from '@brave/leo/react/icon'
-
-import * as style from './style'
 import { defaultState } from '../../storage/new_tab_storage'
 import { EngineContextProvider } from '../../components/search/EngineContext'
 import {
-  SponsoredRichMediaBackgroundInfo, SponsoredRichMediaBackground
-} from './sponsored_rich_media_background'
+  DynamicNewTabTakeoverInfo, DynamicNewTabTakeover
+} from './dynamic_new_tab_takeover'
 
 const BraveNewsPeek =  React.lazy(() => import('../../../brave_news/browser/resources/Peek'))
 const SearchPlaceholder = React.lazy(() => import('../../components/search/SearchPlaceholder'))
@@ -104,17 +101,17 @@ function GetBackgroundImageSrc (props: Props) {
   return undefined
 }
 
-function GetSponsoredRichMediaBackground(props: Props): SponsoredRichMediaBackgroundInfo | undefined {
+function GetDynamicNewTabTakeover(props: Props): DynamicNewTabTakeoverInfo | undefined {
   const wallpaperData = props.newTabData.brandedWallpaper
 
-  const shouldShowRichMediaBackground =
+  const shouldShowDynamicContentBackground =
     props.newTabData.showBackgroundImage &&
     wallpaperData &&
     wallpaperData.isSponsored &&
     wallpaperData.type === 'richMedia' &&
     wallpaperData.wallpaperImageUrl
 
-  return shouldShowRichMediaBackground ? {
+  return shouldShowDynamicContentBackground ? {
     url: wallpaperData.wallpaperImageUrl,
     placementId: wallpaperData.wallpaperId,
     creativeInstanceId: wallpaperData.creativeInstanceId,
@@ -176,7 +173,7 @@ class NewTabPage extends React.Component<Props, State> {
   braveNewsPromptTimerId: number
   hasInitBraveNews: boolean = false
   imageSource?: string = undefined
-  sponsoredRichMediaBackgroundInfo?: SponsoredRichMediaBackgroundInfo = undefined
+  dynamicNewTabTakeoverInfo?: DynamicNewTabTakeoverInfo = undefined
   timerIdForBrandedWallpaperNotification?: number = undefined
   onVisiblityTimerExpired = () => {
     this.dismissBrandedWallpaperNotification(false)
@@ -188,7 +185,7 @@ class NewTabPage extends React.Component<Props, State> {
     // if a notification is open at component mounting time, close it
     this.props.actions.showTilesRemovedNotice(false)
     this.imageSource = GetBackgroundImageSrc(this.props)
-    this.sponsoredRichMediaBackgroundInfo = GetSponsoredRichMediaBackground(this.props)
+    this.dynamicNewTabTakeoverInfo = GetDynamicNewTabTakeover(this.props)
 
     this.trackCachedImage()
     if (GetShouldShowBrandedWallpaperNotification(this.props)) {
@@ -221,19 +218,19 @@ class NewTabPage extends React.Component<Props, State> {
       this.trackCachedImage()
     }
 
-    const oldSponsoredRichMediaBackground = GetSponsoredRichMediaBackground(prevProps)
-    const newSponsoredRichMediaBackground = GetSponsoredRichMediaBackground(this.props)
-    this.sponsoredRichMediaBackgroundInfo = newSponsoredRichMediaBackground
-    if (newSponsoredRichMediaBackground &&
-        oldSponsoredRichMediaBackground?.url !== newSponsoredRichMediaBackground?.url) {
+    const oldDynamicNewTabTakeover = GetDynamicNewTabTakeover(prevProps)
+    const newDynamicNewTabTakeover = GetDynamicNewTabTakeover(this.props)
+    this.dynamicNewTabTakeoverInfo = newDynamicNewTabTakeover
+    if (newDynamicNewTabTakeover &&
+        oldDynamicNewTabTakeover?.url !== newDynamicNewTabTakeover?.url) {
       if (this.state.backgroundHasLoaded) {
-        console.debug('Resetting to sponsored rich media background')
+        console.debug('Resetting to dynamic New Tab Takeover background')
         this.setState({ backgroundHasLoaded: false })
       }
     }
 
     if ((oldImageSource && !newImageSource) ||
-        (oldSponsoredRichMediaBackground && !newSponsoredRichMediaBackground)) {
+        (oldDynamicNewTabTakeover && !newDynamicNewTabTakeover)) {
       // reset loaded state
       console.debug('reset image loaded state due to removing image source')
       this.setState({ backgroundHasLoaded: false })
@@ -556,57 +553,7 @@ class NewTabPage extends React.Component<Props, State> {
   }
 
   renderRewardsWidget (showContent: boolean, position: number) {
-    const { rewardsState, showRewards, textDirection, braveRewardsSupported } = this.props.newTabData
-    if (!braveRewardsSupported || !showRewards) {
-      return null
-    }
-
-    const customMenuItems = [
-      {
-        label: 'rewardsOpenPanel',
-        renderIcon: () => {
-          return (
-            <style.rewardsMenuIcon>
-              <Icon name='product-bat-outline' />
-            </style.rewardsMenuIcon>
-          )
-        },
-        onClick: () => {}
-      },
-      {
-        label: 'rewardsSettings',
-        renderIcon: () => {
-          return (
-            <style.rewardsMenuIcon>
-              <Icon name='settings' />
-            </style.rewardsMenuIcon>
-          )
-        },
-        onClick: () => { window.open('chrome://rewards', '_blank', 'noopener') }
-      }
-    ]
-
-    return (
-      <Rewards
-        {...rewardsState}
-        widgetTitle={getLocale('rewardsWidgetBraveRewards')}
-        onLearnMore={this.learnMoreRewards}
-        menuPosition={'left'}
-        isCardWidget
-        paddingType={'none'}
-        isForeground={showContent}
-        stackPosition={position}
-        textDirection={textDirection}
-        preventFocus={false}
-        hideWidget={this.toggleShowRewards}
-        showContent={showContent}
-        onShowContent={this.setForegroundStackWidget.bind(this, 'rewards')}
-        onDismissNotification={this.dismissNotification}
-        customMenuItems={customMenuItems}
-        onSelfCustodyInviteDismissed={() => {}}
-        onTermsOfServiceUpdateAccepted={() => {}}
-      />
-    )
+    return null
   }
 
   renderBraveTalkWidget (showContent: boolean, position: number) {
@@ -663,7 +610,7 @@ class NewTabPage extends React.Component<Props, State> {
     }
 
     const hasImage = this.imageSource !== undefined
-    const hasSponsoredRichMediaBackground = !!this.sponsoredRichMediaBackgroundInfo
+    const hasDynamicNewTabTakeover = !!this.dynamicNewTabTakeoverInfo
     const isShowingBrandedWallpaper = !!newTabData.brandedWallpaper
 
     const hasWallpaperInfo = newTabData.backgroundWallpaper?.type === 'brave'
@@ -697,33 +644,33 @@ class NewTabPage extends React.Component<Props, State> {
         imageSrc={this.imageSource}
         imageHasLoaded={this.state.backgroundHasLoaded}
         colorForBackground={colorForBackground}
-        hasSponsoredRichMediaBackground={hasSponsoredRichMediaBackground}
+        hasDynamicNewTabTakeover={hasDynamicNewTabTakeover}
         data-show-news-prompt={((this.state.backgroundHasLoaded || colorForBackground) && this.state.isPromptingBraveNews && !defaultState.featureFlagBraveNewsFeedV2Enabled) ? true : undefined}>
         <OverrideReadabilityColor override={ this.shouldOverrideReadabilityColor(this.props.newTabData) } />
         <NewsProvider disabled={newTabData.isBraveNewsDisabledByPolicy}>
         <EngineContextProvider>
 
         {
-          this.sponsoredRichMediaBackgroundInfo &&
-          <SponsoredRichMediaBackground
-              sponsoredRichMediaBackgroundInfo={this.sponsoredRichMediaBackgroundInfo}
-              richMediaHasLoaded={this.state.backgroundHasLoaded}
+          this.dynamicNewTabTakeoverInfo &&
+          <DynamicNewTabTakeover
+              dynamicNewTabTakeoverInfo={this.dynamicNewTabTakeoverInfo}
+              dynamicContentHasLoaded={this.state.backgroundHasLoaded}
               onLoaded={() => {
                 this.setState({ backgroundHasLoaded: true })
               }}
               onEventReported={(adEventType) => {
-                if (!this.sponsoredRichMediaBackgroundInfo) {
+                if (!this.dynamicNewTabTakeoverInfo) {
                   return
                 }
 
-                getNTPBrowserAPI().sponsoredRichMediaAdEventHandler.maybeReportRichMediaAdEvent(
-                  this.sponsoredRichMediaBackgroundInfo.placementId,
-                  this.sponsoredRichMediaBackgroundInfo.creativeInstanceId,
-                  this.sponsoredRichMediaBackgroundInfo.metricType,
+                getNTPBrowserAPI().sponsoredContentAdEventHandler.maybeReportSponsoredContentAdEvent(
+                  this.dynamicNewTabTakeoverInfo.placementId,
+                  this.dynamicNewTabTakeoverInfo.creativeInstanceId,
+                  this.dynamicNewTabTakeoverInfo.metricType,
                   adEventType)
 
                 if (adEventType === BraveAds.NewTabPageAdEventType.kClicked) {
-                  window.open(this.sponsoredRichMediaBackgroundInfo.targetUrl, '_self', 'noopener,noreferrer');
+                  window.open(this.dynamicNewTabTakeoverInfo.targetUrl, '_self', 'noopener,noreferrer');
                 }
               }
             }
@@ -734,7 +681,7 @@ class NewTabPage extends React.Component<Props, State> {
             hasImage={hasImage}
             imageSrc={this.imageSource}
             imageHasLoaded={this.state.backgroundHasLoaded}
-            hasSponsoredRichMediaBackground={hasSponsoredRichMediaBackground}
+            hasDynamicNewTabTakeover={hasDynamicNewTabTakeover}
             showClock={showClock}
             showStats={showStats}
             colorForBackground={colorForBackground}
@@ -798,7 +745,7 @@ class NewTabPage extends React.Component<Props, State> {
               <Page.FooterContent>
                 {isShowingBrandedWallpaper && newTabData.brandedWallpaper &&
                   newTabData.brandedWallpaper.logo &&
-                  !hasSponsoredRichMediaBackground &&
+                  !hasDynamicNewTabTakeover &&
                   <Page.GridItemBrandedLogo>
                     <BrandedWallpaperLogo
                       menuPosition={'right'}

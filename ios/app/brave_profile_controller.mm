@@ -8,17 +8,12 @@
 #include "base/check.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
-#include "brave/components/ai_chat/ios/browser/ai_chat+private.h"
-#include "brave/components/ai_chat/ios/browser/ai_chat_delegate.h"
 #include "brave/components/ntp_background_images/browser/ntp_background_images_service.h"
-#include "brave/ios/browser/ai_chat/ai_chat_service_factory.h"
-#include "brave/ios/browser/ai_chat/model_service_factory.h"
 #include "brave/ios/browser/api/bookmarks/brave_bookmarks_api+private.h"
 #include "brave/ios/browser/api/brave_stats/brave_stats+private.h"
 #include "brave/ios/browser/api/brave_wallet/brave_wallet_api+private.h"
 #include "brave/ios/browser/api/content_settings/default_host_content_settings.h"
 #include "brave/ios/browser/api/content_settings/default_host_content_settings_internal.h"
-#include "brave/ios/browser/api/de_amp/de_amp_prefs+private.h"
 #include "brave/ios/browser/api/history/brave_history_api+private.h"
 #include "brave/ios/browser/api/ipfs/ipfs_api+private.h"
 #include "brave/ios/browser/api/ntp_background_images/ntp_background_images_service_ios+private.h"
@@ -100,7 +95,6 @@
 @property(nonatomic) BraveSyncProfileServiceIOS* syncProfileService;
 @property(nonatomic) BraveTabGeneratorAPI* tabGeneratorAPI;
 @property(nonatomic) BraveWalletAPI* braveWalletAPI;
-@property(nonatomic) DeAmpPrefs* deAmpPrefs;
 @property(nonatomic) IpfsAPIImpl* ipfsAPI;
 @property(nonatomic) WebImageDownloader* webImageDownloader;
 @property(nonatomic) NTPBackgroundImagesService* backgroundImagesService;
@@ -324,25 +318,6 @@
     _braveWalletAPI = [[BraveWalletAPI alloc] initWithBrowserState:_profile];
   }
   return _braveWalletAPI;
-}
-
-- (DeAmpPrefs*)deAmpPrefs {
-  if (!_deAmpPrefs) {
-    _deAmpPrefs =
-        [[DeAmpPrefs alloc] initWithProfileState:_profile->GetPrefs()];
-  }
-  return _deAmpPrefs;
-}
-
-- (AIChat*)aiChatAPIWithDelegate:(id<AIChatDelegate>)delegate {
-  auto* modelService = ai_chat::ModelServiceFactory::GetForProfile(_profile);
-  auto* service = ai_chat::AIChatServiceFactory::GetForProfile(_profile);
-  return [[AIChat alloc]
-      initWithAIChatService:service
-               modelService:modelService
-               profilePrefs:_profile->GetPrefs()
-      sharedURLoaderFactory:_profile->GetSharedURLLoaderFactory()
-                   delegate:delegate];
 }
 
 - (DefaultHostContentSettings*)defaultHostContentSettings {

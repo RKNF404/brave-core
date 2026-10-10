@@ -17,7 +17,6 @@
 #include "brave/components/permissions/contexts/brave_wallet_permission_context.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -67,7 +66,7 @@ class BraveWalletEventEmitterTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     brave_wallet::SetDefaultEthereumWallet(
-        browser()->profile()->GetPrefs(),
+        browser()->GetProfile()->GetPrefs(),
         brave_wallet::mojom::DefaultWallet::BraveWallet);
     InProcessBrowserTest::SetUpOnMainThread();
     mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
@@ -100,7 +99,8 @@ class BraveWalletEventEmitterTest : public InProcessBrowserTest {
   }
 
   HostContentSettingsMap* host_content_settings_map() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 
   content::WebContents* web_contents() {
@@ -109,7 +109,7 @@ class BraveWalletEventEmitterTest : public InProcessBrowserTest {
 
   BraveWalletService* brave_wallet_service() {
     return BraveWalletServiceFactory::GetServiceForContext(
-        browser()->profile());
+        browser()->GetProfile());
   }
 
   KeyringService* keyring_service() {
@@ -138,6 +138,7 @@ class BraveWalletEventEmitterTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(BraveWalletEventEmitterTest, CheckForAConnectEvent) {
+  RestoreWallet();
   GURL url =
       https_server()->GetURL("a.com", "/brave_wallet_event_emitter.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -151,6 +152,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletEventEmitterTest, CheckForAConnectEvent) {
 
 IN_PROC_BROWSER_TEST_F(BraveWalletEventEmitterTest,
                        CheckForAChainChangedEvent) {
+  RestoreWallet();
   GURL url =
       https_server()->GetURL("a.com", "/brave_wallet_event_emitter.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));

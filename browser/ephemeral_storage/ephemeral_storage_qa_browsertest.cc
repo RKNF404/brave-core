@@ -4,6 +4,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <array>
+#include <ranges>
 #include <utility>
 
 #include "base/check_op.h"
@@ -11,14 +12,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
-#include "base/types/zip.h"
 #include "brave/browser/ephemeral_storage/ephemeral_storage_service_factory.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "brave/components/constants/brave_paths.h"
 #include "brave/components/ephemeral_storage/ephemeral_storage_service.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -175,13 +174,14 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
   }
 
   HostContentSettingsMap* content_settings() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 
   net::EmbeddedTestServer* embedded_test_server() { return &https_server_; }
 
   void SetThirdPartyCookiePref(bool setting) {
-    browser()->profile()->GetPrefs()->SetInteger(
+    browser()->GetProfile()->GetPrefs()->SetInteger(
         prefs::kCookieControlsMode,
         std::to_underlying(
             setting ? content_settings::CookieControlsMode::kBlockThirdParty
@@ -189,13 +189,13 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
   }
 
   void SetCookiePref(ContentSetting setting) {
-    browser()->profile()->GetPrefs()->SetInteger(
+    browser()->GetProfile()->GetPrefs()->SetInteger(
         "profile.default_content_setting_values.cookies", setting);
   }
 
   void SetCookieControlType(brave_shields::ControlType control_type) {
     brave_shields::SetCookieControlType(
-        content_settings(), browser()->profile()->GetPrefs(), control_type,
+        content_settings(), browser()->GetProfile()->GetPrefs(), control_type,
         embedded_test_server()->GetURL("dev-pages.brave.software",
                                        kEphemeralStorageTestPage));
   }
@@ -262,7 +262,7 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
         std::to_array({StorageType::kCookies, StorageType::kLocalStorage,
                        StorageType::kSessionStorage, StorageType::kIndexDB});
 
-    for (auto [type, results] : base::zip(kStringTypes, expected)) {
+    for (auto [type, results] : std::views::zip(kStringTypes, expected)) {
       CheckStorageResults(contents, type, results);
     }
   }
@@ -279,7 +279,7 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
     static constexpr auto kFrames = std::to_array<std::string_view>(
         {"this-frame", "local-frame", "remote-frame", "nested-frame"});
 
-    for (auto [result, frame] : base::zip(expected, kFrames)) {
+    for (auto [result, frame] : std::views::zip(expected, kFrames)) {
       EXPECT_EQ(
           std::to_underlying(result),
           content::EvalJs(contents, content::JsReplace(
@@ -322,7 +322,7 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(contents);
     ASSERT_EQ(1, tabs_->count());
 
-    chrome::NewTab(browser());
+    chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
     ASSERT_EQ(2, tabs_->count());
     ASSERT_EQ(1, tabs_->active_index());
 
@@ -365,7 +365,7 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(contents);
     ASSERT_EQ(1, tabs_->count());
 
-    chrome::NewTab(browser());
+    chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
     ASSERT_EQ(2, tabs_->count());
     ASSERT_EQ(1, tabs_->active_index());
 
@@ -390,7 +390,7 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(contents);
     ASSERT_EQ(1, tabs_->count());
 
-    chrome::NewTab(browser());
+    chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
     ASSERT_EQ(2, tabs_->count());
     ASSERT_EQ(1, tabs_->active_index());
 
@@ -406,7 +406,7 @@ class EphemeralStorageQaBrowserTest : public InProcessBrowserTest {
     ASSERT_EQ(previous_tab_count - 1, browser()->tab_strip_model()->count());
 
     EphemeralStorageServiceFactory::GetInstance()
-        ->GetForContext(browser()->profile())
+        ->GetForContext(browser()->GetProfile())
         ->FireCleanupTimersForTesting();
 
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(target)));

@@ -25,7 +25,6 @@
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/interstitials/security_interstitial_page_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -133,8 +132,8 @@ class RequestOTRBrowserTestBase : public BaseLocalDataFilesBrowserTest {
   }
 
   void SetRequestOTRPref(RequestOTRService::RequestOTRActionOption value) {
-    browser()->profile()->GetPrefs()->SetInteger(kRequestOTRActionOption,
-                                                 static_cast<int>(value));
+    browser()->GetProfile()->GetPrefs()->SetInteger(kRequestOTRActionOption,
+                                                    static_cast<int>(value));
   }
 
   bool IsShowingInterstitial() {
@@ -163,7 +162,7 @@ class RequestOTRBrowserTestBase : public BaseLocalDataFilesBrowserTest {
   int GetHistoryCount() {
     history::HistoryService* history_service =
         HistoryServiceFactory::GetForProfile(
-            browser()->profile(), ServiceAccessType::IMPLICIT_ACCESS);
+            browser()->GetProfile(), ServiceAccessType::IMPLICIT_ACCESS);
     CHECK(history_service);
     int history_count = 0;
     base::RunLoop loop;

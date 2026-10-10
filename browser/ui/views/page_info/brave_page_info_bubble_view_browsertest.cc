@@ -34,7 +34,7 @@
 namespace {
 
 // Opens the page info bubble.
-void OpenPageInfoBubble(Browser* browser) {
+void OpenPageInfoBubble(BrowserWindowInterface* browser) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   LocationIconView* location_icon_view =
       browser_view->toolbar()->location_bar_view()->location_icon_view();
@@ -89,7 +89,7 @@ class BravePageInfoBubbleViewBrowserTestBase : public InProcessBrowserTest {
 
     // Set a site permission, so that the page info permissions subpage has an
     // entry to display.
-    HostContentSettingsMapFactory::GetForProfile(browser()->profile())
+    HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile())
         ->SetContentSettingDefaultScope(test_url, test_url,
                                         ContentSettingsType::GEOLOCATION,
                                         CONTENT_SETTING_ALLOW);

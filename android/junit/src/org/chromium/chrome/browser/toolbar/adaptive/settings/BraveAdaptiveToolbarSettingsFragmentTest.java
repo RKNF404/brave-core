@@ -18,7 +18,6 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentFactory;
 import androidx.fragment.app.testing.FragmentScenario;
-import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -32,8 +31,6 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.glic.GlicEnablingJni;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionUtil;
@@ -57,7 +54,6 @@ import java.util.List;
 /** Tests for {@link AdaptiveToolbarSettingsFragment}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2)
 public class BraveAdaptiveToolbarSettingsFragmentTest {
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -101,7 +97,6 @@ public class BraveAdaptiveToolbarSettingsFragmentTest {
     }
 
     @Test
-    @SmallTest
     public void testSelectShortcuts() {
         FragmentScenario<AdaptiveToolbarSettingsFragment> scenario = buildFragmentScenario();
         scenario.onFragment(

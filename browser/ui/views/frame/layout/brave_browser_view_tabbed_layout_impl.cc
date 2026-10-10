@@ -14,9 +14,7 @@
 #include "base/i18n/rtl.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/sidebar/sidebar_container_view.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
@@ -27,18 +25,17 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "ui/views/border.h"
+#include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_class_properties.h"
 
 BraveBrowserViewTabbedLayoutImpl::BraveBrowserViewTabbedLayoutImpl(
     std::unique_ptr<BrowserViewLayoutDelegate> delegate,
-    Browser* browser,
     BrowserViewLayoutViews views)
-    : BrowserViewTabbedLayoutImpl(std::move(delegate),
-                                  browser,
-                                  std::move(views)) {}
+    : BrowserViewTabbedLayoutImpl(std::move(delegate), std::move(views)) {}
 
 BraveBrowserViewTabbedLayoutImpl::~BraveBrowserViewTabbedLayoutImpl() = default;
 
@@ -53,8 +50,10 @@ void BraveBrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(
   if (delegate().ShouldShowVerticalTabs() &&
       !delegate().ShouldShowWindowTitleForVerticalTabs()) {
     CustomCornersBackground::Corners corners;
-    corners.upper_trailing = background->GetWindowCorner(/*upper=*/true);
-    corners.upper_leading = background->GetWindowCorner(/*upper=*/true);
+    corners[CornerOrientation::kTopTrailing] =
+        background->GetWindowCorner(/*upper=*/true);
+    corners[CornerOrientation::kTopLeading] =
+        background->GetWindowCorner(/*upper=*/true);
     background->SetCorners(corners);
   }
 #endif  // BUILDFLAG(IS_LINUX)
@@ -133,7 +132,7 @@ int BraveBrowserViewTabbedLayoutImpl::GetIdealSideBarWidth() const {
     return 0;
   }
 
-  return GetIdealSideBarWidth(views().contents_container->width() +
+  return GetIdealSideBarWidth(views().multi_contents_view->width() +
                               GetContentsMargins().width() +
                               views().sidebar_container->width());
 }
@@ -178,25 +177,39 @@ BraveBrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   ProposedLayout layout =
       BrowserViewTabbedLayoutImpl::CalculateProposedLayout(params);
 
-  // Retrieve contents container proposed bounds.
-  auto* contents_layout = layout.GetLayoutFor(views().contents_container);
-  CHECK(contents_layout);
-
-  // Handle contents background - contents background should be laid out before
-  // other views like sidebar or vertical tab strip in order to cover the entire
-  // contents area that contains sidebar. Otherwise, we would have hole between
-  // contents background and sidebar when using rounded corners.
-  if (views().contents_background && contents_layout) {
-    layout.AddChild(views().contents_background, contents_layout->bounds);
+  if (IsParentedToAndVisible(views().focus_mode_title_bar,
+                             views().browser_view)) {
+    // Place the title bar at the top of the client area. `params` here is the
+    // original client area, so its top is the true frame top. The space below
+    // the title bar is reserved in `DoPreLayoutComputations`, which insets a
+    // copy of the params that upstream uses to lay out the rest of the browser
+    // view.
+    auto& client_area = params.visual_client_area;
+    gfx::Rect title_bar_bounds(
+        client_area.x(), client_area.y(), client_area.width(),
+        views().focus_mode_title_bar->GetPreferredSize().height());
+    layout.AddChild(views().focus_mode_title_bar, title_bar_bounds);
   }
+
+  // Upstream only makes |main_background_region| visible when the panel opens
+  // because the contents area has margins around it. We need it to always be
+  // visible when rounded corners are enabled.
+  if (delegate().ShouldUseBraveWebViewRoundedCornersForContents()) {
+    if (auto* main_background_layout =
+            layout.GetLayoutFor(views().main_background_region)) {
+      main_background_layout->visibility = true;
+    }
+  }
+
+  // Retrieve contents container proposed bounds.
+  auto* contents_layout = layout.GetLayoutFor(views().multi_contents_view);
+  CHECK(contents_layout);
 
   // Apply vertical tab strip insets for contents container BEFORE laying out
   // sidebar, so the sidebar is positioned adjacent to (not underneath) the
   // vertical tab strip when it's on the right. This is because sidebar is laid
   // out depending on the contents_layout->bounds.
   if (views().vertical_tab_strip_host && delegate().ShouldShowVerticalTabs()) {
-    // Both vertical tab impls should not be enabled together.
-    CHECK(!tabs::IsVerticalTabsFeatureEnabled());
     contents_layout->bounds.Inset(GetInsetsConsideringVerticalTabHost());
   }
 
@@ -271,12 +284,30 @@ gfx::Rect BraveBrowserViewTabbedLayoutImpl::CalculateTopContainerLayout(
   return bounds;
 }
 
+void BraveBrowserViewTabbedLayoutImpl::DoPreLayoutComputations(
+    const BrowserLayoutParams& params) {
+  BrowserLayoutParams browser_params = params;
+
+  // In FocusMode, the titlebar appears at the top of the browser view. Reserve
+  // space for it by insetting the top of this params copy, which upstream
+  // stores and uses to lay out the rest of the browser view. The title bar
+  // itself is positioned from the un-inset params in `CalculateProposedLayout`.
+  if (IsParentedToAndVisible(views().focus_mode_title_bar,
+                             views().browser_view)) {
+    browser_params.SetTop(
+        views().focus_mode_title_bar->GetPreferredSize().height());
+  }
+
+  BrowserViewTabbedLayoutImpl::DoPreLayoutComputations(browser_params);
+}
+
 void BraveBrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
     const BrowserLayoutParams& params) {
   BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(params);
   UpdateInsetsForVerticalTabStrip();
+  delegate().UpdateContentsCornerRadii(CalculateContentsCornerRadii());
 
-  if (delegate().ShouldDrawVerticalTabStrip()) {
+  if (delegate().GetTabStripType() == TabStripType::kVertical) {
     return;
   }
 
@@ -289,18 +320,18 @@ void BraveBrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       !delegate().ShouldShowWindowTitleForVerticalTabs()) {
     // Curve toolbar corners like window corner as toolbar it's top-most UI in
     // vertical tabs.
-    toolbar_corners.upper_trailing =
+    toolbar_corners[CornerOrientation::kTopTrailing] =
         toolbar_background->GetWindowCorner(/*upper=*/true);
-    toolbar_corners.upper_leading =
+    toolbar_corners[CornerOrientation::kTopLeading] =
         toolbar_background->GetWindowCorner(/*upper=*/true);
     toolbar_background->SetCorners(toolbar_corners);
     return;
   }
 #endif  // BUILDFLAG(IS_LINUX)
 
-  toolbar_corners.upper_trailing.type =
+  toolbar_corners[CornerOrientation::kTopTrailing].type =
       CustomCornersBackground::CornerType::kRoundedWithBackground;
-  toolbar_corners.upper_leading.type =
+  toolbar_corners[CornerOrientation::kTopLeading].type =
       CustomCornersBackground::CornerType::kRoundedWithBackground;
   toolbar_background->SetCorners(toolbar_corners);
 }
@@ -341,7 +372,7 @@ void BraveBrowserViewTabbedLayoutImpl::CalculateBraveVerticalTabStripLayout(
     // contents bounds so it stays full-height and the revealed top views
     // overlay it.
     if (!IsParentedTo(views().top_container, views().browser_view)) {
-      auto* contents_layout = layout.GetLayoutFor(views().contents_container);
+      auto* contents_layout = layout.GetLayoutFor(views().multi_contents_view);
       CHECK(contents_layout);
       return contents_layout->bounds.y();
     }
@@ -389,7 +420,7 @@ void BraveBrowserViewTabbedLayoutImpl::CalculateSideBarLayout(
     return;
   }
 
-  auto* contents_layout = layout.GetLayoutFor(views().contents_container);
+  auto* contents_layout = layout.GetLayoutFor(views().multi_contents_view);
   CHECK(contents_layout);
 
   gfx::Rect contents_bounds = contents_layout->bounds;
@@ -485,7 +516,7 @@ void BraveBrowserViewTabbedLayoutImpl::CalculateSideBarLayout(
 
 void BraveBrowserViewTabbedLayoutImpl::InsetContentsContainerBounds(
     ProposedLayout& layout) const {
-  auto* contents_layout = layout.GetLayoutFor(views().contents_container);
+  auto* contents_layout = layout.GetLayoutFor(views().multi_contents_view);
   if (!contents_layout) {
     return;
   }
@@ -598,28 +629,128 @@ gfx::Insets BraveBrowserViewTabbedLayoutImpl::GetContentsMargins() const {
 
   gfx::Insets margins(kRoundedCornersContentsViewMargin);
 
-  auto contents_at_top_edge = [&]() {
-    if (delegate().IsInfobarVisible()) {
-      return false;
-    }
-    // In focus mode the top container is reparented out of the browser view, so
-    // the top chrome no longer pushes the contents down. Only treat top UI as
-    // occupying the top edge when the top container is still a child of the
-    // browser view.
-    if (IsParentedTo(views().top_container, views().browser_view)) {
-      if (delegate().ShouldDrawTabStrip() || delegate().IsToolbarVisible() ||
-          delegate().IsBookmarkBarVisible()) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  if (!contents_at_top_edge()) {
+  if (!IsContentsAtTopEdge()) {
     margins.set_top(0);
   }
 
   return margins;
+}
+
+bool BraveBrowserViewTabbedLayoutImpl::IsContentsAtTopEdge() const {
+  if (delegate().IsInfobarVisible()) {
+    return false;
+  }
+  if (IsParentedToAndVisible(views().focus_mode_title_bar,
+                             views().browser_view)) {
+    return false;
+  }
+  // In focus mode the top container is reparented out of the browser view, so
+  // the top chrome no longer pushes the contents down. Only treat top UI as
+  // occupying the top edge when the top container is still a child of the
+  // browser view.
+  if (IsParentedTo(views().top_container, views().browser_view)) {
+    if (delegate().GetTabStripType() != TabStripType::kNone ||
+        delegate().IsToolbarVisible() || delegate().IsBookmarkBarVisible()) {
+      return false;
+    }
+  }
+
+#if BUILDFLAG(IS_MAC)
+  // In this mode, top_container is in overlay widget but top_container is
+  // positioned above the browser view.
+  if (delegate().GetBrowserWindowState() ==
+      WindowState::kFullscreenWithToolbar) {
+    return false;
+  }
+#endif
+  return true;
+}
+
+bool BraveBrowserViewTabbedLayoutImpl::IsVerticalTabStripAtContentsEdge()
+    const {
+  // A vertical tab strip that reports no width floats above the contents
+  // instead of sitting beside it. This is the same test used to decide whether
+  // the contents are inset for it.
+  return delegate().ShouldShowVerticalTabs() &&
+         views().vertical_tab_strip_host &&
+         views().vertical_tab_strip_host->GetPreferredSize().width() != 0;
+}
+
+bool BraveBrowserViewTabbedLayoutImpl::IsSidebarAtContentsEdge() const {
+  // Checking the sidebar control view alone is not sufficient, because a panel
+  // can be visible while the control view is hidden.
+  return (views().sidebar_container &&
+          views().sidebar_container->IsSidebarVisible()) ||
+         (views().side_panel && views().side_panel->GetVisible());
+}
+
+gfx::RoundedCornersF
+BraveBrowserViewTabbedLayoutImpl::CalculateContentsCornerRadii() const {
+  if (!delegate().ShouldUseBraveWebViewRoundedCornersForContents() ||
+      delegate().IsFullscreenForTab()) {
+    return {};
+  }
+
+  auto* layout_provider = views::LayoutProvider::Get();
+  const float window_corner_radius = layout_provider->GetCornerRadiusMetric(
+      views::ShapeContextTokensOverride::
+          kRoundedCornersBorderRadiusAtWindowCorner);
+  const float border_corner_radius = layout_provider->GetCornerRadiusMetric(
+      views::ShapeContextTokensOverride::kRoundedCornersBorderRadius);
+
+  bool has_left_ui = false;
+  bool has_right_ui = false;
+
+  if (IsVerticalTabStripAtContentsEdge()) {
+    if (delegate().IsVerticalTabOnRight()) {
+      has_right_ui = true;
+    } else {
+      has_left_ui = true;
+    }
+  }
+
+  if (IsSidebarAtContentsEdge()) {
+    bool on_left = false;
+    if (views().sidebar_container) {
+      on_left = views().sidebar_container->sidebar_on_left();
+    } else if (views().side_panel) {
+      on_left = !views().side_panel->IsRightAligned();
+    }
+    if (on_left) {
+      has_left_ui = true;
+    } else {
+      has_right_ui = true;
+    }
+  }
+
+  const bool at_top_edge = IsContentsAtTopEdge();
+
+  gfx::RoundedCornersF corner_radii(window_corner_radius);
+  if (has_left_ui || !at_top_edge) {
+    corner_radii.set_upper_left(border_corner_radius);
+  }
+  if (has_right_ui || !at_top_edge) {
+    corner_radii.set_upper_right(border_corner_radius);
+  }
+  if (has_left_ui) {
+    corner_radii.set_lower_left(border_corner_radius);
+  }
+  if (has_right_ui) {
+    corner_radii.set_lower_right(border_corner_radius);
+  }
+
+  return corner_radii;
+}
+
+gfx::Insets BraveBrowserViewTabbedLayoutImpl::GetContentsMarginsForTesting()
+    const {
+  return GetContentsMargins();
+}
+
+gfx::RoundedCornersF
+BraveBrowserViewTabbedLayoutImpl::CalculateContentsCornerRadiiForTesting()
+    const {
+  return CalculateContentsCornerRadii();
 }
 
 bool BraveBrowserViewTabbedLayoutImpl::ShouldPushBookmarkBarForVerticalTabs()

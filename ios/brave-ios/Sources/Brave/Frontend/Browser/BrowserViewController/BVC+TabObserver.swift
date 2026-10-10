@@ -50,7 +50,6 @@ extension BrowserViewController: TabObserver {
       // (orange color) as soon as the page has loaded.
       if let url = visibleURL {
         if !url.isInternalURL(for: .readermode) {
-          topToolbar.updateReaderModeState(.unavailable)
           hideReaderModeBar(animated: false)
         }
       }
@@ -60,9 +59,9 @@ extension BrowserViewController: TabObserver {
     if let selectedTab = tabManager.selectedTab {
       if selectedTab.visibleURL?.origin != visibleURL?.origin {
         // new site has a different origin, hide wallet icon.
-        tabManager.selectedTab?.isWalletIconVisible = false
+        tabManager.selectedTab?.wallet?.isWalletIconVisible = false
         // new site, reset connected addresses
-        tabManager.selectedTab?.browserData?.clearSolanaConnectedAccounts()
+        tabManager.selectedTab?.wallet?.clearSolanaConnectedAccounts()
         // close wallet panel if it's open
         if let popoverController = self.presentedViewController as? PopoverController,
           popoverController.contentController is WalletPanelHostingController
@@ -71,27 +70,31 @@ extension BrowserViewController: TabObserver {
         }
         // dismiss wallet notification (e.g. after redirect to different origin)
         removeWalletNotificationAndClearOrigin()
-      } else if FeatureList.kBraveWalletWebUIIOS?.enabled == true,
-        profileController.braveWalletAPI.isAllowed,
+      } else if profileController.braveWalletAPI.isAllowed,
         let selectedTabVisibleURL = selectedTab.visibleURL,
         selectedTabVisibleURL.isWalletWebUIURL
       {
         // loading wallet webui. show wallet button in url bar if there are
         // 1. pending web requests
         // 2. pending transactions
-        tabManager.selectedTab?.isWalletIconVisible = true
+        tabManager.selectedTab?.wallet?.isWalletIconVisible = true
         updateURLBarWalletButton()
       }
     }
+  }
 
-    hideToastsOnNavigationStartIfNeeded(tabManager)
+  public func tabWasShown(_ tab: some TabState) {
+    if #available(iOS 26.0, *) {
+      updateWebViewObscuredInsets()
+    }
   }
 
   public func tabDidCommitNavigation(_ tab: some TabState) {
-    // Reset the stored http request now that load has committed.
-    tab.upgradedHTTPSRequest = nil
-    tab.upgradeHTTPSTimeoutTimer?.invalidate()
-    tab.upgradeHTTPSTimeoutTimer = nil
+    // Odd Chromium behaviour resets the web views obscured insets when a navigation starts due to
+    // a bug with their fullscreen support, so we must set this again after a commit
+    if #available(iOS 26.0, *) {
+      updateWebViewObscuredInsets()
+    }
 
     // Clear the current request url and the redirect source url
     // We don't need these values after the request has been comitted
@@ -102,45 +105,6 @@ extension BrowserViewController: TabObserver {
     // Dismiss any alerts that are showing on page navigation.
     if let alert = tab.shownPromptAlert {
       alert.dismiss(animated: false)
-    }
-
-    // Providers need re-initialized when changing origin to align with desktop in
-    // `BraveContentBrowserClient::RegisterBrowserInterfaceBindersForFrame`
-    // https://github.com/brave/brave-core/blob/1.52.x/browser/brave_content_browser_client.cc#L608
-    if profileController.braveWalletAPI.isAllowed {
-      tab.browserData?.clearSolanaConnectedAccounts()
-
-      if let browserData = tab.browserData {
-        let committedOrigin = tab.lastCommittedURL?.origin
-        if let provider = profileController.braveWalletAPI.ethereumProvider(
-          with: browserData,
-          origin: committedOrigin,
-          isPrivateBrowsing: tab.isPrivate
-        ) {
-          // The Ethereum provider will fetch allowed accounts from it's delegate (the tab)
-          // on initialization. Fetching allowed accounts requires the origin; so we need to
-          // initialize after `commitedURL` / `url` are updated above
-          tab.walletEthProvider = provider
-          tab.walletEthProvider?.initialize(eventsListener: browserData)
-        }
-        if let provider = profileController.braveWalletAPI.solanaProvider(
-          with: browserData,
-          origin: committedOrigin,
-          isPrivateBrowsing: tab.isPrivate
-        ) {
-          tab.walletSolProvider = provider
-          tab.walletSolProvider?.initialize(eventsListener: browserData)
-        }
-        if WalletConstants.isCardanoDAppSupportEnabled,
-          let provider = profileController.braveWalletAPI.cardanoProvider(
-            with: browserData,
-            origin: committedOrigin,
-            isPrivateBrowsing: tab.isPrivate
-          )
-        {
-          tab.walletCardanoProvider = provider
-        }
-      }
     }
 
     // The toolbar and url bar changes can not be
@@ -165,11 +129,9 @@ extension BrowserViewController: TabObserver {
     }
 
     updateUIForReaderHomeStateForTab(tab)
-    updateBackForwardActionStatus(for: tab)
   }
 
   public func tabDidCommitSameDocumentNavigation(_ tab: some TabState) {
-    tab.browserData?.resetExternalAlertProperties()
 
     if !Preferences.Privacy.privateBrowsingOnly.value,
       !tab.isPrivate || Preferences.Privacy.persistentPrivateBrowsing.value
@@ -200,29 +162,16 @@ extension BrowserViewController: TabObserver {
       isSelected: tabManager.selectedTab === tab,
       isPrivate: privateBrowsingManager.isPrivateBrowsing
     )
-    tab.browserData?.reportPageLoad(to: rewards, redirectChain: tab.redirectChain)
-
-    Task {
-      await tab.browserData?.updateEthereumProperties()
-      await tab.browserData?.updateSolanaProperties()
-    }
+    tab.browserData?.reportPageLoad(to: rewards)
 
     if tab.visibleURL?.isLocal == false {
       // Set rewards inter site url as new page load url.
       tab.rewardsXHRLoadURL = tab.visibleURL
     }
 
-    if tab.walletEthProvider != nil {
-      tab.browserData?.emitEthereumEvent(.connect)
-    }
-
     if let lastCommittedURL = tab.lastCommittedURL {
       maybeRecordBraveSearchDailyUsage(url: lastCommittedURL)
     }
-
-    // Added this method to determine long press menu actions better
-    // Since these actions are depending on tabmanager opened WebsiteCount
-    updateToolbarUsingTabManager(tabManager)
 
     recordFinishedPageLoadP3A()
   }
@@ -230,52 +179,19 @@ extension BrowserViewController: TabObserver {
   public func tab(_ tab: some TabState, didFailNavigationWithError error: any Error) {
     let error = error as NSError
     if error.code == Int(CFNetworkErrors.cfurlErrorCancelled.rawValue) {
-      // load cancelled / user stopped load. Cancel https upgrade fallback timer.
-      tab.upgradedHTTPSRequest = nil
-      tab.upgradeHTTPSTimeoutTimer?.invalidate()
-      tab.upgradeHTTPSTimeoutTimer = nil
-
       if tab === tabManager.selectedTab {
         if let displayURL = tab.visibleURL?.displayURL {
-          updateToolbarCurrentURL(displayURL)
-        } else if let url = tab.url, !url.isLocal, !InternalURL.isValid(url: url) {
-          updateToolbarCurrentURL(url.displayURL)
+          updateScreenTimeUrl(displayURL)
+        } else if let url = tab.lastCommittedURL, !url.isLocal, !InternalURL.isValid(url: url) {
+          updateScreenTimeUrl(url.displayURL)
         }
         updateWebViewPageZoom(tab: tab)
       }
       return
     }
-
-    if let url = error.userInfo[NSURLErrorFailingURLErrorKey] as? URL {
-      // Check for invalid upgrade to https
-      if url.scheme == "https",  // verify failing url was https
-        let response = handleInvalidHTTPSUpgrade(
-          tab: tab,
-          responseURL: url
-        )
-      {
-        // load original or strict mode interstitial
-        tab.loadRequest(response)
-        return
-      }
-    }
-  }
-
-  public func tabRenderProcessDidTerminate(_ tab: some TabState) {
-    guard let url = tab.lastCommittedURL else { return }
-    if url.isWebPage(includeDataURIs: false) {
-      // For now just reload the page when the process crashes
-      tab.reload()
-    }
   }
 
   public func tabDidUpdateURL(_ tab: some TabState) {
-    if tab.isDisplayingBasicAuthPrompt == true {
-      tab.setVirtualURL(
-        URL(string: "\(InternalURL.baseUrl)/\(InternalURL.Path.basicAuth.rawValue)")
-      )
-    }
-
     if tab === tabManager.selectedTab && !tab.isRestoring {
       updateUIForReaderHomeStateForTab(tab)
     }
@@ -291,8 +207,8 @@ extension BrowserViewController: TabObserver {
       // didCommit is called and it will cause url bar be empty in that period
       // To fix this when tab display url is empty, webview url is used
       if tab === tabManager.selectedTab, tab.visibleURL?.displayURL == nil {
-        if let url = tab.url, !url.isLocal, !InternalURL.isValid(url: url) {
-          updateToolbarCurrentURL(url.displayURL)
+        if let url = tab.visibleURL, !url.isLocal, !InternalURL.isValid(url: url) {
+          updateScreenTimeUrl(url.displayURL)
         }
       } else if tab === tabManager.selectedTab, tab.visibleURL?.displayURL?.scheme == "about",
         !tab.isLoading
@@ -302,12 +218,6 @@ extension BrowserViewController: TabObserver {
         }
 
         navigateInTab(tab: tab)
-      } else if tab === tabManager.selectedTab, let tabData = tab.browserData,
-        tabData.isDisplayingBasicAuthPrompt
-      {
-        updateToolbarCurrentURL(
-          URL(string: "\(InternalURL.baseUrl)/\(InternalURL.Path.basicAuth.rawValue)")
-        )
       }
     }
 
@@ -318,44 +228,8 @@ extension BrowserViewController: TabObserver {
         let rewardsURL = tab.rewardsXHRLoadURL,
         url.host == rewardsURL.host
       {
-        tab.browserData?.reportPageLoad(to: rewards, redirectChain: [url])
+        tab.browserData?.reportPageLoad(to: rewards)
       }
-    }
-
-    // Update the estimated progress when the URL changes. Estimated progress may update to 0.1 when the url
-    // is still an internal URL even though a request may be pending for a web page.
-    if tab === tabManager.selectedTab, let url = tab.visibleURL,
-      !url.isNewTabURL, !InternalURL.isValid(url: url), tab.isLoading, tab.estimatedProgress > 0
-    {
-      topToolbar.updateProgressBar(Float(tab.estimatedProgress))
-    }
-
-    Task {
-      if self.tabManager.selectedTab === tab {
-        self.updateToolbarSecureContentState(tab.visibleSecureContentState)
-      }
-    }
-  }
-
-  public func tabDidChangeLoadProgress(_ tab: some TabState) {
-    guard tab === tabManager.selectedTab else { return }
-    if let url = tab.visibleURL, !url.isNewTabURL, !InternalURL.isValid(url: url), tab.isLoading {
-      topToolbar.updateProgressBar(Float(tab.estimatedProgress))
-    } else {
-      topToolbar.hideProgressBar()
-    }
-  }
-
-  public func tabDidStartLoading(_ tab: some TabState) {
-    guard tab === tabManager.selectedTab else { return }
-    topToolbar.locationView.loading = tab.isLoading
-  }
-
-  public func tabDidStopLoading(_ tab: some TabState) {
-    guard tab === tabManager.selectedTab else { return }
-    topToolbar.locationView.loading = tab.isLoading
-    if tab.estimatedProgress != 1 {
-      topToolbar.updateProgressBar(1)
     }
   }
 
@@ -368,17 +242,6 @@ extension BrowserViewController: TabObserver {
     if !title.isEmpty && title != tab.lastTitle {
       navigateInTab(tab: tab)
       tabsBar.updateSelectedTabTitle()
-    }
-  }
-
-  public func tabDidChangeBackForwardState(_ tab: some TabState) {
-    if tab !== tabManager.selectedTab { return }
-    updateBackForwardActionStatus(for: tab)
-  }
-
-  public func tabDidChangeVisibleSecurityState(_ tab: some TabState) {
-    if tabManager.selectedTab === tab {
-      self.updateToolbarSecureContentState(tab.visibleSecureContentState)
     }
   }
 
@@ -407,7 +270,6 @@ extension BrowserViewController {
       FaviconScriptHandler(),
       YoutubeQualityScriptHandler(),
       BraveLeoScriptHandler(),
-      BraveSkusScriptHandler(),
       RequestBlockingContentScriptHandler(),
     ]
 
@@ -417,7 +279,7 @@ extension BrowserViewController {
 
     if tab.profile.prefs.isPlaylistAvailable {
       injectedScripts.append(contentsOf: [
-        PlaylistScriptHandler(tab: tab)
+        PlaylistScriptHandler()
       ])
     }
 
@@ -429,11 +291,12 @@ extension BrowserViewController {
       injectedScripts.append(Web3NameServiceScriptHandler())
     }
 
-    // Only add the logins handler and wallet provider if the tab is NOT a private browsing tab
+    // Only add the logins handler, wallet provider and skus if the tab is NOT a private tab
     if !tab.isPrivate {
       injectedScripts += [
         LoginsScriptHandler(passwordAPI: profileController.passwordAPI),
         BraveSearchResultAdScriptHandler(),
+        BraveSkusScriptHandler(),
       ]
       if profileController.braveWalletAPI.isAllowed {
         injectedScripts += [
@@ -465,9 +328,6 @@ extension BrowserViewController {
       )
     }
 
-    (tab.browserData?.getContentScript(name: PlaylistScriptHandler.scriptName)
-      as? PlaylistScriptHandler)?
-      .delegate = self
     (tab.browserData?.getContentScript(name: Web3NameServiceScriptHandler.scriptName)
       as? Web3NameServiceScriptHandler)?.delegate = self
   }

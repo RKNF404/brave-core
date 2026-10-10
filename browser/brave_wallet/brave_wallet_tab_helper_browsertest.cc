@@ -8,10 +8,12 @@
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
+#include "brave/browser/brave_wallet/brave_wallet_service_factory.h"
+#include "brave/components/brave_wallet/browser/brave_wallet_service.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
+#include "brave/components/brave_wallet/browser/keyring_service.h"
 #include "brave/components/brave_wallet/browser/test_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -54,7 +56,7 @@ base::WeakPtr<content::WebContents> ExecuteWindowOpenScript(
 
 base::WeakPtr<content::WebContents> OpenFromRegularPage(
     const GURL& url,
-    Browser* browser,
+    BrowserWindowInterface* browser,
     content::WebContents* web_contents) {
   EXPECT_EQ(1, browser->tab_strip_model()->count());
 
@@ -103,9 +105,17 @@ class BraveWalletTabHelperBrowserTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     brave_wallet::SetDefaultEthereumWallet(
-        browser()->profile()->GetPrefs(),
+        browser()->GetProfile()->GetPrefs(),
         brave_wallet::mojom::DefaultWallet::BraveWallet);
     InProcessBrowserTest::SetUpOnMainThread();
+    // The panel is opened by a dApp calling window.ethereum, which is only
+    // injected once a wallet exists.
+    ASSERT_TRUE(brave_wallet::BraveWalletServiceFactory::GetServiceForContext(
+                    browser()->GetProfile())
+                    ->keyring_service()
+                    ->RestoreWalletSync(brave_wallet::kMnemonicScarePiece,
+                                        brave_wallet::kTestWalletPassword,
+                                        false));
     mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
     host_resolver()->AddRule("*", "127.0.0.1");
 
@@ -178,7 +188,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletTabHelperBrowserTest,
   std::move(close_dialog_callback).Run();
   base::RunLoop().RunUntilIdle();
   ASSERT_TRUE(tab_helper->IsShowingBubble());
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   base::RunLoop().RunUntilIdle();
   ASSERT_FALSE(tab_helper->IsShowingBubble());
 }
@@ -201,7 +211,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletTabHelperBrowserTest,
       contents, std::make_unique<FakeUsbChooserController>(1));
   std::move(close_dialog_callback).Run();
   base::RunLoop().RunUntilIdle();
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   base::RunLoop().RunUntilIdle();
   ASSERT_FALSE(tab_helper->IsShowingBubble());
 }
@@ -230,7 +240,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletTabHelperBrowserTest,
   EXPECT_TRUE(popup1);
   EXPECT_TRUE(popup2);
   EXPECT_TRUE(tab_helper->IsShowingBubble());
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   base::RunLoop().RunUntilIdle();
   ASSERT_FALSE(tab_helper->IsShowingBubble());
 

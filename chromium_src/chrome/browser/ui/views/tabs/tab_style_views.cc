@@ -5,19 +5,24 @@
 
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
 
-#include "brave/browser/ui/color/brave_color_id.h"
-#include "brave/browser/ui/views/tabs/brave_tab_group_header.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
-#include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
+#include <memory>
+#include <utility>
 
-#define BRAVE_GM2_TAB_STYLE_H \
- protected:                   \
-  virtual
-#define CreateForTab CreateForTab_ChromiumImpl
+#include "chrome/browser/ui/views/tabs/tab.h"
+#include "ui/views/view_utils.h"
+
 #include <chrome/browser/ui/views/tabs/tab_style_views.cc>
-#undef CreateForTab
-#undef BRAVE_GM2_TAB_STYLE_H
 
-#include "brave/browser/ui/views/tabs/brave_tab_style_views.inc.cc"
+std::unique_ptr<TabStyleViews> TabStyleViews::Create(
+    std::unique_ptr<TabStyleViewDelegate> delegate,
+    TabStripOrientation orientation) {
+  // Our vertical tabs are preferred when selecting, but the fallback to the
+  // upstream vertical tab style is left in place too.
+  if (views::AsViewClass<Tab>(delegate->GetView())) {
+    return CreateBraveVerticalTabStyle(std::move(delegate));
+  }
+  if (orientation == TabStripOrientation::kVertical) {
+    return std::make_unique<VerticalTabStyleViews>(std::move(delegate));
+  }
+  return std::make_unique<HorizontalTabStyleViews>(std::move(delegate));
+}

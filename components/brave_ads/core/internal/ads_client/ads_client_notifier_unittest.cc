@@ -16,7 +16,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/page_transition_types.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -66,6 +66,7 @@ class BraveAdsAdsClientNotifierTest : public ::testing::Test {
                                             kIsNewNavigation, kIsRestoring,
                                             kIsVisible);
     ads_client_notifier_.NotifyTabDidLoad(kTabId, kHttpResponseCode);
+    ads_client_notifier_.NotifyTabDidFailToLoad(kTabId);
     ads_client_notifier_.NotifyDidCloseTab(kTabId);
 
     ads_client_notifier_.NotifyUserGestureEventTriggered(
@@ -119,6 +120,9 @@ class BraveAdsAdsClientNotifierTest : public ::testing::Test {
         .Times(expected_call_count);
     EXPECT_CALL(ads_client_notifier_observer_mock_,
                 OnNotifyTabDidLoad(kTabId, kHttpResponseCode))
+        .Times(expected_call_count);
+    EXPECT_CALL(ads_client_notifier_observer_mock_,
+                OnNotifyTabDidFailToLoad(kTabId))
         .Times(expected_call_count);
     EXPECT_CALL(ads_client_notifier_observer_mock_, OnNotifyDidCloseTab(kTabId))
         .Times(expected_call_count);

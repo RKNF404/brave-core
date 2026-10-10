@@ -20,20 +20,21 @@
 #include "base/strings/string_split.h"
 #include "brave/app/vector_icons/vector_icons.h"
 #include "brave/browser/ui/color/brave_color_id.h"
+#include "brave/browser/ui/focus_mode/focus_mode_controller.h"
+#include "brave/browser/ui/focus_mode/focus_mode_utils.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/tabs/public/switches.h"
 #include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
+#include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
 #include "brave/browser/ui/views/frame/tab_strip_placement_coordinator.h"
 #include "brave/browser/ui/views/tabs/brave_new_tab_button.h"
-#include "brave/browser/ui/views/tabs/brave_tab_search_button.h"
+#include "brave/browser/ui/views/tabs/brave_tab_container.h"
 #include "brave/browser/ui/views/tabs/brave_tab_strip_layout_helper.h"
 #include "brave/components/constants/pref_names.h"
 #include "brave/components/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_properties.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
@@ -287,10 +288,22 @@ BraveVerticalTabStripRegionView::BraveVerticalTabStripRegionView(
       browser_(browser_view->browser()),
       original_region_view_(region_view),
       tab_style_(TabStyle::Get()) {
+  CHECK(original_region_view_);
+
+  // Register this view to handle caption area hit test, so that users can drag
+  // the window by dragging the vertical tab strip region.
+  BraveNonClientHitTestHelper::From(browser_view->browser())
+      ->RegisterCaptionArea(this);
+
   // As we follow user's choice for vertical tab alignment,
   // we don't need to mirror this view.
   SetMirrored(false);
   SetNotifyEnterExitOnChild(true);
+
+  auto* container =
+      views::AsViewClass<BraveTabContainer>(tab_strip()->tab_container_);
+  CHECK(container);
+  container->SetVerticalTabStripRegionView(this);
 
   // The default state is kExpanded, so reset animation state to 1.0.
   width_animation_.Reset(1.0);
@@ -315,7 +328,7 @@ BraveVerticalTabStripRegionView::BraveVerticalTabStripRegionView(
   resize_area_ = AddChildView(std::make_unique<ResettableResizeArea>(this));
   SetBackground(views::CreateSolidBackground(kColorToolbar));
 
-  auto* prefs = browser_->profile()->GetPrefs();
+  auto* prefs = browser_->GetProfile()->GetPrefs();
 
   sidebar_side_.Init(prefs::kSidePanelHorizontalAlignment, prefs,
                      base::BindRepeating(
@@ -364,7 +377,7 @@ BraveVerticalTabStripRegionView::BraveVerticalTabStripRegionView(
 #endif
 
   vertical_tab_on_right_.Init(
-      brave_tabs::kVerticalTabsOnRight, browser()->profile()->GetPrefs(),
+      brave_tabs::kVerticalTabsOnRight, prefs,
       base::BindRepeating(
           &BraveVerticalTabStripRegionView::OnBrowserPanelsMoved,
           base::Unretained(this)));
@@ -377,7 +390,17 @@ BraveVerticalTabStripRegionView::BraveVerticalTabStripRegionView(
                             base::Unretained(this)));
   }
 
+  show_toggle_button_pref_.Init(
+      brave_tabs::kVerticalTabsShowToggleButton, prefs,
+      base::BindRepeating(
+          &BraveVerticalTabStripRegionView::OnShowToggleButtonPrefChanged,
+          base::Unretained(this)));
+
   widget_observation_.Observe(browser_view->GetWidget());
+
+  if (auto* focus_mode_controller = FocusModeController::From(browser_)) {
+    focus_mode_observation_.Observe(focus_mode_controller);
+  }
 
   // Subscribe browser closing event, so we can dispose of the context menu.
   browser_did_close_subscription_ = browser_->RegisterBrowserDidClose(
@@ -385,18 +408,42 @@ BraveVerticalTabStripRegionView::BraveVerticalTabStripRegionView(
                           base::Unretained(this)));
 
   // Note: This should happen after all the PrefMembers have been initialized.
-  OnFloatingModePrefChanged();
+  OnShowToggleButtonPrefChanged();
 
   set_context_menu_controller(this);
 }
 
 BraveVerticalTabStripRegionView::~BraveVerticalTabStripRegionView() {
+  // The tab container can be null here: upstream's own vertical tabs feature
+  // resets `tab_container_` whenever `prefs::kVerticalTabsEnabled` toggles on,
+  // regardless of whether our own vertical tab strip is what's actually shown.
+  // Nothing to unlink from in that case.
+  if (auto* container =
+          views::AsViewClass<BraveTabContainer>(tab_strip()->tab_container_)) {
+    container->SetVerticalTabStripRegionView(nullptr);
+  }
+
   // We need to move tab strip region to its original parent to avoid crash
   // during drag and drop session.
   if (auto* coordinator = GetPlacementCoordinator(browser_view_)) {
     coordinator->ClearPlacement(TabStripPlacementKind::kVerticalTabStrip);
   }
   UpdateLayout();
+}
+
+void BraveVerticalTabStripRegionView::AddedToWidget() {
+  // Retry the placement, in case it was skipped while we weren't attached.
+  if (auto* coordinator = GetPlacementCoordinator(browser_view_)) {
+    coordinator->UpdatePlacement();
+  }
+}
+
+void BraveVerticalTabStripRegionView::RemovedFromWidget() {
+  // Only clear the placement data here, no reparenting: Views may be
+  // mid-iteration tearing down the tree at this point.
+  if (auto* coordinator = GetPlacementCoordinator(browser_view_)) {
+    coordinator->ClearPlacement(TabStripPlacementKind::kVerticalTabStrip);
+  }
 }
 
 void BraveVerticalTabStripRegionView::ToggleState() {
@@ -432,20 +479,11 @@ void BraveVerticalTabStripRegionView::OnWidgetDestroying(
 }
 
 void BraveVerticalTabStripRegionView::OnFullscreenStateChanged() {
-  if (!VerticalTabController::FromBrowser(browser_)
-           ->ShouldShowBraveVerticalTabs()) {
-    return;
-  }
+  UpdateFloatingStateForBrowserMode();
+}
 
-  if (IsFloatingEnabledForBrowserFullscreen()) {
-    width_animation_.Stop();
-    SetVisible(false);
-    SetState(State::kCollapsed);
-  } else {
-    SetVisible(true);
-  }
-
-  PreferredSizeChanged();
+void BraveVerticalTabStripRegionView::OnFocusModeToggled(bool enabled) {
+  UpdateFloatingStateForBrowserMode();
 }
 
 void BraveVerticalTabStripRegionView::ListenFullscreenChanges() {
@@ -466,8 +504,7 @@ void BraveVerticalTabStripRegionView::StopListeningFullscreenChanges() {
 
 FullscreenController* BraveVerticalTabStripRegionView::GetFullscreenController()
     const {
-  auto* exclusive_access_manager =
-      browser_->GetFeatures().exclusive_access_manager();
+  auto* exclusive_access_manager = ExclusiveAccessManager::From(browser_);
   if (!exclusive_access_manager) {
     return nullptr;
   }
@@ -508,8 +545,7 @@ void BraveVerticalTabStripRegionView::SetState(State state) {
   last_state_ = std::exchange(state_, state);
   resize_area_->SetEnabled(state == State::kExpanded);
 
-  if (!VerticalTabController::FromBrowser(browser_)
-           ->ShouldShowBraveVerticalTabs()) {
+  if (!VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs()) {
     // This can happen when "float on mouse hover" is enabled and tab strip
     // orientation has been changed.
     return;
@@ -599,8 +635,7 @@ BraveVerticalTabStripRegionView::ExpandTabStripForDragging() {
 }
 
 int BraveVerticalTabStripRegionView::GetAvailableWidthForTabContainer() {
-  DCHECK(VerticalTabController::FromBrowser(browser_)
-             ->ShouldShowBraveVerticalTabs());
+  DCHECK(VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs());
   return GetPreferredWidthForState(state_, /*include_border=*/false,
                                    /*ignore_animation=*/false);
 }
@@ -612,8 +647,8 @@ gfx::Size BraveVerticalTabStripRegionView::CalculatePreferredSize(
 }
 
 gfx::Size BraveVerticalTabStripRegionView::GetMinimumSize() const {
-  if (IsFloatingEnabledForBrowserFullscreen() ||
-      ((VerticalTabController::FromBrowser(browser_)
+  if (IsFloatingEnabledForBrowserMode() ||
+      ((VerticalTabController::From(browser_)
             ->ShouldHideVerticalTabsCompletelyWhenCollapsed() &&
         state_ != State::kExpanded))) {
     // Vertical tab strip always overlaps the contents area.
@@ -703,10 +738,10 @@ void BraveVerticalTabStripRegionView::Layout(PassKey) {
 }
 
 void BraveVerticalTabStripRegionView::OnShowVerticalTabsPrefChanged() {
+  UpdateFloatingStateForBrowserMode();
   UpdateLayout();
 
-  if (!VerticalTabController::FromBrowser(browser_)
-           ->ShouldShowBraveVerticalTabs() &&
+  if (!VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs() &&
       state_ == State::kFloating) {
     mouse_enter_timer_.Stop();
     SetState(State::kCollapsed);
@@ -725,8 +760,8 @@ void BraveVerticalTabStripRegionView::UpdateLayout() {
     coordinator->UpdatePlacement();
   }
 
-  bool vertical_tabs = VerticalTabController::FromBrowser(browser_)
-                           ->ShouldShowBraveVerticalTabs();
+  bool vertical_tabs =
+      VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs();
   auto layout_orientation = vertical_tabs
                                 ? views::LayoutOrientation::kVertical
                                 : views::LayoutOrientation::kHorizontal;
@@ -783,15 +818,24 @@ void BraveVerticalTabStripRegionView::OnMouseEntered() {
   ScheduleFloatingModeTimer();
 }
 
-void BraveVerticalTabStripRegionView::ShowVerticalTabStripOnMouseOver(
+void BraveVerticalTabStripRegionView::HandleMouseEvent(
+    const gfx::PointF& point_in_screen) {
+  if (ShowVerticalTabStripOnMouseOver(point_in_screen)) {
+    return;
+  }
+
+  CollapseVerticalTabStripOnMouseOut(point_in_screen);
+}
+
+bool BraveVerticalTabStripRegionView::ShowVerticalTabStripOnMouseOver(
     const gfx::PointF& point_in_screen) {
   if (!IsFloatingVerticalTabsEnabled()) {
-    return;
+    return false;
   }
 
   // If already expanded, no need to show on mouse over.
   if (state_ == State::kExpanded || state_ == State::kFloating) {
-    return;
+    return false;
   }
 
   gfx::RectF mouse_event_detect_bounds(
@@ -808,8 +852,24 @@ void BraveVerticalTabStripRegionView::ShowVerticalTabStripOnMouseOver(
 
   if (mouse_event_detect_bounds.Contains(point_in_screen)) {
     OnMouseEntered();
+    return true;
+  }
+
+  return false;
+}
+
+void BraveVerticalTabStripRegionView::CollapseVerticalTabStripOnMouseOut(
+    const gfx::PointF& point_in_screen) {
+  if (state_ != State::kFloating) {
     return;
   }
+
+  if (gfx::RectF(GetBoundsInScreen()).Contains(point_in_screen)) {
+    return;
+  }
+
+  mouse_enter_timer_.Stop();
+  ScheduleCollapseTimer();
 }
 
 void BraveVerticalTabStripRegionView::OnMousePressedInTree() {
@@ -831,8 +891,7 @@ void BraveVerticalTabStripRegionView::OnMousePressedInTree() {
 
 void BraveVerticalTabStripRegionView::OnBoundsChanged(
     const gfx::Rect& previous_bounds) {
-  if (!VerticalTabController::FromBrowser(browser_)
-           ->ShouldShowBraveVerticalTabs()) {
+  if (!VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs()) {
     return;
   }
 
@@ -907,8 +966,8 @@ void BraveVerticalTabStripRegionView::AnimationEnded(
 }
 
 void BraveVerticalTabStripRegionView::UpdateNewTabButtonVisibility() {
-  const bool is_vertical_tabs = VerticalTabController::FromBrowser(browser_)
-                                    ->ShouldShowBraveVerticalTabs();
+  const bool is_vertical_tabs =
+      VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs();
   auto* original_ntb = original_region_view_->new_tab_button();
   original_ntb->SetVisible(!is_vertical_tabs);
   new_tab_button_->SetVisible(is_vertical_tabs);
@@ -924,7 +983,7 @@ int BraveVerticalTabStripRegionView::GetTabStripViewportMaxHeight() const {
 }
 
 void BraveVerticalTabStripRegionView::ResetExpandedWidth() {
-  auto* prefs = browser_->profile()->GetPrefs();
+  auto* prefs = browser_->GetProfile()->GetPrefs();
   prefs->ClearPref(brave_tabs::kVerticalTabsExpandedWidth);
 
   PreferredSizeChanged();
@@ -944,7 +1003,7 @@ void BraveVerticalTabStripRegionView::UpdateBorder() {
 
     // Only show the border if the vertical tabs are enabled and in floating
     // mode, and the tabstrip is hovered.
-    return VerticalTabController::FromBrowser(browser_)
+    return VerticalTabController::From(browser_)
                ->ShouldShowBraveVerticalTabs() &&
            state_ == State::kFloating;
   };
@@ -1025,7 +1084,7 @@ void BraveVerticalTabStripRegionView::
   if (state_ == State::kCollapsed) {
     // When setting is turned on/off, we should make sure vertical tab strip is
     // getting hidden/shown.
-    SetVisible(!VerticalTabController::FromBrowser(browser_)
+    SetVisible(!VerticalTabController::From(browser_)
                     ->ShouldHideVerticalTabsCompletelyWhenCollapsed());
   }
 
@@ -1033,6 +1092,19 @@ void BraveVerticalTabStripRegionView::
   // updating widget bounds at
   // BraveVerticalTabStripContainerView::UpdateVerticalTabBounds().
   PreferredSizeChanged();
+}
+
+void BraveVerticalTabStripRegionView::OnShowToggleButtonPrefChanged() {
+  if (!show_toggle_button_pref_.GetValue()) {
+    // There is no other way to expand collapsed vertical tabs when the
+    // toggle button is hidden, so force the base/resting state to collapsed.
+    collapsed_pref_.SetValue(true);
+    SetState(State::kCollapsed);
+  }
+
+  // Floating mode is forced on when the toggle button is hidden; make sure
+  // this state change is applied immediately.
+  OnFloatingModePrefChanged();
 }
 
 void BraveVerticalTabStripRegionView::OnExpandedWidthPrefChanged() {
@@ -1051,8 +1123,7 @@ gfx::Size BraveVerticalTabStripRegionView::GetPreferredSizeForState(
     State state,
     bool include_border,
     bool ignore_animation) const {
-  if (!VerticalTabController::FromBrowser(browser_)
-           ->ShouldShowBraveVerticalTabs()) {
+  if (!VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs()) {
     return {};
   }
 
@@ -1073,13 +1144,13 @@ int BraveVerticalTabStripRegionView::GetPreferredWidthForState(
   };
 
   auto calculate_collapsed_width = [&]() {
-    if (IsFloatingEnabledForBrowserFullscreen()) {
+    if (IsFloatingEnabledForBrowserMode()) {
       // In this case, vertical tab strip should be invisible but show up when
       // mouse hovers.
       return 0;
     }
 
-    if (VerticalTabController::FromBrowser(browser_)
+    if (VerticalTabController::From(browser_)
             ->ShouldHideVerticalTabsCompletelyWhenCollapsed()) {
       return 0;
     }
@@ -1117,16 +1188,51 @@ int BraveVerticalTabStripRegionView::GetPreferredWidthForState(
 }
 
 bool BraveVerticalTabStripRegionView::IsFloatingVerticalTabsEnabled() const {
-  return IsFloatingEnabledForBrowserFullscreen() ||
-         VerticalTabController::FromBrowser(browser_)
+  return IsFloatingEnabledForBrowserMode() ||
+         VerticalTabController::From(browser_)
              ->IsFloatingVerticalTabsEnabled() ||
-         VerticalTabController::FromBrowser(browser_)
+         VerticalTabController::From(browser_)
              ->ShouldHideVerticalTabsCompletelyWhenCollapsed();
 }
 
 bool BraveVerticalTabStripRegionView::IsFloatingEnabledForBrowserFullscreen()
     const {
   return IsBrowserFullscren() && !ShouldShowVerticalTabsInBrowserFullscreen();
+}
+
+bool BraveVerticalTabStripRegionView::IsFloatingEnabledForBrowserMode() const {
+  return IsFloatingEnabledForBrowserFullscreen() ||
+         IsFocusModeEnabled(browser_);
+}
+
+void BraveVerticalTabStripRegionView::UpdateFloatingStateForBrowserMode() {
+  if (!VerticalTabController::From(browser_)->ShouldShowBraveVerticalTabs()) {
+    return;
+  }
+
+  if (IsFloatingEnabledForBrowserMode()) {
+    // When transitioning into floating mode due to the current browser mode,
+    // save the current state so that it can be restored when floating is no
+    // longer required.
+    if (!floating_restore_state_) {
+      floating_restore_state_ = state_;
+      width_animation_.Stop();
+      SetVisible(false);
+      SetState(State::kCollapsed);
+    }
+  } else if (floating_restore_state_) {
+    // When exiting floating mode based on the current browser mode, restore the
+    // pref-based expanded/collapsed state.
+    const State restore_state = floating_restore_state_.value();
+    floating_restore_state_.reset();
+    SetVisible(true);
+    SetState(restore_state);
+  }
+
+  // This method is called whenever browser mode(fullscreen or focus mode) is
+  // changed. Even floating state is not changed, host view's preferred size
+  // should be updated. Notify to VerticalTabStripContainerView to do it.
+  PreferredSizeChanged();
 }
 
 void BraveVerticalTabStripRegionView::ScheduleFloatingModeTimer() {
@@ -1230,8 +1336,8 @@ std::u16string BraveVerticalTabStripRegionView::GetShortcutTextForNewTabButton(
 void BraveVerticalTabStripRegionView::OnCollapseAnimationEnded() {
   CHECK_EQ(state_, State::kCollapsed);
 
-  if (IsFloatingEnabledForBrowserFullscreen() ||
-      VerticalTabController::FromBrowser(browser_)
+  if (IsFloatingEnabledForBrowserMode() ||
+      VerticalTabController::From(browser_)
           ->ShouldHideVerticalTabsCompletelyWhenCollapsed()) {
     // When the animation ends, we should hide the vertical tab strip as we
     // don't want the tabstrip to be visible partially. This view only takes a

@@ -6,12 +6,12 @@
 package org.chromium.chrome.browser.toolbar.top;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.View;
 import android.view.View.OnLongClickListener;
 
 import androidx.annotation.ColorInt;
 
-import org.chromium.base.BraveReflectionUtil;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
@@ -29,6 +29,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
+import org.chromium.chrome.browser.theme.BraveDynamicColors;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
@@ -43,6 +44,8 @@ import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripTransitionDelegate;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripTransitionHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuButtonHelper;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
@@ -115,7 +118,9 @@ public class BraveTopToolbarCoordinator extends TopToolbarCoordinator {
             DeviceLockActivityLauncher deviceLockActivityLauncher,
             BottomSheetController bottomSheetController,
             ModalDialogManager modalDialogManager,
-            SnackbarManager snackbarManager) {
+            SnackbarManager snackbarManager,
+            Runnable onSigninTapped,
+            boolean suppressTabStripAtStart) {
         super(
                 controlContainer,
                 toolbarLayout,
@@ -160,7 +165,9 @@ public class BraveTopToolbarCoordinator extends TopToolbarCoordinator {
                 deviceLockActivityLauncher,
                 bottomSheetController,
                 modalDialogManager,
-                snackbarManager);
+                snackbarManager,
+                onSigninTapped,
+                suppressTabStripAtStart);
 
         mBraveToolbarLayout = toolbarLayout;
         mBraveMenuButtonCoordinator = browsingModeMenuButtonCoordinator;
@@ -168,46 +175,56 @@ public class BraveTopToolbarCoordinator extends TopToolbarCoordinator {
         mControlContainer = controlContainer;
 
         if (isToolbarPhone()) {
-            // We basically do here what we must do at ToolbarPhone.ctor
-            // mLocationBarBackgroundColorForNtp =
-            //      getContext().getColor(R.color.location_bar_background_color_for_ntp);
-            // But we can't use bytecode patching to overide constructor because ToolbarPhone object
-            // is created via reflection during inflate of layout/toolbar_phone.xml.
-            // So use reflection to set ToolbarPhone.mLocationBarBackgroundColorForNtp
+            ToolbarPhone toolbarPhone = (ToolbarPhone) mBraveToolbarLayout;
+            if (BraveDynamicColors.isDynamicColorsEnabled()) {
+                // Preserve and normalize the active dynamic NTP colors.
+                // The translucent location bar overlaps Brave's toolbar button backgrounds.
+                // Flatten its color first so the overlap does not apply the NTP accent twice.
+                @ColorInt
+                int opaqueLocationBarBackgroundColorForNtp =
+                        ColorUtils.overlayColor(
+                                toolbarPhone.mToolbarBackgroundColorForNtp,
+                                toolbarPhone.mLocationBarBackgroundColorForNtp);
+                toolbarPhone.mLocationBarBackgroundColorForNtp =
+                        opaqueLocationBarBackgroundColorForNtp;
+            } else {
+                // We basically do here what we must do at ToolbarPhone.ctor
+                // mLocationBarBackgroundColorForNtp =
+                //      getContext().getColor(R.color.location_bar_background_color_for_ntp);
 
-            // ContextUtils.getApplicationContext() does not respect Dark theme,
-            // we must get ToolbarPhone context.
-            Object toolbarContext =
-                    BraveReflectionUtil.invokeMethod(
-                            android.view.View.class, mBraveToolbarLayout, "getContext");
+                // The application context does not respect the dark theme.
+                Context toolbarContext = mBraveToolbarLayout.getContext();
 
-            assert toolbarContext instanceof Context;
+                @ColorInt
+                int locationBarBackgroundColorForNtp =
+                        toolbarContext.getColor(R.color.location_bar_background_color_for_ntp);
+                toolbarPhone.mLocationBarBackgroundColorForNtp = locationBarBackgroundColorForNtp;
 
-            @ColorInt
-            int locationBarBackgroundColorForNtp =
-                    ((Context) toolbarContext)
-                            .getColor(R.color.location_bar_background_color_for_ntp);
+                // We need to set toolbar background color which in upstream is calculated
+                // at ToolbarPhone.updateLocationBarLayoutForExpansionAnimation with
+                // ColorUtils.blendColorsMultiply(...), which otherwise will be a bit
+                // more gray than white and will have poor contrast with address bar area.
+                @ColorInt
+                int toolbarBackgroundColorForNtp =
+                        toolbarContext.getColor(R.color.toolbar_background_color_for_ntp);
 
-            BraveReflectionUtil.setField(
-                    ToolbarPhone.class,
-                    "mLocationBarBackgroundColorForNtp",
-                    mBraveToolbarLayout,
-                    locationBarBackgroundColorForNtp);
+                if (!ColorUtils.inNightMode(toolbarContext)) {
+                    toolbarPhone.mToolbarBackgroundColorForNtp = toolbarBackgroundColorForNtp;
+                }
+            }
 
-            // We need to set toolbar background color which in upstream is calculated
-            // at ToolbarPhone.updateLocationBarLayoutForExpansionAnimation with
-            // ColorUtils.blendColorsMultiply(...), which otherwise will be a bit
-            // more gray than white and will have poor contrast with address bar area.
-            @ColorInt
-            int toolbarBackgroundColorForNtp =
-                    ((Context) toolbarContext).getColor(R.color.toolbar_background_color_for_ntp);
-
-            if (!ColorUtils.inNightMode((Context) toolbarContext)) {
-                BraveReflectionUtil.setField(
-                        ToolbarPhone.class,
-                        "mToolbarBackgroundColorForNtp",
-                        mBraveToolbarLayout,
-                        toolbarBackgroundColorForNtp);
+            // Brave's NTP draws a background image rather than upstream's home surface color, so
+            // the toolbar matches the bottom bar instead.
+            Context toolbarContext = mBraveToolbarLayout.getContext();
+            if (BottomBarConfigUtils.isBottomBarEnabled(toolbarContext)) {
+                toolbarPhone.mToolbarBackgroundColorForNtp =
+                        BottomBarUtils.getBottomBarBackgroundColor(
+                                toolbarContext, /* isIncognito= */ false);
+                // The default light location bar color is too close to the bottom bar's.
+                if (!BraveDynamicColors.isDynamicColorsEnabled()
+                        && !ColorUtils.inNightMode(toolbarContext)) {
+                    toolbarPhone.mLocationBarBackgroundColorForNtp = Color.WHITE;
+                }
             }
         }
     }

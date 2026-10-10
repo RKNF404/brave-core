@@ -18,7 +18,7 @@ VISIT(brave_fields);
   VISIT_PROTO_FIELDS(const sync_pb::AIChatCompressibleString& proto) {     \
     VISIT(raw);                                                            \
     VISIT_BYTES(gzipped);                                                  \
-    VISIT(was_truncated_for_sync);                                         \
+    VISIT(omitted_content_hash);                                           \
   }                                                                        \
   VISIT_PROTO_FIELDS(const sync_pb::AIChatConversationSpecifics& proto) {  \
     VISIT(conversation);                                                   \
@@ -31,14 +31,12 @@ VISIT(brave_fields);
     VISIT(model_key);                                                      \
     VISIT(total_tokens);                                                   \
     VISIT(trimmed_tokens);                                                 \
-    VISIT(created_time_unix_epoch_micros);                                 \
-    VISIT(last_modified_time_unix_epoch_micros);                           \
   }                                                                        \
   VISIT_PROTO_FIELDS(                                                      \
       const sync_pb::AIChatConversationSpecifics_Entry& proto) {           \
     VISIT(uuid);                                                           \
     VISIT(conversation_uuid);                                              \
-    VISIT(date_unix_epoch_micros);                                         \
+    VISIT(created_time_windows_epoch_micros);                              \
     VISIT(entry_text);                                                     \
     VISIT(prompt);                                                         \
     VISIT(character_type);                                                 \
@@ -49,6 +47,15 @@ VISIT(brave_fields);
     VISIT_REP(events);                                                     \
     VISIT_REP(associated_content);                                         \
     VISIT_REP(uploaded_files);                                             \
+    VISIT(skill);                                                          \
+    VISIT(near_verification_status);                                       \
+  }                                                                        \
+  VISIT_PROTO_FIELDS(const sync_pb::AIChatSkillEntry& proto) {             \
+    VISIT(shortcut);                                                       \
+    VISIT(prompt);                                                         \
+  }                                                                        \
+  VISIT_PROTO_FIELDS(const sync_pb::AIChatNEARVerificationStatus& proto) { \
+    VISIT(verified);                                                       \
   }                                                                        \
   VISIT_PROTO_FIELDS(const sync_pb::AIChatAssociatedContentProto& proto) { \
     VISIT(uuid);                                                           \
@@ -63,15 +70,10 @@ VISIT(brave_fields);
     VISIT(filesize);                                                       \
     VISIT(type);                                                           \
     VISIT_BYTES(data);                                                     \
-    VISIT(data_truncated_for_sync);                                        \
+    VISIT(omitted_data_hash);                                              \
     VISIT(extracted_text);                                                 \
   }                                                                        \
-  VISIT_PROTO_FIELDS(const sync_pb::AIChatPermissionChallenge& proto) {    \
-    VISIT(assessment);                                                     \
-    VISIT(plan);                                                           \
-  }                                                                        \
   VISIT_PROTO_FIELDS(const sync_pb::AIChatEntryEventProto& proto) {        \
-    VISIT(event_order);                                                    \
     VISIT(completion);                                                     \
     VISIT(search_queries);                                                 \
     VISIT(web_sources);                                                    \
@@ -103,7 +105,6 @@ VISIT(brave_fields);
     VISIT_REP(output);                                                     \
     VISIT(is_server_result);                                               \
     VISIT_REP(artifacts);                                                  \
-    VISIT(permission_challenge);                                           \
   }                                                                        \
   VISIT_PROTO_FIELDS(const sync_pb::AIChatContentBlock& proto) {           \
     VISIT(image_content_block);                                            \

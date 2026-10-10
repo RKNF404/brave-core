@@ -19,6 +19,7 @@
 #include "base/values.h"
 #include "brave/components/brave_shields/core/common/features.h"
 #include "brave/components/content_settings/renderer/brave_content_settings_agent_impl.h"
+#include "brave/components/cosmetic_filters/common/scriptlet_constants.h"
 #include "brave/components/cosmetic_filters/resources/grit/cosmetic_filters_generated.h"
 #include "content/public/renderer/render_frame.h"
 #include "gin/converter.h"
@@ -51,7 +52,8 @@ constexpr char kObservingScriptletEntryPoint[] =
 
 constexpr char kScriptletInitScript[] =
     R"((function() {
-          let text = '(function() {\nconst scriptletGlobals = (() => {\nconst forwardedMapMethods = ["has", "get", "set"];\nconst handler = {\nget(target, prop) { if (forwardedMapMethods.includes(prop)) { return Map.prototype[prop].bind(target) } return target.get(prop); },\nset(target, prop, value) { if (!forwardedMapMethods.includes(prop)) { target.set(prop, value); } }\n};\nreturn new Proxy(new Map(%s), handler);\n})();\nlet deAmpEnabled = %s;\n' + %s + '})()';
+          let text =
+              `(function() {\n%s\n` + %s + '})()';
           let script;
           try {
             script = document.createElement('script');
@@ -147,13 +149,14 @@ bool IsVettedSearchEngine(const GURL& url) {
   std::string domain_and_registry =
       net::registry_controlled_domains::GetDomainAndRegistry(
           url, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
-  size_t registry_len = net::registry_controlled_domains::GetRegistryLength(
-      url, net::registry_controlled_domains::EXCLUDE_UNKNOWN_REGISTRIES,
-      net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
-  if (domain_and_registry.length() > registry_len + 1) {
+  std::optional<std::string_view> registry =
+      net::registry_controlled_domains::GetRegistry(
+          url, net::registry_controlled_domains::EXCLUDE_UNKNOWN_REGISTRIES,
+          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+  if (registry && domain_and_registry.length() > registry->length() + 1) {
     std::string_view host =
         std::string_view(domain_and_registry)
-            .substr(0, domain_and_registry.length() - registry_len - 1);
+            .substr(0, domain_and_registry.length() - registry->length() - 1);
     if (kVettedSearchEngines.contains(host)) {
       return true;
     }
@@ -626,14 +629,14 @@ bool CosmeticFiltersJSHandler::ProcessURL(
       render_frame_->GetBlinkPreferences().page_in_reader_mode;
   if (page_in_reader_mode ||
       (!force_cosmetic_filtering &&
-       !content_settings->IsCosmeticFilteringEnabled(url_))) {
+       !content_settings->IsCosmeticFilteringEnabled())) {
     return false;
   }
 
   enabled_1st_party_cf_ =
       force_cosmetic_filtering ||
       render_frame_->GetWebFrame()->IsCrossOriginToOutermostMainFrame() ||
-      content_settings->IsFirstPartyCosmeticFilteringEnabled(url_) ||
+      content_settings->IsFirstPartyCosmeticFilteringEnabled() ||
       net::registry_controlled_domains::SameDomainOrHost(
           url_,
           url::Origin::CreateFromNormalizedTuple("https", "youtube.com", 443),
@@ -693,10 +696,10 @@ void CosmeticFiltersJSHandler::ApplyRules(bool de_amp_enabled) {
     const bool scriptlet_debug_enabled = base::FeatureList::IsEnabled(
         brave_shields::features::kBraveAdblockScriptletDebugLogs);
 
-    scriptlet_script =
-        absl::StrFormat(kScriptletInitScript,
-                        scriptlet_debug_enabled ? "[[\"canDebug\", true]]" : "",
-                        de_amp_enabled ? "true" : "false", scriptlet_script);
+    const std::string scriptlet_globals = GetScriptletGlobalsScript(
+        de_amp_enabled, /*can_debug=*/scriptlet_debug_enabled);
+    scriptlet_script = absl::StrFormat(kScriptletInitScript, scriptlet_globals,
+                                       scriptlet_script);
   }
   if (!scriptlet_script.empty()) {
     web_frame->ExecuteScriptInIsolatedWorld(

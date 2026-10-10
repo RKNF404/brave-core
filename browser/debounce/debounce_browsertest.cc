@@ -23,7 +23,6 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/interstitials/security_interstitial_page_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/common/content_client.h"
@@ -137,7 +136,7 @@ class DebounceBrowserTest : public BaseLocalDataFilesBrowserTest {
   }
 
   void ToggleDebouncePref(bool on) {
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         debounce::prefs::kDebounceEnabled, on);
   }
 
@@ -163,7 +162,8 @@ class DebounceBrowserTest : public BaseLocalDataFilesBrowserTest {
   }
 
   HostContentSettingsMap* content_settings() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 
   bool IsShowingInterstitial() {

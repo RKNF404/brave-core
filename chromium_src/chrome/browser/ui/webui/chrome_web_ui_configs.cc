@@ -7,6 +7,7 @@
 
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_account/features.h"
+#include "brave/components/brave_ads/buildflags/buildflags.h"
 #include "brave/components/brave_education/buildflags.h"
 #include "brave/components/brave_origin/buildflags/buildflags.h"
 #include "brave/components/brave_rewards/core/buildflags/buildflags.h"
@@ -31,6 +32,10 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "brave/browser/ui/webui/brave_wallet/wallet_panel/wallet_panel_ui.h"
 #endif
+#if BUILDFLAG(ENABLE_SNAP)
+#include "brave/browser/ui/webui/brave_wallet/snaps_container/snaps_container_ui.h"
+#include "brave/components/brave_wallet/common/common_utils.h"
+#endif
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -41,7 +46,6 @@
 #include "brave/browser/ui/webui/brave_settings_ui.h"
 #include "brave/browser/ui/webui/brave_shields/shields_panel_ui.h"
 #include "brave/browser/ui/webui/brave_welcome_page/brave_welcome_page_ui.h"
-#include "brave/browser/ui/webui/history/brave_history_ui.h"
 #include "brave/browser/ui/webui/private_new_tab_page/brave_private_new_tab_ui.h"
 #include "brave/browser/ui/webui/webcompat_reporter/webcompat_reporter_ui.h"
 
@@ -56,6 +60,10 @@
 
 #include "brave/browser/ui/webui/brave_adblock_internals_ui.h"
 #include "brave/browser/ui/webui/brave_adblock_ui.h"
+
+#if BUILDFLAG(ENABLE_BRAVE_ADS)
+#include "brave/browser/ui/webui/ads_internals/ads_internals_ui.h"
+#endif
 
 #if BUILDFLAG(ENABLE_BRAVE_EDUCATION)
 #include "brave/browser/ui/webui/brave_education/brave_education_page_ui.h"
@@ -98,9 +106,6 @@ void RemoveOverridenWebUIs(content::WebUIConfigMap& map) {
   // Remove SettingsUIConfig. It will be replaced with BraveSettingsUIConfig.
   map.RemoveConfig(GetWebUIConfigURL(content::kChromeUIScheme,
                                      chrome::kChromeUISettingsHost));
-  // Remove HistoryUIConfig. It will be replaced with BraveHistoryUIConfig.
-  map.RemoveConfig(GetWebUIConfigURL(content::kChromeUIScheme,
-                                     chrome::kChromeUIHistoryHost));
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
@@ -120,6 +125,12 @@ void RegisterChromeWebUIConfigs() {
 #if !BUILDFLAG(IS_ANDROID)
   map.AddWebUIConfig(std::make_unique<WalletPanelUIConfig>());
 #endif
+#if BUILDFLAG(ENABLE_SNAP)
+  if (brave_wallet::IsSnapFeatureEnabled()) {
+    map.AddWebUIConfig(
+        std::make_unique<brave_wallet::SnapsContainerUIConfig>());
+  }
+#endif
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -128,7 +139,6 @@ void RegisterChromeWebUIConfigs() {
 #endif
   map.AddWebUIConfig(std::make_unique<BravePrivateNewTabUIConfig>());
   map.AddWebUIConfig(std::make_unique<BraveSettingsUIConfig>());
-  map.AddWebUIConfig(std::make_unique<BraveHistoryUIConfig>());
   map.AddWebUIConfig(std::make_unique<BraveWelcomePageUIConfig>());
   map.AddWebUIConfig(std::make_unique<ShieldsPanelUIConfig>());
 #if BUILDFLAG(ENABLE_SPEEDREADER)
@@ -147,6 +157,9 @@ void RegisterChromeWebUIConfigs() {
 #endif  // !BUILDFLAG(IS_ANDROID)
   map.AddWebUIConfig(std::make_unique<BraveAdblockUIConfig>());
   map.AddWebUIConfig(std::make_unique<BraveAdblockInternalsUIConfig>());
+#if BUILDFLAG(ENABLE_BRAVE_ADS)
+  map.AddWebUIConfig(std::make_unique<AdsInternalsUIConfig>());
+#endif
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
   if (ai_chat::features::IsAIChatEnabled()) {

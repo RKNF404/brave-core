@@ -1,8 +1,8 @@
 diff --git a/content/browser/renderer_host/navigation_controller_impl.cc b/content/browser/renderer_host/navigation_controller_impl.cc
-index d3b70f82c2132cfb05d1b0b0f03ad09fb9a649d0..b96e6642050549419c68b19693cea17202732be8 100644
+index 9a10bfdef7e0905c1a9c3b8fce718f7b2d20d146..7b1e9cad21be2c5562c8defb7936a6ba16215924 100644
 --- a/content/browser/renderer_host/navigation_controller_impl.cc
 +++ b/content/browser/renderer_host/navigation_controller_impl.cc
-@@ -457,6 +457,7 @@ void RewriteUrlForNavigation(const GURL& original_url,
+@@ -460,6 +460,7 @@ void RewriteUrlForNavigation(const GURL& original_url,
    *url_to_load = *virtual_url = original_url;
    BrowserURLHandlerImpl::GetInstance()->RewriteURLIfNecessary(
        url_to_load, browser_context, reverse_on_redirect);

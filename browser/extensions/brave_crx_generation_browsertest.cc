@@ -7,14 +7,13 @@
 #include "base/command_line.h"
 #include "base/containers/to_vector.h"
 #include "base/files/file_util.h"
-#include "base/files/scoped_file.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "brave/components/constants/brave_paths.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/crx_file/crx_verifier.h"
 #include "content/public/test/browser_test.h"
@@ -91,12 +90,11 @@ class BraveCrxGenerationTest : public InProcessBrowserTest {
 
   bool InstallExtension(const base::FilePath& crx_path,
                         crx_file::VerifierFormat format) {
-    auto installer = CrxInstaller::CreateSilent(browser()->profile());
+    auto installer = CrxInstaller::CreateSilent(browser()->GetProfile());
     installer->set_allow_silent_install(true);
-    installer->set_was_triggered_by_user_download();
     installer->set_creation_flags(Extension::FROM_WEBSTORE);
 
-    InstallCrxFileWaiter waiter(browser()->profile());
+    InstallCrxFileWaiter waiter(browser()->GetProfile());
     installer->InstallCrxFile(CRXFileInfo(crx_path, format));
     return waiter.WaitForInstallation();
   }

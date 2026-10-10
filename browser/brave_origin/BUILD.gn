@@ -14,6 +14,7 @@ import("//brave/components/email_aliases/buildflags/buildflags.gni")
 import("//brave/components/ipfs/buildflags/buildflags.gni")
 import("//brave/components/local_ai/buildflags/buildflags.gni")
 import("//brave/components/playlist/core/common/buildflags/buildflags.gni")
+import("//brave/components/psst/buildflags/buildflags.gni")
 import("//brave/components/speedreader/common/buildflags/buildflags.gni")
 import("//brave/components/tor/buildflags/buildflags.gni")
 import("//build/config/features.gni")
@@ -46,6 +47,7 @@ source_set("brave_origin") {
     "//brave/components/local_ai/buildflags",
     "//brave/components/p3a",
     "//brave/components/playlist/core/common/buildflags",
+    "//brave/components/psst/buildflags",
     "//brave/components/speedreader/common/buildflags",
     "//brave/components/tor/buildflags",
     "//chrome/browser:browser_process",
@@ -57,7 +59,10 @@ source_set("brave_origin") {
 
   if (is_android) {
     sources += [ "android/brave_origin_service_factory_android.cc" ]
-    deps += [ "//brave/browser/brave_origin/android:jni_headers" ]
+    deps += [
+      "//brave/browser/brave_origin/android:jni_headers",
+      "//services/network/public/cpp",
+    ]
   }
 
   if (enable_ai_chat) {
@@ -109,6 +114,10 @@ source_set("brave_origin") {
       "//brave/components/email_aliases:pref_names",
       "//brave/components/email_aliases:service",
     ]
+  }
+
+  if (enable_psst) {
+    deps += [ "//brave/components/psst/core/browser" ]
   }
 }
 

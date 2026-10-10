@@ -212,6 +212,18 @@ void ContentSettingsRegistry::BraveInit() {
                WebsiteSettingsRegistry::PLATFORM_ANDROID,
            ContentSettingsInfo::INHERIT_IF_LESS_PERMISSIVE,
            PermissionSettingsInfo::EXCEPTIONS_ON_SECURE_AND_INSECURE_ORIGINS);
+
+  // Register polkadot default value as Ask.
+  Register(ContentSettingsType::BRAVE_POLKADOT, "brave_polkadot",
+           CONTENT_SETTING_ASK, WebsiteSettingsInfo::UNSYNCABLE,
+           /*allowlisted_schemes=*/{},
+           /*valid_settings=*/
+           {CONTENT_SETTING_ALLOW, CONTENT_SETTING_BLOCK, CONTENT_SETTING_ASK},
+           WebsiteSettingsInfo::TOP_ORIGIN_ONLY_SCOPE,
+           WebsiteSettingsRegistry::DESKTOP |
+               WebsiteSettingsRegistry::PLATFORM_ANDROID,
+           ContentSettingsInfo::INHERIT_IF_LESS_PERMISSIVE,
+           PermissionSettingsInfo::EXCEPTIONS_ON_SECURE_AND_INSECURE_ORIGINS);
 #endif  // BUILDFLAG(ENABLE_BRAVE_WALLET)
 
   // Register google sign in social media permission default value as Ask.
@@ -369,7 +381,8 @@ void ContentSettingsRegistry::BraveInit() {
       WebsiteSettingsInfo::UNSYNCABLE, WebsiteSettingsInfo::NOT_LOSSY,
       WebsiteSettingsInfo::REQUESTING_SCHEMEFUL_SITE_ONLY_SCOPE,
       WebsiteSettingsRegistry::DESKTOP |
-          WebsiteSettingsRegistry::PLATFORM_ANDROID,
+          WebsiteSettingsRegistry::PLATFORM_ANDROID |
+          WebsiteSettingsRegistry::PLATFORM_IOS,
       WebsiteSettingsInfo::DONT_INHERIT_IN_INCOGNITO);
 
   website_settings_registry_->Register(

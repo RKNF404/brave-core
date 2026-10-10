@@ -17,9 +17,9 @@ PermissionContextBase::PermissionContextBase(
     content::BrowserContext* browser_context,
     ContentSettingsType content_settings_type,
     network::mojom::PermissionsPolicyFeature permissions_policy_feature)
-    : chromium_impl::PermissionContextBase(browser_context,
-                                           content_settings_type,
-                                           permissions_policy_feature) {}
+    : PermissionContextBase_ChromiumImpl(browser_context,
+                                         content_settings_type,
+                                         permissions_policy_feature) {}
 
 PermissionContextBase::~PermissionContextBase() = default;
 
@@ -36,7 +36,7 @@ void PermissionContextBase::PermissionDecided(
     const auto request_it = pending_requests_.find(request_data.id.ToString());
     if (request_it != pending_requests_.end()) {
       const PermissionRequest* permission_request =
-          request_it->second.first.get();
+          &*(request_it->second.first);
       CHECK(permission_request);
       if (auto* permission_lifetime_manager =
               permission_lifetime_manager_factory_.Run(browser_context_)) {
@@ -47,8 +47,7 @@ void PermissionContextBase::PermissionDecided(
     }
   }
 
-  chromium_impl::PermissionContextBase::PermissionDecided(decision,
-                                                          request_data);
+  PermissionContextBase_ChromiumImpl::PermissionDecided(decision, request_data);
 }
 
 }  // namespace permissions

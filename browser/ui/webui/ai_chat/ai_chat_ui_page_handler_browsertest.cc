@@ -382,6 +382,7 @@ class FakeChatUI : public mojom::ChatUI {
   }
   void OnChildFrameBound(
       mojo::PendingReceiver<mojom::ParentUIFrame> receiver) override {}
+  void OnDisplayModeChanged(bool is_standalone) override {}
 
   std::optional<int32_t> last_content_id_;
   int call_count_ = 0;
@@ -401,6 +402,8 @@ class FakeConversationUI : public mojom::ConversationUI {
                           std::vector<mojom::ModelPtr> all_models) override {}
   void OnAssociatedContentInfoChanged(
       std::vector<mojom::AssociatedContentPtr> associated_content) override {}
+  void OnContentToolsChanged(const std::string& content_uuid,
+                             std::vector<mojom::ToolInfoPtr> tools) override {}
   void OnConversationDeleted() override {}
 };
 

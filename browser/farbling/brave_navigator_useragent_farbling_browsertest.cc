@@ -20,7 +20,6 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/embedder_support/user_agent_utils.h"
@@ -209,7 +208,8 @@ class BraveNavigatorUserAgentFarblingBrowserTest : public InProcessBrowserTest {
   }
 
   HostContentSettingsMap* content_settings() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 
   void AllowFingerprinting(std::string domain) {
@@ -263,13 +263,14 @@ class BraveNavigatorUserAgentFarblingBrowserTest : public InProcessBrowserTest {
     }
 
     extensions::ChromeTestExtensionLoader extension_loader(
-        browser()->profile());
+        browser()->GetProfile());
     scoped_refptr<const extensions::Extension> extension =
         extension_loader.LoadExtension(test_extension_dir.UnpackedPath());
-    WakeUpServiceWorker(*extension, *browser()->profile());
-    ProgrammaticallyCreateOffscreenDocument(*extension, *browser()->profile());
+    WakeUpServiceWorker(*extension, *browser()->GetProfile());
+    ProgrammaticallyCreateOffscreenDocument(*extension,
+                                            *browser()->GetProfile());
     extensions::OffscreenDocumentHost* offscreen_document =
-        extensions::OffscreenDocumentManager::Get(browser()->profile())
+        extensions::OffscreenDocumentManager::Get(browser()->GetProfile())
             ->GetOffscreenDocumentForExtension(*extension);
     ASSERT_TRUE(offscreen_document) << "Offscreen document not created.";
     content::WaitForLoadStop(offscreen_document->host_contents());

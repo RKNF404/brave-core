@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -18,10 +19,23 @@
 #include "brave/components/brave_wallet/browser/network_manager.h"
 #include "brave/components/brave_wallet/browser/polkadot/polkadot_substrate_rpc.h"
 #include "brave/components/brave_wallet/browser/polkadot/polkadot_wallet_service.h"
+#include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/test/test_url_loader_factory.h"
 
 namespace brave_wallet {
+
+inline constexpr char kAssetHubMnemonic[] =
+    "lazy february across turn unique syrup gasp pass pelican achieve cable "
+    "canal";
+
+inline constexpr char kPolkadotImportMnemonic[] =
+    "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
+
+inline constexpr char kPolkadotImportExportPassword[] = "export_pwd";
+
+std::string MakePolkadotImportJsonExport(mojom::KeyringId keyring_id,
+                                         uint32_t key_index);
 
 base::DictValue RequestBodyToJsonDict(const network::ResourceRequest& req);
 std::string ReadMetadataFixtureJson(std::string_view file_name);
@@ -54,6 +68,32 @@ struct PolkadotMockRpc {
   void UseInvalidFinalizedBlockHash();
   void RejectExtrinsicSubmission();
   void RejectAccountInfoRequest();
+
+  // Fail the fee-estimation RPC (state_call with
+  // TransactionPaymentApi_query_info) with a JSON-RPC error, or with a
+  // successful response whose "result" is null. Configure at most one.
+  void RejectPaymentInfoRequest();
+  void ReturnNullPaymentInfo();
+
+  // Reject an individual step of the signing-payload assembly with a JSON-RPC
+  // error, so the corresponding RPC call fails. Configure exactly one before
+  // calling AddReqResPairs() to exercise a specific failure path.
+  void RejectInitialChainHeader();
+  void RejectParentBlockHeader();
+  void RejectFinalizedHead();
+  void RejectFinalizedBlockHeader();
+  void RejectGenesisBlockHash();
+  void RejectRuntimeVersion();
+
+  // Respond to an individual step of the signing-payload assembly with a
+  // successful JSON-RPC response whose "result" is null (as Substrate nodes may
+  // do when overloaded) rather than a JSON-RPC error. Configure exactly one
+  // before calling AddReqResPairs() to exercise a specific null-result path.
+  void ReturnNullInitialChainHeader();
+  void ReturnNullParentBlockHeader();
+  void ReturnNullFinalizedHead();
+  void ReturnNullFinalizedBlockHeader();
+  void ReturnNullGenesisBlockHash();
   void SetSenderPubKey(
       base::span<uint8_t, kPolkadotSubstrateAccountIdSize> pubkey);
   void SetExpectedExtrinsic(std::string extrinsic);
@@ -83,6 +123,10 @@ struct PolkadotMockRpc {
   void AddGetSigningBlockHash();
   void AddGetRuntimeInfo();
   void AddGetGenesisBlockHash();
+
+  // Registers a response for the metadata provider's latest runtime-version
+  // probe (state_getRuntimeVersion with no block hash).
+  void AddGetLatestRuntimeVersion(uint32_t spec_version);
 
   // Convenience wrapper for the above Add* family of functions.
   void AddReqResPairs();
@@ -145,6 +189,20 @@ struct PolkadotMockRpc {
   bool use_invalid_finalized_block_hash_ = false;
   bool reject_extrinsic_submission_ = false;
   bool reject_account_info_request_ = false;
+  bool reject_payment_info_request_ = false;
+  bool reject_initial_chain_header_ = false;
+  bool reject_parent_block_header_ = false;
+  bool reject_finalized_head_ = false;
+  bool reject_finalized_block_header_ = false;
+  bool reject_genesis_block_hash_ = false;
+  bool reject_runtime_version_ = false;
+
+  bool null_initial_chain_header_ = false;
+  bool null_parent_block_header_ = false;
+  bool null_finalized_head_ = false;
+  bool null_finalized_block_header_ = false;
+  bool null_genesis_block_hash_ = false;
+  bool null_payment_info_ = false;
 };
 
 // Build metadata from a known relay/parachain name returned by system_chain.
@@ -158,6 +216,7 @@ PolkadotChainMetadata MakeWestendMetadata();
 PolkadotChainMetadata MakePolkadotMetadata();
 PolkadotChainMetadata MakeWestendAssetHubMetadata();
 PolkadotChainMetadata MakePolkadotAssetHubMetadata();
+PolkadotChainMetadata MakePaseoAssetHubMetadata();
 
 }  // namespace brave_wallet
 

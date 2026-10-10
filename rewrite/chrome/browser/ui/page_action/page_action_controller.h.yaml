@@ -5,29 +5,30 @@
 
 substitutions:
   - description: |
-      Wrap PageActionControllerImpl in a chromium_impl namespace.
+      Rename PageActionControllerImpl to PageActionControllerImpl_ChromiumImpl.
 
-      The abstract PageActionController base, ScopedPageActionActivity and other
-      free declarations are intentionally left in page_actions::; only the concrete
-      impl class is wrapped, so we can shadow it with our own implementation.
-    re_pattern: '(class PageActionControllerImpl[\s\S]*?\n\};)'
-    replace: |
-      namespace chromium_impl {
-      \1
-      }  // namespace chromium_impl
-
-  - description: |
-      Make CreateModel virtual so the brave PageActionControllerImpl override can
-      replace model construction with the brave PageActionModel.
-    pattern: 'std::unique_ptr<PageActionModelInterface> CreateModel('
-    replace: 'virtual std::unique_ptr<PageActionModelInterface> CreateModel('
+      This lets Brave shadow the concrete controller with its own
+      `page_actions::PageActionControllerImpl` that reuses the name and derives
+      from the renamed upstream class. The abstract PageActionController base
+      and other free declarations keep their names.
+    rename_class:
+      class_name: PageActionControllerImpl
+      rename: PageActionControllerImpl_ChromiumImpl
 
   - description: |
-      Friend the brave page_actions::PageActionControllerImpl so it can reach the
-      private members it relies on (FindPageActionModel, page_action_model_factory_).
-      The lazy match anchors on the first `private:` inside PageActionControllerImpl.
-    re_pattern: '(class PageActionControllerImpl.*?\bprivate:)'
-    re_flags: [DOTALL]
-    replace: |-
-      \1
-        friend class ::page_actions::PageActionControllerImpl;
+      Make CreateModel virtual
+
+      This allows the brave PageActionControllerImpl override to replace model
+      construction with the brave PageActionModel.
+    make_virtual:
+      class_name: PageActionControllerImpl_ChromiumImpl
+      method_name: CreateModel
+
+  - description: |
+      Friend the brave page_actions::PageActionControllerImpl
+
+      This is done so it can reach the private members it relies on
+      (FindPageActionModel, page_action_model_factory_).
+    add_friend:
+      class_name: PageActionControllerImpl_ChromiumImpl
+      friend_type: class ::page_actions::PageActionControllerImpl

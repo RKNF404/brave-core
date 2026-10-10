@@ -1,8 +1,8 @@
 diff --git a/chrome/test/base/testing_browser_process.cc b/chrome/test/base/testing_browser_process.cc
-index a82d5424193aecc470a59d52f97c06b5fa4ef00a..204752d4e6f1c4f591f04dc4407cff77c91e5523 100644
+index 833ef49d4160e1b0043d4bc65de4ccb3cd3923ba..a03024b3e93e01ef9f6964ce2fbb0e9446fc5122 100644
 --- a/chrome/test/base/testing_browser_process.cc
 +++ b/chrome/test/base/testing_browser_process.cc
-@@ -152,15 +152,18 @@ void TestingBrowserProcess::CreateInstance() {
+@@ -155,15 +155,18 @@ void TestingBrowserProcess::CreateInstance() {
          std::move(fake_geolocation_system_permission_manager));
    }
  #endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)

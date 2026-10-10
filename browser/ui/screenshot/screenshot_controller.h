@@ -19,8 +19,11 @@
 #include "base/types/expected.h"
 #include "printing/buildflags/buildflags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
+
+class BrowserWindowInterface;
 
 namespace content {
 class BrowserContext;
@@ -33,6 +36,7 @@ class ScreenshotFlow;
 }  // namespace image_editor
 
 namespace screenshot {
+class DevToolsFullPageExtractor;
 class PrintPreviewExtractor;
 
 // Owned by BrowserWindowFeatures (one per Browser). Orchestrates capture of a
@@ -40,6 +44,8 @@ class PrintPreviewExtractor;
 // drives a Save As dialog.
 class ScreenshotController : public ui::SelectFileDialog::Listener {
  public:
+  DECLARE_USER_DATA(ScreenshotController);
+
   enum class Error {
     kNoTab,
     kBusy,
@@ -55,17 +61,37 @@ class ScreenshotController : public ui::SelectFileDialog::Listener {
   // creation, after the browser window is fully initialized.
   using NativeWindowGetter = base::RepeatingCallback<gfx::NativeWindow()>;
 
-  ScreenshotController(content::BrowserContext* profile,
-                       NativeWindowGetter parent_window_getter);
-#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
-  ScreenshotController(content::BrowserContext* profile,
+  // Shows a preview of the captured `png` and asks the user to confirm
+  // before saving. Exactly one of `on_download` (with `png` handed back),
+  // `on_copy`, or `on_cancel` is run once, depending on whether the user
+  // confirms (download), copies to clipboard, or dismisses the dialog.
+  using PreviewDialogShower = base::RepeatingCallback<void(
+      gfx::NativeWindow parent,
+      std::vector<uint8_t> png,
+      base::OnceCallback<void(std::vector<uint8_t>)> on_download,
+      base::OnceCallback<void(std::vector<uint8_t>)> on_copy,
+      base::OnceClosure on_cancel)>;
+
+  // `host` is the UnownedUserDataHost of the browser window this controller
+  // belongs to.
+  ScreenshotController(ui::UnownedUserDataHost& host,
+                       content::BrowserContext* profile,
                        NativeWindowGetter parent_window_getter,
+                       PreviewDialogShower preview_dialog_shower);
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+  ScreenshotController(ui::UnownedUserDataHost& host,
+                       content::BrowserContext* profile,
+                       NativeWindowGetter parent_window_getter,
+                       PreviewDialogShower preview_dialog_shower,
                        std::unique_ptr<screenshot::PrintPreviewExtractor>
                            print_preview_extractor);
 #endif
   ScreenshotController(const ScreenshotController&) = delete;
   ScreenshotController& operator=(const ScreenshotController&) = delete;
   ~ScreenshotController() override;
+
+  // Returns the instance owned by `browser`, or nullptr.
+  static ScreenshotController* From(BrowserWindowInterface* browser);
 
   // capture is already in flight.
   base::expected<void, Error> CanCapture(
@@ -82,9 +108,7 @@ class ScreenshotController : public ui::SelectFileDialog::Listener {
   void CaptureSelectedArea(content::WebContents* web_contents,
                            ResultCallback done);
 
-#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   void CaptureFullPage(content::WebContents* web_contents, ResultCallback done);
-#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
 
   void set_download_dir_for_testing(const base::FilePath& path) {
     download_dir_for_testing_ = path;
@@ -101,20 +125,29 @@ class ScreenshotController : public ui::SelectFileDialog::Listener {
       base::expected<std::vector<std::vector<uint8_t>>, std::string>;
 
   void OnVisibleAreaCopied(SkBitmap bitmap);
+  void OnRegionCaptured(const image_editor::ScreenshotCaptureResult& result);
+  void OnFullPageDevToolsCaptured(
+      base::expected<std::vector<uint8_t>, std::string> result);
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   void OnFullPageChunks(ChunkResult result);
 #endif
-  void OnRegionCaptured(const image_editor::ScreenshotCaptureResult& result);
 
   void OnEncoded(std::optional<std::vector<uint8_t>> png);
+  // Shows the preview dialog for `png`; proceeds to ShowSaveDialog() if the
+  // user clicks Download, copies to clipboard via CopyToClipboard() if they
+  // click Copy, or finishes with kUserCancelled otherwise.
+  void ShowPreviewDialog(std::vector<uint8_t> png);
   void ShowSaveDialog(std::vector<uint8_t> png);
   void ShowSaveDialogWithPath(const base::FilePath& default_path);
+  void CopyToClipboard(std::vector<uint8_t> png);
+
   // Reply callback for WritePngFile posted from FileSelected().
   void OnFileWritten(const base::FilePath& path, bool ok);
   void FinishWithError(Error error);
   void Reset();
 
   NativeWindowGetter parent_window_getter_;
+  PreviewDialogShower preview_dialog_shower_;
 
   // Pending operation state. Set on entry, cleared on Reset().
   ResultCallback pending_callback_;
@@ -126,6 +159,9 @@ class ScreenshotController : public ui::SelectFileDialog::Listener {
 
   std::optional<base::FilePath> download_dir_for_testing_;
 
+  // Owns the DevTools full-page extractor during CaptureFullPage() for non-PDF.
+  std::unique_ptr<DevToolsFullPageExtractor> devtools_extractor_;
+
   // Owns the interactive region-selection overlay during CaptureSelectedArea().
   // Reset as soon as the selection callback fires.
   std::unique_ptr<image_editor::ScreenshotFlow> screenshot_flow_;
@@ -133,6 +169,8 @@ class ScreenshotController : public ui::SelectFileDialog::Listener {
   raw_ptr<content::BrowserContext> profile_;
 
   scoped_refptr<ui::SelectFileDialog> select_dialog_;
+
+  ui::ScopedUnownedUserData<ScreenshotController> scoped_unowned_user_data_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<ScreenshotController> weak_factory_{this};

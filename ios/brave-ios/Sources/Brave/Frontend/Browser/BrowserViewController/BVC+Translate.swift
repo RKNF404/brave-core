@@ -15,7 +15,7 @@ import Web
 extension BrowserViewController: BraveTranslateScriptHandlerDelegate {
   func updateTranslateURLBar(tab: some TabState, state: TranslationState) {
     if tab === tabManager.selectedTab {
-      topToolbar.updateTranslateButtonState(state)
+      toolbarState.translationState = state
     }
   }
 
@@ -25,8 +25,8 @@ extension BrowserViewController: BraveTranslateScriptHandlerDelegate {
     }
 
     return Preferences.Translate.translateEnabled.value
-      && !topToolbar.inOverlayMode
-      && topToolbar.secureContentState == .secure
+      && !isSearchContainerVisible
+      && selectedTab.visibleSecureContentState == .secure
       && Preferences.Translate.translateURLBarOnboardingCount.value < 2
       && shouldShowTranslationOnboardingThisSession && presentedViewController == nil
   }
@@ -41,7 +41,7 @@ extension BrowserViewController: BraveTranslateScriptHandlerDelegate {
     // Ensure url bar is expanded before presenting a popover on it
     toolbarVisibilityViewModel.toolbarState = .expanded
 
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
       // Do NOT show the translate onboarding popup if the tab isn't visible
       guard self.canShowTranslateOnboarding(tab: tab)
       else {
@@ -79,7 +79,7 @@ extension BrowserViewController: BraveTranslateScriptHandlerDelegate {
   }
 
   func presentTranslateToast(tab: some TabState, languageInfo: BraveTranslateLanguageInfo) {
-    if presentedViewController != nil || topToolbar.inOverlayMode || tab !== tabManager.selectedTab
+    if presentedViewController != nil || isSearchContainerVisible || tab !== tabManager.selectedTab
     {
       return
     }
@@ -95,7 +95,7 @@ extension BrowserViewController: BraveTranslateScriptHandlerDelegate {
   }
 
   func presentTranslateError(tab: some TabState) {
-    if presentedViewController != nil || topToolbar.inOverlayMode || tab !== tabManager.selectedTab
+    if presentedViewController != nil || isSearchContainerVisible || tab !== tabManager.selectedTab
     {
       return
     }

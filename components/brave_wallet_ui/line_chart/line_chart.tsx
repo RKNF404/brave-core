@@ -3,9 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import '../common/strings'
+
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import StyledComponentsProvider from '$web-common/StyledComponentsProvider'
 
 // css
 import 'emptykit.css'
@@ -73,7 +76,11 @@ const App = () => {
 
 function initialize() {
   const root = createRoot(document.getElementById('root')!)
-  root.render(<App />)
+  root.render(
+    <StyledComponentsProvider>
+      <App />
+    </StyledComponentsProvider>,
+  )
 }
 
 document.addEventListener('DOMContentLoaded', initialize)

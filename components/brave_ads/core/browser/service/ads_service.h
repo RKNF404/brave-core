@@ -8,9 +8,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
 #include "brave/components/brave_ads/core/browser/service/ads_service_callback.h"
@@ -63,6 +65,12 @@ class AdsService : public KeyedService {
 
   AdsService::Delegate* delegate() { return delegate_.get(); }
 
+  // Returns a `WeakPtr` that becomes invalid once this object is destroyed,
+  // regardless of any bat-ads-only shutdown/restart cycles it goes through in
+  // the meantime. Consumers that outlive the profile's `AdsService`, e.g.
+  // WebUI handlers, should hold this instead of a raw pointer.
+  virtual base::WeakPtr<AdsService> GetWeakPtr() = 0;
+
   void AddObserver(AdsServiceObserver* observer);
   void RemoveObserver(AdsServiceObserver* observer);
 
@@ -102,9 +110,21 @@ class AdsService : public KeyedService {
   // `base::ListValue` containing info of the obtained internals.
   virtual void GetInternals(GetInternalsCallback callback) = 0;
 
-  // Called to get diagnostics to help identify issues. The callback takes one
-  // argument - `base::ListValue` containing info of the obtained diagnostics.
+  // Called to get diagnostics to help identify issues, keyed by
+  // `brave://ads-internals` tab. The callback takes one argument:
+  // `base::DictValue` containing the obtained diagnostics.
   virtual void GetDiagnostics(GetDiagnosticsCallback callback) = 0;
+
+  // Called to test whether `condition` matches the current value at
+  // `pref_path`, for debugging condition matchers on brave://ads-internals.
+  // If `test_value` is set, it's matched against instead of the real
+  // value resolved from `pref_path`, so a hypothetical value can be tested
+  // without needing a device that's actually in that state.
+  virtual void EvaluateConditionMatcher(
+      const std::string& pref_path,
+      const std::string& condition,
+      std::optional<std::string> test_value,
+      EvaluateConditionMatcherCallback callback) = 0;
 
   // Called to get the statement of accounts. The callback takes one argument -
   // `mojom::StatementInfo` containing info of the obtained statement of
@@ -161,8 +181,8 @@ class AdsService : public KeyedService {
                                             ResultCallback callback) = 0;
 
   // Called to get ad history for the given date range in descending order. The
-  // callback takes one argument - `base::ListValue` containing info of the
-  // obtained ad history.
+  // callback takes one argument - a vector of `mojom::AdHistoryItemInfo`
+  // containing the obtained ad history enriched with reaction state.
   virtual void GetAdHistory(base::Time from_time,
                             base::Time to_time,
                             GetAdHistoryForUICallback callback) = 0;
@@ -238,6 +258,9 @@ class AdsService : public KeyedService {
   // Called when a browser tab has loaded. `http_status_code` should be set to
   // the HTTP status code.
   virtual void NotifyTabDidLoad(int32_t tab_id, int http_status_code) = 0;
+
+  // Called when a browser tab failed to load, e.g., due to a network error.
+  virtual void NotifyTabDidFailToLoad(int32_t tab_id) = 0;
 
   // Called when a browser tab with the specified `tab_id` is closed.
   virtual void NotifyDidCloseTab(int32_t tab_id) = 0;

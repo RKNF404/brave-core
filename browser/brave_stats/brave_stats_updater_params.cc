@@ -6,6 +6,7 @@
 #include "brave/browser/brave_stats/brave_stats_updater_params.h"
 
 #include <cmath>
+#include <optional>
 
 #include "base/command_line.h"
 #include "base/logging.h"
@@ -15,7 +16,6 @@
 #include "brave/browser/brave_stats/features.h"
 #include "brave/browser/brave_stats/first_run_util.h"
 #include "brave/browser/serp_metrics/serp_metrics_all_profiles_aggregator.h"
-#include "brave/components/brave_ads/buildflags/buildflags.h"
 #include "brave/components/brave_referrals/common/pref_names.h"
 #include "brave/components/brave_stats/browser/brave_stats_updater_util.h"
 #include "brave/components/constants/pref_names.h"
@@ -27,10 +27,6 @@
 #include "content/public/common/content_switches.h"
 #include "net/base/url_util.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(ENABLE_BRAVE_ADS)
-#include "brave/components/brave_ads/core/public/prefs/pref_names.h"
-#endif
 
 namespace brave_stats {
 
@@ -100,13 +96,6 @@ std::string BraveStatsUpdaterParams::GetReferralCodeParam() const {
   }
   return referral_promo_code_.empty() ? "none" : referral_promo_code_;
 }
-
-#if BUILDFLAG(ENABLE_BRAVE_ADS)
-std::string BraveStatsUpdaterParams::GetAdsEnabledParam() const {
-  return BooleanToString(stats_pref_service_->GetBoolean(
-      brave_ads::prefs::kEnabledForLastProfile));
-}
-#endif  // BUILDFLAG(ENABLE_BRAVE_ADS)
 
 void BraveStatsUpdaterParams::LoadPrefs() {
   last_check_ymd_ = stats_pref_service_->GetString(kLastCheckYMD);
@@ -202,10 +191,6 @@ GURL BraveStatsUpdaterParams::GetUpdateURL(
                                          GetDateOfInstallationParam());
   update_url =
       net::AppendQueryParameter(update_url, "ref", GetReferralCodeParam());
-#if BUILDFLAG(ENABLE_BRAVE_ADS)
-  update_url =
-      net::AppendQueryParameter(update_url, "adsEnabled", GetAdsEnabledParam());
-#endif  // BUILDFLAG(ENABLE_BRAVE_ADS)
   if (serp_metrics_aggregator && ymd_ != last_check_ymd_) {
     // If `kSerpMetricsFeature` is disabled, `serp_metrics_aggregator` will be
     // null and SERP metrics will not be reported.
@@ -214,24 +199,28 @@ GURL BraveStatsUpdaterParams::GetUpdateURL(
         update_url, "braveSearch",
         base::NumberToString(
             serp_metrics_aggregator->GetSearchCountForYesterday(
-                serp_metrics::SerpMetricType::kBrave)));
+                serp_metrics::SerpMetricType::kBrave,
+                /*last_reported_at=*/std::nullopt)));
 
     update_url = net::AppendQueryParameter(
         update_url, "googleSearch",
         base::NumberToString(
             serp_metrics_aggregator->GetSearchCountForYesterday(
-                serp_metrics::SerpMetricType::kGoogle)));
+                serp_metrics::SerpMetricType::kGoogle,
+                /*last_reported_at=*/std::nullopt)));
 
     update_url = net::AppendQueryParameter(
         update_url, "otherSearch",
         base::NumberToString(
             serp_metrics_aggregator->GetSearchCountForYesterday(
-                serp_metrics::SerpMetricType::kOther)));
+                serp_metrics::SerpMetricType::kOther,
+                /*last_reported_at=*/std::nullopt)));
 
     update_url = net::AppendQueryParameter(
         update_url, "staleSearch",
         base::NumberToString(
-            serp_metrics_aggregator->GetSearchCountForStalePeriod()));
+            serp_metrics_aggregator->GetSearchCountForStalePeriod(
+                /*last_reported_at=*/std::nullopt)));
   }
 
   return update_url;

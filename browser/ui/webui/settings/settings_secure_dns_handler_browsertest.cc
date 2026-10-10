@@ -13,11 +13,13 @@
 
 #include "chrome/browser/ui/webui/settings/settings_secure_dns_handler.h"
 
+#include <ranges>
+
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/net/secure_dns_config.h"
 #include "chrome/browser/net/system_network_context_manager.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
@@ -84,7 +86,7 @@ class BraveSecureDnsHandlerTest : public InProcessBrowserTest {
                                      std::string* out_doh_config,
                                      int* out_management_mode) {
     for (const std::unique_ptr<content::TestWebUI::CallData>& data :
-         base::Reversed(web_ui_.call_data())) {
+         std::views::reverse(web_ui_.call_data())) {
       if (data->function_name() != "cr.webUIListenerCallback" ||
           !data->arg1()->is_string() ||
           data->arg1()->GetString() != "secure-dns-setting-changed") {

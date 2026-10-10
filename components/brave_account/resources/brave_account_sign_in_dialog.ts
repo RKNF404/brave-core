@@ -11,11 +11,8 @@ import {
 } from './brave_account_browser_proxy.js'
 import { getCss } from './brave_account_sign_in_dialog.css.js'
 import { getHtml } from './brave_account_sign_in_dialog.html.js'
-import {
-  LoginClientErrorCode,
-  LoginError,
-} from './brave_account.mojom-webui.js'
-import { showError } from './brave_account_common.js'
+import { LoginClientErrorCode } from './login.mojom-webui.js'
+import { showError } from './brave_account_shared.js'
 
 import {
   invalidLoginError,
@@ -42,6 +39,7 @@ export class BraveAccountSignInDialogElement extends CrLitElement {
       isEmailValid: { type: Boolean },
       isCapsLockOn: { type: Boolean },
       isPasswordValid: { type: Boolean },
+      isSubmitting: { type: Boolean, state: true },
       password: { type: String },
     }
   }
@@ -51,13 +49,16 @@ export class BraveAccountSignInDialogElement extends CrLitElement {
   // protocol in our WASM (compiled from Rust), and so the flow must run in the
   // renderer to manage the transient cryptographic state — the service only
   // transports the two server round trips
-  // (`loginInitialize`/`loginFinalize`). We'll revisit handling this
+  // (`loginStep1`/`loginStep2`). We'll revisit handling this
   // through Mojo in C++ if that proves practical.
   protected async onSignInButtonClicked() {
+    if (this.isSubmitting) return
+    this.isSubmitting = true
+
     try {
       const serializedKE1 = this.login.start(this.password)
       const { encryptedLoginToken, serializedKE2 } =
-        await this.browserProxy.authentication.loginInitialize(
+        await this.browserProxy.authentication.loginStep1(
           this.browserProxy.getInitiatingService(),
           this.email,
           serializedKE1,
@@ -67,33 +68,19 @@ export class BraveAccountSignInDialogElement extends CrLitElement {
         this.password,
         this.email,
       )
-      await this.browserProxy.authentication.loginFinalize(
+      await this.browserProxy.authentication.loginStep2(
         encryptedLoginToken,
         clientMac,
       )
     } catch (e) {
-      let error: LoginError
-
-      if (e && typeof e === 'object') {
-        error = e as LoginError
-      } else if (typeof e === 'string') {
-        error = {
-          clientError: {
-            errorCode:
-              e === invalidLoginError()
-                ? LoginClientErrorCode.kInvalidLoginError
-                : LoginClientErrorCode.kOpaqueError,
-          },
-        }
-      } else {
-        console.error('Unexpected error:', e)
-        error = {
-          clientError: { errorCode: LoginClientErrorCode.kUnexpected },
-        }
-      }
-
-      showError({ kind: 'login', details: error })
+      showError('login', e, {
+        opaqueErrors: {
+          [invalidLoginError()]: LoginClientErrorCode.kInvalidLoginError,
+        },
+      })
     }
+
+    this.isSubmitting = false
   }
 
   private browserProxy: BraveAccountBrowserProxy =
@@ -105,6 +92,7 @@ export class BraveAccountSignInDialogElement extends CrLitElement {
   protected accessor isEmailValid: boolean = false
   protected accessor isCapsLockOn: boolean = false
   protected accessor isPasswordValid: boolean = false
+  protected accessor isSubmitting: boolean = false
   protected accessor password: string = ''
 }
 

@@ -17,10 +17,13 @@ static_library("misc_metrics") {
     "autofill_metrics.h",
     "brave_search_metrics.cc",
     "brave_search_metrics.h",
+    "features.cc",
+    "features.h",
     "general_browser_usage.cc",
     "general_browser_usage.h",
     "language_metrics.cc",
     "language_metrics.h",
+    "media_session_metrics.h",
     "menu_metrics.cc",
     "menu_metrics.h",
     "navigation_source_metrics.cc",
@@ -39,6 +42,8 @@ static_library("misc_metrics") {
     "tab_metrics.cc",
     "tab_metrics.h",
     "uptime_monitor.h",
+    "web3_metrics.cc",
+    "web3_metrics.h",
   ]
 
   if (is_android) {
@@ -65,6 +70,7 @@ static_library("misc_metrics") {
     "//components/language/core/common",
     "//components/prefs",
     "//components/search_engines",
+    "//mojo/public/cpp/bindings",
     "//url",
   ]
 
@@ -98,6 +104,8 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//brave/components/misc_metrics",
+    "//brave/components/p3a_utils",
+    "//brave/components/p3a_utils:test_support",
     "//brave/components/search_engines",
     "//components/language/core/browser",
     "//components/prefs:test_support",

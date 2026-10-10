@@ -36,7 +36,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_restore_test_helper.h"
 #include "chrome/browser/sessions/session_restore_test_utils.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/common/pref_names.h"
@@ -51,6 +50,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_id.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/media_player_id.h"
 #include "content/public/browser/navigation_controller.h"
@@ -69,7 +69,7 @@
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "url/gurl.h"
 
-// npm run test -- brave_browser_tests --filter=BraveAds*
+// pnpm test brave_browser_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -522,11 +522,38 @@ IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
   SimulateHttpStatusCodePage(net::HTTP_OK);
 }
 
+IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
+                       DoNotNotifyTabDidLoadForNetErrorPage) {
+  // Port 1 is not open, so the connection is refused with no response
+  // headers, producing a committed error page. Verifies that no landing
+  // confirmation is recorded for network error pages.
+  EXPECT_CALL(GetAdsServiceMock(), NotifyTabDidLoad).Times(0);
+  EXPECT_CALL(GetAdsServiceMock(), NotifyTabDidFailToLoad(TabId()));
+  content::NavigateToURLBlockUntilNavigationsComplete(
+      GetActiveWebContents(), GURL("http://brave.com:1/"),
+      /*number_of_navigations=*/1,
+      /*ignore_uncommitted_navigations=*/true);
+}
+
+IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
+                       NotifyTabDidLoadForSameDocumentNavigation) {
+  NavigateToRelativeURL(kSinglePageApplicationWebpage,
+                        /*has_user_gesture=*/true);
+
+  // A same-document navigation has no response headers and is not an error
+  // page, so it should fall back to reporting HTTP OK.
+  EXPECT_CALL(GetAdsServiceMock(), NotifyTabDidLoad(TabId(), net::HTTP_OK));
+  SimulateClick(kSinglePageApplicationClickSelector,
+                /*has_user_gesture=*/true);
+
+  EXPECT_TRUE(WaitForActiveWebContentsToLoad());
+}
+
 IN_PROC_BROWSER_TEST_F(
     BraveAdsTabHelperTest,
-    NotifyTabTextContentDidChangeForRewardsUserOptedInToNotificationAds) {
+    NotifyTabTextContentDidChangeForRewardsUserWithNotificationAdsEnabled) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, true);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, true);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, true);
 
   base::RunLoop run_loop;
   EXPECT_CALL(
@@ -551,9 +578,9 @@ IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
 
 IN_PROC_BROWSER_TEST_F(
     BraveAdsTabHelperTest,
-    DoNotNotifyTabTextContentDidChangeForNonRewardsUserAndOptedOutOfNotificationAds) {
+    DoNotNotifyTabTextContentDidChangeForNonRewardsUserWithNotificationAdsDisabled) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, false);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, false);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, false);
 
   EXPECT_CALL(GetAdsServiceMock(), NotifyTabTextContentDidChange).Times(0);
   NavigateToRelativeURL(kMultiPageApplicationWebpage,
@@ -562,9 +589,9 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(
     BraveAdsTabHelperTest,
-    DoNotNotifyTabTextContentDidChangeForRewardsUserOptedOutOfNotificationAds) {
+    DoNotNotifyTabTextContentDidChangeForRewardsUserWithNotificationAdsDisabled) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, true);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, false);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, false);
 
   EXPECT_CALL(GetAdsServiceMock(), NotifyTabTextContentDidChange).Times(0);
   NavigateToRelativeURL(kMultiPageApplicationWebpage,
@@ -574,7 +601,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
                        DoNotNotifyTabTextContentDidChangeIfTabWasRestored) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, true);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, true);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, true);
 
   base::RunLoop run_loop;
   EXPECT_CALL(GetAdsServiceMock(), NotifyTabTextContentDidChange)
@@ -606,7 +633,7 @@ IN_PROC_BROWSER_TEST_F(
     BraveAdsTabHelperTest,
     DoNotNotifyTabTextContentDidChangeForPreviouslyCommittedNavigation) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, true);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, true);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, true);
 
   base::RunLoop run_loop;
   EXPECT_CALL(GetAdsServiceMock(), NotifyTabTextContentDidChange)
@@ -628,7 +655,7 @@ IN_PROC_BROWSER_TEST_F(
     BraveAdsTabHelperTest,
     DoNotNotifyTabTextContentDidChangeForHttpClientErrorResponsePage) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, true);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, true);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, true);
 
   EXPECT_CALL(GetAdsServiceMock(), NotifyTabTextContentDidChange).Times(0);
   SimulateHttpStatusCodePage(net::HTTP_NOT_FOUND);
@@ -638,7 +665,7 @@ IN_PROC_BROWSER_TEST_F(
     BraveAdsTabHelperTest,
     DoNotNotifyTabTextContentDidChangeForHttpServerErrorResponsePage) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, true);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, true);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, true);
 
   EXPECT_CALL(GetAdsServiceMock(), NotifyTabTextContentDidChange).Times(0);
   SimulateHttpStatusCodePage(net::HTTP_INTERNAL_SERVER_ERROR);
@@ -648,7 +675,7 @@ IN_PROC_BROWSER_TEST_F(
     BraveAdsTabHelperTest,
     DoNotNotifyTabTextContentDidChangeForSameDocumentNavigation) {
   GetPrefs()->SetBoolean(brave_rewards::prefs::kEnabled, true);
-  GetPrefs()->SetBoolean(prefs::kOptedInToNotificationAds, true);
+  GetPrefs()->SetBoolean(prefs::kNotificationsEnabled, true);
 
   base::RunLoop run_loop;
   EXPECT_CALL(GetAdsServiceMock(), NotifyTabTextContentDidChange)
@@ -876,10 +903,10 @@ IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
 
 IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
                        DoNotCreativeAdsServiceForIncognitoBrowser) {
-  const Browser* const browser = CreateIncognitoBrowser();
+  BrowserWindowInterface* const browser = CreateIncognitoBrowser();
 
   content::WebContents* const web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetActiveTabInterface()->GetContents();
   ASSERT_TRUE(web_contents);
 
   AdsTabHelper* const ads_tab_helper =
@@ -891,10 +918,10 @@ IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
 
 IN_PROC_BROWSER_TEST_F(BraveAdsTabHelperTest,
                        DoNotCreativeAdsServiceForGuestBrowser) {
-  const Browser* const browser = CreateGuestBrowser();
+  BrowserWindowInterface* const browser = CreateGuestBrowser();
 
   content::WebContents* const web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetActiveTabInterface()->GetContents();
   ASSERT_TRUE(web_contents);
 
   AdsTabHelper* const ads_tab_helper =

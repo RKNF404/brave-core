@@ -9,15 +9,13 @@
 #include <string>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/memory/weak_ptr.h"
 #include "brave/components/brave_account/brave_account_state_prefs.h"
-#include "brave/components/brave_account/endpoints/login_finalize.h"
-#include "brave/components/brave_account/endpoints/login_init.h"
-#include "brave/components/brave_account/endpoints/password_finalize.h"
-#include "brave/components/brave_account/endpoints/password_init.h"
-#include "brave/components/brave_account/endpoints/verify_complete.h"
+#include "brave/components/brave_account/flows/cancel_verification.h"
+#include "brave/components/brave_account/flows/login.h"
+#include "brave/components/brave_account/flows/register.h"
+#include "brave/components/brave_account/flows/resend_verification_email.h"
+#include "brave/components/brave_account/flows/reset_password.h"
 #include "brave/components/brave_account/mojom/brave_account.mojom.h"
-#include "brave/components/brave_account/reset_password.h"
 #include "brave/components/brave_account/state_base.h"
 #include "components/os_crypt/async/common/encryptor.h"
 
@@ -28,11 +26,11 @@ class SharedURLLoaderFactory;
 namespace brave_account {
 
 // `mojom::Authentication` surface available before login:
-// `RegisterInitialize()`, `RegisterFinalize()`, `RegisterVerify()`,
-// `LoginInitialize()`, and `LoginFinalize()`, plus the password-reset steps,
-// which are delegated to the `reset_password_` helper.
-// `ResendVerificationEmail()` and `CancelVerification()` are fully
-// handled by `StateBase` for both states.
+// the login, registration, and password-reset steps,
+// which are delegated to the `login_`, `register_`, and
+// `reset_password_` helpers. `ResendVerificationEmail()` and
+// `CancelVerification()` are valid in both states, so this state owns its own
+// `resend_verification_email_` and `cancel_verification_` helpers.
 // All other methods inherit `StateBase`'s wrong-state default.
 class LoggedOutState : public StateBase {
  public:
@@ -48,63 +46,51 @@ class LoggedOutState : public StateBase {
   ~LoggedOutState() override;
 
  private:
-  void RegisterInitialize(mojom::Service initiating_service,
+  void CancelVerification(mojom::VerificationIntentPtr intent) override;
+
+  void LoginStep1(mojom::Service initiating_service,
+                  const std::string& email,
+                  const std::string& serialized_ke1,
+                  LoginStep1Callback callback) override;
+
+  void LoginStep2(const std::string& encrypted_login_token,
+                  const std::string& client_mac,
+                  LoginStep2Callback callback) override;
+
+  void RegisterStep1(mojom::Service initiating_service,
+                     const std::string& email,
+                     const std::string& blinded_message,
+                     RegisterStep1Callback callback) override;
+
+  void RegisterStep2(const std::string& encrypted_verification_token,
+                     const std::string& serialized_record,
+                     RegisterStep2Callback callback) override;
+
+  void RegisterStep3(const std::string& code,
+                     RegisterStep3Callback callback) override;
+
+  void ResendVerificationEmail(
+      mojom::VerificationIntentPtr intent,
+      ResendVerificationEmailCallback callback) override;
+
+  void ResetPasswordStep1(const std::string& email,
+                          ResetPasswordStep1Callback callback) override;
+
+  void ResetPasswordStep2(const std::string& code,
+                          ResetPasswordStep2Callback callback) override;
+
+  void ResetPasswordStep3(const std::string& blinded_message,
+                          ResetPasswordStep3Callback callback) override;
+
+  void ResetPasswordStep4(const std::string& serialized_record,
                           const std::string& email,
-                          const std::string& blinded_message,
-                          RegisterInitializeCallback callback) override;
+                          ResetPasswordStep4Callback callback) override;
 
-  void RegisterFinalize(const std::string& encrypted_verification_token,
-                        const std::string& serialized_record,
-                        RegisterFinalizeCallback callback) override;
-
-  void RegisterVerify(const std::string& code,
-                      RegisterVerifyCallback callback) override;
-
-  void ResetPasswordVerifyInit(
-      const std::string& email,
-      ResetPasswordVerifyInitCallback callback) override;
-
-  void ResetPasswordVerifyComplete(
-      const std::string& code,
-      ResetPasswordVerifyCompleteCallback callback) override;
-
-  void ResetPasswordPasswordInit(
-      const std::string& blinded_message,
-      ResetPasswordPasswordInitCallback callback) override;
-
-  void ResetPasswordPasswordFinalize(
-      const std::string& serialized_record,
-      const std::string& email,
-      ResetPasswordPasswordFinalizeCallback callback) override;
-
-  void LoginInitialize(mojom::Service initiating_service,
-                       const std::string& email,
-                       const std::string& serialized_ke1,
-                       LoginInitializeCallback callback) override;
-
-  void LoginFinalize(const std::string& encrypted_login_token,
-                     const std::string& client_mac,
-                     LoginFinalizeCallback callback) override;
-
-  void OnRegisterInitialize(RegisterInitializeCallback callback,
-                            endpoints::PasswordInit::Response response);
-
-  void OnRegisterFinalize(RegisterFinalizeCallback callback,
-                          const std::string& encrypted_verification_token,
-                          endpoints::PasswordFinalize::Response response);
-
-  void OnRegisterVerify(RegisterVerifyCallback callback,
-                        endpoints::VerifyComplete::Response response);
-
-  void OnLoginInitialize(LoginInitializeCallback callback,
-                         endpoints::LoginInit::Response response);
-
-  void OnLoginFinalize(LoginFinalizeCallback callback,
-                       endpoints::LoginFinalize::Response response);
-
-  ResetPassword reset_password_{*this};
-
-  base::WeakPtrFactory<LoggedOutState> weak_factory_{this};
+  class CancelVerification cancel_verification_;
+  Login login_;
+  Register register_;
+  class ResendVerificationEmail resend_verification_email_;
+  ResetPassword reset_password_;
 };
 
 }  // namespace brave_account

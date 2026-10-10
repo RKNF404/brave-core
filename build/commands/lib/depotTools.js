@@ -9,7 +9,7 @@ import { isCI } from './ciDetect.ts'
 import fs from 'node:fs'
 import path from 'node:path'
 import * as Log from './log.ts'
-import util from './util.js'
+import util from './util.ts'
 
 // The .disable_auto_update file in the depot_tools directory, regardless of
 // its content, disables auto-updates. If a specific depot_tools reference is
@@ -113,6 +113,8 @@ function installDepotTools(options = config.defaultOptions) {
           ['clone', config.depotToolsRepo, config.depotToolsDir],
           options,
         )
+        // Bootstrap CIPD, Python and other dependencies.
+        bootstrapDepotTools(options)
       })
     }
 
@@ -128,7 +130,7 @@ function installDepotTools(options = config.defaultOptions) {
               config.depotToolsDir,
               enforcedDepotToolsRef,
             )
-            // Bootstrap CIPD, Python and other dependencies manually.
+            // Bootstrap CIPD, Python and other dependencies.
             bootstrapDepotTools(options)
           },
         )
@@ -136,7 +138,7 @@ function installDepotTools(options = config.defaultOptions) {
     }
 
     if (process.platform === 'win32' && isCI) {
-      // Bootstrap gsutil on Windows manually to fix random LockFile issues.
+      // Bootstrap gsutil on Windows to fix random LockFile issues.
       util.run(path.join(config.depotToolsDir, 'gsutil.py.bat'), [], {
         ...options,
         stdio: 'pipe',

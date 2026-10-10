@@ -7,22 +7,18 @@
 #include "base/path_service.h"
 #include "brave/browser/themes/brave_dark_mode_utils.h"
 #include "brave/browser/themes/pref_names.h"
-#include "brave/browser/ui/color/brave_color_id.h"
 #include "brave/browser/ui/color/color_palette.h"
 #include "brave/components/constants/brave_paths.h"
 #include "brave/components/constants/pref_names.h"
 #include "brave/components/tor/buildflags/buildflags.h"
-#include "brave/ui/color/nala/nala_color_id.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/themes/test/theme_service_changed_waiter.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/pref_names.h"
@@ -31,8 +27,6 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/buildflags/buildflags.h"
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest-spi.h"
 #include "ui/color/color_provider.h"
 #include "ui/color/color_provider_key.h"
 
@@ -43,12 +37,9 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/extension_install_prompt.h"
 #include "chrome/browser/extensions/extension_service.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "components/crx_file/crx_verifier.h"
 #include "extensions/browser/crx_file_info.h"
 #include "extensions/browser/crx_installer.h"
-#include "extensions/browser/extension_dialog_auto_confirm.h"
-#include "extensions/browser/extension_system.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #endif
 
@@ -75,12 +66,11 @@ class BraveThemeServiceTest : public InProcessBrowserTest {
         GetTestDataDir().AppendASCII("extensions").AppendASCII(filename);
 
     extensions::TestExtensionRegistryObserver observer(
-        extensions::ExtensionRegistry::Get(browser()->profile()));
+        extensions::ExtensionRegistry::Get(browser()->GetProfile()));
 
     auto installer =
-        extensions::CrxInstaller::CreateSilent(browser()->profile());
+        extensions::CrxInstaller::CreateSilent(browser()->GetProfile());
     installer->set_allow_silent_install(true);
-    installer->set_was_triggered_by_user_download();
     installer->set_creation_flags(extensions::Extension::FROM_WEBSTORE);
 
     installer->InstallCrxFile(
@@ -102,7 +92,7 @@ IN_PROC_BROWSER_TEST_F(BraveThemeServiceTest, ColorProviderTest) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Check frame color is not ours when theme extension is installed.
   ThemeService* theme_service =
-      ThemeServiceFactory::GetForProfile(browser()->profile());
+      ThemeServiceFactory::GetForProfile(browser()->GetProfile());
   test::ThemeServiceChangedWaiter waiter(theme_service);
 
   EXPECT_FALSE(UsingCustomTheme(*theme_service));
@@ -125,28 +115,28 @@ IN_PROC_BROWSER_TEST_F(BraveThemeServiceTest, ColorProviderTest) {
 IN_PROC_BROWSER_TEST_F(BraveThemeServiceTest, NonNormalWindowDarkModeTest) {
   // Check non-normal window's color provider mode is dark.
   profiles::SwitchToGuestProfile();
-  Browser* guest_browser = ui_test_utils::WaitForBrowserToOpen();
+  BrowserWindowInterface* guest_browser = ui_test_utils::WaitForBrowserToOpen();
   ASSERT_TRUE(guest_browser);
-  ASSERT_TRUE(guest_browser->profile()->IsGuestSession());
-  ASSERT_FALSE(guest_browser->profile()->IsIncognitoProfile());
+  ASSERT_TRUE(guest_browser->GetProfile()->IsGuestSession());
+  ASSERT_FALSE(guest_browser->GetProfile()->IsIncognitoProfile());
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(guest_browser);
   auto* browser_widget = browser_view->GetWidget();
   auto key = browser_widget->GetColorProviderKeyForTesting();
   EXPECT_EQ(ui::ColorProviderKey::ColorMode::kDark, key.color_mode);
 
-  auto* private_browser = CreateIncognitoBrowser(browser()->profile());
+  auto* private_browser = CreateIncognitoBrowser(browser()->GetProfile());
   ASSERT_TRUE(private_browser);
-  ASSERT_TRUE(private_browser->profile()->IsIncognitoProfile());
+  ASSERT_TRUE(private_browser->GetProfile()->IsIncognitoProfile());
   browser_view = BrowserView::GetBrowserViewForBrowser(private_browser);
   browser_widget = browser_view->GetWidget();
   key = browser_widget->GetColorProviderKeyForTesting();
   EXPECT_EQ(ui::ColorProviderKey::ColorMode::kDark, key.color_mode);
 
 #if BUILDFLAG(ENABLE_TOR)
-  Browser* tor_browser =
-      TorProfileManager::SwitchToTorProfile(browser()->profile());
+  BrowserWindowInterface* tor_browser =
+      TorProfileManager::SwitchToTorProfile(browser()->GetProfile());
   ASSERT_TRUE(tor_browser);
-  ASSERT_TRUE(tor_browser->profile()->IsIncognitoProfile());
+  ASSERT_TRUE(tor_browser->GetProfile()->IsIncognitoProfile());
   browser_view = BrowserView::GetBrowserViewForBrowser(tor_browser);
   browser_widget = browser_view->GetWidget();
   key = browser_widget->GetColorProviderKeyForTesting();
@@ -156,7 +146,7 @@ IN_PROC_BROWSER_TEST_F(BraveThemeServiceTest, NonNormalWindowDarkModeTest) {
 
 IN_PROC_BROWSER_TEST_F(BraveThemeServiceTest, PRE_BraveDarkModeMigrationTest) {
   auto* local_state = g_browser_process->local_state();
-  auto* profile_prefs = browser()->profile()->GetPrefs();
+  auto* profile_prefs = browser()->GetProfile()->GetPrefs();
 
   // Check on first launch.
   EXPECT_EQ(dark_mode::BraveDarkModeType::BRAVE_DARK_MODE_TYPE_DEFAULT,
@@ -178,7 +168,7 @@ IN_PROC_BROWSER_TEST_F(BraveThemeServiceTest, PRE_BraveDarkModeMigrationTest) {
 
 IN_PROC_BROWSER_TEST_F(BraveThemeServiceTest, BraveDarkModeMigrationTest) {
   auto* local_state = g_browser_process->local_state();
-  auto* profile_prefs = browser()->profile()->GetPrefs();
+  auto* profile_prefs = browser()->GetProfile()->GetPrefs();
 
   EXPECT_EQ(dark_mode::BraveDarkModeType::BRAVE_DARK_MODE_TYPE_DARK,
             static_cast<dark_mode::BraveDarkModeType>(

@@ -14,7 +14,6 @@
 #include "brave/components/webcompat/core/common/features.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
@@ -187,7 +186,8 @@ class EventSourcePoolLimitBrowserTest : public InProcessBrowserTest {
   }
 
   HostContentSettingsMap* content_settings() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 
   // Makes use of Cross Site Redirector
@@ -400,7 +400,8 @@ IN_PROC_BROWSER_TEST_F(EventSourcePoolLimitBrowserTest,
   })");
   test_extension_dir.WriteFile(FILE_PATH_LITERAL("empty.html"), "");
 
-  extensions::ChromeTestExtensionLoader extension_loader(browser()->profile());
+  extensions::ChromeTestExtensionLoader extension_loader(
+      browser()->GetProfile());
   scoped_refptr<const extensions::Extension> extension =
       extension_loader.LoadExtension(test_extension_dir.UnpackedPath());
   const GURL url = extension->ResolveExtensionURL("/empty.html");

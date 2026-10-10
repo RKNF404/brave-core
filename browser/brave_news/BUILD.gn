@@ -30,7 +30,10 @@ source_set("brave_news") {
 }
 
 source_set("impl") {
-  visibility = [ "//chrome/browser" ]
+  visibility = [
+    "//brave/browser:core",
+    "//brave/browser/ui/views/page_action:unit_tests",
+  ]
 
   sources = [
     "brave_news_controller_factory.cc",
@@ -48,6 +51,7 @@ source_set("impl") {
     ":brave_news",
     "//base",
     "//brave/browser:browser_process",
+    "//brave/browser/brave_stats:first_run_util",
     "//brave/components/brave_news/browser",
     "//brave/components/brave_news/common",
     "//brave/components/brave_news/common:rss_link_reader_mojom",
@@ -63,17 +67,24 @@ source_set("impl") {
     "//components/policy/core/common",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
     "//services/service_manager/public/cpp",
     "//url",
   ]
 
   if (!is_android) {
     # The controller delegate opens the New Tab Page, which requires
-    # //chrome/browser/ui/navigator (desktop only).
+    # //chrome/browser/ui/navigator (desktop only). CloseUI also closes the
+    # browser side panel, which requires //chrome/browser/ui/side_panel and
+    # //chrome/browser/ui/browser_window.
     sources += [ "brave_news_controller_delegate_impl.cc" ]
     deps += [
       "//brave/components/constants",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/navigator",
+      "//chrome/browser/ui/side_panel",
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     ]
   }
 
@@ -105,9 +116,12 @@ source_set("browser_tests") {
       "//chrome/browser/profiles",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui",
+      "//chrome/browser/ui/views/frame:browser_view_header",
       "//chrome/test:test_support_ui",
       "//content/test:test_support",
       "//net:test_support",
+      "//services/network/public/cpp:ip_address_space_overrides_test_utils",
+      "//services/network/public/mojom",
       "//testing/gmock",
       "//testing/gtest",
     ]

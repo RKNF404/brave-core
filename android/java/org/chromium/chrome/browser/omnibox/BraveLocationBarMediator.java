@@ -10,30 +10,30 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.text.TextUtils;
-import android.util.Range;
 import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.lens.LensController;
-import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.omnibox.UrlBar.ScrollType;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxLoadUrlParams;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteInput.AutocompleteState;
 import org.chromium.components.omnibox.OmniboxFocusReason;
+import org.chromium.components.omnibox.TextSelection;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
@@ -69,50 +69,48 @@ public class BraveLocationBarMediator extends LocationBarMediator {
             Context context,
             LocationBarLayout locationBarLayout,
             LocationBarDataProvider locationBarDataProvider,
+            OmniboxResourceProvider resourceProvider,
             LocationBarEmbedderUiOverrides embedderUiOverrides,
             MonotonicObservableSupplier<Profile> profileSupplier,
-            OverrideUrlLoadingDelegate overrideUrlLoadingDelegate,
-            LocaleManager localeManager,
+            LocationBarNavigator locationBarNavigator,
             OneshotSupplier<TemplateUrlService> templateUrlServiceSupplier,
             BackKeyBehaviorDelegate backKeyBehavior,
             WindowAndroid windowAndroid,
             boolean isTablet,
             LensController lensController,
-            OmniboxUma omniboxUma,
             BooleanSupplier isToolbarMicEnabledSupplier,
             OmniboxSuggestionsDropdownEmbedderImpl dropdownEmbedder,
-            MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             @Nullable BrowserControlsStateProvider browserControlsStateProvider,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator,
             FuseboxCoordinator fuseboxCoordinator,
             LocationBarEmbedder locationBarEmbedder,
             @Nullable OmniboxChipManager omniboxChipManager,
-            @Nullable LocationBarFocusScrimHandler scrimHandler) {
+            @Nullable LocationBarFocusScrimHandler scrimHandler,
+            NonNullObservableSupplier<Boolean> windowHasFocusSupplier) {
         super(
                 context,
                 locationBarLayout,
                 locationBarDataProvider,
+                resourceProvider,
                 embedderUiOverrides,
                 profileSupplier,
-                overrideUrlLoadingDelegate,
-                localeManager,
+                locationBarNavigator,
                 templateUrlServiceSupplier,
                 backKeyBehavior,
                 windowAndroid,
                 isTablet,
                 lensController,
-                omniboxUma,
                 isToolbarMicEnabledSupplier,
                 dropdownEmbedder,
-                tabModelSelectorSupplier,
                 browserControlsStateProvider,
                 modalDialogManagerSupplier,
                 pageZoomIndicatorCoordinator,
                 fuseboxCoordinator,
                 locationBarEmbedder,
                 omniboxChipManager,
-                scrimHandler);
+                scrimHandler,
+                windowHasFocusSupplier);
     }
 
     public static Class<OmniboxUma> getOmniboxUmaClass() {
@@ -123,8 +121,8 @@ public class BraveLocationBarMediator extends LocationBarMediator {
         return LensController.class;
     }
 
-    public static Class<LocaleManager> getLocaleManagerClass() {
-        return LocaleManager.class;
+    public static Class<LocationBarNavigator> getLocationBarNavigatorClass() {
+        return LocationBarNavigator.class;
     }
 
     public static Class<OmniboxSuggestionsDropdownEmbedderImpl>
@@ -146,14 +144,11 @@ public class BraveLocationBarMediator extends LocationBarMediator {
 
     @Override
     public void onResumeWithNative() {
-        if (mTemplateUrlServiceSupplier.get() != null
-                && !mTemplateUrlServiceSupplier.get().isLoaded()) {
-            mTemplateUrlServiceSupplier
-                    .get()
-                    .runWhenLoaded(
-                            () -> {
-                                super.onResumeWithNative();
-                            });
+        @Nullable TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
+        if (templateUrlService != null
+                && templateUrlService.hasNativeService()
+                && !templateUrlService.isLoaded()) {
+            templateUrlService.runWhenLoaded(() -> super.onResumeWithNative());
             return;
         }
         super.onResumeWithNative();
@@ -249,7 +244,7 @@ public class BraveLocationBarMediator extends LocationBarMediator {
     // BraveLocationBarQRDialogFragment.onDetectedQrCode to keep pre cr146
     // behavior.
     public boolean setUrlBarData(
-            UrlBarData data, @ScrollType int scrollType, Range<Integer> selection) {
+            UrlBarData data, @ScrollType int scrollType, TextSelection selection) {
         return mUrlCoordinator.setUrlBarData(data, scrollType, selection);
     }
 
@@ -275,7 +270,7 @@ public class BraveLocationBarMediator extends LocationBarMediator {
         setUrlBarText(
                 UrlBarData.forNonUrlText(query),
                 UrlBar.ScrollType.NO_SCROLL,
-                UrlBarData.SELECT_ALL);
+                TextSelection.SELECT_ALL);
         mAutocompleteCoordinator.startAutocompleteForQuery(query);
         mUrlCoordinator.setKeyboardVisibility(true, false);
     }

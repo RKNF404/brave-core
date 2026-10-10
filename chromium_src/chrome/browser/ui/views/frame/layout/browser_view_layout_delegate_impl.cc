@@ -5,33 +5,38 @@
 
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h"
 
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_contents_view_util.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 
 #include <chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.cc>
 
 bool BrowserViewLayoutDelegateImpl::ShouldShowVerticalTabs() const {
   return browser_view().browser() &&
-         tabs::utils::ShouldShowBraveVerticalTabs(browser_view().browser());
+         VerticalTabController::From(browser_view().browser())
+             ->ShouldShowBraveVerticalTabs();
 }
 
 bool BrowserViewLayoutDelegateImpl::ShouldShowWindowTitleForVerticalTabs()
     const {
   return browser_view().browser() &&
-         tabs::utils::ShouldShowWindowTitleForVerticalTabs(
-             browser_view().browser());
+         VerticalTabController::From(browser_view().browser())
+             ->ShouldShowWindowTitleForVerticalTabs();
 }
 
 bool BrowserViewLayoutDelegateImpl::IsVerticalTabOnRight() const {
   return browser_view().browser() &&
-         tabs::utils::IsVerticalTabOnRight(browser_view().browser());
+         VerticalTabController::From(browser_view().browser())
+             ->IsVerticalTabOnRight();
 }
 
 bool BrowserViewLayoutDelegateImpl::
@@ -50,7 +55,7 @@ int BrowserViewLayoutDelegateImpl::GetRoundedCornersWebViewMargin() const {
 
 bool BrowserViewLayoutDelegateImpl::IsBookmarkBarOnByPref() const {
   return browser_view().browser() &&
-         browser_view().browser()->profile()->GetPrefs()->GetBoolean(
+         browser_view().browser()->GetProfile()->GetPrefs()->GetBoolean(
              bookmarks::prefs::kShowBookmarkBar);
 }
 
@@ -62,7 +67,7 @@ bool BrowserViewLayoutDelegateImpl::IsContentTypeSidePanelVisible() const {
   // SidePanelCoordinator (which implements SidePanelUI) is created in
   // BWF::InitPostWindowConstruction, so it may be null during the early layout
   // pass that happens while the widget is being initialized.
-  auto* side_panel_ui = browser_view().browser()->GetFeatures().side_panel_ui();
+  auto* side_panel_ui = SidePanelUI::From(browser_view().browser());
   if (!side_panel_ui) {
     return false;
   }
@@ -74,8 +79,8 @@ bool BrowserViewLayoutDelegateImpl::IsFullscreenForBrowser() const {
   if (!browser_view().browser()) {
     return false;
   }
-  const ExclusiveAccessManager* exclusive_access_manager =
-      browser_view().browser()->GetFeatures().exclusive_access_manager();
+  auto* const exclusive_access_manager = ExclusiveAccessManager::From(
+      const_cast<BrowserWindowInterface*>(browser_view().browser()));
   if (!exclusive_access_manager) {
     return false;
   }
@@ -89,8 +94,8 @@ bool BrowserViewLayoutDelegateImpl::IsFullscreenForTab() const {
   if (!browser_view().browser()) {
     return false;
   }
-  const ExclusiveAccessManager* exclusive_access_manager =
-      browser_view().browser()->GetFeatures().exclusive_access_manager();
+  auto* const exclusive_access_manager = ExclusiveAccessManager::From(
+      const_cast<BrowserWindowInterface*>(browser_view().browser()));
   if (!exclusive_access_manager) {
     return false;
   }
@@ -102,4 +107,11 @@ bool BrowserViewLayoutDelegateImpl::IsFullscreenForTab() const {
 
 bool BrowserViewLayoutDelegateImpl::IsFullscreen() const {
   return browser_view().IsFullscreen();
+}
+
+void BrowserViewLayoutDelegateImpl::UpdateContentsCornerRadii(
+    const gfx::RoundedCornersF& corner_radii) {
+  if (auto* brave_browser_view = BraveBrowserView::From(&browser_view())) {
+    brave_browser_view->UpdateContentsCornerRadii(corner_radii);
+  }
 }

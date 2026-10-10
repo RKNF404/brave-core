@@ -8,12 +8,16 @@
 #include <memory>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
+#include "brave/browser/ui/focus_mode/focus_mode_utils.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
+#include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
 #include "brave/browser/ui/views/frame/brave_window_frame_graphic.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "brave/browser/ui/views/frame/focus_mode_top_overlay.h"
 #include "brave/browser/ui/views/toolbar/brave_toolbar_view.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/opaque_browser_frame_view_layout.h"
@@ -22,15 +26,30 @@
 #include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/scoped_canvas.h"
+#include "ui/views/controls/button/button.h"
 
 BraveOpaqueBrowserFrameView::BraveOpaqueBrowserFrameView(
     BrowserWidget* frame,
     BrowserView* browser_view,
     OpaqueBrowserFrameViewLayout* layout)
     : OpaqueBrowserFrameView(frame, browser_view, layout) {
-  frame_graphic_ = std::make_unique<BraveWindowFrameGraphic>(
-      browser_view->browser()->profile());
+  auto* browser = browser_view->browser();
+  DCHECK(browser);
+  frame_graphic_ =
+      std::make_unique<BraveWindowFrameGraphic>(browser->GetProfile());
+
+  if (auto* controller = FocusModeController::From(browser)) {
+    focus_mode_observation_.Observe(controller);
+    if (auto* overlay =
+            BraveBrowserView::From(browser_view)->focus_mode_top_overlay()) {
+      overlay_reveal_subscription_ =
+          overlay->RegisterRevealFractionChanged(base::BindRepeating(
+              &BraveOpaqueBrowserFrameView::OnTopOverlayRevealFractionChanged,
+              base::Unretained(this)));
+    }
+  }
 }
 
 BraveOpaqueBrowserFrameView::~BraveOpaqueBrowserFrameView() = default;
@@ -51,7 +70,18 @@ void BraveOpaqueBrowserFrameView::OnPaint(gfx::Canvas* canvas) {
 }
 
 int BraveOpaqueBrowserFrameView::NonClientHitTest(const gfx::Point& point) {
-  if (tabs::utils::ShouldShowBraveVerticalTabs(GetBrowserView()->browser())) {
+  auto* browser_view = BraveBrowserView::From(GetBrowserView());
+  CHECK(browser_view);
+
+  // In Focus Mode, while the top overlay is mid-animation, we need to report
+  // the area as HTCAPTION so the user can't half-click a sliding button.
+  bool captions_fully_revealed = true;
+  if (auto* overlay = browser_view->focus_mode_top_overlay()) {
+    captions_fully_revealed = overlay->is_fully_revealed();
+  }
+
+  if (auto* vtc = VerticalTabController::From(browser_view->browser());
+      vtc && vtc->ShouldShowBraveVerticalTabs() && captions_fully_revealed) {
     auto hit_test_caption_button = [](views::Button* button,
                                       const gfx::Point& point) {
       return button && button->GetVisible() &&
@@ -72,47 +102,28 @@ int BraveOpaqueBrowserFrameView::NonClientHitTest(const gfx::Point& point) {
     }
   }
 
-  if (auto res = GetBrowserView()
-                     ->browser()
-                     ->browser_window_features()
-                     ->brave_non_client_hit_test_helper()
+  if (auto res = BraveNonClientHitTestHelper::From(browser_view->browser())
                      ->NonClientHitTest(GetBrowserView(), point);
       res != HTNOWHERE) {
     return res;
   }
 
-  return OpaqueBrowserFrameView::NonClientHitTest(point);
+  int result = OpaqueBrowserFrameView::NonClientHitTest(point);
+
+  if (!captions_fully_revealed) {
+    if (result == HTMINBUTTON || result == HTMAXBUTTON || result == HTCLOSE) {
+      result = HTCAPTION;
+    }
+  }
+
+  return result;
 }
 
 void BraveOpaqueBrowserFrameView::
     UpdateCaptionButtonPlaceholderContainerBackground() {
   OpaqueBrowserFrameView::UpdateCaptionButtonPlaceholderContainerBackground();
 
-  DCHECK(GetBrowserView());
-  auto* browser = GetBrowserView()->browser();
-  DCHECK(browser);
-  const bool should_window_caption_buttons_overlap_toolbar =
-      tabs::utils::ShouldShowBraveVerticalTabs(browser) &&
-      !tabs::utils::ShouldShowWindowTitleForVerticalTabs(browser);
-
-  for (auto& button :
-       {close_button_, restore_button_, maximize_button_, minimize_button_}) {
-    if (!button) {
-      continue;
-    }
-
-    if (should_window_caption_buttons_overlap_toolbar) {
-      auto* cp = GetColorProvider();
-      DCHECK(cp);
-
-      button->SetPaintToLayer();
-      button->layer()->SetFillsBoundsOpaquely(false);
-    } else {
-      if (button->layer()) {
-        button->DestroyLayer();
-      }
-    }
-  }
+  RefreshCaptionButtonLayers();
 
   // Notify toolbar view that caption button's width changed so that it can
   // make space for caption buttons.
@@ -130,6 +141,10 @@ void BraveOpaqueBrowserFrameView::Layout(PassKey key) {
   // Investigate what's happening.
   static_cast<BraveToolbarView*>(GetBrowserView()->toolbar())
       ->UpdateHorizontalPadding();
+}
+
+void BraveOpaqueBrowserFrameView::OnFocusModeToggled(bool enabled) {
+  RefreshCaptionButtonLayers();
 }
 
 void BraveOpaqueBrowserFrameView::PaintClientEdge(gfx::Canvas* canvas) const {
@@ -165,7 +180,61 @@ bool BraveOpaqueBrowserFrameView::ShouldShowVerticalTabs() const {
   DCHECK(GetBrowserView());
   auto* browser = GetBrowserView()->browser();
   DCHECK(browser);
-  return tabs::utils::ShouldShowBraveVerticalTabs(browser);
+  auto* vtc = VerticalTabController::From(browser);
+  CHECK(vtc);
+  return vtc->ShouldShowBraveVerticalTabs();
+}
+
+bool BraveOpaqueBrowserFrameView::ShouldCaptionButtonsPaintToLayer() const {
+  DCHECK(GetBrowserView());
+  auto* browser = GetBrowserView()->browser();
+  DCHECK(browser);
+
+  if (IsFocusModeEnabled(browser)) {
+    return true;
+  }
+
+  auto* vtc = VerticalTabController::From(browser);
+  CHECK(vtc);
+
+  return vtc->ShouldShowBraveVerticalTabs() &&
+         !vtc->ShouldShowWindowTitleForVerticalTabs();
+}
+
+void BraveOpaqueBrowserFrameView::RefreshCaptionButtonLayers() {
+  const bool paint_to_layer = ShouldCaptionButtonsPaintToLayer();
+
+  for (views::Button* button :
+       {close_button_.get(), restore_button_.get(), maximize_button_.get(),
+        minimize_button_.get()}) {
+    if (!button) {
+      continue;
+    }
+
+    if (paint_to_layer) {
+      if (!button->layer()) {
+        button->SetPaintToLayer();
+        button->layer()->SetFillsBoundsOpaquely(false);
+      }
+    } else if (button->layer()) {
+      button->DestroyLayer();
+    }
+  }
+}
+
+void BraveOpaqueBrowserFrameView::OnTopOverlayRevealFractionChanged(
+    double reveal_fraction) {
+  for (views::Button* button :
+       {close_button_.get(), restore_button_.get(), maximize_button_.get(),
+        minimize_button_.get()}) {
+    if (!button || !button->layer()) {
+      continue;
+    }
+
+    const int height = button->height();
+    button->layer()->SetTransform(
+        gfx::Transform::MakeTranslation(0, -height * (1.0 - reveal_fraction)));
+  }
 }
 
 BEGIN_METADATA(BraveOpaqueBrowserFrameView)

@@ -12,6 +12,7 @@
 #include "base/containers/fixed_flat_set.h"
 #include "base/strings/utf_string_conversions.h"
 #include "brave/browser/ui/screenshot/features.h"
+#include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/brave_action.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
@@ -70,10 +71,6 @@ void AddActionsForAddressBarCategory(Profile* profile,
     brave_actions.push_back(kShowBraveNews);
   }
 #endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)
-
-  if (!sharing_hub::SharingIsDisabledByPolicy(profile)) {
-    brave_actions.push_back(kShowShareMenuAction);
-  }
 
   // PWA install button is always available (pref controls visibility)
   brave_actions.push_back(kShowPwaInstallAction);
@@ -189,10 +186,17 @@ std::vector<ActionPtr> ApplyBraveSpecificModifications(
         l10n_util::GetStringUTF8(IDS_CUSTOMIZE_TOOLBAR_TOGGLE_BOOKMARKS_PANEL);
   }
 
+  if (auto task_manager_it =
+          std::ranges::find(actions, ActionId::kTaskManager, get_action_id);
+      task_manager_it != actions.end()) {
+    (*task_manager_it)->icon_url = get_icon_url(kLeoWindowTaskManagerIcon);
+  }
+
   // 3. Add Brave specific actions.
   // Brave specific actions
   // Navigation
   //   kShowAddBookmarkButton,
+  //   kShowVerticalTabToggleButtonAction,
   //   kShowSidePanel,
   //   kShowWallet,
   //   kShowAIChat,
@@ -201,12 +205,45 @@ std::vector<ActionPtr> ApplyBraveSpecificModifications(
   // Address bar
   //   kShowReward
   //   kShowBraveNews
-  //   kShowShareMenu
+  auto* prefs = user_prefs::UserPrefs::Get(web_contents->GetBrowserContext());
+  CHECK(prefs) << "Browser context does not have prefs";
+
+  auto brave_actions = ListBraveSpecificActions(web_contents);
+
+  for (const auto& brave_action : brave_actions) {
+    // Find the anchor action. If anchor action is not found, just append to the
+    // end of the list.
+    auto anchor_it =
+        std::ranges::find(actions, brave_action.anchor, get_action_id);
+
+    // Create the new action.
+    auto new_action = Action::New(
+        brave_action.id,
+        base::UTF16ToUTF8(
+            l10n_util::GetStringUTF16(brave_action.display_name_resource_id)),
+        /*pinned=*/prefs->GetBoolean(brave_action.pref_name),
+        /*has_enterprise_controlled_pinned_state=*/false, brave_action.category,
+        get_icon_url(brave_action.icon));
+
+    // Insert the new action after the anchor or end of the list.
+    actions.insert(anchor_it == actions.end() ? actions.end() : anchor_it + 1,
+                   std::move(new_action));
+  }
+
+  return actions;
+}
+
+std::vector<BraveAction> ListBraveSpecificActions(
+    content::WebContents* web_contents) {
   auto* prefs = user_prefs::UserPrefs::Get(web_contents->GetBrowserContext());
   CHECK(prefs) << "Browser context does not have prefs";
 
   std::vector<BraveAction> brave_actions;
   brave_actions.push_back(kShowAddBookmarkButton);
+  if (prefs->GetBoolean(brave_tabs::kVerticalTabsEnabled)) {
+    brave_actions.push_back(kShowVerticalTabToggleButtonAction);
+  }
+
   brave_actions.push_back(kShowSidePanelAction);
 
   // Followings are dynamic actions: anchor to TabSearchButton and append to
@@ -237,27 +274,7 @@ std::vector<ActionPtr> ApplyBraveSpecificModifications(
       Profile::FromBrowserContext(web_contents->GetBrowserContext()),
       brave_actions);
 
-  for (const auto& brave_action : brave_actions) {
-    // Find the anchor action. If anchor action is not found, just append to the
-    // end of the list.
-    auto anchor_it =
-        std::ranges::find(actions, brave_action.anchor, get_action_id);
-
-    // Create the new action.
-    auto new_action = Action::New(
-        brave_action.id,
-        base::UTF16ToUTF8(
-            l10n_util::GetStringUTF16(brave_action.display_name_resource_id)),
-        /*pinned=*/prefs->GetBoolean(brave_action.pref_name),
-        /*has_enterprise_controlled_pinned_state=*/false, brave_action.category,
-        get_icon_url(brave_action.icon));
-
-    // Insert the new action after the anchor or end of the list.
-    actions.insert(anchor_it == actions.end() ? actions.end() : anchor_it + 1,
-                   std::move(new_action));
-  }
-
-  return actions;
+  return brave_actions;
 }
 
 }  // namespace customize_chrome

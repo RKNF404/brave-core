@@ -7,12 +7,14 @@ import AVFoundation
 import BraveCore
 import BraveNews
 import BraveShared
+import BraveShields
 import BraveStrings
 import BraveUI
 import BraveWallet
 import BraveWidgetsModels
 import BrowserMenu
 import CertificateUtilities
+import Combine
 import Data
 import Lottie
 import Onboarding
@@ -21,14 +23,13 @@ import Playlist
 import Preferences
 import Shared
 import SpeechRecognition
-import Storage
 import SwiftUI
 import Web
 import os.log
 
 // MARK: - TopToolbarDelegate
 
-extension BrowserViewController: TopToolbarDelegate {
+extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControllerDelegate {
 
   func showTabTray() {
     if tabManager.tabsForCurrentMode.isEmpty {
@@ -73,15 +74,13 @@ extension BrowserViewController: TopToolbarDelegate {
   }
 
   func topToolbarDidPressReload(_ topToolbar: TopToolbarView) {
-    if let url = topToolbar.currentURL {
-      if let decentralizedDNSHelper = decentralizedDNSHelperFor(url: topToolbar.currentURL) {
+    if let url = tabManager.selectedTab?.visibleURL {
+      if let decentralizedDNSHelper = decentralizedDNSHelperFor(url: url) {
         topToolbarDidPressReloadTask?.cancel()
         topToolbarDidPressReloadTask = Task { @MainActor in
-          topToolbar.locationView.loading = true
           let result = await decentralizedDNSHelper.lookup(
             domain: url.schemelessAbsoluteDisplayString
           )
-          topToolbar.locationView.loading = tabManager.selectedTab?.isLoading == true
           guard !Task.isCancelled else { return }  // user pressed stop, or typed new url
           switch result {
           case .loadInterstitial(let service):
@@ -153,9 +152,8 @@ extension BrowserViewController: TopToolbarDelegate {
 
   func topToolbarDidPressPlaylistButton(_ urlBar: TopToolbarView) {
     guard let tab = tabManager.selectedTab, let playlistItem = tab.playlistItem else { return }
-    let state = urlBar.locationView.playlistButton.buttonState
-    switch state {
-    case .addToPlaylist:
+    switch tab.playlistItemState ?? .none {
+    case .newItem:
       addToPlaylist(item: playlistItem) { [weak self] didAddItem in
         guard let self else { return }
 
@@ -168,7 +166,7 @@ extension BrowserViewController: TopToolbarDelegate {
           }
         }
       }
-    case .addedToPlaylist:
+    case .existingItem:
       // Shows its own menu
       break
     case .none:
@@ -215,36 +213,19 @@ extension BrowserViewController: TopToolbarDelegate {
   }
 
   func topToolbarDidPressScrollToTop(_ topToolbar: TopToolbarView) {
-    if let selectedTab = tabManager.selectedTab, favoritesController == nil {
+    if let selectedTab = tabManager.selectedTab, searchContainer == nil {
       // Only scroll to top if we are not showing the home view controller
       selectedTab.webViewProxy?.scrollView?.setContentOffset(CGPoint.zero, animated: true)
     }
   }
 
-  func topToolbar(_ topToolbar: TopToolbarView, didEnterText text: String) {
-    if text.isEmpty {
-      hideSearchController()
-    } else {
-      showSearchController()
-
-      let locationLastReplacement = topToolbar.locationLastReplacement
-      let isPasting = topToolbar.isPastingInURLBar
-      Task {
-        await searchController?.setSearchQuery(
-          query: text,
-          showSearchSuggestions: URLBarHelper.shared.shouldShowSearchSuggestions(
-            using: locationLastReplacement,
-            isPasting: isPasting
-          )
-        )
-      }
-
-      searchLoader?.query = text.lowercased()
-    }
-  }
-
-  func topToolbar(_ topToolbar: TopToolbarView, didSubmitText text: String) {
-    processAddressBar(text: text)
+  func topToolbarDidRequestSearchInput(
+    _ topToolbar: TopToolbarView,
+    initialText: String?,
+    pasted: Bool,
+    search: Bool
+  ) {
+    presentSearchInput(initialText: initialText, pasted: pasted, search: search)
   }
 
   func processAddressBar(
@@ -299,7 +280,7 @@ extension BrowserViewController: TopToolbarDelegate {
   ) async -> Bool {
 
     if let url = URL(string: text), url.scheme == "brave" || url.scheme == "chrome" {
-      topToolbar.leaveOverlayMode()
+      dismissSearchInput()
       finishEditingAndSubmit(url, isUserDefinedURLNavigation: isUserDefinedURLNavigation)
       return true
     }
@@ -310,13 +291,11 @@ extension BrowserViewController: TopToolbarDelegate {
 
     // check text is decentralized DNS supported domain
     if let decentralizedDNSHelper = self.decentralizedDNSHelperFor(url: fixupURL) {
-      topToolbar.leaveOverlayMode()
-      updateToolbarCurrentURL(fixupURL)
-      topToolbar.locationView.loading = true
+      dismissSearchInput()
+      updateScreenTimeUrl(fixupURL)
       let result = await decentralizedDNSHelper.lookup(
         domain: fixupURL.schemelessAbsoluteDisplayString
       )
-      topToolbar.locationView.loading = tabManager.selectedTab?.isLoading == true
       guard !Task.isCancelled else { return true }  // user pressed stop, or typed new url
       switch result {
       case .loadInterstitial(let service):
@@ -343,21 +322,125 @@ extension BrowserViewController: TopToolbarDelegate {
     return true
   }
 
-  func topToolbarDidEnterOverlayMode(_ topToolbar: TopToolbarView) {
-    updateTabsBarVisibility()
-    displayFavoritesController()
+  var isSearchContainerVisible: Bool {
+    searchContainer?.parent == self
   }
 
-  func topToolbarDidLeaveOverlayMode(_ topToolbar: TopToolbarView) {
-    hideSearchController()
-    hideFavoritesController()
+  /// Presents the fullscreen search input over the browser. The toolbar and web view remain static.
+  ///
+  /// - Parameters:
+  ///   - initialText: The text to seed the input field with (the current URL or search query).
+  ///   - pasted: Whether the `initialText` was pasted (avoids highlighting the whole entry).
+  ///   - search: Whether `initialText` should be treated as a search query.
+  func presentSearchInput(initialText: String?, pasted: Bool, search: Bool) {
+    if let searchContainer {
+      // Already editing - just seed the existing input (e.g. from a QR scan) and refocus.
+      searchContainer.applyExternalQuery(initialText ?? "", search: search)
+      searchContainer.inputBar.becomeFirstResponder()
+      return
+    }
+
+    let isPrivate = tabManager.selectedTab?.isPrivate ?? false
+    let container = SearchContainerViewController(
+      tabManager: tabManager,
+      bookmarkManager: bookmarkManager,
+      historyAPI: profileController.historyAPI,
+      searchEngines: profile.searchEngines,
+      tileSource: TopSitesTileSource(
+        mostVisitedSites: privateBrowsingManager.isPrivateBrowsing ? nil : mostVisitedSites,
+        isPrivateBrowsing: privateBrowsingManager.isPrivateBrowsing
+      ),
+      privateBrowsingManager: privateBrowsingManager,
+      speechRecognizer: speechRecognizer,
+      isAIChatAvailable: !isPrivate && Preferences.AIChat.leoInQuickSearchBarEnabled.value
+        && AIChatUtils.isAIChatEnabled(for: profileController.profile.prefs),
+      isPlaylistAvailable: profileController.profile.prefs.isPlaylistAvailable,
+      searchDelegate: self,
+      delegate: self,
+      topSiteAction: { [weak self] action in
+        self?.handleTopSiteAction(action: action)
+      },
+      recentSearchAction: { [weak self] recentSearch, shouldSubmitSearch in
+        self?.handleRecentSearch(recentSearch, shouldSubmitSearch: shouldSubmitSearch)
+      }
+    )
+    container.isUsingBottomBar = isUsingBottomBar
+    self.searchContainer = container
+
+    // Presented fullscreen above the toolbar so the toolbar and web view remain static, and so the
+    // browser is never visible behind it (including with a hardware keyboard connected).
+    addChild(container)
+    view.addSubview(container.view)
+    container.view.snp.makeConstraints {
+      $0.edges.equalTo(view)
+    }
+    container.didMove(toParent: self)
+    container.view.setNeedsLayout()
+    container.view.layoutIfNeeded()
+
+    container.view.alpha = 0
+    UIViewPropertyAnimator.runningPropertyAnimator(withDuration: 0.1, delay: 0) {
+      container.view.alpha = 1
+    }
+
+    webViewContainer.accessibilityElementsHidden = true
+    UIAccessibility.post(notification: .screenChanged, argument: nil)
+
+    // Pasted content is treated as a search query so suggestions appear immediately, and is not
+    // selected (the cursor stays at the end).
+    container.beginEditing(
+      with: initialText,
+      search: pasted ? true : search,
+      selectAll: !pasted
+    )
+  }
+
+  /// Dismisses the fullscreen search input and restores the browsing UI.
+  func dismissSearchInput() {
+    guard isSearchContainerVisible else { return }
+
+    if let searchContainer {
+      searchContainer.inputBar.resignFirstResponder()
+      UIViewPropertyAnimator.runningPropertyAnimator(withDuration: 0.05, delay: 0) {
+        searchContainer.view.alpha = 0
+      } completion: { _ in
+        searchContainer.willMove(toParent: nil)
+        searchContainer.view.removeFromSuperview()
+        searchContainer.removeFromParent()
+      }
+    }
+    searchContainer = nil
+
+    webViewContainer.accessibilityElementsHidden = false
+    UIAccessibility.post(notification: .screenChanged, argument: nil)
+
     updateScreenTimeUrl(tabManager.selectedTab?.visibleURL)
     updateInContentHomePanel(tabManager.selectedTab?.visibleURL as URL?)
     updateTabsBarVisibility()
-    if isUsingBottomBar {
-      updateViewConstraints()
-    }
-    activeNewTabPageViewController?.urlBarDidLeaveOverlayMode()
+    topToolbar.updateViewsForToolbarChanges()
+    activeNewTabPageViewController?.searchContainerDidDismiss()
+  }
+
+  // MARK: - SearchContainerViewControllerDelegate
+
+  func searchContainer(_ container: SearchContainerViewController, didSubmitText text: String) {
+    processAddressBar(text: text)
+  }
+
+  func searchContainerDidCancel(_ container: SearchContainerViewController) {
+    dismissSearchInput()
+  }
+
+  func searchContainerDidTapPasteAndGo(_ container: SearchContainerViewController) {
+    topToolbarDidPressPasteAndGoButton(topToolbar)
+  }
+
+  func searchContainerDidTapQRCode(_ container: SearchContainerViewController) {
+    scanQRCode()
+  }
+
+  func searchContainerDidTapVoiceSearch(_ container: SearchContainerViewController) {
+    topToolbarDidPressVoiceSearchButton(topToolbar)
   }
 
   func topToolbarDidBeginDragInteraction(_ topToolbar: TopToolbarView) {
@@ -377,42 +460,82 @@ extension BrowserViewController: TopToolbarDelegate {
       return
     }
 
-    weak var weakPopover: PopoverController?
-    let popover = PopoverController(
-      contentController: PopoverNavigationController(
-        rootViewController: ShieldsPanelViewController(
-          url: url,
-          tab: selectedTab,
-          domain: Domain.getOrCreate(forUrl: url, persistent: !selectedTab.isPrivate)
-        ) { [weak self, weak selectedTab] action in
-          switch action {
-          case .navigate(let target, let dismiss):
-            guard let self, let selectedTab else { return }
-            if dismiss {
-              weakPopover?.dismiss(animated: true) {
-                self.navigate(to: target, tab: selectedTab, url: url, on: nil)
-              }
-            } else {
-              navigate(to: target, tab: selectedTab, url: url, on: weakPopover)
-            }
-          case .changedShieldSettings:
-            self?.changedShieldSettings()
-          case .shredSiteData:
-            weakPopover?.dismiss(animated: true) {
-              guard let selectedTab = selectedTab else { return }
-              self?.shredData(for: url, in: selectedTab)
-            }
+    weak var weakShieldsPanelVC: UIViewController?
+    let shieldsPanelActionHandler: (ShieldsPanelAction) -> Void = {
+      [weak self, weak selectedTab] action in
+      guard let self, let selectedTab else { return }
+      switch action {
+      case .navigate(let target, let dismiss):
+        if dismiss {
+          weakShieldsPanelVC?.dismiss(animated: true) {
+            self.navigate(to: target, tab: selectedTab, url: url, on: nil)
           }
+        } else {
+          self.navigate(to: target, tab: selectedTab, url: url, on: weakShieldsPanelVC)
         }
-      ),
-      contentSizeBehavior: .preferredContentSize
-    )
-    weakPopover = popover
-    popover.present(from: topToolbar.shieldsButton, on: self)
+      case .changedShieldSettings:
+        self.changedShieldSettings()
+      case .shredSiteData:
+        weakShieldsPanelVC?.dismiss(animated: true) {
+          self.shredData(for: url, in: selectedTab)
+        }
+      case .openURLInNewTab(let url):
+        weakShieldsPanelVC?.dismiss(animated: true) {
+          self.tabManager.addTabAndSelect(
+            URLRequest(url: url),
+            afterTab: selectedTab,
+            isPrivate: selectedTab.isPrivate
+          )
+        }
+      }
+    }
+    if FeatureList.kShowUpdatedShieldsPanel.enabled {
+      let shieldsPanelViewController = ShieldsPanelViewController(
+        url: url,
+        viewModel: ShieldsPanelViewModel(
+          tab: selectedTab,
+          stats: selectedTab.contentBlocker?.$stats.eraseToAnyPublisher()
+            ?? Just(.init()).eraseToAnyPublisher(),
+          blockedRequests: selectedTab.contentBlocker?.$blockedRequests.map(Array.init)
+            .eraseToAnyPublisher() ?? Just([]).eraseToAnyPublisher(),
+          isShredEnabled: FeatureList.kBraveShredFeature.enabled
+        ),
+        action: shieldsPanelActionHandler
+      )
+      weakShieldsPanelVC = shieldsPanelViewController
+      if UIDevice.current.userInterfaceIdiom == .pad {
+        shieldsPanelViewController.modalPresentationStyle = .popover
+      }
+      shieldsPanelViewController.popoverPresentationController?.sourceView =
+        topToolbar.shieldsButton
+      shieldsPanelViewController.popoverPresentationController?.sourceRect =
+        topToolbar.shieldsButton.bounds
+      shieldsPanelViewController.popoverPresentationController?.popoverLayoutMargins = .init(
+        equalInset: 4
+      )
+      shieldsPanelViewController.popoverPresentationController?.permittedArrowDirections = [
+        .up, .down,
+      ]
+      self.present(shieldsPanelViewController, animated: true)
+    } else {
+      let popover = PopoverController(
+        contentController: PopoverNavigationController(
+          rootViewController: LegacyShieldsPanelViewController(
+            url: url,
+            tab: selectedTab,
+            domain: Domain.getOrCreate(forUrl: url, persistent: !selectedTab.isPrivate),
+            callback: shieldsPanelActionHandler
+          )
+        ),
+        contentSizeBehavior: .preferredContentSize
+      )
+      weakShieldsPanelVC = popover
+      popover.present(from: topToolbar.shieldsButton, on: self)
+    }
   }
 
   private func navigate(
-    to target: ShieldsPanelView.Action.NavigationTarget,
+    to target: ShieldsPanelAction.NavigationTarget,
     tab: some TabState,
     url: URL,
     on viewController: UIViewController?
@@ -452,7 +575,7 @@ extension BrowserViewController: TopToolbarDelegate {
         if $0.visibleURL?.baseDomain == currentDomain {
           $0.reload()
           // Domain specific shield setting changed, reset selectors cache.
-          $0.contentBlocker?.resetSelectorsCache()
+          $0.cosmeticFilteringTabHelper?.resetSelectorsCache()
         }
       }
     }
@@ -472,6 +595,7 @@ extension BrowserViewController: TopToolbarDelegate {
           ),
           braveCore: profileController,
           p3aUtils: braveCore.p3aUtils,
+          localState: braveCore.localState,
           rewards: rewards,
           braveStats: profileController.braveStats,
           webcompatReporterHandler: WebcompatReporter.ServiceFactory.get(privateMode: false),
@@ -528,13 +652,18 @@ extension BrowserViewController: TopToolbarDelegate {
     var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
     components?.fragment = nil
     components?.queryItems = nil
-    guard let cleanedURL = components?.url else { return }
+    guard let cleanedURL = components?.url,
+      let selectedTab = tabManager.selectedTab,
+      let webcompatReporter = WebcompatReporter.ServiceFactory.get(
+        profile: selectedTab.profile
+      )
+    else { return }
 
     let viewController = UIHostingController(
       rootView: SubmitReportView(
         url: cleanedURL,
-        isPrivateBrowsing: privateBrowsingManager.isPrivateBrowsing,
-        tab: tabManager.selectedTab
+        webcompatReporter: webcompatReporter,
+        tab: selectedTab
       )
     )
 
@@ -587,7 +716,7 @@ extension BrowserViewController: TopToolbarDelegate {
   }
 
   func topToolbarDidPressVoiceSearchButton(_ urlBar: TopToolbarView) {
-    Task { @MainActor in
+    Task { @MainActor [self] in
       onPendingRequestUpdatedCancellable = speechRecognizer.$finalizedRecognition.sink {
         [weak self] finalizedRecognition in
         guard let self else { return }
@@ -658,9 +787,6 @@ extension BrowserViewController: TopToolbarDelegate {
       let searchQuery = UIPasteboard.general.string
         ?? UIPasteboard.general.url?.absoluteString
     {
-      self.topToolbar.setLocation(searchQuery, search: false)
-      self.topToolbar(self.topToolbar, didEnterText: searchQuery)
-
       if let fixupURL = URIFixup.getURL(searchQuery) {
         finishEditingAndSubmit(fixupURL)
         return
@@ -682,7 +808,7 @@ extension BrowserViewController: TopToolbarDelegate {
 
   func topToolbarDidTapWalletButton(_ urlBar: TopToolbarView) {
     guard let selectedTab = tabManager.selectedTab,
-      let tabDappStore = selectedTab.tabDappStore,
+      let tabDappStore = selectedTab.wallet?.tabDappStore,
       let origin = selectedTab.lastCommittedURL?.origin
     else {
       return
@@ -692,196 +818,64 @@ extension BrowserViewController: TopToolbarDelegate {
     presentWalletPanel(from: origin, with: tabDappStore)
   }
 
-  private func hideSearchController() {
-    if let searchController = searchController {
-      searchController.willMove(toParent: nil)
-      searchController.view.removeFromSuperview()
-      searchController.removeFromParent()
-      self.searchController = nil
-      searchLoader = nil
-      favoritesController?.view.isHidden = false
-    }
-  }
+  /// Handles selection of a recent search in the favorites screen: seeds the input field and, when
+  /// requested, navigates. Passed to the search container as its favorites `recentSearchAction`.
+  private func handleRecentSearch(_ recentSearch: RecentSearch?, shouldSubmitSearch: Bool) {
+    let submitSearch = { [weak self] (text: String) in
+      if let fixupURL = URIFixup.getURL(text) {
+        self?.finishEditingAndSubmit(fixupURL)
+        return
+      }
 
-  private func showSearchController() {
-    if searchController != nil { return }
-
-    // Setting up data source for SearchSuggestions
-    let isPrivate = tabManager.selectedTab?.isPrivate ?? false
-    let searchDataSource = SearchSuggestionDataSource(
-      isPrivate: isPrivate,
-      isAIChatAvailable: !isPrivate && Preferences.AIChat.leoInQuickSearchBarEnabled.value
-        && AIChatUtils.isAIChatEnabled(for: profileController.profile.prefs),
-      isPlaylistAvailable: profileController.profile.prefs.isPlaylistAvailable,
-      searchEngines: profile.searchEngines
-    )
-
-    // Setting up controller for SearchSuggestions
-    searchController = SearchViewController(
-      with: searchDataSource,
-      browserColors: privateBrowsingManager.browserColors
-    )
-    searchController?.isUsingBottomBar = isUsingBottomBar
-    guard let searchController = searchController else { return }
-    searchController.setupSearchEngineList()
-    searchController.searchDelegate = self
-
-    searchLoader = SearchLoader(
-      historyAPI: profileController.historyAPI,
-      bookmarkManager: bookmarkManager,
-      tabManager: tabManager
-    )
-    searchLoader?.addListener(searchController)
-    searchLoader?.autocompleteSuggestionHandler = { [weak self] completion in
-      self?.topToolbar.setAutocompleteSuggestion(completion)
+      self?.submitSearchText(text)
     }
 
-    addChild(searchController)
-    if let favoritesController = favoritesController {
-      view.insertSubview(searchController.view, aboveSubview: favoritesController.view)
-    } else {
-      view.insertSubview(searchController.view, belowSubview: header)
+    guard let recentSearch = recentSearch,
+      let searchType = RecentSearchType(rawValue: recentSearch.searchType)
+    else { return }
+
+    if shouldSubmitSearch {
+      recentSearch.update(dateAdded: Date())
     }
-    searchController.view.snp.makeConstraints {
-      $0.edges.equalTo(view)
-    }
-    searchController.didMove(toParent: self)
-    searchController.view.setNeedsLayout()
-    searchController.view.layoutIfNeeded()
 
-    favoritesController?.view.isHidden = true
-  }
+    switch searchType {
+    case .text:
+      if let text = recentSearch.text {
+        searchContainer?.applyExternalQuery(text, search: true)
 
-  func insertFavoritesControllerView(favoritesController: FavoritesViewController) {
-    if let ntpController = self.activeNewTabPageViewController, ntpController.parent != nil {
-      view.insertSubview(favoritesController.view, aboveSubview: ntpController.view)
-    } else {
-      // Two different behaviors here:
-      // 1. For bottom bar we do not want to show the status bar color
-      // 2. For top bar we do so it matches the address bar background
-      let subview = isUsingBottomBar ? statusBarOverlay : footer
-      view.insertSubview(favoritesController.view, aboveSubview: subview)
-    }
-  }
+        if shouldSubmitSearch {
+          submitSearch(text)
+        }
+      }
+    case .website:
+      if let text = recentSearch.text {
+        searchContainer?.applyExternalQuery(text, search: true)
 
-  private func displayFavoritesController() {
-    if favoritesController == nil {
-      let dse = profile.searchEngines.defaultEngine(
-        forType: privateBrowsingManager.isPrivateBrowsing ? .privateMode : .standard
-      )
-      let favoritesController = FavoritesViewController(
-        privateBrowsingManager: privateBrowsingManager,
-        defaultSearchEngine: dse,
-        bookmarkAction: { [weak self] bookmark, action in
-          self?.handleFavoriteAction(favorite: bookmark, action: action)
-        },
-        recentSearchAction: { [weak self] recentSearch, shouldSubmitSearch in
-          guard let self = self else { return }
-
-          let submitSearch = { [weak self] (text: String) in
-            if let fixupURL = URIFixup.getURL(text) {
-              self?.finishEditingAndSubmit(fixupURL)
-              return
-            }
-
-            self?.submitSearchText(text)
-          }
-
-          if let recentSearch = recentSearch,
-            let searchType = RecentSearchType(rawValue: recentSearch.searchType)
+        if shouldSubmitSearch {
+          if let urlString = recentSearch.websiteUrl,
+            let url = URL(string: urlString)
           {
-            if shouldSubmitSearch {
-              recentSearch.update(dateAdded: Date())
-            }
-
-            switch searchType {
-            case .text:
-              if let text = recentSearch.text {
-                self.topToolbar.setLocation(text, search: false)
-                self.topToolbar(self.topToolbar, didEnterText: text)
-
-                if shouldSubmitSearch {
-                  submitSearch(text)
-                }
-              }
-            case .website:
-              if let text = recentSearch.text {
-                self.topToolbar.setLocation(text, search: false)
-                self.topToolbar(self.topToolbar, didEnterText: text)
-
-                if shouldSubmitSearch {
-                  if let urlString = recentSearch.websiteUrl,
-                    let url = URL(string: urlString)
-                  {
-                    finishEditingAndSubmit(url)
-                  } else {
-                    submitSearch(text)
-                  }
-                }
-              }
-            case .qrCode:
-              if let text = recentSearch.text {
-                self.topToolbar.setLocation(text, search: false)
-                self.topToolbar(self.topToolbar, didEnterText: text)
-
-                if shouldSubmitSearch {
-                  submitSearch(text)
-                }
-              } else if let websiteUrl = recentSearch.websiteUrl {
-                self.topToolbar.setLocation(websiteUrl, search: false)
-                self.topToolbar(self.topToolbar, didEnterText: websiteUrl)
-
-                if shouldSubmitSearch {
-                  submitSearch(websiteUrl)
-                }
-              }
-            }
+            finishEditingAndSubmit(url)
+          } else {
+            submitSearch(text)
           }
         }
-      )
-      self.favoritesController = favoritesController
-
-      addChild(favoritesController)
-      insertFavoritesControllerView(favoritesController: favoritesController)
-      favoritesController.didMove(toParent: self)
-
-      favoritesController.view.snp.makeConstraints {
-        $0.leading.trailing.equalTo(pageOverlayLayoutGuide)
-        $0.top.bottom.equalTo(view)
       }
-      favoritesController.view.setNeedsLayout()
-      favoritesController.view.layoutIfNeeded()
-    }
-    guard let favoritesController = favoritesController else { return }
-    favoritesController.view.alpha = 0.0
-    let animator = UIViewPropertyAnimator(duration: 0.2, dampingRatio: 1.0) {
-      favoritesController.view.alpha = 1
-    }
-    animator.addCompletion { _ in
-      self.webViewContainer.accessibilityElementsHidden = true
-      UIAccessibility.post(notification: .screenChanged, argument: nil)
-    }
-    animator.startAnimation()
-  }
+    case .qrCode:
+      if let text = recentSearch.text {
+        searchContainer?.applyExternalQuery(text, search: true)
 
-  private func hideFavoritesController() {
-    guard let controller = favoritesController else { return }
-    self.favoritesController = nil
-    UIView.animate(
-      withDuration: 0.1,
-      delay: 0,
-      options: [.beginFromCurrentState],
-      animations: {
-        controller.view.alpha = 0.0
-      },
-      completion: { _ in
-        controller.willMove(toParent: nil)
-        controller.view.removeFromSuperview()
-        controller.removeFromParent()
-        self.webViewContainer.accessibilityElementsHidden = false
-        UIAccessibility.post(notification: .screenChanged, argument: nil)
+        if shouldSubmitSearch {
+          submitSearch(text)
+        }
+      } else if let websiteUrl = recentSearch.websiteUrl {
+        searchContainer?.applyExternalQuery(websiteUrl, search: true)
+
+        if shouldSubmitSearch {
+          submitSearch(websiteUrl)
+        }
       }
-    )
+    }
   }
 
   func openAddBookmark() {
@@ -995,9 +989,110 @@ extension BrowserViewController: ToolbarDelegate {
     topToolbar.tabLocationViewDidTapLocation(topToolbar.locationView)
   }
 
+  func tabToolbarDidSelectNewTab(_ tabToolbar: ToolbarProtocol, isPrivate: Bool) {
+    let openNewTab = { [weak self] in
+      self?.openBlankNewTab(
+        attemptLocationFieldFocus: Preferences.General.openKeyboardOnNTPSelection.value,
+        isPrivate: isPrivate
+      )
+    }
+    if isPrivate, !privateBrowsingManager.isPrivateBrowsing,
+      Preferences.Privacy.privateBrowsingLock.value
+    {
+      askForLocalAuthentication { success, error in
+        if success {
+          openNewTab()
+        }
+      }
+    } else {
+      openNewTab()
+    }
+  }
+
+  func tabToolbarDidSelectNewWindow(_ tabToolbar: ToolbarProtocol, isPrivate: Bool) {
+    openInNewWindow(url: nil, isPrivate: isPrivate)
+  }
+
+  func tabToolbarDidSelectBookmarkTab(_ tabToolbar: ToolbarProtocol) {
+    openAddBookmark()
+  }
+
+  func tabToolbarDidSelectBookmarkAllTabs(_ tabToolbar: ToolbarProtocol) {
+    let mode = BookmarkEditMode.addFolderUsingTabs(
+      title: Strings.savedTabsFolderTitle,
+      tabList: tabManager.tabsForCurrentMode
+    )
+    let addBookMarkController = AddEditBookmarkTableViewController(
+      bookmarkManager: bookmarkManager,
+      mode: mode,
+      isPrivateBrowsing: privateBrowsingManager.isPrivateBrowsing
+    )
+    presentSettingsNavigation(with: addBookMarkController, cancelEnabled: true)
+  }
+
+  func tabToolbarDidSelectDuplicateTab(_ tabToolbar: ToolbarProtocol) {
+    guard let selectedTab = tabManager.selectedTab, let url = selectedTab.visibleURL else {
+      return
+    }
+    tabManager.addTabAndSelect(
+      URLRequest(url: url),
+      afterTab: selectedTab,
+      isPrivate: selectedTab.isPrivate
+    )
+  }
+
+  func tabToolbarDidSelectViewRecentlyClosedTabs(_ tabToolbar: ToolbarProtocol) {
+    if privateBrowsingManager.isPrivateBrowsing {
+      return
+    }
+    var recentlyClosedTabsView = RecentlyClosedTabsView(tabManager: tabManager)
+    recentlyClosedTabsView.onRecentlyClosedSelected = { [weak self] recentlyClosed in
+      self?.tabManager.addAndSelectRecentlyClosed(recentlyClosed)
+
+      // After opening the Recently Closed in a new tab delete it from list
+      RecentlyClosed.remove(with: recentlyClosed.url)
+    }
+    present(UIHostingController(rootView: recentlyClosedTabsView), animated: true)
+  }
+
+  func tabToolbarDidSelectReopenRecentlyClosedTab(_ tabToolbar: ToolbarProtocol) {
+    if privateBrowsingManager.isPrivateBrowsing {
+      return
+    }
+    guard let recentlyClosedTab = RecentlyClosed.first() else { return }
+    tabManager.addAndSelectRecentlyClosed(recentlyClosedTab)
+    RecentlyClosed.remove(with: recentlyClosedTab.url)
+  }
+
+  func tabToolbarDidSelectCloseTab(_ tabToolbar: ToolbarProtocol) {
+    guard let tab = tabManager.selectedTab else { return }
+    if tab.readerMode?.state == .active {
+      hideReaderModeBar(animated: false)
+    }
+    // Add the tab information to recently closed before removing
+    tabManager.addTabToRecentlyClosed(tab)
+    tabManager.removeTab(tab)
+  }
+
+  func tabToolbarDidSelectShredSiteData(_ tabToolbar: ToolbarProtocol) {
+    guard let tab = tabManager.selectedTab, let url = tab.visibleURL else { return }
+    let alert = UIAlertController.shredDataAlert(url: url) { [weak self] _ in
+      self?.shredData(for: url, in: tab)
+    }
+    present(alert, animated: true)
+  }
+
+  func tabToolbarDidSelectCloseOtherTabs(_ tabToolbar: ToolbarProtocol) {
+    showCloseTabsWarning(isActiveTabIncluded: false, from: tabToolbar.tabsButton)
+  }
+
+  func tabToolbarDidSelectCloseAllTabs(_ tabToolbar: ToolbarProtocol) {
+    showCloseTabsWarning(isActiveTabIncluded: true, from: tabToolbar.tabsButton)
+  }
+
   func tabToolbarDidPressBack(_ tabToolbar: ToolbarProtocol, button: UIButton) {
     tabManager.selectedTab?.goBack()
-    tabManager.selectedTab?.browserData?.resetExternalAlertProperties()
+    tabManager.selectedTab?.externalAppURLHelper?.reset()
     recordNavigationActionP3A(isNavigationActionForward: false)
   }
 
@@ -1008,7 +1103,7 @@ extension BrowserViewController: ToolbarDelegate {
 
   func tabToolbarDidPressForward(_ tabToolbar: ToolbarProtocol, button: UIButton) {
     tabManager.selectedTab?.goForward()
-    tabManager.selectedTab?.browserData?.resetExternalAlertProperties()
+    tabManager.selectedTab?.externalAppURLHelper?.reset()
     recordNavigationActionP3A(isNavigationActionForward: true)
   }
 
@@ -1054,6 +1149,38 @@ extension BrowserViewController: ToolbarDelegate {
     popoverController.present(from: urlBar.locationView.secureContentStateButton, on: self)
   }
 
+  private func showCloseTabsWarning(isActiveTabIncluded: Bool, from sourceView: UIView) {
+    let alert = UIAlertController(
+      title: nil,
+      message: isActiveTabIncluded ? Strings.closeAllTabsPrompt : Strings.closeAllOtherTabsPrompt,
+      preferredStyle: .actionSheet
+    )
+    let cancelAction = UIAlertAction(title: Strings.CancelString, style: .cancel)
+    let closedTabsTitle =
+      isActiveTabIncluded
+      ? String(format: Strings.closeAllTabsTitle, tabManager.tabsForCurrentMode.count)
+      : Strings.closeAllOtherTabsTitle
+    let closeAllAction = UIAlertAction(title: closedTabsTitle, style: .destructive) {
+      [weak self] _ in
+      guard let self else { return }
+      if !self.privateBrowsingManager.isPrivateBrowsing {
+        // Add the tab information to recently closed before removing
+        self.tabManager.addAllTabsToRecentlyClosed(isActiveTabIncluded: isActiveTabIncluded)
+      }
+      self.tabManager.removeAllForCurrentMode(isActiveTabIncluded: isActiveTabIncluded)
+    }
+    alert.addAction(closeAllAction)
+    alert.addAction(cancelAction)
+
+    if let popoverPresentation = alert.popoverPresentationController {
+      popoverPresentation.sourceView = sourceView
+      popoverPresentation.sourceRect =
+        .init(x: sourceView.frame.width / 2, y: sourceView.frame.height, width: 1, height: 1)
+    }
+
+    present(alert, animated: true)
+  }
+
   func showBackForwardList() {
     if let backForwardList = tabManager.selectedTab?.backForwardList {
       let backForwardViewController = BackForwardListViewController(
@@ -1087,7 +1214,6 @@ extension BrowserViewController: ToolbarDelegate {
     tabManager.selectedTab?.stopLoading()
     processAddressBarTask?.cancel()
     topToolbarDidPressReloadTask?.cancel()
-    topToolbar.locationView.loading = tabManager.selectedTab?.isLoading == true
   }
 }
 
@@ -1137,7 +1263,7 @@ extension BrowserViewController: UIContextMenuInteractionDelegate {
         identifier: .pasteAndGo,
         handler: UIAction.deferredActionHandler { _ in
           if let pasteboardContents = UIPasteboard.general.string {
-            self.topToolbar(self.topToolbar, didSubmitText: pasteboardContents)
+            self.processAddressBar(text: pasteboardContents)
           }
         }
       ),
@@ -1145,7 +1271,7 @@ extension BrowserViewController: UIContextMenuInteractionDelegate {
         identifier: .paste,
         handler: UIAction.deferredActionHandler { _ in
           if let pasteboardContents = UIPasteboard.general.string {
-            self.topToolbar.enterOverlayMode(pasteboardContents, pasted: true, search: true)
+            self.presentSearchInput(initialText: pasteboardContents, pasted: true, search: true)
           }
         }
       ),
@@ -1159,7 +1285,7 @@ extension BrowserViewController: UIContextMenuInteractionDelegate {
   /// - Note: "Copy Clean Link" will be included even if no cleaning is done to the url.
   private func makeCopyMenu() -> UIMenu? {
     let tab = tabManager.selectedTab
-    guard let url = self.topToolbar.currentURL else { return nil }
+    guard let url = tab?.visibleURL?.displayURL else { return nil }
 
     let children: [UIAction] = [
       UIAction(

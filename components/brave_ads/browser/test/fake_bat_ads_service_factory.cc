@@ -6,11 +6,8 @@
 #include "brave/components/brave_ads/browser/test/fake_bat_ads_service_factory.h"
 
 #include <memory>
-#include <ostream>
 
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ref.h"
 #include "brave/components/brave_ads/browser/test/fake_bat_ads_client_notifier.h"
 #include "brave/components/brave_ads/browser/test/fake_bat_ads_service.h"
 #include "brave/components/services/bat_ads/public/interfaces/bat_ads.mojom.h"
@@ -59,7 +56,7 @@ mojo::Remote<bat_ads::mojom::BatAdsService> FakeBatAdsServiceFactory::Launch()
                           base::Unretained(this)),
       base::BindRepeating(&FakeBatAdsServiceFactory::OnShutdown,
                           base::Unretained(this)),
-      simulate_initialization_failure_);
+      simulate_initialization_failure_, simulate_shutdown_disconnect_);
   bat_ads_service_->BindReceiver(
       bat_ads_service_remote.BindNewPipeAndPassReceiver());
 

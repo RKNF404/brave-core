@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "base/debug/dump_without_crashing.h"
-#include "base/hash/hash.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_p3a.h"
@@ -33,10 +32,6 @@
 #include "url/gurl.h"
 
 namespace brave_shields {
-
-// Used for stable farbling token generation in tests when is set to non-zero.
-// Non-anonymous to be accesible from ":test_support" target.
-uint32_t g_stable_farbling_tokens_seed = 0;
 
 namespace {
 
@@ -154,38 +149,6 @@ class BraveCookieRules {
   ContentSetting first_party_setting_ = CONTENT_SETTING_DEFAULT;
 };
 
-base::DictValue GetShieldsMetadata(HostContentSettingsMap* map,
-                                   const GURL& url) {
-  auto shields_metadata_value = map->GetWebsiteSetting(
-      url, url, ContentSettingsType::BRAVE_SHIELDS_METADATA);
-  if (auto* shields_metadata_dict = shields_metadata_value.GetIfDict()) {
-    return std::move(*shields_metadata_dict);
-  }
-  return base::DictValue();
-}
-
-void SetShieldsMetadata(HostContentSettingsMap* map,
-                        const GURL& url,
-                        base::DictValue shields_metadata) {
-  map->SetWebsiteSettingDefaultScope(
-      url, url, ContentSettingsType::BRAVE_SHIELDS_METADATA,
-      base::Value(std::move(shields_metadata)));
-}
-
-// Returns a 64-bit persistent hash of |data| (two rounds of PersistentHash).
-uint64_t PersistentHashU64(base::span<const uint8_t> data) {
-  const uint32_t hash = base::PersistentHash(data);
-  return (static_cast<uint64_t>(hash) << 32) |
-         base::PersistentHash(base::byte_span_from_ref(hash));
-}
-
-base::Token CreateStableFarblingToken(const GURL& url) {
-  const uint32_t high =
-      base::PersistentHash(url.host()) + g_stable_farbling_tokens_seed - 1;
-  const uint32_t low = base::PersistentHash(base::byte_span_from_ref(high));
-  return base::Token(high, low);
-}
-
 }  // namespace
 
 ContentSettingsPattern GetPatternFromURL(const GURL& url) {
@@ -272,7 +235,7 @@ void SetBraveShieldsEnabled(HostContentSettingsMap* map,
   }
 }
 
-bool GetBraveShieldsEnabled(HostContentSettingsMap* map, const GURL& url) {
+bool IsBraveShieldsEnabled(HostContentSettingsMap* map, const GURL& url) {
   if (base::FeatureList::IsEnabled(
           ::brave_shields::features::kBraveExtensionNetworkBlocking) &&
       url.SchemeIs(kChromeExtensionScheme)) {
@@ -410,7 +373,7 @@ bool ShouldDoReduceLanguage(HostContentSettingsMap* map,
 
   // Don't reduce language if Brave Shields is down (this also handles cases
   // where the URL is not HTTP(S))
-  if (!brave_shields::GetBraveShieldsEnabled(map, url)) {
+  if (!brave_shields::IsBraveShieldsEnabled(map, url)) {
     return false;
   }
 
@@ -439,7 +402,7 @@ DomainBlockingType GetDomainBlockingType(HostContentSettingsMap* map,
 
   // Don't block if Brave Shields is down (this also handles cases where
   // the URL is not HTTP(S))
-  if (!brave_shields::GetBraveShieldsEnabled(map, url)) {
+  if (!brave_shields::IsBraveShieldsEnabled(map, url)) {
     return DomainBlockingType::kNone;
   }
 
@@ -644,16 +607,6 @@ ControlType GetFingerprintingControlType(HostContentSettingsMap* map,
                                              : ControlType::BLOCK;
 }
 
-bool IsBraveShieldsManaged(PrefService* prefs,
-                           HostContentSettingsMap* map,
-                           GURL url) {
-  DCHECK(prefs);
-  DCHECK(map);
-  content_settings::SettingInfo info;
-  map->GetWebsiteSetting(url, url, ContentSettingsType::BRAVE_SHIELDS, &info);
-  return info.source == content_settings::SettingSource::kPolicy;
-}
-
 bool IsShowStrictFingerprintingModeEnabled() {
   return base::FeatureList::IsEnabled(
       features::kBraveShowStrictFingerprintingMode);
@@ -744,7 +697,7 @@ bool ShouldUpgradeToHttps(
     return false;
   }
   // Don't upgrade if shields are down.
-  if (!GetBraveShieldsEnabled(map, url)) {
+  if (!IsBraveShieldsEnabled(map, url)) {
     return false;
   }
   const ControlType control_type = GetHttpsUpgradeControlType(map, url);
@@ -761,7 +714,7 @@ bool ShouldUpgradeToHttps(
 }
 
 bool ShouldForceHttps(HostContentSettingsMap* map, const GURL& url) {
-  return GetBraveShieldsEnabled(map, url) &&
+  return IsBraveShieldsEnabled(map, url) &&
          GetHttpsUpgradeControlType(map, url) == ControlType::BLOCK;
 }
 
@@ -838,7 +791,7 @@ mojom::FarblingLevel GetFarblingLevel(HostContentSettingsMap* map,
     return brave_shields::mojom::FarblingLevel::OFF;
   }
 
-  const bool shields_up = GetBraveShieldsEnabled(map, primary_url);
+  const bool shields_up = IsBraveShieldsEnabled(map, primary_url);
   if (!shields_up) {
     return brave_shields::mojom::FarblingLevel::OFF;
   }
@@ -854,41 +807,6 @@ mojom::FarblingLevel GetFarblingLevel(HostContentSettingsMap* map,
     case ControlType::DEFAULT:
       return brave_shields::mojom::FarblingLevel::BALANCED;
   }
-}
-
-base::Token GetFarblingToken(HostContentSettingsMap* map,
-                             const GURL& url,
-                             base::span<const uint8_t> additional_entropy) {
-  base::Token token;
-  if (!url.SchemeIsHTTPOrHTTPS()) {
-    return token;
-  }
-
-  // Get the farbling token from the Shields metadata.
-  auto shields_metadata = GetShieldsMetadata(map, url);
-  if (auto* farbling_token = shields_metadata.FindString("farbling_token")) {
-    token = base::Token::FromString(*farbling_token).value_or(base::Token());
-  }
-
-  // If the farbling token is not set or failed to parse, generate a new one.
-  if (token.is_zero()) {
-    if (!g_stable_farbling_tokens_seed) {
-      token = base::Token::CreateRandom();
-    } else {
-      token = CreateStableFarblingToken(url);
-    }
-    shields_metadata.Set("farbling_token", token.ToString());
-    SetShieldsMetadata(map, url, std::move(shields_metadata));
-  }
-
-  if (additional_entropy.empty()) {
-    return token;
-  }
-
-  const uint64_t high = token.high() ^ PersistentHashU64(additional_entropy);
-  const uint64_t low =
-      token.low() ^ PersistentHashU64(base::byte_span_from_ref(high));
-  return base::Token(high, low);
 }
 
 bool IsDeveloperModeEnabled(PrefService* profile_state) {

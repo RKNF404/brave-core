@@ -11,24 +11,31 @@
 
 #include "base/check.h"
 #include "base/feature_list.h"
+#include "base/strings/utf_string_conversions.h"
+#include "brave/browser/ui/containers/container_model.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "brave/browser/ui/views/tabs/accent_color/brave_tab_accent_color_palette.h"
 #include "brave/components/tabs/public/tree_tab_node.h"
+#include "brave/grit/brave_generated_resources.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/views/tabs/hovercard/hover_card_anchor_target.h"
 #include "chrome/browser/ui/views/tabs/tab/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
 #include "components/vector_icons/vector_icons.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/compositor/compositor.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/color_palette.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/scoped_canvas.h"
@@ -40,15 +47,74 @@
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
 #include "brave/browser/containers/containers_service_factory.h"
+#include "brave/components/containers/content/browser/storage_partition_utils.h"
 #include "brave/components/containers/core/browser/containers_service.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "brave/components/containers/core/common/features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "components/tabs/public/tab_interface.h"
 #endif  // BUILDFLAG(ENABLE_CONTAINERS)
 
 namespace {
 
 constexpr int kSmallAccentSize = 16;
+
+#if BUILDFLAG(ENABLE_CONTAINERS)
+std::optional<containers::ContainerModel> GetContainerModelForTab(
+    const BraveTab& tab) {
+  if (!tab.GetWidget()) {
+    // Detached state.
+    return std::nullopt;
+  }
+
+  if (!base::FeatureList::IsEnabled(containers::features::kContainers)) {
+    return std::nullopt;
+  }
+
+  tabs::TabInterface* tab_interface = tab.tab_handle().Get();
+  if (!tab_interface) {
+    return std::nullopt;
+  }
+
+  content::WebContents* contents = tab_interface->GetContents();
+  if (!contents) {
+    return std::nullopt;
+  }
+
+  const std::string container_id =
+      containers::GetContainerIdForWebContents(contents);
+  if (container_id.empty()) {
+    return std::nullopt;
+  }
+
+  Profile* profile = tab_interface->GetProfile();
+  if (!profile) {
+    return std::nullopt;
+  }
+
+  auto* service = ContainersServiceFactory::GetForProfile(profile);
+  CHECK(service);
+
+  auto container = service->GetRuntimeContainerById(container_id);
+  CHECK(container);
+  return containers::ContainerModel(
+      std::move(container),
+      tab.GetWidget()->GetCompositor()->device_scale_factor());
+}
+
+std::u16string GetContainerNameForTab(const BraveTab& tab) {
+  auto container = GetContainerModelForTab(tab);
+  if (!container) {
+    return std::u16string();
+  }
+
+  if (!container->name().empty()) {
+    return base::UTF8ToUTF16(container->name());
+  }
+
+  return base::UTF8ToUTF16(container->id());
+}
+#endif  // BUILDFLAG(ENABLE_CONTAINERS)
 
 }  // namespace
 
@@ -68,9 +134,6 @@ void BraveTab::SmallAccentIconView::SetCanPaintToLayer(
 }
 
 void BraveTab::SmallAccentIconView::RefreshLayer() {
-  // In order to be clipped by Tab::PaintChildren(), we need to set paint to
-  // layer. Disable layer painting in fullscreen where the tab strip may be
-  // sliding in or out.
   if (can_paint_to_layer_ == !!layer()) {
     return;
   }
@@ -159,6 +222,12 @@ void BraveTab::RemovedFromWidget() {
   Tab::RemovedFromWidget();
 }
 
+bool BraveTab::IsHovering() const {
+  // Upstream gives true when the tab is in split tab and another tab is
+  // hovered. But, we only want to show hover effect for currently hovered tab.
+  return mouse_hovered_;
+}
+
 #if BUILDFLAG(ENABLE_CONTAINERS)
 void BraveTab::MaybeStartObservingFullscreenChanges() {
   if (!small_accent_icon_view_ || fullscreen_subscription_) {
@@ -170,8 +239,7 @@ void BraveTab::MaybeStartObservingFullscreenChanges() {
     return;
   }
 
-  auto* exclusive_access_manager =
-      browser->GetFeatures().exclusive_access_manager();
+  auto* exclusive_access_manager = ExclusiveAccessManager::From(browser);
   if (!exclusive_access_manager) {
     return;
   }
@@ -189,7 +257,6 @@ void BraveTab::MaybeStartObservingFullscreenChanges() {
           ->RegisterOnFullscreenStateChanged(base::BindRepeating(
               &BraveTab::OnFullscreenStateChanged, base::Unretained(this)));
 }
-
 void BraveTab::StopObservingFullscreenChanges() {
   fullscreen_subscription_ = {};
 }
@@ -200,7 +267,8 @@ void BraveTab::OnFullscreenStateChanged() {
 #endif  // BUILDFLAG(ENABLE_CONTAINERS)
 
 void BraveTab::UpdateTabStyle() {
-  ResetTabStyle(TabStyleViews::CreateForTab(this));
+  ResetTabStyle(TabStyleViews::Create(CreateStyleDelegate(this),
+                                      TabStripOrientation::kHorizontal));
   UpdateInsets();
   InvalidateLayout();
 }
@@ -222,8 +290,9 @@ int BraveTab::GetTreeHeight() const {
 }
 
 views::BubbleBorder::Arrow BraveTab::GetAnchorPosition() const {
-  if (tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface())) {
+  if (auto* vtc = VerticalTabController::From(
+          controller()->GetBrowserWindowInterface());
+      vtc && vtc->ShouldShowBraveVerticalTabs()) {
     return views::BubbleBorder::Arrow::LEFT_TOP;
   }
 
@@ -234,7 +303,16 @@ std::u16string BraveTab::GetRenderedTooltipText(const gfx::Point& p) const {
   auto* browser = controller_->GetBrowserWindowInterface();
   if (browser &&
       brave_tabs::AreTooltipsEnabled(browser->GetProfile()->GetPrefs())) {
-    return Tab::GetTooltipText(data_.title, data_.alert_state);
+    std::u16string tooltip =
+        Tab::GetTooltipText(data_.title, data_.alert_state);
+#if BUILDFLAG(ENABLE_CONTAINERS)
+    if (std::u16string container_name = GetContainerNameForTab(*this);
+        !container_name.empty()) {
+      tooltip = l10n_util::GetStringFUTF16(IDS_TOOLTIP_TAB_IN_CONTAINER,
+                                           tooltip, container_name);
+    }
+#endif  // BUILDFLAG(ENABLE_CONTAINERS)
+    return tooltip;
   }
   return TabSlotView::GetTooltipText();
 }
@@ -270,8 +348,9 @@ void BraveTab::ActiveStateChanged() {
 
 std::optional<SkColor> BraveTab::GetGroupColor() const {
   // Hide tab border with group color as it doesn't go well with vertical tabs.
-  if (tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface())) {
+  if (auto* vtc = VerticalTabController::From(
+          controller()->GetBrowserWindowInterface());
+      vtc && vtc->ShouldShowBraveVerticalTabs()) {
     return {};
   }
 
@@ -285,8 +364,9 @@ std::optional<SkColor> BraveTab::GetGroupColor() const {
 
 void BraveTab::UpdateIconVisibility() {
   Tab::UpdateIconVisibility();
-  if (!tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface())) {
+  auto* vtc =
+      VerticalTabController::From(controller()->GetBrowserWindowInterface());
+  if (!vtc || !vtc->ShouldShowBraveVerticalTabs()) {
     return;
   }
 
@@ -313,9 +393,7 @@ void BraveTab::UpdateIconVisibility() {
     // As it's shown from hidden and vice versa, it's hard to see
     // flickering, but flickering optimization is complicated, so just skip it.
     const bool is_floating = controller()->IsVerticalTabsFloating();
-    if (is_floating &&
-        tabs::utils::ShouldHideVerticalTabsCompletelyWhenCollapsed(
-            controller()->GetBrowserWindowInterface())) {
+    if (is_floating && vtc->ShouldHideVerticalTabsCompletelyWhenCollapsed()) {
       return;
     }
 
@@ -359,12 +437,8 @@ void BraveTab::UpdateIconVisibility() {
     center_icon_ = true;
 
     const bool is_active = IsActive();
-    const bool can_enter_floating_mode =
-        tabs::utils::IsFloatingVerticalTabsEnabled(
-            controller()->GetBrowserWindowInterface());
-    const bool should_show_tree_toggle_button = tree_toggle_button_ &&
-                                                IsTreeNodeCollapsed() &&
-                                                HasTreeTabNodeDescendants();
+    const bool can_enter_floating_mode = vtc->IsFloatingVerticalTabsEnabled();
+    const bool should_show_tree_toggle_button = CanShowTreeTabToggle();
 
     // When floating mode enabled, we don't show close button as the tab strip
     // will be expanded as soon as mouse hovers onto the tab.
@@ -391,6 +465,21 @@ bool BraveTab::HasTreeTabNodeDescendants() const {
   return false;
 }
 
+bool BraveTab::CanShowTreeTabToggle() const {
+  if (!tree_toggle_button_ || !HasTreeTabNodeDescendants()) {
+    return false;
+  }
+
+  // At minimum width, the toggle button covers the tab's entire clickable
+  // area, so an inactive tab must remain selectable regardless of whether
+  // its tree is collapsed or expanded (issue #58992).
+  if (IsAtMinWidthForVerticalTabStrip() && !IsActive()) {
+    return false;
+  }
+
+  return IsTreeNodeCollapsed() || mouse_hovered_;
+}
+
 void BraveTab::LayoutTreeToggleButton() {
   if (!tree_toggle_button_) {
     return;
@@ -403,15 +492,16 @@ void BraveTab::LayoutTreeToggleButton() {
   }
 
   const bool has_descendants = HasTreeTabNodeDescendants();
+  const bool should_show_tree_toggle = CanShowTreeTabToggle();
   if (showing_close_button_ && has_descendants) {
     // In case of tree tab node has descendants, we show tree toggle button
     // instead of close button.
     tree_toggle_button_->SetBoundsRect(close_button_->bounds());
     close_button_->SetVisible(false);
     tree_toggle_button_->SetVisible(true);
-  } else if (has_descendants && (node->collapsed() || mouse_hovered_)) {
-    // In this case, we always show tree toggle button in order to indicate that
-    // this tab has descendants hidden by collapsed state.
+  } else if (should_show_tree_toggle) {
+    // Keep the inactive collapsed tab selectable when the vertical tab strip
+    // is at its minimum width; the toggle would otherwise cover its click area.
     // Here, showing_close_button_ is false and the bounds of the close button
     // is incorrect, as upstream code skips close button when
     // showing_close_button_ is false. So we need to decide toggle button
@@ -447,8 +537,15 @@ void BraveTab::UpdateSmallAccentIconLayer() {
     return;
   }
   const views::Widget* widget = GetWidget();
-  small_accent_icon_view_->SetCanPaintToLayer(widget &&
-                                              !widget->IsFullscreen());
+
+  // In order to be clipped by Tab::PaintChildren(), we need to set paint to
+  // layer. Disable layer painting
+  // * in fullscreen where the tab strip may be sliding in or out.
+  // * when tab are scrollable(!CanPaintThrobberToLayer()), which needs to be
+  //   clipped by viewport bound.
+  small_accent_icon_view_->SetCanPaintToLayer(
+      widget && !widget->IsFullscreen() &&
+      controller_->CanPaintThrobberToLayer());
   small_accent_icon_view_->SchedulePaint();
 }
 
@@ -552,8 +649,9 @@ void BraveTab::Layout(PassKey) {
 
 void BraveTab::MaybeAdjustLeftForPinnedTab(gfx::Rect* bounds,
                                            int visual_width) const {
-  if (!tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface())) {
+  if (auto* vtc = VerticalTabController::From(
+          controller()->GetBrowserWindowInterface());
+      !vtc || !vtc->ShouldShowBraveVerticalTabs()) {
     Tab::MaybeAdjustLeftForPinnedTab(bounds, visual_width);
     return;
   }
@@ -575,8 +673,13 @@ bool BraveTab::ShouldShowLargeAccentIcon() const {
     return false;
   }
 
-  if (tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface())) {
+  if (controller()->ShouldAlwaysShowMiniTabAccent()) {
+    return false;
+  }
+
+  if (auto* vtc = VerticalTabController::From(
+          controller()->GetBrowserWindowInterface());
+      vtc && vtc->ShouldShowBraveVerticalTabs()) {
     return width() >= tabs::kVerticalTabMinWidth + kTabAccentIconAreaWidth;
   }
 
@@ -589,9 +692,10 @@ bool BraveTab::ShouldRenderAsNormalTab() const {
     return false;
   }
 
-  if (tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface()) &&
-      data().pinned && !controller_->IsVerticalTabsFloating()) {
+  if (auto* vtc = VerticalTabController::From(
+          controller()->GetBrowserWindowInterface());
+      vtc && vtc->ShouldShowBraveVerticalTabs() && data().pinned &&
+      !controller_->IsVerticalTabsFloating()) {
     // In cased of pinned vertical tabs, we never render as normal tab, i.e.
     // always show only icon.
     return false;
@@ -601,8 +705,9 @@ bool BraveTab::ShouldRenderAsNormalTab() const {
 }
 
 bool BraveTab::IsAtMinWidthForVerticalTabStrip() const {
-  return tabs::utils::ShouldShowBraveVerticalTabs(
-             controller()->GetBrowserWindowInterface()) &&
+  auto* vtc =
+      VerticalTabController::From(controller()->GetBrowserWindowInterface());
+  return vtc && vtc->ShouldShowBraveVerticalTabs() &&
          width() <= tabs::kVerticalTabMinWidth;
 }
 
@@ -617,9 +722,9 @@ void BraveTab::OnTabDataChanged(TabChangeType tab_change_type,
   // And it causes runtime crash as using this tab from pinned TabContainerImpl
   // has assumption that it's not included in any group.
   // So, clear in-advance when tab enters to pinned TabContainerImpl.
-  if (data_changed &&
-      tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface()) &&
+  auto* vtc =
+      VerticalTabController::From(controller()->GetBrowserWindowInterface());
+  if (data_changed && vtc && vtc->ShouldShowBraveVerticalTabs() &&
       data_.pinned) {
     SetGroup(std::nullopt);
   }
@@ -637,8 +742,9 @@ bool BraveTab::IsActive() const {
 }
 
 TabSizeInfo BraveTab::GetTabSizeInfo() const {
-  if (tabs::utils::ShouldShowBraveVerticalTabs(
-          controller()->GetBrowserWindowInterface())) {
+  if (auto* vtc = VerticalTabController::From(
+          controller()->GetBrowserWindowInterface());
+      vtc && vtc->ShouldShowBraveVerticalTabs()) {
     return Tab::GetTabSizeInfo();
   }
 
@@ -704,6 +810,36 @@ ui::ImageModel BraveTab::GetTabAccentIcon() const {
 base::WeakPtr<BraveTab> BraveTab::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
+
+#if BUILDFLAG(ENABLE_CONTAINERS)
+std::optional<ContainerCardData> BraveTab::GetContainerCardData() const {
+  if (!ShouldPaintTabAccent()) {
+    return std::nullopt;
+  }
+
+  auto container = GetContainerModelForTab(*this);
+  if (!container) {
+    return std::nullopt;
+  }
+
+  const bool is_dark =
+      GetWidget() &&
+      GetWidget()->GetColorMode() == ui::ColorProviderKey::ColorMode::kDark;
+  auto accent_color = accent_color::GetTabAccentColors(
+      {
+          .container_color = container->background_color(),
+          .is_dark = is_dark,
+          .is_pinned = false,
+          .state = accent_color::TabAccentColorsParams::State::kActive,
+      },
+      GetColorProvider());
+
+  return ContainerCardData{
+      .container_name = base::UTF8ToUTF16(container->name()),
+      .container_icon = container->icon(),
+      .container_background_color = accent_color.background_color};
+}
+#endif
 
 void BraveTab::InitTreeToggleButton() {
   constexpr int kButtonPadding = 12;

@@ -1,40 +1,191 @@
 diff --git a/third_party/blink/renderer/platform/runtime_enabled_features.json5 b/third_party/blink/renderer/platform/runtime_enabled_features.json5
-index 826f6eb2025e2e13291c77e1100128706a2d4c76..616857552573bed4e730ad0e10bb63244a80553c 100644
+index 7dbe25340557c70177bc0396ed5dec16c808543d..523f71096f24afe3c138eaa13b0702d61a550c23 100644
 --- a/third_party/blink/renderer/platform/runtime_enabled_features.json5
 +++ b/third_party/blink/renderer/platform/runtime_enabled_features.json5
-@@ -937,6 +937,11 @@
-       name: "BoxDecorationBreakCloneLineBreaking",
+@@ -319,6 +319,7 @@
+     {
+       // Interest Group JS API/runtimeflag.
+       name: "AdInterestGroupAPI",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       status: "stable",
+       origin_trial_feature_name: "AdInterestGroupAPI",
+       implied_by: ["Fledge", "Parakeet"],
+@@ -429,6 +430,7 @@
+     },
+     {
+       name: "AIPromptAPI",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       public: true,
+       status: {
+         "Win": "stable",
+@@ -456,6 +458,7 @@
+     },
+     {
+       name: "AIPromptAPIMultimodalInput",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       status: {
+         "Win": "stable",
+         "Mac": "stable",
+@@ -510,7 +513,7 @@
+       origin_trial_feature_name: "AIProofreaderAPI",
+       origin_trial_os: ["win", "mac", "linux", "chromeos"],
+       origin_trial_allows_third_party: true,
+-      base_feature_status: "enabled",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       copied_from_base_feature_if: "overridden",
+     },
+     {
+@@ -525,7 +528,7 @@
+       origin_trial_feature_name: "AIRewriterAPI",
+       origin_trial_os: ["win", "mac", "linux", "chromeos"],
+       origin_trial_allows_third_party: true,
+-      base_feature_status: "enabled",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       copied_from_base_feature_if: "overridden",
+     },
+     {
+@@ -534,6 +537,7 @@
+     },
+     {
+       name: "AISummarizationAPI",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       status: {
+         "Win": "stable",
+         "Mac": "stable",
+@@ -568,7 +572,7 @@
+       origin_trial_feature_name: "AIWriterAPI",
+       origin_trial_os: ["win", "mac", "linux", "chromeos"],
+       origin_trial_allows_third_party: true,
+-      base_feature_status: "enabled",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       copied_from_base_feature_if: "overridden",
+     },
+     {
+@@ -1376,7 +1380,7 @@
+       // objects that live on the compositor thread.
+       // [1] https://drafts.csswg.org/css-animations-2/#timeline-triggers
+       name: "CompositorTimelineTrigger",
+-      status: "stable",
++      status: "experimental", // Brave: revert when crbug.com/541924666 is fixed.
+     },
+     {
+       name: "CompressionDictionaryTransport",
+@@ -1448,6 +1452,7 @@
+       // https://github.com/WICG/controlled-frame/blob/main/README.md for more
+       // info.
+       name: "ControlledFrame",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       public: true,
+       status: "stable",
+     },
+@@ -2804,6 +2809,7 @@
+     },
+     {
+       name: "ExtensionScriptTagging",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       public: true,
+       status: "stable",
+       base_feature: "ExtensionScriptTagging",
+@@ -2916,7 +2922,8 @@
+     },
+     {
+       name: "FencedFrames",
+-      base_feature: "none",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
++      base_feature: "FencedFramesRuntime",
+       // This helps enable and expose the <fencedframe> element, but note that
+       // blink::features::kFencedFrames must be enabled as well, as we require
+       // the support of the browser process to fully enable the feature.
+@@ -3005,6 +3012,7 @@
+     {
+       // In-development features for the File System Access API.
+       name: "FileSystemAccessAPIExperimental",
++      base_feature: "none",
+       status: "experimental",
+     },
+     {
+@@ -3019,6 +3027,7 @@
+     {
+       // Non-OPFS File System Access API.
+       name: "FileSystemAccessLocal",
++      base_feature: "none",
+       status: {"default": "stable"},
+     },
+     {
+@@ -3144,6 +3153,7 @@
+     },
+     {
+       name: "Fledge",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       status: "stable",
+       public: true,
+     },
+@@ -3901,7 +3911,7 @@
+         "Android": "test",
+         "default": "",
+       },
+-      base_feature_status: "enabled",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       copied_from_base_feature_if: "overridden",
+     },
+     {
+@@ -4269,6 +4279,7 @@
+     // "experimental" is the support on other platforms.
+     {
+       name: "MiddleClickAutoscroll",
++      base_feature: "none",
        status: "test",
+     },
+     // Killswitch for crbug.com/40062462 fix.
+@@ -4768,6 +4779,7 @@
+     {
+       // PARAKEET ad serving runtime flag/JS API.
+       name: "Parakeet",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       origin_trial_feature_name: "Parakeet",
+     },
+     {
+@@ -4979,6 +4991,7 @@
+       //
+       // It also has some feature params defined throughout the codebase.
+       name: "Prerender2",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       status: "stable",
+     },
+     {
+@@ -5176,6 +5189,7 @@
+     // but we still keep this flag for future phase tests.
+     {
+       name: "ReduceUserAgentMinorVersion",
++      base_feature_status: "enabled",  // feature state is enforced via plaster rewrite.
+       status: "stable",
+     },
+     {
+@@ -6600,7 +6614,7 @@
+         "ChromeOS": "stable",
+         "default": "",
+       },
+-      base_feature_status: "enabled",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       copied_from_base_feature_if: "overridden",
+     },
+     {
+@@ -6772,6 +6786,7 @@
+     },
+     {
+       name: "UserMediaElement",
++      base_feature_status: "disabled",  // feature state is enforced via plaster rewrite.
+       status: "stable",
+       public: true,
+     },
+@@ -7620,5 +7635,10 @@
+       // crbug.com/435623334.
+       name: "XSLTSpecialTrial",
      },
 +    {
 +      name: "BraveIsInTorContext",
 +      public: true,
 +      base_feature: "none",
 +    },
-     {
-       name: "BrowserInitiatedAutomaticPictureInPicture",
-       public: true,
-@@ -2825,6 +2830,7 @@
-       // In-development features for the File System Access API.
-       name: "FileSystemAccessAPIExperimental",
-       status: "experimental",
-+      base_feature: "none",
-     },
-     {
-       // The FileSystemHandle.getCloudIdentifiers() method (see
-@@ -2839,6 +2845,7 @@
-       // Non-OPFS File System Access API.
-       name: "FileSystemAccessLocal",
-       status: {"default": "stable"},
-+      base_feature: "none",
-     },
-     {
-       name: "FileSystemAccessLockingScheme",
-@@ -3970,6 +3977,7 @@
-     {
-       name: "MiddleClickAutoscroll",
-       status: "test",
-+      base_feature: "none",
-     },
-     // Killswitch for crbug.com/40062462 fix.
-     {
+   ],
+ }

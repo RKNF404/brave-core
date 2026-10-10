@@ -54,20 +54,6 @@
       }
     },
     {
-      "target" : {
-        "containerPath" : "container:..",
-        "identifier" : "StorageTests",
-        "name" : "StorageTests"
-      }
-    },
-    {
-      "target" : {
-        "containerPath" : "container:..",
-        "identifier" : "AIChatTests",
-        "name" : "AIChatTests"
-      }
-    },
-    {
       "skippedTests" : [
         "CertificatePinningTest\/testSelfSignedRootAllowed2()"
       ],

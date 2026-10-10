@@ -1,9 +1,10 @@
 diff --git a/chrome/android/chrome_java_sources.gni b/chrome/android/chrome_java_sources.gni
-index 3148d3452db8693b3d58112c104470691d6710a8..537534ff6299d37ebf8140220a32a8e29bf03a9c 100644
+index 74208304beac395e25f1418ca9edd1183e185186..a00456c0fdb7d991f3bb5a51d58cb85c12268aa9 100644
 --- a/chrome/android/chrome_java_sources.gni
 +++ b/chrome/android/chrome_java_sources.gni
-@@ -1356,3 +1356,4 @@ if (enable_screen_capture) {
-     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerTabObserver.java",
+@@ -1398,3 +1398,5 @@ if (enable_screen_capture) {
+     "java/src/org/chromium/chrome/browser/media/TabSharingUiManager.java",
    ]
  }
-+chrome_java_sources -= ["java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java",]
++chrome_java_sources -=
++    [ "java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java" ]

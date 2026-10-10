@@ -6,17 +6,29 @@
 #ifndef BRAVE_BROWSER_UI_TABS_PUBLIC_VERTICAL_TAB_CONTROLLER_H_
 #define BRAVE_BROWSER_UI_TABS_PUBLIC_VERTICAL_TAB_CONTROLLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
+class FocusModeController;
 class PrefService;
 
 class VerticalTabController {
  public:
-  // Convenience method to get VerticalTabController from
-  // BrowserWindowInterface. Returns nullptr if the browser window is nullptr.
-  static VerticalTabController* FromBrowser(BrowserWindowInterface* browser);
+  DECLARE_USER_DATA(VerticalTabController);
 
-  VerticalTabController(BrowserWindowInterface::Type type, PrefService* prefs);
+  // Returns the instance owned by `browser`, or nullptr. Also returns nullptr
+  // if `browser` is nullptr.
+  static VerticalTabController* From(BrowserWindowInterface* browser);
+  static const VerticalTabController* From(
+      const BrowserWindowInterface* browser);
+
+  // `host` is the UnownedUserDataHost of the browser window this controller
+  // belongs to.
+  VerticalTabController(ui::UnownedUserDataHost& host,
+                        BrowserWindowInterface::Type type,
+                        PrefService* prefs,
+                        FocusModeController* focus_mode_controller);
   VerticalTabController(const VerticalTabController&) = delete;
   VerticalTabController& operator=(const VerticalTabController&) = delete;
   ~VerticalTabController();
@@ -43,9 +55,16 @@ class VerticalTabController {
   // bar regardless of the setting of kVerticalTabsFloatingEnabled.
   bool ShouldHideVerticalTabsCompletelyWhenCollapsed() const;
 
+  // Returns true when the vertical tab toggle button (the button used to
+  // expand/collapse the vertical tab strip) should be shown.
+  bool ShouldShowVerticalTabToggleButton() const;
+
  private:
   BrowserWindowInterface::Type type_;
   raw_ptr<PrefService> prefs_;
+  raw_ptr<FocusModeController> focus_mode_controller_;
+
+  ui::ScopedUnownedUserData<VerticalTabController> scoped_unowned_user_data_;
 };
 
 #endif  // BRAVE_BROWSER_UI_TABS_PUBLIC_VERTICAL_TAB_CONTROLLER_H_

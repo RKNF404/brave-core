@@ -8,12 +8,7 @@
 The file is split into layers, from pure units to a full checkout integration:
 
 * `SelectObjectTest` covers the pure `_select_object` condition picker.
-
-* `TarballInstallerTest` drives a single `TarballInstaller` against real
-  on-disk archives (built in-memory). `deps.DownloadUrl` is faked so no network
-  is touched, but the real `deps.VerifySHA256` and the real tar/zip extraction
-  run, exercising download verification, the owned-vs-overlay wipe behaviour,
-  idempotency, and the gclient-equivalent sidecar bookkeeping.
+  (`TarballInstaller` itself is tested in `tarball_installer_test.py`.)
 
 * `ValidateOverlayTargetTest` and `InstallTest` exercise `ExtraDepsRunner`
   without the gclient machinery by pre-seeding its resolved-scope cache, so the
@@ -33,13 +28,11 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import io
-import json
 import logging
 import sys
 import tarfile
 import tempfile
 import unittest
-import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -48,6 +41,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import install_extra_deps as m
+import tarball_installer
 from test.fake_chromium_repo import FakeChromiumRepo
 
 
@@ -56,8 +50,9 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _make_tar(members: list[tuple[str, bytes]],
-              compression: str = 'gz') -> bytes:
+def _make_tar(
+    members: list[tuple[str, bytes]], compression: str = 'gz'
+) -> bytes:
     """Build a tar archive (default gzip) from `(name, content)` members."""
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode=f'w:{compression}') as tar:
@@ -68,37 +63,24 @@ def _make_tar(members: list[tuple[str, bytes]],
     return buf.getvalue()
 
 
-def _make_zip(members: list[tuple[str, bytes]]) -> bytes:
-    """Build a zip archive from `(name, content)` members."""
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, 'w') as archive:
-        for name, content in members:
-            archive.writestr(name, content)
-    return buf.getvalue()
-
-
 class SelectObjectTest(unittest.TestCase):
     """Tests for the `_select_object` per-host condition picker."""
 
     def test_returns_none_when_nothing_matches(self):
         """No object whose condition holds yields `None` (host not covered)."""
-        objects = [{
-            'object_name': 'linux.tar.gz',
-            'condition': 'host_os == "linux"',
-        }]
+        objects = [
+            {
+                'object_name': 'linux.tar.gz',
+                'condition': 'host_os == "linux"',
+            }
+        ]
         self.assertIsNone(m._select_object(objects, {'host_os': 'mac'}))
 
     def test_returns_the_single_match(self):
         """Exactly one matching condition returns that object."""
         objects = [
-            {
-                'object_name': 'linux.tar.gz',
-                'condition': 'host_os == "linux"'
-            },
-            {
-                'object_name': 'mac.tar.gz',
-                'condition': 'host_os == "mac"'
-            },
+            {'object_name': 'linux.tar.gz', 'condition': 'host_os == "linux"'},
+            {'object_name': 'mac.tar.gz', 'condition': 'host_os == "mac"'},
         ]
         picked = m._select_object(objects, {'host_os': 'mac'})
         self.assertEqual(picked['object_name'], 'mac.tar.gz')
@@ -106,14 +88,8 @@ class SelectObjectTest(unittest.TestCase):
     def test_raises_when_multiple_match(self):
         """More than one matching object is ambiguous and must raise."""
         objects = [
-            {
-                'object_name': 'a.tar.gz',
-                'condition': 'host_os == "linux"'
-            },
-            {
-                'object_name': 'b.tar.gz',
-                'condition': 'host_os == "linux"'
-            },
+            {'object_name': 'a.tar.gz', 'condition': 'host_os == "linux"'},
+            {'object_name': 'b.tar.gz', 'condition': 'host_os == "linux"'},
         ]
         with self.assertRaisesRegex(RuntimeError, 'Multiple objects match'):
             m._select_object(objects, {'host_os': 'linux'})
@@ -124,131 +100,6 @@ class SelectObjectTest(unittest.TestCase):
         objects = [{'object_name': 'node-linux-x64.tar.gz'}]
         picked = m._select_object(objects, {'host_os': 'mac'})
         self.assertEqual(picked['object_name'], 'node-linux-x64.tar.gz')
-
-
-class TarballInstallerTest(unittest.TestCase):
-    """Tests for `TarballInstaller` download/extract/sidecar mechanics."""
-
-    def setUp(self):
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.root = Path(tmp.name)
-        self.dest = self.root / 'dest'
-
-    def _installer(self,
-                   data: bytes,
-                   *,
-                   object_name: str = 'pkg.tar.gz',
-                   sha256sum: str | None = None,
-                   owns_dest: bool = True) -> m.TarballInstaller:
-        """A `TarballInstaller` for `data`, defaulting to its true sha256."""
-        return m.TarballInstaller(
-            dest_dir=self.dest,
-            url=f'https://downloads.invalid/{object_name}',
-            object_name=object_name,
-            sha256sum=_sha256(data) if sha256sum is None else sha256sum,
-            owns_dest=owns_dest)
-
-    def _faked_download(self, data: bytes) -> mock._patch:
-        """Patch `deps.DownloadUrl` to write `data` into the output file."""
-
-        def _write(_url, output_file):
-            output_file.write(data)
-
-        return mock.patch.object(m.deps, 'DownloadUrl', side_effect=_write)
-
-    def test_install_extracts_tarball_and_writes_sidecars(self):
-        """A fresh install extracts the tar members and records the sidecars."""
-        data = _make_tar([('bin/node', b'node'), ('README.md', b'hi')])
-        installer = self._installer(data)
-        with self._faked_download(data):
-            self.assertTrue(installer.install())
-        self.assertEqual((self.dest / 'bin/node').read_bytes(), b'node')
-        self.assertEqual((self.dest / 'README.md').read_bytes(), b'hi')
-        self.assertTrue(installer.is_installed())
-
-    def test_install_extracts_zip(self):
-        """Zip archives take the `ZipFile` branch and extract the same way."""
-        data = _make_zip([('node.exe', b'MZ'), ('LICENSE', b'mpl')])
-        installer = self._installer(data, object_name='node.zip')
-        with self._faked_download(data):
-            self.assertTrue(installer.install())
-        self.assertEqual((self.dest / 'node.exe').read_bytes(), b'MZ')
-        self.assertEqual((self.dest / 'LICENSE').read_bytes(), b'mpl')
-
-    def test_install_is_idempotent(self):
-        """A second install is a no-op: it returns False and re-downloads
-        nothing once the `_hash` sidecar already records the sha."""
-        data = _make_tar([('f', b'x')])
-        installer = self._installer(data)
-        with self._faked_download(data) as download:
-            self.assertTrue(installer.install())
-            self.assertFalse(installer.install())
-            download.assert_called_once()
-
-    def test_is_installed_is_false_without_sidecar(self):
-        """With no `_hash` sidecar present nothing is considered installed."""
-        self.assertFalse(
-            self._installer(_make_tar([('f', b'x')])).is_installed())
-
-    def test_owned_dest_is_wiped_before_extract(self):
-        """An owned dep wipes its destination first, so stale files are gone."""
-        self.dest.mkdir()
-        (self.dest / 'stale.txt').write_text('old')
-        data = _make_tar([('fresh.txt', b'new')])
-        installer = self._installer(data, owns_dest=True)
-        with self._faked_download(data):
-            installer.install()
-        self.assertFalse((self.dest / 'stale.txt').exists())
-        self.assertTrue((self.dest / 'fresh.txt').exists())
-
-    def test_overlay_keeps_existing_tree(self):
-        """An overlay (owns_dest=False) extracts on top, preserving the base."""
-        self.dest.mkdir()
-        (self.dest / 'base.txt').write_text('upstream')
-        data = _make_tar([('overlay.txt', b'brave')])
-        installer = self._installer(data, owns_dest=False)
-        with self._faked_download(data):
-            installer.install()
-        self.assertEqual((self.dest / 'base.txt').read_text(), 'upstream')
-        self.assertTrue((self.dest / 'overlay.txt').exists())
-
-    def test_sha256_mismatch_raises_and_installs_nothing(self):
-        """A hash mismatch surfaces from the real `VerifySHA256` and leaves the
-        destination untouched (no extraction, no sidecars)."""
-        data = _make_tar([('f', b'x')])
-        installer = self._installer(data, sha256sum='0' * 64)
-        with self._faked_download(data):
-            with self.assertRaises(ValueError):
-                installer.install()
-        self.assertFalse(self.dest.exists())
-        self.assertFalse(installer.is_installed())
-
-    def test_sidecar_contents(self):
-        """The written sidecars mirror gclient's set: the sha256 and the JSON
-        list of archive members, each `.stamp`."""
-        members = [('a', b'1'), ('b/c', b'2')]
-        data = _make_tar(members)
-        installer = self._installer(data, object_name='pkg.tar.gz')
-        with self._faked_download(data):
-            installer.install()
-        prefix = '.pkg_tar_gz'
-        hash_file = self.dest / f'{prefix}_hash.stamp'
-        names_file = self.dest / f'{prefix}_content_names.stamp'
-        self.assertTrue(hash_file.is_file())
-        self.assertEqual(hash_file.read_text().strip(), _sha256(data))
-        self.assertEqual(json.loads(names_file.read_text()), ['a', 'b/c'])
-        # The first-class-gcs migration toggle is deliberately not written.
-        self.assertFalse(
-            (self.dest / f'{prefix}_is_first_class_gcs.stamp').exists())
-
-    def test_sidecar_name_maps_dots_and_slashes(self):
-        """The sidecar prefix maps every `/` and `.` in the object name to `_`
-        (matching gclient's keying) and carries the `.stamp` tail."""
-        installer = self._installer(b'', object_name='Linux_x64/pkg.tar.gz')
-        self.assertEqual(
-            installer._sidecar('_hash').name,
-            '.Linux_x64_pkg_tar_gz_hash.stamp')
 
 
 class ValidateOverlayTargetTest(unittest.TestCase):
@@ -268,14 +119,14 @@ class ValidateOverlayTargetTest(unittest.TestCase):
 
     def test_passes_when_deps_pins_the_base(self):
         """No error when DEPS still pins the expected overlay base as gcs."""
-        runner = self._runner({
-            self.PATH: {
-                'dep_type': 'gcs',
-                'objects': [{
-                    'object_name': self.BASE
-                }],
+        runner = self._runner(
+            {
+                self.PATH: {
+                    'dep_type': 'gcs',
+                    'objects': [{'object_name': self.BASE}],
+                }
             }
-        })
+        )
         runner._validate_overlay_target(self.PATH, self.BASE)  # no raise
 
     def test_raises_when_path_absent_from_deps(self):
@@ -293,14 +144,14 @@ class ValidateOverlayTargetTest(unittest.TestCase):
     def test_raises_when_base_not_pinned(self):
         """A gcs dep that no longer pins the expected base must raise (upstream
         likely rolled the toolchain)."""
-        runner = self._runner({
-            self.PATH: {
-                'dep_type': 'gcs',
-                'objects': [{
-                    'object_name': 'Linux_x64/rolled.tar.xz'
-                }],
+        runner = self._runner(
+            {
+                self.PATH: {
+                    'dep_type': 'gcs',
+                    'objects': [{'object_name': 'Linux_x64/rolled.tar.xz'}],
+                }
             }
-        })
+        )
         with self.assertRaisesRegex(RuntimeError, 'does not pin the expected'):
             runner._validate_overlay_target(self.PATH, self.BASE)
 
@@ -317,18 +168,19 @@ class InstallTest(unittest.TestCase):
         # Silence the script's own INFO line ("Installed ... into ...").
         logging.disable(logging.WARNING)
         self.addCleanup(logging.disable, logging.NOTSET)
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.root = Path(tmp.name)
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        tmp = stack.enter_context(tempfile.TemporaryDirectory())
+        self.root = Path(tmp)
         # `install` derives dest as `_SRC_DIR.parent / path`; with _SRC_DIR at
         # <root>/src, a 'src/...' path resolves under <root>/src/...
         patcher = mock.patch.object(m, '_SRC_DIR', self.root / 'src')
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def _runner(self,
-                variables: dict,
-                deps_map: dict | None = None) -> m.ExtraDepsRunner:
+    def _runner(
+        self, variables: dict, deps_map: dict | None = None
+    ) -> m.ExtraDepsRunner:
         runner = m.ExtraDepsRunner(mock.Mock())
         runner._scope_by_solution['src'] = {
             'vars': variables,
@@ -338,10 +190,15 @@ class InstallTest(unittest.TestCase):
 
     def _faked_download(self, data: bytes) -> mock._patch:
 
-        def _write(_url, output_file):
+        def _write(_self, _url, output_file):
             output_file.write(data)
 
-        return mock.patch.object(m.deps, 'DownloadUrl', side_effect=_write)
+        return mock.patch.object(
+            tarball_installer.TarballInstaller,
+            '_download',
+            autospec=True,
+            side_effect=_write,
+        )
 
     def test_skips_when_dep_condition_is_false(self):
         """A false dep-level condition skips entirely; nothing downloads."""
@@ -349,11 +206,13 @@ class InstallTest(unittest.TestCase):
         spec = {
             'bucket': 'https://x/',
             'condition': 'checkout_linux',
-            'objects': [{
-                'object_name': 'pkg.tar.gz',
-                'sha256sum': 'a',
-                'condition': 'True'
-            }],
+            'objects': [
+                {
+                    'object_name': 'pkg.tar.gz',
+                    'sha256sum': 'a',
+                    'condition': 'True',
+                }
+            ],
         }
         with self._faked_download(b'') as download:
             runner.install('src/foo', spec)
@@ -364,11 +223,13 @@ class InstallTest(unittest.TestCase):
         runner = self._runner({'host_os': 'linux'})
         spec = {
             'bucket': 'https://x/',
-            'objects': [{
-                'object_name': 'mac.tar.gz',
-                'sha256sum': 'a',
-                'condition': 'host_os == "mac"'
-            }],
+            'objects': [
+                {
+                    'object_name': 'mac.tar.gz',
+                    'sha256sum': 'a',
+                    'condition': 'host_os == "mac"',
+                }
+            ],
         }
         with self._faked_download(b'') as download:
             runner.install('src/foo', spec)
@@ -381,11 +242,14 @@ class InstallTest(unittest.TestCase):
         runner = self._runner({'host_os': 'linux'})
         spec = {
             'bucket': 'https://downloads.invalid/',
-            'objects': [{
-                'object_name': 'node.tar.gz',
-                'sha256sum': _sha256(data),
-                'condition': 'host_os == "linux"'
-            }],
+            'objects': [
+                {
+                    'object_name': 'node.tar.gz',
+                    'sha256sum': _sha256(data),
+                    'size_bytes': len(data),
+                    'condition': 'host_os == "linux"',
+                }
+            ],
         }
         with mock.patch.object(runner, '_validate_overlay_target') as validate:
             with self._faked_download(data):
@@ -401,18 +265,22 @@ class InstallTest(unittest.TestCase):
         runner = self._runner({'host_os': 'linux'})
         spec = {
             'bucket': 'https://downloads.invalid/',
-            'objects': [{
-                'object_name': 'overlay.tar.gz',
-                'sha256sum': _sha256(data),
-                'overlayed_on': 'Linux_x64/base.tar.xz',
-                'condition': 'host_os == "linux"',
-            }],
+            'objects': [
+                {
+                    'object_name': 'overlay.tar.gz',
+                    'sha256sum': _sha256(data),
+                    'size_bytes': len(data),
+                    'overlayed_on': 'Linux_x64/base.tar.xz',
+                    'condition': 'host_os == "linux"',
+                }
+            ],
         }
         with mock.patch.object(runner, '_validate_overlay_target') as validate:
             with self._faked_download(data):
                 runner.install('src/third_party/rust-toolchain', spec)
-            validate.assert_called_once_with('src/third_party/rust-toolchain',
-                                             'Linux_x64/base.tar.xz')
+            validate.assert_called_once_with(
+                'src/third_party/rust-toolchain', 'Linux_x64/base.tar.xz'
+            )
 
     def test_overlay_validation_failure_prevents_download(self):
         """If the overlay base no longer validates, the install aborts before
@@ -420,16 +288,21 @@ class InstallTest(unittest.TestCase):
         runner = self._runner({'host_os': 'linux'})
         spec = {
             'bucket': 'https://downloads.invalid/',
-            'objects': [{
-                'object_name': 'overlay.tar.gz',
-                'sha256sum': 'a',
-                'overlayed_on': 'Linux_x64/base.tar.xz',
-                'condition': 'host_os == "linux"',
-            }],
+            'objects': [
+                {
+                    'object_name': 'overlay.tar.gz',
+                    'sha256sum': 'a',
+                    'size_bytes': 1,
+                    'overlayed_on': 'Linux_x64/base.tar.xz',
+                    'condition': 'host_os == "linux"',
+                }
+            ],
         }
-        with mock.patch.object(runner,
-                               '_validate_overlay_target',
-                               side_effect=RuntimeError('rolled')):
+        with mock.patch.object(
+            runner,
+            '_validate_overlay_target',
+            side_effect=RuntimeError('rolled'),
+        ):
             with self._faked_download(b'') as download:
                 with self.assertRaises(RuntimeError):
                     runner.install('src/third_party/rust-toolchain', spec)
@@ -469,17 +342,23 @@ class FromCheckoutIntegrationTest(unittest.TestCase):
             "                 'sha256sum': 'aa', 'size_bytes': 1,\n"
             "                 'generation': 1}],\n"
             "  },\n"
-            "}\n")
+            "}\n"
+        )
         patcher = mock.patch.object(m, '_SRC_DIR', self.repo.chromium)
         patcher.start()
         self.addCleanup(patcher.stop)
 
     def _faked_download(self, data: bytes) -> mock._patch:
 
-        def _write(_url, output_file):
+        def _write(_self, _url, output_file):
             output_file.write(data)
 
-        return mock.patch.object(m.deps, 'DownloadUrl', side_effect=_write)
+        return mock.patch.object(
+            tarball_installer.TarballInstaller,
+            '_download',
+            autospec=True,
+            side_effect=_write,
+        )
 
     def test_resolves_solution_vars_and_caches(self):
         """`from_checkout` loads the config and resolves the solution's vars,
@@ -490,8 +369,9 @@ class FromCheckoutIntegrationTest(unittest.TestCase):
         self.assertEqual(variables['host_cpu'], 'x64')
         self.assertTrue(variables['checkout_linux'])
         # Second lookup hits the cache and returns the very same scope object.
-        self.assertIs(runner._solution_scope('src'),
-                      runner._solution_scope('src'))
+        self.assertIs(
+            runner._solution_scope('src'), runner._solution_scope('src')
+        )
 
     def test_unknown_solution_raises(self):
         """Asking for a solution the `.gclient` does not declare is an error."""
@@ -503,19 +383,22 @@ class FromCheckoutIntegrationTest(unittest.TestCase):
         """`from_checkout` raises when no `.gclient` is found walking upward."""
         with tempfile.TemporaryDirectory() as orphan:
             with mock.patch.object(m, '_SRC_DIR', Path(orphan) / 'src'):
-                with self.assertRaisesRegex(RuntimeError,
-                                            'Could not find a .gclient root'):
+                with self.assertRaisesRegex(
+                    RuntimeError, 'Could not find a .gclient root'
+                ):
                     m.ExtraDepsRunner.from_checkout()
 
     def test_validate_overlay_target_against_real_deps(self):
         """The overlay base resolves against the DEPS parsed from the checkout:
         the pinned base passes, a different one raises."""
         runner = m.ExtraDepsRunner.from_checkout()
-        runner._validate_overlay_target('src/third_party/rust-toolchain',
-                                        'Linux_x64/base.tar.xz')  # no raise
+        runner._validate_overlay_target(
+            'src/third_party/rust-toolchain', 'Linux_x64/base.tar.xz'
+        )  # no raise
         with self.assertRaisesRegex(RuntimeError, 'does not pin the expected'):
-            runner._validate_overlay_target('src/third_party/rust-toolchain',
-                                            'Linux_x64/rolled.tar.xz')
+            runner._validate_overlay_target(
+                'src/third_party/rust-toolchain', 'Linux_x64/rolled.tar.xz'
+            )
 
     def test_install_end_to_end(self):
         """A full install resolves the host condition through gclient, extracts
@@ -528,11 +411,13 @@ class FromCheckoutIntegrationTest(unittest.TestCase):
                 {
                     'object_name': 'node-linux.tar.gz',
                     'sha256sum': _sha256(data),
+                    'size_bytes': len(data),
                     'condition': 'host_os == "linux"',
                 },
                 {
                     'object_name': 'node-mac.tar.gz',
                     'sha256sum': 'unused',
+                    'size_bytes': 0,
                     'condition': 'host_os == "mac"',
                 },
             ],
@@ -551,18 +436,21 @@ class FromCheckoutIntegrationTest(unittest.TestCase):
         spec = {
             'bucket': 'https://downloads.invalid/',
             'condition': 'checkout_android',
-            'objects': [{
-                'object_name': 'node.tar.gz',
-                'sha256sum': _sha256(data),
-                'condition': 'host_os == "linux"',
-            }],
+            'objects': [
+                {
+                    'object_name': 'node.tar.gz',
+                    'sha256sum': _sha256(data),
+                    'condition': 'host_os == "linux"',
+                }
+            ],
         }
         runner = m.ExtraDepsRunner.from_checkout()
         with self._faked_download(data) as download:
             runner.install('src/brave/third_party/node', spec)
             download.assert_not_called()
         self.assertFalse(
-            (self.repo.chromium / 'brave/third_party/node').exists())
+            (self.repo.chromium / 'brave/third_party/node').exists()
+        )
 
 
 class MainTest(unittest.TestCase):
@@ -576,32 +464,57 @@ class MainTest(unittest.TestCase):
     _FAKE_EXTRA_DEPS = {
         'src/path/to/dep': {
             'bucket': 'https://downloads.invalid/',
-            'objects': [{
-                'object_name': 'pkg.tar.gz',
-                'sha256sum': 'a',
-                'condition': 'True',
-            }],
+            'objects': [
+                {
+                    'object_name': 'pkg.tar.gz',
+                    'sha256sum': 'a',
+                    'condition': 'True',
+                }
+            ],
         },
         'src/path/to/other': {
             'bucket': 'https://downloads.invalid/',
-            'objects': [{
-                'object_name': 'other.tar.gz',
-                'sha256sum': 'b',
-                'condition': 'True',
-            }],
+            'objects': [
+                {
+                    'object_name': 'other.tar.gz',
+                    'sha256sum': 'b',
+                    'condition': 'True',
+                }
+            ],
         },
     }
+
+    def setUp(self):
+        # `main()` sets the module logger's level, which outlives the call, so
+        # restore it or these tests leak into each other (and into the rest of
+        # the file) depending on execution order.
+        level = m._LOG.level
+        self.addCleanup(m._LOG.setLevel, level)
+
+    def _run_setdep(self, *extra_argv: str) -> None:
+        """Runs `main()` on a stubbed `setdep`, with `extra_argv` appended."""
+        argv = [
+            'install_extra_deps',
+            'setdep',
+            '-r',
+            'src/path/to/dep@pkg.tar.gz,abc,1',
+            *extra_argv,
+        ]
+        with mock.patch.object(m, 'setdep'):
+            with mock.patch.object(sys, 'argv', argv):
+                self.assertEqual(m.main(), 0)
 
     def test_dispatches_selected_dep_to_runner(self):
         """A valid dep key resolves a runner and installs that entry's spec."""
         runner = mock.Mock()
         dep = 'src/path/to/dep'
         with mock.patch.object(m, 'EXTRA_DEPS', self._FAKE_EXTRA_DEPS):
-            with mock.patch.object(m.ExtraDepsRunner,
-                                   'from_checkout',
-                                   return_value=runner):
-                with mock.patch.object(sys, 'argv',
-                                       ['install_extra_deps', dep]):
+            with mock.patch.object(
+                m.ExtraDepsRunner, 'from_checkout', return_value=runner
+            ):
+                with mock.patch.object(
+                    sys, 'argv', ['install_extra_deps', 'sync', dep]
+                ):
                     self.assertEqual(m.main(), 0)
         runner.install.assert_called_once_with(dep, self._FAKE_EXTRA_DEPS[dep])
 
@@ -611,30 +524,317 @@ class MainTest(unittest.TestCase):
         runner = mock.Mock()
         deps = ['src/path/to/dep', 'src/path/to/other']
         with mock.patch.object(m, 'EXTRA_DEPS', self._FAKE_EXTRA_DEPS):
-            with mock.patch.object(m.ExtraDepsRunner,
-                                   'from_checkout',
-                                   return_value=runner):
-                with mock.patch.object(sys, 'argv',
-                                       ['install_extra_deps', *deps]):
+            with mock.patch.object(
+                m.ExtraDepsRunner, 'from_checkout', return_value=runner
+            ):
+                with mock.patch.object(
+                    sys, 'argv', ['install_extra_deps', 'sync', *deps]
+                ):
                     self.assertEqual(m.main(), 0)
         self.assertEqual(
             runner.install.call_args_list,
-            [mock.call(dep, self._FAKE_EXTRA_DEPS[dep]) for dep in deps])
+            [mock.call(dep, self._FAKE_EXTRA_DEPS[dep]) for dep in deps],
+        )
 
     def test_rejects_unknown_dep(self):
         """An unknown dep key is rejected by argparse before any work runs."""
         with mock.patch.object(m, 'EXTRA_DEPS', self._FAKE_EXTRA_DEPS):
-            with mock.patch.object(m.ExtraDepsRunner,
-                                   'from_checkout') as checkout:
+            with mock.patch.object(
+                m.ExtraDepsRunner, 'from_checkout'
+            ) as checkout:
                 with mock.patch.object(
-                        sys, 'argv',
-                    ['install_extra_deps', 'src/does/not/exist']):
+                    sys,
+                    'argv',
+                    ['install_extra_deps', 'sync', 'src/does/not/exist'],
+                ):
                     # argparse prints a usage error to stderr before exiting;
                     # keep it out of the test output.
                     with contextlib.redirect_stderr(io.StringIO()):
                         with self.assertRaises(SystemExit):
                             m.main()
                 checkout.assert_not_called()
+
+    def test_dispatches_setdep(self):
+        """The `setdep` subcommand forwards its revisions to `setdep` and never
+        touches the checkout (it only edits the EXTRA_DEPS file)."""
+        revision = 'src/path/to/dep@pkg.tar.gz,abc,1'
+        with mock.patch.object(m, 'setdep') as setdep:
+            with mock.patch.object(
+                m.ExtraDepsRunner, 'from_checkout'
+            ) as checkout:
+                with mock.patch.object(
+                    sys,
+                    'argv',
+                    ['install_extra_deps', 'setdep', '-r', revision],
+                ):
+                    self.assertEqual(m.main(), 0)
+        setdep.assert_called_once_with([revision])
+        checkout.assert_not_called()
+
+    def test_reporting_is_off_until_main_enables_it(self):
+        """At import the logger sits above INFO, so in-process consumers (see
+        `toolchain.RustToolchain.repin`) don't inherit the root logger's INFO
+        and print this script's reporting inside their own."""
+        self.assertGreater(m._LOG.level, logging.INFO)
+
+    def test_cli_enables_reporting(self):
+        """A plain CLI run opts into INFO, so `Repinned ...` surfaces."""
+        self._run_setdep()
+        self.assertEqual(m._LOG.level, logging.INFO)
+
+    def test_quiet_leaves_reporting_off(self):
+        """`--quiet` skips that opt-in, leaving the import-time level."""
+        self._run_setdep('--quiet')
+        self.assertGreater(m._LOG.level, logging.INFO)
+
+    def test_setdep_requires_a_revision(self):
+        """`setdep` with no `-r` is rejected by argparse before any work."""
+        with mock.patch.object(m, 'setdep') as setdep:
+            with mock.patch.object(
+                sys, 'argv', ['install_extra_deps', 'setdep']
+            ):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit):
+                        m.main()
+        setdep.assert_not_called()
+
+
+class ParseObjectSpecTest(unittest.TestCase):
+    """Tests for the `_parse_object_spec` setdep-argument parser."""
+
+    def test_parses_a_triple_and_strips_whitespace(self):
+        self.assertEqual(
+            m._parse_object_spec('pkg.tar.gz , abc123 , 42'),
+            {
+                'object_name': 'pkg.tar.gz',
+                'sha256sum': 'abc123',
+                'size_bytes': '42',
+            },
+        )
+
+    def test_parses_a_quadruple_with_overlayed_on(self):
+        self.assertEqual(
+            m._parse_object_spec('pkg.tar.gz,abc123,42,upstream/pkg.tar.gz'),
+            {
+                'object_name': 'pkg.tar.gz',
+                'sha256sum': 'abc123',
+                'size_bytes': '42',
+                'overlayed_on': 'upstream/pkg.tar.gz',
+            },
+        )
+
+    def test_rejects_wrong_field_count(self):
+        with self.assertRaises(ValueError):
+            m._parse_object_spec('pkg.tar.gz,abc123')
+
+    def test_rejects_an_empty_field(self):
+        with self.assertRaises(ValueError):
+            m._parse_object_spec('pkg.tar.gz,,42')
+
+    def test_rejects_a_non_integer_size(self):
+        with self.assertRaises(ValueError):
+            m._parse_object_spec('pkg.tar.gz,abc123,huge')
+
+
+class FormatSetdepRevisionTest(unittest.TestCase):
+    """Tests for `format_setdep_revision`, the inverse of `_parse_object_spec`."""
+
+    def test_formats_a_single_object_without_overlayed_on(self):
+        self.assertEqual(
+            m.format_setdep_revision(
+                'src/path/to/dep',
+                [
+                    {
+                        'object_name': 'pkg.tar.gz',
+                        'sha256sum': 'abc123',
+                        'size_bytes': 42,
+                    }
+                ],
+            ),
+            'src/path/to/dep@pkg.tar.gz,abc123,42',
+        )
+
+    def test_formats_multiple_objects_with_overlayed_on(self):
+        objects = [
+            {
+                'object_name': 'linux.tar.xz',
+                'sha256sum': 'linuxsha',
+                'size_bytes': 1,
+                'overlayed_on': 'upstream/linux.tar.xz',
+                'condition': 'host_os == "linux"',
+            },
+            {
+                'object_name': 'win.tar.xz',
+                'sha256sum': 'winsha',
+                'size_bytes': 2,
+                'overlayed_on': 'upstream/win.tar.xz',
+                'condition': 'host_os == "win"',
+            },
+        ]
+        self.assertEqual(
+            m.format_setdep_revision('src/third_party/rust-toolchain', objects),
+            'src/third_party/rust-toolchain@'
+            'linux.tar.xz,linuxsha,1,upstream/linux.tar.xz?'
+            'win.tar.xz,winsha,2,upstream/win.tar.xz',
+        )
+
+    def test_round_trips_through_parse_object_spec(self):
+        objects = [
+            {
+                'object_name': 'pkg.tar.gz',
+                'sha256sum': 'abc123',
+                'size_bytes': 42,
+                'overlayed_on': 'upstream/pkg.tar.gz',
+            }
+        ]
+        revision = m.format_setdep_revision('src/path/to/dep', objects)
+        _, _, objects_spec = revision.partition('@')
+        self.assertEqual(
+            m._parse_object_spec(objects_spec),
+            {
+                'object_name': 'pkg.tar.gz',
+                'sha256sum': 'abc123',
+                'size_bytes': '42',
+                'overlayed_on': 'upstream/pkg.tar.gz',
+            },
+        )
+
+
+class SetDepTest(unittest.TestCase):
+    """Tests for `setdep`, the comment-preserving EXTRA_DEPS editor.
+
+    Each test points its own temp `EXTRA_DEPS` fixture, passed explicitly via
+    `extra_deps_file`, and checks the rendered file byte-for-byte where it
+    matters.
+    """
+
+    _SOURCE = '''\
+# A leading comment that must survive the edit.
+extra_deps = {
+    'src/path/to/dep': {
+        'bucket': 'https://downloads.invalid/',
+        'condition': 'host_os == "linux"',
+        'objects': [
+            {
+                'object_name': 'old.tar.gz',
+                'sha256sum': 'oldsha',
+                'size_bytes': 1,
+                'overlayed_on': 'upstream/old.tar.gz',
+                'condition': 'host_os == "linux"',
+            },
+        ],
+    },
+    'src/path/to/owned': {
+        'bucket': 'https://downloads.invalid/',
+        'objects': [
+            {
+                'object_name': 'owned-old.tar.gz',
+                'sha256sum': 'ownedoldsha',
+                'size_bytes': 1,
+            },
+        ],
+    },
+}
+'''
+
+    def setUp(self):
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        tmp = stack.enter_context(tempfile.TemporaryDirectory())
+        self._path = Path(tmp) / 'EXTRA_DEPS'
+        self._path.write_text(self._SOURCE, encoding='utf-8')
+
+    def test_updates_only_the_object_fields(self):
+        """The three object fields change; comments and other keys are kept."""
+        m.setdep(
+            ['src/path/to/dep@new.tar.gz,newsha,222'],
+            extra_deps_file=self._path,
+        )
+        result = self._path.read_text(encoding='utf-8')
+        self.assertIn("'object_name': 'new.tar.gz',", result)
+        self.assertIn("'sha256sum': 'newsha',", result)
+        # `size_bytes` renders as a bare int, not a quoted string.
+        self.assertIn("'size_bytes': 222,", result)
+        # The comment and the keys setdep does not touch survive verbatim.
+        self.assertIn('# A leading comment that must survive the edit.', result)
+        self.assertIn("'overlayed_on': 'upstream/old.tar.gz',", result)
+        self.assertIn("'bucket': 'https://downloads.invalid/',", result)
+
+    def test_reports_each_entry_repinned(self):
+        """Every repinned entry is reported, for the CLI's benefit."""
+        with self.assertLogs(m._LOG, level='INFO') as logs:
+            m.setdep(
+                ['src/path/to/dep@new.tar.gz,newsha,222'],
+                extra_deps_file=self._path,
+            )
+        self.assertEqual(
+            logs.output, ['INFO:install_extra_deps:Repinned src/path/to/dep']
+        )
+
+    def test_updates_overlayed_on_when_given(self):
+        """A fourth field rewrites `overlayed_on` alongside the other three."""
+        m.setdep(
+            ['src/path/to/dep@new.tar.gz,newsha,222,upstream/new.tar.gz'],
+            extra_deps_file=self._path,
+        )
+        result = self._path.read_text(encoding='utf-8')
+        self.assertIn("'overlayed_on': 'upstream/new.tar.gz',", result)
+        self.assertNotIn('upstream/old.tar.gz', result)
+
+    def test_owned_entry_without_overlayed_on_is_untouched_by_default(self):
+        """An owned entry (no `overlayed_on` in its schema) repins cleanly when
+        the revision omits the field too."""
+        m.setdep(
+            ['src/path/to/owned@owned-new.tar.gz,ownednewsha,2'],
+            extra_deps_file=self._path,
+        )
+        result = self._path.read_text(encoding='utf-8')
+        self.assertIn("'object_name': 'owned-new.tar.gz',", result)
+        owned_entry = result[result.index("'src/path/to/owned'") :]
+        self.assertNotIn('overlayed_on', owned_entry)
+
+    def test_overlayed_on_for_an_object_without_the_key_raises(self):
+        """Supplying `overlayed_on` for an object whose schema has no such key
+        is rejected rather than silently dropped."""
+        with self.assertRaises(ValueError):
+            m.setdep(
+                [
+                    'src/path/to/owned@owned-new.tar.gz,ownednewsha,2,'
+                    'upstream/owned-new.tar.gz'
+                ],
+                extra_deps_file=self._path,
+            )
+
+    def test_rejects_an_unknown_entry_without_writing(self):
+        with self.assertRaises(ValueError):
+            m.setdep(
+                ['src/does/not/exist@new.tar.gz,newsha,222'],
+                extra_deps_file=self._path,
+            )
+        self.assertEqual(self._path.read_text(encoding='utf-8'), self._SOURCE)
+
+    def test_rejects_an_object_count_mismatch(self):
+        with self.assertRaises(ValueError):
+            m.setdep(
+                ['src/path/to/dep@a.tar.gz,sa,1?b.tar.gz,sb,2'],
+                extra_deps_file=self._path,
+            )
+
+    def test_rejects_a_malformed_revision(self):
+        with self.assertRaises(ValueError):
+            m.setdep(
+                ['src/path/to/dep'], extra_deps_file=self._path
+            )  # Missing `@object,...`.
+
+    def test_defaults_to_the_module_extra_deps_file(self):
+        """With no `extra_deps_file` argument, `setdep` reads/writes the real
+        `EXTRA_DEPS_FILE` the module loaded at import time."""
+        with mock.patch.object(m, 'EXTRA_DEPS_FILE', self._path):
+            m.setdep(['src/path/to/dep@new.tar.gz,newsha,222'])
+        self.assertIn(
+            "'object_name': 'new.tar.gz',",
+            self._path.read_text(encoding='utf-8'),
+        )
 
 
 if __name__ == '__main__':

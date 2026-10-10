@@ -23,15 +23,15 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/metrics/metrics_reporting_state.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/buildflags/buildflags.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(ENABLE_BRAVE_EDUCATION)
@@ -103,8 +103,9 @@ WelcomeDOMHandler::~WelcomeDOMHandler() {
   RecordP3AHistogram(last_onboarding_phase_);
 }
 
-Browser* WelcomeDOMHandler::GetBrowser() {
-  return chrome::FindBrowserWithTab(web_ui()->GetWebContents());
+BrowserWindowInterface* WelcomeDOMHandler::GetBrowser() {
+  return GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+      web_ui()->GetWebContents());
 }
 
 void WelcomeDOMHandler::RegisterMessages() {
@@ -179,9 +180,8 @@ void WelcomeDOMHandler::HandleRecordP3A(const base::ListValue& args) {
 
 void WelcomeDOMHandler::HandleOpenSettingsPage(const base::ListValue& args) {
   CHECK(profile_);
-  auto* browser = ProfileBrowserCollection::GetForProfile(profile_)
-                      ->FindTabbedBrowser()
-                      ->GetBrowserForMigrationOnly();
+  auto* browser =
+      ProfileBrowserCollection::GetForProfile(profile_)->FindTabbedBrowser();
   if (browser) {
     content::OpenURLParams open_params(
         GURL("brave://settings/privacy"), content::Referrer(),

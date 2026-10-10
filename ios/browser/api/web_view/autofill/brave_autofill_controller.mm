@@ -82,8 +82,9 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
 
 - (void)showAutofillPopup:(const std::vector<autofill::Suggestion>&)suggestions
        suggestionDelegate:
-           (const base::WeakPtr<autofill::AutofillSuggestionDelegate>&)
-               delegate {
+           (const base::WeakPtr<autofill::AutofillSuggestionDelegate>&)delegate
+                   formId:(autofill::FormGlobalId)formId
+                  fieldId:(autofill::FieldGlobalId)fieldId {
   // We only want Autofill suggestions.
   std::vector<autofill::Suggestion> filtered_suggestions;
   std::ranges::copy_if(
@@ -93,7 +94,9 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
                suggestion.type == autofill::SuggestionType::kCreditCardEntry;
       });
   [_autofillAgent showAutofillPopup:filtered_suggestions
-                 suggestionDelegate:delegate];
+                 suggestionDelegate:delegate
+                             formId:formId
+                            fieldId:fieldId];
 }
 
 - (void)hideAutofillPopup {
@@ -112,17 +115,16 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
 #pragma mark - AutofillDriverIOSBridge
 
 - (void)fillData:(const std::vector<autofill::FormFieldData::FillData>&)fields
-           section:(const autofill::Section&)section
            inFrame:(web::WebFrame*)frame
     withActionType:(autofill::mojom::FormActionType)actionType {
   [_autofillAgent fillData:fields
-                   section:section
                    inFrame:frame
             withActionType:actionType];
 }
 
 - (void)fillSpecificFormField:(const autofill::FieldRendererId&)field
                     withValue:(const std::u16string)value
+                   actionType:(autofill::mojom::FieldActionType)actionType
                       inFrame:(web::WebFrame*)frame {
   NOTIMPLEMENTED();
 }
@@ -162,9 +164,14 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
                    completionHandler:std::move(completionHandler)];
 }
 
-- (void)notifyFormsSeen:(const std::vector<autofill::FormData>&)updatedForms
+- (void)notifyFormsSeen:(std::vector<autofill::FormData>)updatedForms
                 inFrame:(web::WebFrame*)frame {
   [_autofillAgent notifyFormsSeen:updatedForms inFrame:frame];
+}
+
+- (void)scrollFieldIntoView:(const autofill::FieldRendererId&)field
+                    inFrame:(web::WebFrame*)frame {
+  [_autofillAgent scrollFieldIntoView:field inFrame:frame];
 }
 
 #pragma mark - CWVAutofillClientIOSBridge

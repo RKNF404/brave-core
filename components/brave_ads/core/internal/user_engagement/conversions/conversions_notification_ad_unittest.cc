@@ -16,7 +16,7 @@
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 #include "brave/components/brave_ads/core/public/ad_units/ad_info.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -24,7 +24,7 @@ class BraveAdsConversionsNotificationAdTest
     : public test::BraveAdsConversionsTestBase {};
 
 TEST_F(BraveAdsConversionsNotificationAdTest,
-       ConvertViewedAdIfOptedInToNotificationAds) {
+       ConvertViewedAdIfNotificationAdsAreEnabled) {
   // Arrange
   const AdInfo ad = test::BuildAd(mojom::AdType::kNotificationAd,
                                   /*use_random_uuids=*/false);
@@ -43,9 +43,9 @@ TEST_F(BraveAdsConversionsNotificationAdTest,
 }
 
 TEST_F(BraveAdsConversionsNotificationAdTest,
-       DoNotConvertViewedAdIfOptedOutOfNotificationAds) {
+       DoNotConvertViewedAdIfNotificationAdsAreDisabled) {
   // Arrange
-  test::OptOutOfNotificationAds();
+  test::DisableNotificationAds();
 
   const AdInfo ad = test::BuildAd(mojom::AdType::kNotificationAd,
                                   /*use_random_uuids=*/false);
@@ -80,7 +80,7 @@ TEST_F(BraveAdsConversionsNotificationAdTest,
 }
 
 TEST_F(BraveAdsConversionsNotificationAdTest,
-       ConvertClickedAdIfOptedInToNotificationAds) {
+       ConvertClickedAdIfNotificationAdsAreEnabled) {
   // Arrange
   const AdInfo ad = test::BuildAd(mojom::AdType::kNotificationAd,
                                   /*use_random_uuids=*/false);
@@ -100,9 +100,9 @@ TEST_F(BraveAdsConversionsNotificationAdTest,
 }
 
 TEST_F(BraveAdsConversionsNotificationAdTest,
-       DoNotConvertClickedAdIfOptedOutOfNotificationAds) {
+       DoNotConvertClickedAdIfNotificationAdsAreDisabled) {
   // Arrange
-  test::OptOutOfNotificationAds();
+  test::DisableNotificationAds();
 
   const AdInfo ad = test::BuildAd(mojom::AdType::kNotificationAd,
                                   /*use_random_uuids=*/false);

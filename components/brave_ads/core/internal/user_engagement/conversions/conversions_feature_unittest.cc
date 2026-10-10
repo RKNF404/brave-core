@@ -5,9 +5,11 @@
 
 #include "brave/components/brave_ads/core/internal/user_engagement/conversions/conversions_feature.h"
 
+#include "base/feature_list.h"
+#include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -25,6 +27,11 @@ TEST(BraveAdsConversionsFeatureTest, HtmlMetaTagConversionIdPattern) {
   // Act & Assert
   EXPECT_EQ(R"~(<meta.*name="ad-conversion-id".*content="([-a-zA-Z0-9]*)".*>)~",
             kHtmlMetaTagConversionIdPattern.Get());
+}
+
+TEST(BraveAdsConversionsFeatureTest, AdEventsTimeWindow) {
+  // Act & Assert
+  EXPECT_EQ(base::Days(30), kAdEventsTimeWindow.Get());
 }
 
 }  // namespace brave_ads

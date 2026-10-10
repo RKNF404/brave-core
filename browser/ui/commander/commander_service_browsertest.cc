@@ -21,9 +21,9 @@
 #include "brave/components/commander/common/features.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -49,13 +49,15 @@ class CommanderServiceBrowserTest : public InProcessBrowserTest {
   }
 
  protected:
-  Profile* profile() { return browser()->profile(); }
+  Profile* profile() { return browser()->GetProfile(); }
   commander::CommanderService* commander() {
     return commander::CommanderServiceFactory::GetForBrowserContext(profile());
   }
 
   OmniboxView* omnibox() {
-    return browser()->window()->GetLocationBar()->GetOmniboxView();
+    return BrowserWindow::FromBrowser(browser())
+        ->GetLocationBar()
+        ->GetOmniboxView();
   }
 
   void WaitUntil(base::RepeatingCallback<bool()> condition) {

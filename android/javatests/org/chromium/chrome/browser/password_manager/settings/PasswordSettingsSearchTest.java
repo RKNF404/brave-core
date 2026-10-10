@@ -73,6 +73,7 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.history.HistoryActivity;
 import org.chromium.chrome.browser.history.HistoryContentManager;
 import org.chromium.chrome.browser.history.StubbedHistoryProvider;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
@@ -141,8 +142,7 @@ public class PasswordSettingsSearchTest {
     @SmallTest
     @Feature({"Preferences"})
     public void testSearchTextInOverflowMenuVisible() {
-        mTestHelper.setPasswordSource(
-                null); // Initialize empty preferences.mSettingsActivityTestRule
+        mTestHelper.setPasswordSource(null); // Initialize empty preferences.
         mTestHelper.startPasswordSettingsFromMainSettings(mSettingsActivityTestRule);
         // Use a more specific matcher that excludes section headers in LinearLayouts
         onViewWaiting(
@@ -151,12 +151,14 @@ public class PasswordSettingsSearchTest {
                         not(withParent(isAssignableFrom(LinearLayout.class)))));
         PasswordSettings f = mSettingsActivityTestRule.getFragment();
 
-        // Force the search option into the overflow menu.
+        // Force the search option into the overflow menu. The icon has to go first:
+        // SettingsMenuHelper.onPrepareOptionsMenu() resets every menu item that has an icon back
+        // to SHOW_AS_ACTION_IF_ROOM, and it runs each time the overflow menu is opened.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    f.getMenuForTesting()
-                            .findItem(R.id.menu_id_search)
-                            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+                    MenuItem searchItem = f.getMenuForTesting().findItem(R.id.menu_id_search);
+                    searchItem.setIcon(null);
+                    searchItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
                 });
 
         // Open the overflow menu.
@@ -181,6 +183,41 @@ public class PasswordSettingsSearchTest {
         onView(withText(ARES_AT_OLYMP.getUserName())).check(matches(isDisplayed()));
         onView(withText(PHOBOS_AT_OLYMP.getUserName())).check(matches(isDisplayed()));
         onView(withText(DEIMOS_AT_OLYMP.getUserName())).check(matches(isDisplayed()));
+    }
+
+    /**
+     * Regression test: while a search is open, a password-store update (e.g. OnLoginsRetained) must
+     * not append a second copy of the filtered rows. The results are rendered directly on the
+     * preference screen in search mode, and previously were not cleared before re-adding, so
+     * repeated updates accumulated duplicate rows.
+     */
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    public void testSearchResultsNotDuplicatedOnPasswordListUpdate() {
+        mTestHelper.setPasswordSourceWithMultipleEntries(GREEK_GODS);
+        mTestHelper.startPasswordSettingsFromMainSettings(mSettingsActivityTestRule);
+
+        // "Zeu" matches only Zeus, so the result is shown exactly once.
+        onView(withSearchMenuIdOrText()).perform(click());
+        onView(withId(R.id.search_src_text)).perform(click(), typeText("Zeu"), closeSoftKeyboard());
+        onViewWaiting(allOf(withText(ZEUS_ON_EARTH.getUserName()), isDisplayed()));
+        assertViewCount(withText(ZEUS_ON_EARTH.getUserName()), 1);
+
+        // Simulate a spontaneous password-store update while the search is open. This re-fires
+        // passwordListAvailable() (bypassing rebuildPasswordLists()), which is the path that used
+        // to append a duplicate row.
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        PasswordManagerHandlerProvider.getForProfile(
+                                        ProfileManager.getLastUsedRegularProfile())
+                                .getPasswordManagerHandler()
+                                .updatePasswordLists());
+
+        // Still exactly one - no duplicate. assertViewCount() runs through Espresso's onView(),
+        // which loops the main thread until idle, so the posted preference/RecyclerView rebuild
+        // triggered by the update above has been applied by the time the count is checked.
+        assertViewCount(withText(ZEUS_ON_EARTH.getUserName()), 1);
     }
 
     /** Check that the search filters the list by URL. */
@@ -297,6 +334,31 @@ public class PasswordSettingsSearchTest {
         onView(withText(R.string.password_settings_save_passwords)).check(doesNotExist());
 
         onView(withContentDescription(R.string.abc_action_bar_up_description)).perform(click());
+        onViewWaiting(allOf(withText(R.string.password_settings_save_passwords), isDisplayed()));
+
+        onView(withText(R.string.password_settings_save_passwords)).check(matches(isDisplayed()));
+
+        onView(withId(R.id.menu_id_search)).check(matches(isDisplayed()));
+    }
+
+    /**
+     * Check that the system back gesture/button (not the toolbar arrow) collapses the search and
+     * brings back all non-password prefs. Unlike the up-arrow, this routes through the fragment's
+     * OnBackPressedCallback, which is the path that regressed.
+     */
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    public void testSystemBackRestoresGeneralPrefs() {
+        mTestHelper.setPasswordSourceWithMultipleEntries(GREEK_GODS);
+        mTestHelper.startPasswordSettingsFromMainSettings(mSettingsActivityTestRule);
+
+        onView(withSearchMenuIdOrText()).perform(click());
+        onView(withId(R.id.search_src_text)).perform(click(), typeText("Zeu"), closeSoftKeyboard());
+
+        onView(withText(R.string.password_settings_save_passwords)).check(doesNotExist());
+
+        Espresso.pressBack();
         onViewWaiting(allOf(withText(R.string.password_settings_save_passwords), isDisplayed()));
 
         onView(withText(R.string.password_settings_save_passwords)).check(matches(isDisplayed()));

@@ -24,7 +24,7 @@ interface HasImageProps {
   imageHasLoaded: boolean
   imageSrc?: string
   colorForBackground?: string
-  hasSponsoredRichMediaBackground: boolean
+  hasDynamicNewTabTakeover: boolean
 }
 
 type AppProps = {
@@ -119,7 +119,7 @@ const StyledPage = styled('div') <PageProps>`
     align-items: center;
   }
 
-  ${p => p.hasSponsoredRichMediaBackground && pointerEventPassthrough}
+  ${p => p.hasDynamicNewTabTakeover && pointerEventPassthrough}
 `
 
 export const Page: React.FunctionComponent<React.PropsWithChildren<PageProps>> = (props) => {
@@ -332,7 +332,7 @@ export const FooterContent = styled('div')`
 
 // Gets the value of the CSS `background` property.
 function getBackground(p: HasImageProps) {
-  if (p.hasSponsoredRichMediaBackground) {
+  if (p.hasDynamicNewTabTakeover) {
     return ''
   }
 
@@ -399,7 +399,7 @@ export const App = styled('div') <AppProps & HasImageProps>`
   opacity: ${p => p.dataIsReady ? 1 : 0};
   ${getPageBackground}
 
-  ${defaultState.featureFlagBraveNewsFeedV2Enabled && css`
+  ${defaultState.featureFlagBraveNewsFeedV2Enabled && css<HasImageProps>`
   &::before {
       /* The FeedV2 has a semi-transparent white overlay. This is done via a
        * linear-gradient to not break any of the FeedV1 features. */

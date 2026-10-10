@@ -6,17 +6,17 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/threading/thread_restrictions.h"
-#include "brave/browser/brave_shields/brave_farbling_service_factory.h"
-#include "brave/components/brave_shields/content/browser/brave_farbling_service.h"
+#include "brave/browser/brave_shields/brave_shields_settings_service_factory.h"
+#include "brave/components/brave_shields/core/browser/brave_shields_settings_service.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_test_utils.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
+#include "brave/components/brave_shields/core/common/features.h"
 #include "brave/components/constants/brave_paths.h"
 #include "brave/components/webcompat/core/common/features.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -32,11 +32,20 @@ inline constexpr char kNavigatorPluginsFilename[] = "navigator_plugins.txt";
 
 }  // namespace
 
-class BraveFarblingBrowserTest : public InProcessBrowserTest {
+class BraveFarblingBrowserTest : public InProcessBrowserTest,
+                                 public testing::WithParamInterface<bool> {
  public:
   BraveFarblingBrowserTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        webcompat::features::kBraveWebcompatExceptionsService);
+    if (GetParam()) {
+      scoped_feature_list_.InitWithFeatures(
+          {webcompat::features::kBraveWebcompatExceptionsService,
+           brave_shields::features::kBraveFarblingTokenReset},
+          {});
+    } else {
+      scoped_feature_list_.InitWithFeatures(
+          {webcompat::features::kBraveWebcompatExceptionsService},
+          {brave_shields::features::kBraveFarblingTokenReset});
+    }
   }
 
   void SetUpOnMainThread() override {
@@ -57,8 +66,14 @@ class BraveFarblingBrowserTest : public InProcessBrowserTest {
 
   const GURL& farbling_url() { return farbling_url_; }
 
+  // A convinient function to return the underlying feature flag value to avoid
+  // writing GetParam from within the test body which adds an extra layer of
+  // parsing for readers
+  bool IsFarblingTokenResetEnabled() const { return GetParam(); }
+
   HostContentSettingsMap* content_settings() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 
   content::WebContents* contents() {
@@ -69,51 +84,73 @@ class BraveFarblingBrowserTest : public InProcessBrowserTest {
   // By default farbling tokens are stable in tests. Passing 0 makes farbling
   // tokens be random even in tests.
   brave_shields::ScopedStableFarblingTokensForTesting
-      scoped_random_farbling_tokens_{0};
+      scoped_random_farbling_tokens_{0, base::Token()};
   base::test::ScopedFeatureList scoped_feature_list_;
   GURL top_level_page_url_;
   GURL farbling_url_;
 };
 
-IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest, NavigatorPluginsAreFarbled) {
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    BraveFarblingBrowserTest,
+    testing::Bool(),
+    [](const testing::TestParamInfo<bool>& info) {
+      return info.param ? "BraveFarblingBrowserTest_FarblingTokenResetEnabled"
+                        : "BraveFarblingBrowserTest_FarblingTokenResetDisabled";
+    });
+
+IN_PROC_BROWSER_TEST_P(BraveFarblingBrowserTest, NavigatorPluginsAreFarbled) {
+  // This removes the random noise added from the global seed.
   brave_shields::ScopedStableFarblingTokensForTesting
-      scoped_stable_farbling_tokens{1};
+      scoped_stable_farbling_tokens{1, base::Token(0, 1)};
+
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
   auto plugins_str = content::EvalJs(contents(), kGetPluginsAsStringScript);
-  EXPECT_EQ(plugins_str,
-            "4cOuf2jw,Microsoft Edge PDF Viewer,Chromium PDF Viewer,PDF "
-            "Viewer,HqVxgvf,Online PDF Viewer,WebKit built-in PDF");
+  if (IsFarblingTokenResetEnabled()) {
+    EXPECT_EQ(
+        plugins_str,
+        "Microsoft Edge PDF Viewer,yhQIMlx3,Online com.adobe.pdf "
+        "plug-in,Chromium PDF Viewer,WebKit built-in PDF,PDF Viewer,FKNGi47");
+  } else {
+    EXPECT_EQ(plugins_str,
+              "4cOuf2jw,Microsoft Edge PDF Viewer,Chromium PDF Viewer,PDF "
+              "Viewer,HqVxgvf,Online PDF Viewer,WebKit built-in PDF");
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest,
-                       PRE_FarblingTokenIsKeptAfterRestart) {
+IN_PROC_BROWSER_TEST_P(BraveFarblingBrowserTest,
+                       PRE_FarblingTokenBehaviourAfterRestart) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
   auto plugins_str = content::EvalJs(contents(), kGetPluginsAsStringScript);
   EXPECT_NE(plugins_str, "");
   // Write the current plugins list to a file in the profile directory.
   base::ScopedAllowBlockingForTesting allow_blocking;
-  base::FilePath temp_dir = browser()->profile()->GetPath();
+  base::FilePath temp_dir = browser()->GetProfile()->GetPath();
   base::FilePath output_file = temp_dir.AppendASCII(kNavigatorPluginsFilename);
   std::string result = plugins_str.ExtractString();
   base::WriteFile(output_file, result);
 }
 
-IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest,
-                       FarblingTokenIsKeptAfterRestart) {
+IN_PROC_BROWSER_TEST_P(BraveFarblingBrowserTest,
+                       FarblingTokenBehaviourAfterRestart) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
   auto plugins_str = content::EvalJs(contents(), kGetPluginsAsStringScript);
   EXPECT_NE(plugins_str, "");
   // Read the plugins list from a file in the profile directory.
   base::ScopedAllowBlockingForTesting allow_blocking;
-  base::FilePath temp_dir = browser()->profile()->GetPath();
+  base::FilePath temp_dir = browser()->GetProfile()->GetPath();
   base::FilePath input_file = temp_dir.AppendASCII(kNavigatorPluginsFilename);
-  std::string expected;
-  EXPECT_TRUE(base::ReadFileToString(input_file, &expected));
+  std::string previous_value;
+  EXPECT_TRUE(base::ReadFileToString(input_file, &previous_value));
   // Compare the plugins list from the previous launch.
-  EXPECT_EQ(plugins_str, expected);
+  if (IsFarblingTokenResetEnabled()) {
+    EXPECT_NE(plugins_str, previous_value);
+  } else {
+    EXPECT_EQ(plugins_str, previous_value);
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest,
+IN_PROC_BROWSER_TEST_P(BraveFarblingBrowserTest,
                        FarblingTokenIsClearedAfterWebsiteClear) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
   const std::string plugins_before_cleanup =
@@ -135,42 +172,43 @@ IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest,
             plugins_before_cleanup);
 }
 
-IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest,
+IN_PROC_BROWSER_TEST_P(BraveFarblingBrowserTest,
                        CheckBetweenNormalAndIncognitoProfile) {
-  auto* profile1 = browser()->profile();
-  auto* incognito_profile = CreateIncognitoBrowser(profile1)->profile();
+  auto* profile1 = browser()->GetProfile();
+  auto* incognito_profile = CreateIncognitoBrowser(profile1)->GetProfile();
 
-  auto* brave_farbling_service =
-      brave::BraveFarblingServiceFactory::GetForProfile(profile1);
-  ASSERT_TRUE(brave_farbling_service);
+  auto* shields_settings_service =
+      BraveShieldsSettingsServiceFactory::GetForProfile(profile1);
+  ASSERT_TRUE(shields_settings_service);
 
-  auto* brave_farbling_service_incognito =
-      brave::BraveFarblingServiceFactory::GetForProfile(incognito_profile);
-  ASSERT_TRUE(brave_farbling_service_incognito);
+  auto* shields_settings_service_incognito =
+      BraveShieldsSettingsServiceFactory::GetForProfile(incognito_profile);
+  ASSERT_TRUE(shields_settings_service_incognito);
 
   // Compare the state of the PRNGs.
-  brave::FarblingPRNG prng;
-  brave::FarblingPRNG prng_incognito;
-  EXPECT_TRUE(brave_farbling_service->MakePseudoRandomGeneratorForURL(
+  brave_shields::FarblingPRNG prng;
+  brave_shields::FarblingPRNG prng_incognito;
+  EXPECT_TRUE(shields_settings_service->MakePseudoRandomGeneratorForURL(
       farbling_url(), {}, &prng));
-  EXPECT_TRUE(brave_farbling_service_incognito->MakePseudoRandomGeneratorForURL(
-      farbling_url(), {}, &prng_incognito));
+  EXPECT_TRUE(
+      shields_settings_service_incognito->MakePseudoRandomGeneratorForURL(
+          farbling_url(), {}, &prng_incognito));
   EXPECT_NE(prng, prng_incognito);
 
   // Compare the farbling tokens.
-  const auto farbling_token = brave_shields::GetFarblingToken(
-      HostContentSettingsMapFactory::GetForProfile(profile1), farbling_url(),
-      {});
-  const auto farbling_token_incognito = brave_shields::GetFarblingToken(
-      HostContentSettingsMapFactory::GetForProfile(incognito_profile),
-      farbling_url(), {});
+  const auto farbling_token =
+      BraveShieldsSettingsServiceFactory::GetForProfile(profile1)
+          ->GetFarblingToken(farbling_url(), {});
+  const auto farbling_token_incognito =
+      BraveShieldsSettingsServiceFactory::GetForProfile(incognito_profile)
+          ->GetFarblingToken(farbling_url(), {});
   EXPECT_FALSE(farbling_token.is_zero());
   EXPECT_FALSE(farbling_token_incognito.is_zero());
   EXPECT_NE(farbling_token, farbling_token_incognito);
 }
 
-IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest, CheckBetweenTwoProfiles) {
-  auto* profile_1 = browser()->profile();
+IN_PROC_BROWSER_TEST_P(BraveFarblingBrowserTest, CheckBetweenTwoProfiles) {
+  auto* profile_1 = browser()->GetProfile();
   ASSERT_TRUE(profile_1);
 
   // Create another profile.
@@ -187,30 +225,32 @@ IN_PROC_BROWSER_TEST_F(BraveFarblingBrowserTest, CheckBetweenTwoProfiles) {
   auto* browser_2 = CreateBrowser(profile_2);
   ASSERT_TRUE(browser_2);
 
-  auto* brave_farbling_service_profile_1 =
-      brave::BraveFarblingServiceFactory::GetForProfile(profile_1);
-  ASSERT_TRUE(brave_farbling_service_profile_1);
+  auto* shields_settings_service_profile_1 =
+      BraveShieldsSettingsServiceFactory::GetForProfile(profile_1);
+  ASSERT_TRUE(shields_settings_service_profile_1);
 
-  auto* brave_farbling_service_profile_2 =
-      brave::BraveFarblingServiceFactory::GetForProfile(profile_2);
-  ASSERT_TRUE(brave_farbling_service_profile_2);
+  auto* shields_settings_service_profile_2 =
+      BraveShieldsSettingsServiceFactory::GetForProfile(profile_2);
+  ASSERT_TRUE(shields_settings_service_profile_2);
 
   // Compare the state of the PRNGs.
-  brave::FarblingPRNG prng_1;
-  brave::FarblingPRNG prng_2;
-  EXPECT_TRUE(brave_farbling_service_profile_1->MakePseudoRandomGeneratorForURL(
-      farbling_url(), {}, &prng_1));
-  EXPECT_TRUE(brave_farbling_service_profile_2->MakePseudoRandomGeneratorForURL(
-      farbling_url(), {}, &prng_2));
+  brave_shields::FarblingPRNG prng_1;
+  brave_shields::FarblingPRNG prng_2;
+  EXPECT_TRUE(
+      shields_settings_service_profile_1->MakePseudoRandomGeneratorForURL(
+          farbling_url(), {}, &prng_1));
+  EXPECT_TRUE(
+      shields_settings_service_profile_2->MakePseudoRandomGeneratorForURL(
+          farbling_url(), {}, &prng_2));
   EXPECT_NE(prng_1, prng_2);
 
   // Compare the farbling tokens.
-  const auto farbling_token_1 = brave_shields::GetFarblingToken(
-      HostContentSettingsMapFactory::GetForProfile(profile_1), farbling_url(),
-      {});
-  const auto farbling_token_2 = brave_shields::GetFarblingToken(
-      HostContentSettingsMapFactory::GetForProfile(profile_2), farbling_url(),
-      {});
+  const auto farbling_token_1 =
+      BraveShieldsSettingsServiceFactory::GetForProfile(profile_1)
+          ->GetFarblingToken(farbling_url(), {});
+  const auto farbling_token_2 =
+      BraveShieldsSettingsServiceFactory::GetForProfile(profile_2)
+          ->GetFarblingToken(farbling_url(), {});
   EXPECT_FALSE(farbling_token_1.is_zero());
   EXPECT_FALSE(farbling_token_2.is_zero());
   EXPECT_NE(farbling_token_1, farbling_token_2);

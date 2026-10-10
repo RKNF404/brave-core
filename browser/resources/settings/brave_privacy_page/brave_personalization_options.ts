@@ -20,6 +20,7 @@ import {
 import { assert } from 'chrome://resources/js/assert.js'
 import { SettingsToggleButtonElement } from '../controls/settings_toggle_button.js'
 
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js'
 import '../controls/settings_dropdown_menu.js'
 import '../privacy_page/do_not_track_toggle.js'
 
@@ -113,6 +114,22 @@ export class SettingsBravePersonalizationOptions extends SettingsBravePersonaliz
           return loadTimeData.getBoolean('isRequestOTRFeatureEnabled')
         },
       },
+      isPsstFeatureEnabled_: {
+        readOnly: true,
+        type: Boolean,
+        value: function () {
+          return loadTimeData.getBoolean('isPsstFeatureEnabled')
+        },
+      },
+      // <if expr="enable_local_ai">
+      isSemanticHistorySearchAvailable_: {
+        readOnly: true,
+        type: Boolean,
+        value: function () {
+          return loadTimeData.getBoolean('isSemanticHistorySearchAvailable')
+        },
+      },
+      // </if>
       requestOTRActions_: {
         readOnly: true,
         type: Array,
@@ -146,6 +163,10 @@ export class SettingsBravePersonalizationOptions extends SettingsBravePersonaliz
   declare private historyRetentionOptions_: Object[]
   declare private isDebounceFeatureEnabled_: boolean
   declare private isRequestOTRFeatureEnabled_: boolean
+  declare private isPsstFeatureEnabled_: boolean
+  // <if expr="enable_local_ai">
+  declare private isSemanticHistorySearchAvailable_: boolean
+  // </if>
   declare private requestOTRActions_: Object[]
   declare private requestOTRAction_: String
   declare private isWindowsRecallAvailable_: boolean
@@ -161,6 +182,19 @@ export class SettingsBravePersonalizationOptions extends SettingsBravePersonaliz
   shouldShowRestartWindowsRecall_(disabled: boolean) {
     return disabled != this.browserProxy_.wasWindowsRecallDisabledAtStartup()
   }
+
+  // <if expr="enable_local_ai">
+  // The index is built at profile setup, so the toggle only takes effect on
+  // the next launch. `semanticHistorySearchEnabledAtStartup` is the value the
+  // embedding services were built with and is fixed for the session, so
+  // comparing against it survives a reload of this page.
+  shouldShowRestartSemanticHistorySearch_(enabled: boolean) {
+    return (
+      enabled !=
+      loadTimeData.getBoolean('semanticHistorySearchEnabledAtStartup')
+    )
+  }
+  // </if>
 
   windowsRecallDisabledChange_(event: Event) {
     const target = event.target
@@ -184,23 +218,6 @@ export class SettingsBravePersonalizationOptions extends SettingsBravePersonaliz
 
   override ready() {
     super.ready()
-    // Add hr to the "Do not track" row.
-    const doNotTrack = this.shadowRoot?.querySelector('#doNotTrack')
-    if (doNotTrack) {
-      const toggle = doNotTrack.shadowRoot?.querySelector('#toggle')
-      if (toggle) {
-        const toggleClass = toggle.getAttribute('class')
-        toggle.setAttribute('class', toggleClass + ' hr')
-      } else {
-        console.log(
-          '[Brave Settings Overrides] Could not find doNotTrack toggle',
-        )
-      }
-    } else {
-      console.log(
-        '[Brave Settings Overrides] Could not find element with id doNotTrack',
-      )
-    }
 
     if (this.isWindowsRecallAvailable_) {
       this.addWebUiListener(

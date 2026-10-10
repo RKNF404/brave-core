@@ -7,6 +7,7 @@
 #define BRAVE_COMPONENTS_BRAVE_NEWS_BROWSER_BRAVE_NEWS_CONTROLLER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -14,6 +15,7 @@
 #include "base/scoped_observation.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "brave/components/brave_news/browser/brave_news_engine.h"
 #include "brave/components/brave_news/browser/brave_news_p3a.h"
@@ -35,6 +37,7 @@
 #include "net/base/network_change_notifier.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "url/origin.h"
 
 static_assert(BUILDFLAG(ENABLE_BRAVE_NEWS));
 
@@ -69,6 +72,9 @@ class BraveNewsController
 
     // Opens the New Tab Page and shows the Brave News customize modal.
     virtual void OpenSettings() = 0;
+
+    // Closes the Brave News side panel.
+    virtual void CloseUI() = 0;
   };
 
   BraveNewsController(
@@ -78,7 +84,9 @@ class BraveNewsController
       history::HistoryService* history_service,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       std::unique_ptr<DirectFeedFetcher::Delegate> direct_feed_fetcher_delegate,
-      std::unique_ptr<Delegate> delegate);
+      std::unique_ptr<Delegate> delegate,
+      bool is_first_run,
+      base::Time first_run_time);
   ~BraveNewsController() override;
   BraveNewsController(const BraveNewsController&) = delete;
   BraveNewsController& operator=(const BraveNewsController&) = delete;
@@ -113,6 +121,14 @@ class BraveNewsController
       GetSuggestedPublisherIdsCallback callback) override;
   void FindFeeds(const GURL& possible_feed_or_site_url,
                  FindFeedsCallback callback) override;
+  // Variant of FindFeeds used by the toolbar action view. |initiator_origin|
+  // (the active tab's origin) is used as the request initiator so that feed
+  // requests carry a Sec-Fetch-Site header reflecting their relationship to the
+  // active tab. It also prevents the request from reaching the local network,
+  // since the feed URL came from the page rather than the user.
+  void FindFeeds(const GURL& possible_feed_or_site_url,
+                 const std::optional<url::Origin>& initiator_origin,
+                 FindFeedsCallback callback);
   void GetChannels(GetChannelsCallback callback) override;
   void AddChannelsListener(
       mojo::PendingRemote<mojom::ChannelsListener> listener) override;
@@ -123,6 +139,13 @@ class BraveNewsController
   void SubscribeToNewDirectFeed(
       const GURL& feed_url,
       SubscribeToNewDirectFeedCallback callback) override;
+  // Variant of SubscribeToNewDirectFeed used by the toolbar action view. See
+  // the |FindFeeds| overload taking |initiator_origin|, which has the same
+  // meaning here.
+  void SubscribeToNewDirectFeed(
+      const GURL& feed_url,
+      const std::optional<url::Origin>& initiator_origin,
+      SubscribeToNewDirectFeedCallback callback);
   void RemoveDirectFeed(const std::string& publisher_id) override;
   void GetImageData(const GURL& padded_image_url,
                     GetImageDataCallback callback) override;
@@ -143,6 +166,7 @@ class BraveNewsController
   void OnCardVisited(uint32_t depth) override;
   void OnSidebarFilterUsage() override;
   void OpenSettings() override;
+  void CloseUI() override;
 
   // mojom::BraveNewsInternals
   void GetVisitedSites(GetVisitedSitesCallback callback) override;

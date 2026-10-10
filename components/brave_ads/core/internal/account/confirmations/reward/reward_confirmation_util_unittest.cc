@@ -25,7 +25,7 @@
 #include "brave/components/brave_ads/core/internal/settings/test/settings_test_util.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -56,7 +56,7 @@ TEST_F(BraveAdsRewardConfirmationUtilTest, BuildRewardCredential) {
 
   // Assert
   EXPECT_EQ(
-      R"(eyJzaWduYXR1cmUiOiJDeUhBQlQ5SnI5cVl3U2tsMUMwSUIwQnFEcytUU0FEaEpNcHlVdFNWNktTaWpGdjFvcGVpU1pQbVdyTEROSmlEaHZKUlBaSmFzelpTd01IVkgvalpIZz09IiwidCI6Ii9tZlRBQWpIcldtQWxMaUVrdGJxTlMvZHhvTVZkbnoxZXNvVnBsUVVzN3lHL2FwQXEySzZPZVNUNmxCVEtGSm1PcTdyVjhRYlkvREYySEZSTWN6L0pRPT0ifQ==)",
+      R"(eyJzaWduYXR1cmUiOiJxdnVMTFJGUmxjSEhLSEhqNDljR3ZkcXFwc0x2bWJHS3VGOUNGYU4vTTRFVXFKMXlMY0NDd0FrS25SSW5GenV6TnVHVUVBbWIxRW1uRlVFdXh3TVdSUT09IiwidCI6Ii9tZlRBQWpIcldtQWxMaUVrdGJxTlMvZHhvTVZkbnoxZXNvVnBsUVVzN3lHL2FwQXEySzZPZVNUNmxCVEtGSm1PcTdyVjhRYlkvREYySEZSTWN6L0pRPT0ifQ==)",
       reward_credential);
 }
 

@@ -10,10 +10,12 @@
 #include "base/check.h"
 #include "base/check_is_test.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/notreached.h"
 #include "brave/browser/ui/sidebar/sidebar_controller.h"
 #include "brave/browser/ui/sidebar/sidebar_model.h"
 #include "brave/browser/ui/sidebar/sidebar_service_factory.h"
+#include "brave/browser/ui/sidebar/sidebar_web_panel_controller.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/brave_origin/buildflags/buildflags.h"
@@ -28,8 +30,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -39,11 +39,13 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
+#include "brave/components/brave_wallet/common/features.h"
 #include "brave/components/brave_wallet/common/web_ui_constants.h"
 #endif
 
@@ -100,9 +102,9 @@ bool HiddenDefaultSidebarItemsContains(SidebarService* service,
   return false;
 }
 
-bool CanUseSidebar(Browser* browser) {
+bool CanUseSidebar(BrowserWindowInterface* browser) {
   DCHECK(browser);
-  return browser->is_type_normal();
+  return browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL;
 }
 
 // If url is relavant with bulitin items, use builtin item's url.
@@ -127,9 +129,9 @@ GURL ConvertURLToBuiltInItemURL(const GURL& url) {
   return url;
 }
 
-bool CanAddCurrentActiveTabToSidebar(Browser* browser) {
+bool CanAddCurrentActiveTabToSidebar(BrowserWindowInterface* browser) {
   auto* active_web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetTabStripModel()->GetActiveWebContents();
   if (!active_web_contents) {
     return false;
   }
@@ -159,6 +161,24 @@ bool IsWebPanelFeatureEnabled() {
   return base::FeatureList::IsEnabled(features::kSidebarWebPanel);
 }
 
+bool IsWebPanelRelatedFocusChange(
+    SidebarWebPanelController* web_panel_controller,
+    TabStripModel* tab_strip_model,
+    content::WebContents* focused_contents) {
+  CHECK(web_panel_controller);
+  const content::WebContents* panel_contents =
+      web_panel_controller->panel_contents();
+  if (!panel_contents) {
+    return false;
+  }
+
+  if (panel_contents == focused_contents) {
+    return true;
+  }
+
+  return tab_strip_model->GetActiveTab()->GetContents() == panel_contents;
+}
+
 SidePanelEntryId SidePanelIdFromSideBarItemType(BuiltInItemType type) {
   switch (type) {
     case BuiltInItemType::kReadingList:
@@ -177,14 +197,16 @@ SidePanelEntryId SidePanelIdFromSideBarItemType(BuiltInItemType type) {
     case BuiltInItemType::kBraveNews:
       return SidePanelEntryId::kBraveNews;
 #endif
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
     case BuiltInItemType::kWallet:
-      [[fallthrough]];
+      return SidePanelEntryId::kWallet;
+#endif
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
     case BuiltInItemType::kBraveTalk:
-      [[fallthrough]];
+      break;
 #endif
     case BuiltInItemType::kHistory:
-      [[fallthrough]];
+      break;
     case BuiltInItemType::kNone:
       break;
   }
@@ -203,6 +225,10 @@ std::optional<BuiltInItemType> BuiltInItemTypeFromSidePanelId(
 #if BUILDFLAG(ENABLE_PLAYLIST)
     case SidePanelEntryId::kPlaylist:
       return BuiltInItemType::kPlaylist;
+#endif
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+    case SidePanelEntryId::kWallet:
+      return BuiltInItemType::kWallet;
 #endif
 #if BUILDFLAG(ENABLE_AI_CHAT)
     case SidePanelEntryId::kChatUI:
@@ -259,6 +285,11 @@ void SetLastUsedSidePanel(PrefService* prefs,
         type = BuiltInItemType::kPlaylist;
         break;
 #endif
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+      case SidePanelEntryId::kWallet:
+        type = BuiltInItemType::kWallet;
+        break;
+#endif
 #if BUILDFLAG(ENABLE_AI_CHAT)
       case SidePanelEntryId::kChatUI:
         type = BuiltInItemType::kChatUI;
@@ -282,8 +313,17 @@ std::optional<SidePanelEntryId> GetLastUsedSidePanel(
   PrefService* prefs = browser->GetProfile()->GetPrefs();
   BuiltInItemType type =
       static_cast<BuiltInItemType>(prefs->GetInteger(kLastUsedBuiltInItemType));
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+  // Wallet may be the last-used panel while kBraveWalletSidePanel is off after
+  // relaunch, but the entry is not registered in that state.
+  if (type == BuiltInItemType::kWallet &&
+      !base::FeatureList::IsEnabled(
+          brave_wallet::features::kBraveWalletSidePanel)) {
+    return std::nullopt;
+  }
+#endif
   // If cached type item is not included in current model, return null.
-  if (!browser->GetFeatures().sidebar_controller()->model()->GetIndexOf(type)) {
+  if (!sidebar::SidebarController::From(browser)->model()->GetIndexOf(type)) {
     return std::nullopt;
   }
   return SidePanelIdFromSideBarItemType(type);
@@ -348,13 +388,10 @@ SidebarService::ShowSidebarOption GetDefaultShowSidebarOption(
     return ShowSidebarOption::kShowAlways;
   }
 
-  if (auto* local_state = g_browser_process->local_state()) {
-    return local_state->GetBoolean(kTargetUserForSidebarEnabledTest)
-               ? ShowSidebarOption::kShowAlways
-               : ShowSidebarOption::kShowNever;
-  }
-
-  return ShowSidebarOption::kShowNever;
+  return g_browser_process->local_state()->GetBoolean(
+             kTargetUserForSidebarEnabledTest)
+             ? ShowSidebarOption::kShowAlways
+             : ShowSidebarOption::kShowNever;
 #endif  // BUILDFLAG(IS_BRAVE_ORIGIN_BRANDED)
 }
 

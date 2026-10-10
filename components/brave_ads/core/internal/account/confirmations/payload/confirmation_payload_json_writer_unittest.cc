@@ -20,7 +20,7 @@
 #include "brave/components/brave_ads/core/internal/common/test/time_test_util.h"
 #include "brave/components/brave_ads/core/internal/settings/test/settings_test_util.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -54,7 +54,7 @@ TEST_F(BraveAdsConfirmationPayloadJsonWriterTest,
                 R"JSON(
                     {
                       "blindedPaymentTokens": [
-                        "+qJiMi6k0hRzRAEN239nLthLqrNm53O78x/PV8I/JS0="
+                        "Gth1bHgNtDx689fPCEdua/1ggMRHRahtzIdDr/EyWAg="
                       ],
                       "buildChannel": "release",
                       "catalog": [

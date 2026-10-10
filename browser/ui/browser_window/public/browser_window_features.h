@@ -8,9 +8,13 @@
 
 #include <memory>
 
+#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
+#include "brave/components/brave_rewards/core/buildflags/buildflags.h"
+#include "brave/components/brave_vpn/common/buildflags/buildflags.h"
 #include "brave/components/email_aliases/buildflags/buildflags.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
 
+class AIChatSidePanelTabTransferBridge;
 class BraveShieldsUIContentsCache;
 class BraveNonClientHitTestHelper;
 class BraveVPNController;
@@ -52,72 +56,22 @@ class BrowserWindowFeatures : public BrowserWindowFeatures_ChromiumImpl {
   void InitPostBrowserViewConstruction(BrowserView* browser_view) override;
   void TearDownPreBrowserWindowDestruction() override;
 
-  sidebar::SidebarController* sidebar_controller() {
-    return sidebar_controller_.get();
-  }
-
-  brave_rewards::RewardsPanelCoordinator* rewards_panel_coordinator();
-
-  BraveVPNController* brave_vpn_controller();
-
-#if BUILDFLAG(ENABLE_PLAYLIST)
-  PlaylistSidePanelCoordinator* playlist_side_panel_coordinator() {
-    return playlist_side_panel_coordinator_.get();
-  }
-#endif
-
-#if BUILDFLAG(ENABLE_EMAIL_ALIASES)
-  email_aliases::EmailAliasesController* email_aliases_controller() {
-    return email_aliases_controller_.get();
-  }
-#endif
-
-  FocusModeController* focus_mode_controller() {
-    return focus_mode_controller_.get();
-  }
-
-  const FocusModeController* focus_mode_controller() const {
-    return focus_mode_controller_.get();
-  }
-
-  BraveShieldsUIContentsCache* brave_shields_ui_contents_cache() {
-    return brave_shields_ui_contents_cache_.get();
-  }
-
-  BraveNonClientHitTestHelper* brave_non_client_hit_test_helper() {
-    return brave_non_client_hit_test_helper_.get();
-  }
-
-  // Can be null when the browser isn't a normal browser or when the tree tab
-  // feature is disabled.
-  TreeTabSessionManager* GetTreeTabSessionManager() {
-    return tree_tab_session_manager_.get();
-  }
-
-  screenshot::ScreenshotController* screenshot_controller() {
-    return screenshot_controller_.get();
-  }
-
-  VerticalTabController* vertical_tab_controller() {
-    return vertical_tab_controller_.get();
-  }
-
-  const VerticalTabController* vertical_tab_controller() const {
-    return vertical_tab_controller_.get();
-  }
-
-  WorkspacesBubbleController* workspaces_bubble_controller() {
-    return workspaces_bubble_controller_.get();
-  }
-
  private:
   std::unique_ptr<sidebar::SidebarController> sidebar_controller_;
+#if BUILDFLAG(ENABLE_BRAVE_VPN)
   std::unique_ptr<BraveVPNController> brave_vpn_controller_;
+#endif
+#if BUILDFLAG(ENABLE_BRAVE_REWARDS)
   std::unique_ptr<brave_rewards::RewardsPanelCoordinator>
       rewards_panel_coordinator_;
+#endif
 #if BUILDFLAG(ENABLE_PLAYLIST)
   std::unique_ptr<PlaylistSidePanelCoordinator>
       playlist_side_panel_coordinator_;
+#endif
+#if BUILDFLAG(ENABLE_AI_CHAT)
+  std::unique_ptr<AIChatSidePanelTabTransferBridge>
+      ai_chat_side_panel_tab_transfer_bridge_;
 #endif
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
   std::unique_ptr<email_aliases::EmailAliasesController>

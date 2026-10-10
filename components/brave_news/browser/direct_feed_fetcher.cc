@@ -22,10 +22,12 @@
 #include "net/base/load_flags.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "third_party/rust/cxx/v1/cxx.h"
 #include "ui/base/l10n/time_format.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 #include "url/url_constants.h"
 
 namespace brave_news {
@@ -101,8 +103,7 @@ void ParseFeedDataOffMainThread(const GURL& feed_url,
             DirectFeedResult result;
             result.id = publisher_id;
             result.title = (std::string)data.title;
-            ConvertFeedDataToArticles(result.articles, std::move(data),
-                                      result.id);
+            ConvertFeedDataToArticles(result.articles, data, result.id);
             return result;
           },
           feed_url, std::move(publisher_id), std::move(body_content)),
@@ -112,9 +113,9 @@ void ParseFeedDataOffMainThread(const GURL& feed_url,
 }  // namespace
 
 void ConvertFeedDataToArticles(std::vector<mojom::ArticlePtr>& articles,
-                               FeedData data,
+                               const FeedData& data,
                                const std::string& publisher_id) {
-  for (auto entry : data.items) {
+  for (const auto& entry : data.items) {
     auto item = RustFeedItemToArticle(entry, publisher_id);
     if (!item->data->url.SchemeIsHTTPOrHTTPS()) {
       continue;
@@ -155,16 +156,19 @@ DirectFeedFetcher::DirectFeedFetcher(
     : url_loader_factory_(url_loader_factory), delegate_(delegate) {}
 DirectFeedFetcher::~DirectFeedFetcher() = default;
 
-void DirectFeedFetcher::DownloadFeed(GURL url,
-                                     std::string publisher_id,
-                                     DownloadFeedCallback callback) {
-  DownloadFeedHelper(url, url, publisher_id, 0, std::move(callback),
-                     std::nullopt);
+void DirectFeedFetcher::DownloadFeed(
+    GURL url,
+    std::optional<url::Origin> initiator_origin,
+    std::string publisher_id,
+    DownloadFeedCallback callback) {
+  DownloadFeedHelper(url, url, std::move(initiator_origin), publisher_id, 0,
+                     std::move(callback), std::nullopt);
 }
 
 void DirectFeedFetcher::DownloadFeedHelper(
     GURL url,
     GURL original_url,
+    std::optional<url::Origin> initiator_origin,
     std::string publisher_id,
     size_t redirect_count,
     DownloadFeedCallback callback,
@@ -196,7 +200,8 @@ void DirectFeedFetcher::DownloadFeedHelper(
             delegate_, base::SingleThreadTaskRunner::GetCurrentDefault(),
             base::BindOnce(&DirectFeedFetcher::DownloadFeedHelper,
                            weak_ptr_factory_.GetWeakPtr(), url, original_url,
-                           publisher_id, redirect_count, std::move(callback)),
+                           std::move(initiator_origin), publisher_id,
+                           redirect_count, std::move(callback)),
             url));
     return;
   }
@@ -212,12 +217,30 @@ void DirectFeedFetcher::DownloadFeedHelper(
   }
 
   request->url = url;
+  // Set the request initiator (e.g. the active tab when this request comes from
+  // the toolbar) so the network service stamps an appropriate Sec-Fetch-Site
+  // header (same-origin / same-site / cross-site) instead of `none`.
+  if (initiator_origin) {
+    request->request_initiator = *initiator_origin;
+  }
   request->load_flags = net::LOAD_DO_NOT_SAVE_COOKIES;
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   request->method = net::HttpRequestHeaders::kGetMethod;
   request->redirect_mode = network::mojom::RedirectMode::kError;
   auto url_loader = network::SimpleURLLoader::Create(
       std::move(request), GetNetworkTrafficAnnotationTag());
+  // Having an |initiator_origin| means this feed URL came from a web page (it
+  // was discovered in the page's markup, or the user clicked it in the Brave
+  // News toolbar bubble for that page). Such a page must not be able to use
+  // Brave News to reach services running on the user's machine or local
+  // network, so ask the network service to fail the request if it resolves to a
+  // loopback or local address. This check happens *after* DNS resolution, so it
+  // also covers public hostnames which resolve to a local address.
+  // See https://github.com/brave/brave-browser/issues/56884.
+  if (initiator_origin) {
+    url_loader->SetURLLoaderFactoryOptions(
+        network::mojom::kURLLoadOptionBlockLocalRequest);
+  }
   url_loader->SetRetryOptions(
       1, network::SimpleURLLoader::RetryMode::RETRY_ON_5XX |
              network::SimpleURLLoader::RetryMode::RETRY_ON_NETWORK_CHANGE);
@@ -230,8 +253,9 @@ void DirectFeedFetcher::DownloadFeedHelper(
       // Handle response
       base::BindOnce(&DirectFeedFetcher::OnFeedDownloaded,
                      weak_ptr_factory_.GetWeakPtr(), iter, std::move(callback),
-                     url, original_url, std::move(publisher_id),
-                     https_upgrade_info, https_upgraded, redirect_count),
+                     url, original_url, initiator_origin,
+                     std::move(publisher_id), https_upgrade_info,
+                     https_upgraded, redirect_count),
       5 * 1024 * 1024);
 }
 
@@ -240,6 +264,7 @@ void DirectFeedFetcher::OnFeedDownloaded(
     DownloadFeedCallback callback,
     GURL url,
     GURL original_url,
+    std::optional<url::Origin> initiator_origin,
     std::string publisher_id,
     std::optional<Delegate::HTTPSUpgradeInfo> https_upgrade_info,
     bool https_upgraded,
@@ -250,7 +275,8 @@ void DirectFeedFetcher::OnFeedDownloaded(
   if (loader->NetError() == net::ERR_FAILED && loader->GetFinalURL() != url &&
       redirect_count < kMaxRedirectCount) {
     // Redirect detected. Make another request
-    DownloadFeedHelper(loader->GetFinalURL(), original_url, publisher_id,
+    DownloadFeedHelper(loader->GetFinalURL(), original_url,
+                       std::move(initiator_origin), publisher_id,
                        redirect_count + 1, std::move(callback), std::nullopt);
     return;
   }
@@ -282,8 +308,9 @@ void DirectFeedFetcher::OnFeedDownloaded(
       replacements.SetSchemeStr(url::kHttpScheme);
       url = url.ReplaceComponents(replacements);
       https_upgrade_info->should_upgrade = false;
-      DownloadFeedHelper(url, original_url, publisher_id, redirect_count,
-                         std::move(callback), https_upgrade_info);
+      DownloadFeedHelper(url, original_url, std::move(initiator_origin),
+                         publisher_id, redirect_count, std::move(callback),
+                         https_upgrade_info);
       return;
     }
     DirectFeedError error;

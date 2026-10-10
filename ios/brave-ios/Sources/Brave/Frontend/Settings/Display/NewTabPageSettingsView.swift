@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import BraveCore
 import BraveStrings
 import BraveUI
 import Foundation
@@ -10,16 +11,23 @@ import SwiftUI
 
 struct NewTabPageSettingsView: View {
   var isSponsoredBackgroundsSupported: Bool
-  var shouldShowSponsoredImagesAndVideosSetting: Bool
   var linkTapped: ((URLRequest) -> Void)?
 
   @ObservedObject private var backgroundImages = Preferences.NewTabPage.backgroundImages
   @ObservedObject private var showNewTabPrivacyHub = Preferences.NewTabPage.showNewTabPrivacyHub
-  @ObservedObject private var showNewTabFavourites = Preferences.NewTabPage.showNewTabFavourites
+  @ObservedObject private var topSitesModeSelection = Preferences.NewTabPage.topSitesMode
 
-  // This is observed to ensure the view updates correctly, but we instead access
-  // Preferences.NewTabPage.backgroundMediaType which accesses backgroundMediaTypeRaw
-  @ObservedObject private var backgroundMediaTypeRaw = Preferences.NewTabPage.backgroundMediaTypeRaw
+  @Bindable private var isSponsoredAdsEnabled: PrefBackedBoolean
+
+  init(
+    isSponsoredBackgroundsSupported: Bool,
+    linkTapped: ((URLRequest) -> Void)?,
+    prefs: any PrefService
+  ) {
+    self.isSponsoredBackgroundsSupported = isSponsoredBackgroundsSupported
+    self.linkTapped = linkTapped
+    self.isSponsoredAdsEnabled = .init(prefs: prefs, key: kBraveAdsSponsoredEnabledPrefName)
+  }
 
   var body: some View {
     Form {
@@ -28,11 +36,7 @@ struct NewTabPageSettingsView: View {
         if backgroundImages.value, isSponsoredBackgroundsSupported {
           NavigationLink {
             BackgroundMediaTypePicker(
-              shouldShowSponsoredImagesAndVideosSetting: shouldShowSponsoredImagesAndVideosSetting,
-              selection: Binding(
-                get: { Preferences.NewTabPage.backgroundMediaType },
-                set: { Preferences.NewTabPage.backgroundMediaType = $0 }
-              )
+              isSponsoredAdsEnabled: $isSponsoredAdsEnabled.value
             )
             .environment(
               \.openURL,
@@ -43,17 +47,10 @@ struct NewTabPageSettingsView: View {
             )
           } label: {
             LabeledContent {
-              switch Preferences.NewTabPage.backgroundMediaType {
-              case .defaultImages:
-                Text(Strings.NTP.settingsDefaultImagesOnly)
-              case .sponsoredImages:
+              if isSponsoredAdsEnabled.value {
                 Text(Strings.NTP.settingsSponsoredImagesSelection)
-              case .sponsoredImagesAndVideos:
-                Text(
-                  shouldShowSponsoredImagesAndVideosSetting
-                    ? Strings.NTP.settingsSponsoredImagesAndVideosSelection
-                    : Strings.NTP.settingsSponsoredImagesSelection
-                )
+              } else {
+                Text(Strings.NTP.settingsDefaultImagesOnly)
               }
             } label: {
               Text(Strings.NTP.settingsBackgroundImageSubMenu)
@@ -65,7 +62,22 @@ struct NewTabPageSettingsView: View {
       }
       Section {
         Toggle(Strings.PrivacyHub.privacyReportsTitle, isOn: $showNewTabPrivacyHub.value)
-        Toggle(Strings.Widgets.favoritesWidgetTitle, isOn: $showNewTabFavourites.value)
+        if FeatureList.kTopsitesEnabled.enabled {
+          Picker(
+            Strings.NTP.topsites,
+            selection: $topSitesModeSelection.value
+          ) {
+            ForEach(TopSitesMode.allCases) { mode in
+              Text(mode.title)
+            }
+          }
+          .tint(Color(braveSystemName: .textTertiary))
+        } else {
+          Toggle(
+            Strings.Widgets.favoritesWidgetTitle,
+            isOn: $topSitesModeSelection.value.isEnabled
+          )
+        }
       } header: {
         Text(Strings.Widgets.widgetTitle)
       }
@@ -76,31 +88,22 @@ struct NewTabPageSettingsView: View {
   }
 
   private struct BackgroundMediaTypePicker: View {
-    var shouldShowSponsoredImagesAndVideosSetting: Bool
-    @Binding var selection: BackgroundMediaType
+    @Binding var isSponsoredAdsEnabled: Bool
 
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
       Form {
         Section {
-          Picker("", selection: $selection) {
+          Picker("", selection: $isSponsoredAdsEnabled) {
             Text(Strings.NTP.settingsDefaultImagesOnly)
-              .tag(BackgroundMediaType.defaultImages)
-            if shouldShowSponsoredImagesAndVideosSetting {
-              Text(Strings.NTP.settingsSponsoredImagesSelection)
-                .tag(BackgroundMediaType.sponsoredImages)
-            }
-            Text(
-              shouldShowSponsoredImagesAndVideosSetting
-                ? Strings.NTP.settingsSponsoredImagesAndVideosSelection
-                : Strings.NTP.settingsSponsoredImagesSelection
-            )
-            .tag(BackgroundMediaType.sponsoredImagesAndVideos)
+              .tag(false)
+            Text(Strings.NTP.settingsSponsoredImagesSelection)
+              .tag(true)
           }
           .pickerStyle(.inline)
           .labelsHidden()
-          .onChange(of: selection, initial: false) {
+          .onChange(of: isSponsoredAdsEnabled, initial: false) {
             dismiss()
           }
         } header: {
@@ -121,13 +124,12 @@ class NTPTableViewController: UIHostingController<NewTabPageSettingsView> {
   var rewards: BraveRewards?
   var linkTapped: ((URLRequest) -> Void)?
 
-  init(rewards: BraveRewards?, linkTapped: ((URLRequest) -> Void)?) {
+  init(rewards: BraveRewards?, linkTapped: ((URLRequest) -> Void)?, prefs: any PrefService) {
     super.init(
       rootView: .init(
         isSponsoredBackgroundsSupported: rewards != nil,
-        shouldShowSponsoredImagesAndVideosSetting:
-          rewards?.ads.shouldShowSponsoredImagesAndVideosSetting() == true,
-        linkTapped: linkTapped
+        linkTapped: linkTapped,
+        prefs: prefs
       )
     )
   }

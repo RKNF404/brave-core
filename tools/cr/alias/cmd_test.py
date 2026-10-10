@@ -27,6 +27,7 @@ import unittest
 from pathlib import Path
 
 import _boot  # noqa: F401
+from alias.base import WINDOWS_SHIM
 from test.fake_chromium_repo import FakeChromiumRepo
 
 CMD_SCRIPT: Path = Path(__file__).parent / 'cmd.py'
@@ -47,6 +48,26 @@ _GIT_ENV_OVERRIDES: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
+def _path_without_git_cr_shim() -> str:
+    """`$PATH` with every directory holding a `git-cr` executable removed.
+
+    git resolves `git cr` to a `git-cr` on `$PATH` *before* consulting the
+    `.git/config` alias, so a bootstrap shim installed on the developer's
+    machine would shadow the alias this test is exercising. Dropping those
+    directories keeps `git` itself resolvable while isolating the alias path.
+    """
+    entries = os.environ.get('PATH', '').split(os.pathsep)
+    kept = [
+        entry
+        for entry in entries
+        if entry
+        and not any(
+            (Path(entry) / name).exists() for name in ('git-cr', 'git-cr.bat')
+        )
+    ]
+    return os.pathsep.join(kept)
+
+
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
     """Run a git command in cwd; raise on failure."""
     return subprocess.run(
@@ -55,10 +76,7 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
         check=True,
         capture_output=True,
         text=True,
-        env={
-            **os.environ,
-            **_GIT_ENV_OVERRIDES
-        },
+        env={**os.environ, **_GIT_ENV_OVERRIDES},
     )
 
 
@@ -106,6 +124,11 @@ class _Sandbox:
         self._repo.cleanup()
 
     @property
+    def repo(self) -> FakeChromiumRepo:
+        """The underlying FakeChromiumRepo (its chromium/ and subrepos)."""
+        return self._repo
+
+    @property
     def root(self) -> Path:
         return self._repo.brave
 
@@ -118,22 +141,31 @@ class _Sandbox:
 
         By default a symlink is created (mirroring 'gc install-hook').
         Pass as_copy=True to simulate a manually-copied (potentially
-        stale) hook.
+        stale) hook. On Windows, _check_hook_ready() only accepts a file
+        whose bytes exactly match WINDOWS_SHIM, so the shim is written
+        directly there regardless of as_copy.
         """
         hooks_dir = self.root / '.git' / 'hooks'
         hooks_dir.mkdir(exist_ok=True)
         dest = self.hook_dest
         if dest.exists() or dest.is_symlink():
             dest.unlink()
-        if as_copy:
+        if platform.system() == 'Windows':
+            dest.write_bytes(WINDOWS_SHIM)
+        elif as_copy:
             shutil.copy2(HOOK_SOURCE, dest)
         else:
             dest.symlink_to(HOOK_SOURCE)
         # Ensure the hook (and source) are executable.
-        HOOK_SOURCE.chmod(HOOK_SOURCE.stat().st_mode | stat.S_IXUSR
-                          | stat.S_IXGRP | stat.S_IXOTH)
-        dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP
-                   | stat.S_IXOTH)
+        HOOK_SOURCE.chmod(
+            HOOK_SOURCE.stat().st_mode
+            | stat.S_IXUSR
+            | stat.S_IXGRP
+            | stat.S_IXOTH
+        )
+        dest.chmod(
+            dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        )
 
     def stage_change(self, content: str = 'change\n') -> None:
         """Modify file.txt and stage it so there is something to commit."""
@@ -147,10 +179,7 @@ class _Sandbox:
             ['git', 'log', '-1', '--format=%B'],
             cwd=self.root,
             text=True,
-            env={
-                **os.environ,
-                **_GIT_ENV_OVERRIDES
-            },
+            env={**os.environ, **_GIT_ENV_OVERRIDES},
         ).strip()
 
     def run_gc(
@@ -183,9 +212,26 @@ class _Sandbox:
 
 def _fake_global_env(hooks_dir: Path) -> dict[str, str]:
     """Return env overrides that point git's global config to a temp gitconfig
-    with core.hooksPath set to hooks_dir, without touching ~/.gitconfig."""
+    with core.hooksPath set to hooks_dir, without touching ~/.gitconfig.
+
+    Also carries over safe.directory = * : swapping out GIT_CONFIG_GLOBAL
+    entirely drops whatever the host's real global config sets there, and CI
+    runners (notably Windows, where the checkout can be owned by a different
+    account than the one running tests) rely on it to avoid git's dubious-
+    ownership check failing every git invocation in the sandbox.
+
+    hooks_dir is written as a posix path: git config values treat backslash
+    as an escape character, so a native Windows path (e.g. '...\\AppData')
+    can put invalid escapes in the file and make every git invocation that
+    reads it fail with a config-parse error. Git accepts forward slashes in
+    path values on Windows too, so this side-steps the issue entirely.
+    """
     cfg = hooks_dir.parent / 'gitconfig'
-    cfg.write_text(f'[core]\n\thooksPath = {hooks_dir}\n', encoding='utf-8')
+    cfg.write_text(
+        f'[core]\n\thooksPath = {hooks_dir.as_posix()}\n'
+        '[safe]\n\tdirectory = *\n',
+        encoding='utf-8',
+    )
     return {'GIT_CONFIG_GLOBAL': str(cfg)}
 
 
@@ -199,14 +245,10 @@ class TestCoreHooksPathGuard(unittest.TestCase):
     hooks."""
 
     def setUp(self) -> None:
-        self._sandbox = _Sandbox()
-        self._sandbox.__enter__()
+        self._sandbox = self.enterContext(_Sandbox())
         self._fake_hooks = self._sandbox.root.parent / 'fake_hooks'
         self._fake_hooks.mkdir()
         self._env = _fake_global_env(self._fake_hooks)
-
-    def tearDown(self) -> None:
-        self._sandbox.__exit__(None, None, None)
 
     def test_install_hook_blocked(self) -> None:
         """install-hook exits non-zero and mentions core.hooksPath."""
@@ -239,11 +281,7 @@ class TestInstallHook(unittest.TestCase):
     """git cr install-hook creates the correct symlink (or shim on Windows)."""
 
     def setUp(self) -> None:
-        self._sandbox = _Sandbox()
-        self._sandbox.__enter__()
-
-    def tearDown(self) -> None:
-        self._sandbox.__exit__(None, None, None)
+        self._sandbox = self.enterContext(_Sandbox())
 
     def _run(self) -> subprocess.CompletedProcess:
         return self._sandbox.run_gc(['install-hook'])
@@ -259,7 +297,8 @@ class TestInstallHook(unittest.TestCase):
         self.assertEqual(dest.resolve(), HOOK_SOURCE.resolve())
 
     def test_overwrites_existing_hook(self) -> None:
-        """install-hook replaces an existing hook file with a symlink."""
+        """install-hook replaces an existing hook file (symlink on POSIX,
+        shim on Windows)."""
         dest = self._sandbox.hook_dest
         dest.parent.mkdir(exist_ok=True)
         if dest.exists() or dest.is_symlink():
@@ -268,7 +307,11 @@ class TestInstallHook(unittest.TestCase):
 
         result = self._run()
         self.assertEqual(result.returncode, 0)
-        self.assertTrue(dest.is_symlink())
+        if platform.system() == 'Windows':
+            self.assertFalse(dest.is_symlink())
+            self.assertNotEqual(dest.read_text(encoding='utf-8'), 'old hook\n')
+        else:
+            self.assertTrue(dest.is_symlink())
 
     def test_hook_source_is_executable_after_install(self) -> None:
         """The hook source file is executable after install-hook runs."""
@@ -293,12 +336,8 @@ class TestSetupAlias(unittest.TestCase):
     """git cr setup-alias must register a working git alias in .git/config."""
 
     def setUp(self) -> None:
-        self._sandbox = _Sandbox()
-        self._sandbox.__enter__()
+        self._sandbox = self.enterContext(_Sandbox())
         self._sandbox.install_hook()
-
-    def tearDown(self) -> None:
-        self._sandbox.__exit__(None, None, None)
 
     def _run(self) -> subprocess.CompletedProcess:
         return self._sandbox.run_gc(['setup-alias'])
@@ -322,8 +361,7 @@ class TestSetupAlias(unittest.TestCase):
         self.assertTrue(self._sandbox.read_alias_cr().startswith('!'))
 
     def test_git_cr_commit_works_end_to_end(self) -> None:
-        """After setup-alias, 'git cr -m msg' creates a commit in the sandbox.
-        """
+        """After setup-alias, 'git cr -m msg' creates a commit in the sandbox."""
         self._run()
         self._sandbox.stage_change()
         result = subprocess.run(
@@ -334,7 +372,11 @@ class TestSetupAlias(unittest.TestCase):
             check=False,
             env={
                 **os.environ,
-                **_GIT_ENV_OVERRIDES
+                **_GIT_ENV_OVERRIDES,
+                # Isolate the alias under test from any bootstrap `git-cr`
+                # shim installed on this machine, which git would otherwise
+                # prefer over the .git/config alias.
+                'PATH': _path_without_git_cr_shim(),
             },
         )
         self.assertEqual(result.returncode, 0, msg=f'stderr: {result.stderr}')

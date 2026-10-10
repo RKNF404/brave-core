@@ -40,7 +40,10 @@
 #include "brave/components/brave_news/browser/network.h"
 #include "brave/components/brave_news/browser/publishers_parsing.h"
 #include "brave/components/brave_news/common/brave_news.mojom.h"
+#include "brave/components/brave_news/common/features.h"
 #include "brave/components/brave_news/common/locales_helper.h"
+#include "brave/components/brave_news/common/p3a_pref_names.h"
+#include "brave/components/brave_news/common/pref_names.h"
 #include "brave/components/brave_news/common/subscriptions_snapshot.h"
 #include "brave/components/brave_news/common/types.h"
 #include "brave/components/brave_policy/policy_initialization_waiter.h"
@@ -48,6 +51,7 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
@@ -77,6 +81,41 @@ mojo::StructPtr<EventType> CreateChangeEvent(
   return event;
 }
 
+// After this much time has passed since first run, an automatically opted-in
+// user who has never used Brave News is opted back out.
+constexpr auto kNewUserOptInRevertDelay = base::Days(30);
+
+void MaybeUpdateNewUserOptIn(PrefService* prefs,
+                             bool is_first_run,
+                             base::Time first_run_time) {
+  if (is_first_run) {
+    if (base::FeatureList::IsEnabled(features::kBraveNewsNewUserOptIn)) {
+      prefs->SetBoolean(prefs::kBraveNewsOptedIn, true);
+      prefs->SetBoolean(prefs::kBraveNewsOptInTrial, true);
+    }
+    return;
+  }
+
+  if (!prefs->GetBoolean(prefs::kBraveNewsOptInTrial)) {
+    return;
+  }
+
+  // A null |first_run_time| (e.g. missing first run sentinel) is treated as
+  // past the revert delay, so the user doesn't stay in the trial forever.
+  if (base::Time::Now() - first_run_time < kNewUserOptInRevertDelay) {
+    return;
+  }
+
+  prefs->SetBoolean(prefs::kBraveNewsOptInTrial, false);
+
+  // A non-null last session time means the user has actually used Brave News,
+  // so they should stay opted in.
+  if (prefs->GetBoolean(prefs::kBraveNewsOptedIn) &&
+      prefs->GetTime(p3a::prefs::kBraveNewsLastSessionTime).is_null()) {
+    prefs->SetBoolean(prefs::kBraveNewsOptedIn, false);
+  }
+}
+
 }  // namespace
 
 // Invokes a method on the BraveNewsEngine in a background thread and invokes
@@ -104,7 +143,9 @@ BraveNewsController::BraveNewsController(
     history::HistoryService* history_service,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     std::unique_ptr<DirectFeedFetcher::Delegate> direct_feed_fetcher_delegate,
-    std::unique_ptr<Delegate> delegate)
+    std::unique_ptr<Delegate> delegate,
+    bool is_first_run,
+    base::Time first_run_time)
     :
 #if BUILDFLAG(IS_ANDROID)
       private_cdn_request_helper_(GetNetworkTrafficAnnotationTag(),
@@ -132,6 +173,8 @@ BraveNewsController::BraveNewsController(
               // owned by BraveNewsController.
               base::Unretained(this))) {
   CHECK(policy_initialization_waiter_);
+
+  MaybeUpdateNewUserOptIn(prefs, is_first_run, first_run_time);
 
   ResetEngine();
   net::NetworkChangeNotifier::AddNetworkChangeObserver(this);
@@ -214,18 +257,61 @@ void BraveNewsController::GetFeed(GetFeedCallback callback) {
 
 void BraveNewsController::GetFollowingFeed(GetFollowingFeedCallback callback) {
   DVLOG(1) << __FUNCTION__;
+  if (!pref_manager_.IsEnabled()) {
+    std::move(callback).Run(mojom::FeedV2::New());
+    return;
+  }
+
+  // Note: If we've only recently opted-in but we haven't yet finished adding
+  // the top sources subscription (via the async functions in MaybeInitPrefs),
+  // we need to wait for that to complete. Otherwise we'd build the feed from
+  // an empty set of subscriptions and report it as empty to the UI, which
+  // wouldn't be corrected until the feed was requested again.
+  if (!initialization_promise_.complete()) {
+    initialization_promise_.OnceInitialized(
+        base::BindOnce(&BraveNewsController::GetFollowingFeed,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+    return;
+  }
+
   IN_ENGINE(GetFollowingFeed, std::move(callback));
 }
 
 void BraveNewsController::GetChannelFeed(const std::string& channel,
                                          GetChannelFeedCallback callback) {
   DVLOG(1) << __FUNCTION__;
+  if (!pref_manager_.IsEnabled()) {
+    std::move(callback).Run(mojom::FeedV2::New());
+    return;
+  }
+
+  // See the note in GetFollowingFeed.
+  if (!initialization_promise_.complete()) {
+    initialization_promise_.OnceInitialized(base::BindOnce(
+        &BraveNewsController::GetChannelFeed, weak_ptr_factory_.GetWeakPtr(),
+        channel, std::move(callback)));
+    return;
+  }
+
   IN_ENGINE(GetChannelFeed, std::move(callback), channel);
 }
 
 void BraveNewsController::GetPublisherFeed(const std::string& publisher_id,
                                            GetPublisherFeedCallback callback) {
   DVLOG(1) << __FUNCTION__;
+  if (!pref_manager_.IsEnabled()) {
+    std::move(callback).Run(mojom::FeedV2::New());
+    return;
+  }
+
+  // See the note in GetFollowingFeed.
+  if (!initialization_promise_.complete()) {
+    initialization_promise_.OnceInitialized(base::BindOnce(
+        &BraveNewsController::GetPublisherFeed, weak_ptr_factory_.GetWeakPtr(),
+        publisher_id, std::move(callback)));
+    return;
+  }
+
   IN_ENGINE(GetPublisherFeed, std::move(callback), publisher_id);
 }
 
@@ -259,9 +345,12 @@ void BraveNewsController::EnsureFeedV2IsUpdating() {
 
 void BraveNewsController::GetFeedV2(GetFeedV2Callback callback) {
   DVLOG(1) << __FUNCTION__;
-  // If we're only recently opted-in but we haven't yet finished adding the
-  // top sources subscription (via the async functions in MaybeInitPrefs), we
-  // need to wait for that to complete before we can fetch the feed.
+  if (!pref_manager_.IsEnabled()) {
+    std::move(callback).Run(mojom::FeedV2::New());
+    return;
+  }
+
+  // See the note in GetFollowingFeed.
   if (!initialization_promise_.complete()) {
     initialization_promise_.OnceInitialized(
         base::BindOnce(&BraveNewsController::GetFeedV2,
@@ -319,13 +408,24 @@ void BraveNewsController::GetSuggestedPublisherIds(
     std::move(callback).Run({});
     return;
   }
-  IN_ENGINE(GetSuggestedPublisherIds, std::move(callback));
+  // The engine can be reset (e.g. when News is disabled) while a suggestion
+  // fetch is in flight. Ensure the Mojo response is always sent.
+  IN_ENGINE(GetSuggestedPublisherIds,
+            mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+                std::move(callback), std::vector<std::string>()));
 }
 
 void BraveNewsController::FindFeeds(const GURL& possible_feed_or_site_url,
                                     FindFeedsCallback callback) {
+  FindFeeds(possible_feed_or_site_url, std::nullopt, std::move(callback));
+}
+
+void BraveNewsController::FindFeeds(
+    const GURL& possible_feed_or_site_url,
+    const std::optional<url::Origin>& initiator_origin,
+    FindFeedsCallback callback) {
   DVLOG(1) << __FUNCTION__;
-  direct_feed_controller_.FindFeeds(possible_feed_or_site_url,
+  direct_feed_controller_.FindFeeds(possible_feed_or_site_url, initiator_origin,
                                     std::move(callback));
 }
 
@@ -387,6 +487,13 @@ void BraveNewsController::SetChannelSubscribed(
 void BraveNewsController::SubscribeToNewDirectFeed(
     const GURL& feed_url,
     SubscribeToNewDirectFeedCallback callback) {
+  SubscribeToNewDirectFeed(feed_url, std::nullopt, std::move(callback));
+}
+
+void BraveNewsController::SubscribeToNewDirectFeed(
+    const GURL& feed_url,
+    const std::optional<url::Origin>& initiator_origin,
+    SubscribeToNewDirectFeedCallback callback) {
   VLOG(1) << __FUNCTION__ << ": " << feed_url.spec();
   // Verify the url points at a valid feed
   if (!feed_url.is_valid()) {
@@ -394,7 +501,7 @@ void BraveNewsController::SubscribeToNewDirectFeed(
     return;
   }
   direct_feed_controller_.VerifyFeedUrl(
-      feed_url,
+      feed_url, initiator_origin,
       base::BindOnce(&BraveNewsController::OnVerifiedDirectFeedUrl,
                      base::Unretained(this), feed_url, std::move(callback)));
 }
@@ -601,6 +708,13 @@ void BraveNewsController::OpenSettings() {
   DVLOG(1) << __FUNCTION__;
   if (delegate_) {
     delegate_->OpenSettings();
+  }
+}
+
+void BraveNewsController::CloseUI() {
+  DVLOG(1) << __FUNCTION__;
+  if (delegate_) {
+    delegate_->CloseUI();
   }
 }
 

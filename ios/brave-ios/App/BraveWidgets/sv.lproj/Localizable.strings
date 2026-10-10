@@ -7,6 +7,9 @@
 /* The name of the feature */
 "widgets.braveLeo" = "Leo AI";
 
+/* Title for the Leo AI voice input shortcut. Leo is the name of a product and should not be translated */
+"widgets.braveLeoVoiceInput" = "Leo-röstinmatning";
+
 /* The name of the feature */
 "widgets.braveNews" = "Brave News";
 
@@ -15,9 +18,6 @@
 
 /* Description for favorites widget on 'add widget' screen. */
 "widgets.favoritesWidgetDescription" = "Kom åt dina favoritwebblatser snabbt.";
-
-/* Title for favorites widget on 'add widget' screen. */
-"widgets.favoritesWidgetTitle" = "Favoriter";
 
 /* Title for history menu item */
 "widgets.HistoryMenuItem" = "Historik";
@@ -33,6 +33,12 @@
 
 /* Title for Brave News widgets that display the top news */
 "widgets.newsClusteringWidgetTitle" = "Toppnyheter";
+
+/* Displayed on a news widget wont load due to admin policies */
+"widgets.newsUnavailableByPolicy" = "Brave Nyheter är inaktiverat";
+
+/* Displayed on a news widget wont load due to admin policies */
+"widgets.newsUnavailableByPolicyDescription" = "Avstängt av din organisations policy";
 
 /* This shows when you add a widget but have no favorites added in your app */
 "widgets.noFavoritesFound" = "Öppna Brave för att se dina favoriter här";

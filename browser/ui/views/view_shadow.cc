@@ -15,6 +15,7 @@
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRRect.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/layer_textured.h"
 #include "ui/compositor/paint_recorder.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect.h"
@@ -54,7 +55,7 @@ const gfx::ShadowValues& GetCachedShadowValues(
 ViewShadow::ViewShadow(views::View* view,
                        const gfx::RoundedCornersF& corner_radii,
                        const ShadowParameters& params)
-    : layer_owner_(std::make_unique<ui::Layer>()),
+    : layer_owner_(std::make_unique<ui::LayerTextured>()),
       view_(view),
       corner_radii_(corner_radii),
       shadow_values_(GetCachedShadowValues(params)) {
@@ -68,7 +69,6 @@ ViewShadow::ViewShadow(views::View* view,
 
   view_->AddLayerToRegion(shadow_layer(), views::LayerRegion::kBelow);
   view_->AddObserver(this);
-  layer_owner_observation_.Observe(&layer_owner_);
 
   OnViewLayerBoundsSet(view_);
 }
@@ -103,21 +103,8 @@ void ViewShadow::OnViewLayerBoundsSet(views::View* view) {
 }
 
 void ViewShadow::OnViewIsDeleting(views::View* view) {
-  layer_owner_observation_.Reset();
   view_->RemoveObserver(this);
   view_ = nullptr;
-}
-
-void ViewShadow::OnLayerRecreated(ui::Layer* old_layer) {
-  if (!view_) {
-    return;
-  }
-
-  // During the window closing, shadow layer seems destroyed first
-  // before |view_| is destroying in some situation.
-  // Crash happens when view tree layouts w/o removing it from layer tree.
-  view_->RemoveLayerFromRegionsKeepInLayerTree(old_layer);
-  layer_owner_observation_.Reset();
 }
 
 void ViewShadow::OnPaintLayer(const ui::PaintContext& context) {

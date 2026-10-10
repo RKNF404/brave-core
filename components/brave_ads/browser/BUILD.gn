@@ -11,7 +11,6 @@ assert(enable_brave_ads)
 
 static_library("browser") {
   sources = [
-    "component_updater/component_info.h",
     "component_updater/component_util.cc",
     "component_updater/component_util.h",
     "component_updater/resource_component.cc",
@@ -39,9 +38,11 @@ static_library("browser") {
     "//brave/components/p3a_utils",
     "//brave/components/time_period_storage",
     "//components/content_settings/core/browser",
+    "//components/crx_file",
     "//components/pref_registry",
     "//components/prefs",
     "//components/sessions",
+    "//crypto",
     "//third_party/blink/public/common",
     "//ui/base/idle",
     "//url",
@@ -102,6 +103,8 @@ source_set("test_support") {
     "test/fake_bat_ads_service_factory.h",
     "test/fake_device_id.cc",
     "test/fake_device_id.h",
+    "test/fake_shutdown_monitor.cc",
+    "test/fake_shutdown_monitor.h",
     "test/fake_virtual_pref_provider_delegate.cc",
     "test/fake_virtual_pref_provider_delegate.h",
   ]
@@ -151,6 +154,7 @@ source_set("unit_tests") {
     "//brave/components/brave_ads/browser",
     "//brave/components/brave_ads/browser/application_state:test_support",
     "//brave/components/brave_ads/core",
+    "//brave/components/brave_ads/core/browser/service:test_support",
     "//brave/components/brave_ads/core/public:headers",
     "//brave/components/brave_component_updater/browser",
     "//brave/components/brave_policy:policy_initialization_waiter",
@@ -164,6 +168,8 @@ source_set("unit_tests") {
     "//components/prefs:test_support",
     "//components/variations",
     "//content/test:test_support",
+    "//crypto",
+    "//net:test_support",
     "//testing/gtest",
     "//ui/base/idle",
   ]

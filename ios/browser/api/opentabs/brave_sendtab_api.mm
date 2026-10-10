@@ -6,6 +6,7 @@
 #include "brave/ios/browser/api/opentabs/brave_sendtab_api.h"
 
 #include "base/check.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/sys_string_conversions.h"
 #include "brave/ios/browser/api/opentabs/brave_sendtab_observer.h"
@@ -142,7 +143,8 @@ TargetDeviceType DeviceTypeFromSyncDeviceType(
 
   send_tab_to_self_model_->SendEntry(
       url, title, target_device, send_tab_to_self::PageContext(),
-      send_tab_to_self::NavigationHistory(), base::DoNothing());
+      send_tab_to_self::NavigationHistory(), base::DoNothing(),
+      send_tab_to_self::ShareEntryPoint::kShareSheet);
 }
 
 @end

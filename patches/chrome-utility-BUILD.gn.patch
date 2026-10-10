@@ -1,12 +1,36 @@
 diff --git a/chrome/utility/BUILD.gn b/chrome/utility/BUILD.gn
-index 41a02f8a8a207a145c659b1b572badf402ff5514..56850b9da3a8887befa2bba3213d69d57cf74855 100644
+index 95b88e50fca92ca847662d1861db7de835a1cd37..51e4041b42eab4cd9a48eb88160a2e358e6b6580 100644
 --- a/chrome/utility/BUILD.gn
 +++ b/chrome/utility/BUILD.gn
-@@ -257,6 +257,7 @@ static_library("utility") {
-   if (enable_on_device_translation) {
-     deps += [ "//components/on_device_translation/service:on_device_translation_service" ]
-   }
-+  import("//brave/utility/sources.gni") sources += brave_utility_sources deps += brave_utility_deps public_deps += brave_utility_public_deps
- }
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file.
  
- if (!is_android) {
++import("//brave/utility/sources.gni")
+ import("//build/config/sysroot.gni")
+ import("//chrome/common/features.gni")
+ import("//chrome/common/request_header_integrity/buildflags.gni")
+@@ -24,6 +25,7 @@ static_library("utility") {
+     "services.cc",
+     "services.h",
+   ]
++  sources += brave_utility_sources
+ 
+   defines = []
+   configs += [
+@@ -32,6 +34,7 @@ static_library("utility") {
+   ]
+ 
+   public_deps = []
++  public_deps += brave_utility_public_deps
+   deps = [
+     "//base",
+     "//build:chromeos_buildflags",
+@@ -80,6 +83,7 @@ static_library("utility") {
+     "//third_party/zlib/google:zip",
+     "//ui/base:buildflags",
+   ]
++  deps += brave_utility_deps
+ 
+   if (is_win) {
+     deps += [

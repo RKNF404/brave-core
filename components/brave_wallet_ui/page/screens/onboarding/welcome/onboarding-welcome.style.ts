@@ -12,7 +12,7 @@ import backgroundImageLight from '../../../../assets/svg-icons/onboarding/welcom
 import backgroundImageDark from '../../../../assets/svg-icons/onboarding/welcome_background_dark.svg'
 // styles
 import { Column } from '../../../../components/shared/style'
-import { layoutPanelWidth } from '../../../../components/desktop/wallet-page-wrapper/wallet-page-wrapper.style'
+import { layoutPanelWidth } from '$wallet/page/components/wallet_page_wrapper/wallet_page_wrapper.style'
 
 export const WelcomePageBackground = styled.div`
   display: flex;
@@ -51,19 +51,11 @@ export const Content = styled(Column)`
   align-items: center;
   justify-content: flex-start;
   z-index: 3;
-
-  @media screen and (max-width: ${layoutPanelWidth}px) {
-    padding: 0 24px;
-  }
+  padding: 0px 24px;
+  max-width: 812px;
 
   @media screen and (min-width: 768px) and (max-width: 1024px) {
     width: 100%;
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-
-  @media (min-width: 1025px) {
-    width: 812px;
   }
 `
 

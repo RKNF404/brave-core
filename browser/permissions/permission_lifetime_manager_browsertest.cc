@@ -28,7 +28,6 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/permissions/permission_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -47,6 +46,7 @@
 #include "net/base/features.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "services/device/public/cpp/test/scoped_geolocation_overrider.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -151,7 +151,7 @@ class PermissionLifetimeManagerBrowserTest : public InProcessBrowserTest {
   }
 
   PermissionManager* permission_manager() {
-    return PermissionManagerFactory::GetForProfile(browser()->profile());
+    return PermissionManagerFactory::GetForProfile(browser()->GetProfile());
   }
 
   HostContentSettingsMap* host_content_settings_map() {
@@ -198,13 +198,13 @@ class PermissionLifetimeManagerBrowserTest : public InProcessBrowserTest {
   }
 
   const base::DictValue& GetExpirationsPrefValue() {
-    return browser()->profile()->GetPrefs()->GetDict(
+    return browser()->GetProfile()->GetPrefs()->GetDict(
         prefs::kPermissionLifetimeExpirations);
   }
 
   size_t WaitForCleanupAfterKeepAlive() {
     return EphemeralStorageServiceFactory::GetInstance()
-        ->GetForContext(browser()->profile())
+        ->GetForContext(browser()->GetProfile())
         ->FireCleanupTimersForTesting();
   }
 
@@ -232,6 +232,9 @@ class PermissionLifetimeManagerBrowserTest : public InProcessBrowserTest {
   }
 
  protected:
+  // Prevents the real system location provider from being started when the
+  // geolocation permission is granted.
+  device::ScopedGeolocationOverrider geolocation_overrider_{0, 0};
   content::ContentMockCertVerifier mock_cert_verifier_;
   net::test_server::EmbeddedTestServer https_server_;
   std::unique_ptr<MockPermissionLifetimePromptFactory> prompt_factory_;

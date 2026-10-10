@@ -213,7 +213,7 @@ class BottomToolbarCoordinator implements View.OnLongClickListener {
                     new LayoutStateProvider.LayoutStateObserver() {
                         @Override
                         public void onStartedShowing(@LayoutType int layoutType) {
-                            if (layoutType != LayoutType.TAB_SWITCHER) return;
+                            if (layoutType != LayoutType.HUB) return;
                             mIsInTabSwitcherMode = true;
                             BrowsingModeBottomToolbarCoordinator browsingModeCoordinator =
                                     (BrowsingModeBottomToolbarCoordinator) mBrowsingModeCoordinator;
@@ -244,7 +244,7 @@ class BottomToolbarCoordinator implements View.OnLongClickListener {
 
                         @Override
                         public void onStartedHiding(@LayoutType int layoutType) {
-                            if (layoutType != LayoutType.TAB_SWITCHER) return;
+                            if (layoutType != LayoutType.HUB) return;
                             mIsInTabSwitcherMode = false;
                             BrowsingModeBottomToolbarCoordinator browsingModeCoordinator =
                                     (BrowsingModeBottomToolbarCoordinator) mBrowsingModeCoordinator;
@@ -401,7 +401,7 @@ class BottomToolbarCoordinator implements View.OnLongClickListener {
             mHomeButton.setEnabled(true);
         } else {
             mHomeButton.setImageDrawable(
-                    ContextCompat.getDrawable(mContext, R.drawable.btn_toolbar_home));
+                    ContextCompat.getDrawable(mContext, R.drawable.ic_browser_home));
         }
     }
 

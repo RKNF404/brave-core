@@ -11,7 +11,6 @@
 #include "brave/browser/brave_origin/brave_origin_service_factory.h"
 #include "brave/browser/brave_search/backup_results_service_factory.h"
 #include "brave/browser/brave_shields/ad_block_pref_service_factory.h"
-#include "brave/browser/brave_shields/brave_farbling_service_factory.h"
 #include "brave/browser/brave_shields/brave_shields_settings_service_factory.h"
 #include "brave/browser/debounce/debounce_service_factory.h"
 #include "brave/browser/ephemeral_storage/ephemeral_storage_service_factory.h"
@@ -42,6 +41,7 @@
 #include "brave/components/request_otr/common/buildflags/buildflags.h"
 #include "brave/components/speedreader/common/buildflags/buildflags.h"
 #include "brave/components/tor/buildflags/buildflags.h"
+#include "brave/components/traffic_control/buildflags/buildflags.h"
 #include "brave/components/web_discovery/buildflags/buildflags.h"
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
@@ -65,7 +65,6 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "brave/browser/ui/bookmark/bookmark_prefs_service_factory.h"
 #include "brave/browser/ui/commands/accelerator_service_factory.h"
 #include "brave/browser/ui/tabs/shared_pinned_tab_service_factory.h"
 #include "brave/browser/workspaces/workspace_service_factory.h"
@@ -102,6 +101,10 @@
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "brave/browser/extensions/extension_malware_blocklist_enforcer_factory.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "brave/browser/extensions/manifest_v2/brave_extensions_manifest_v2_migrator.h"
 #endif
 
@@ -114,11 +117,16 @@
 #endif
 
 #if BUILDFLAG(ENABLE_PSST)
+#include "brave/browser/psst/psst_reporter_service_factory.h"
 #include "brave/browser/psst/psst_settings_service_factory.h"
 #endif
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
 #include "brave/browser/containers/containers_service_factory.h"
+#endif
+
+#if BUILDFLAG(ENABLE_TRAFFIC_CONTROL)
+#include "brave/browser/traffic_control/traffic_control_service_factory.h"
 #endif
 
 #if BUILDFLAG(ENABLE_EMAIL_ALIASES)
@@ -148,16 +156,13 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
   BraveRendererUpdaterFactory::GetInstance();
   SearchEngineProviderServiceFactory::GetInstance();
   misc_metrics::ProfileMiscMetricsServiceFactory::GetInstance();
-  BraveFarblingServiceFactory::GetInstance();
 #if BUILDFLAG(ENABLE_TOR)
   TorProfileServiceFactory::GetInstance();
 #endif
   SearchEngineTrackerFactory::GetInstance();
   ntp_background_images::ViewCounterServiceFactory::GetInstance();
 
-#if !BUILDFLAG(IS_ANDROID)
-  BookmarkPrefsServiceFactory::GetInstance();
-#else
+#if BUILDFLAG(IS_ANDROID)
   brave_shields::FilterListServiceFactory::GetInstance();
   ntp_background_images::NTPBackgroundImagesBridgeFactory::GetInstance();
 #endif
@@ -206,6 +211,10 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
   ContainersServiceFactory::GetInstance();
 #endif
 
+#if BUILDFLAG(ENABLE_TRAFFIC_CONTROL)
+  TrafficControlServiceFactory::GetInstance();
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(tabs::kBraveSharedPinnedTabs)) {
     SharedPinnedTabServiceFactory::GetInstance();
@@ -246,12 +255,17 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+  extensions::ExtensionMalwareBlocklistEnforcerFactory::GetInstance();
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   extensions_mv2::ExtensionsManifestV2MigratorFactory::GetInstance();
 #endif
   BraveShieldsSettingsServiceFactory::GetInstance();
 
 #if BUILDFLAG(ENABLE_PSST)
   PsstSettingsServiceFactory::GetInstance();
+  PsstReporterServiceFactory::GetInstance();
 #endif  // BUILDFLAG(ENABLE_PSST)
 
   serp_metrics::SerpMetricsServiceFactory::GetInstance();

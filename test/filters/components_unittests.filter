@@ -17,6 +17,33 @@
 # These tests fail because we override Prefetch methods to do nothing.
 -AffiliationServiceImplTest.*
 
+# These tests fail because RankerURLFetcher::Request no longer performs a
+# real network fetch; it synchronously returns false and never invokes its
+# callback, see
+# brave/chromium_src/components/assist_ranker/ranker_url_fetcher.cc. This
+# also covers our own RankerModelLoaderImplTest.LoadRemoteRankerNoFetch in
+# brave/components/assist_ranker/ranker_model_loader_impl_unittest.cc, which
+# shares the fixture name with the upstream tests below.
+-RankerModelLoaderImplTest.*
+
+# `HashAffiliationFetcher::StartRequest` is stubbed off in Brave (see
+# chromium_src/components/affiliations/core/browser/hash_affiliation_fetcher.cc),
+# so none of this fixture's tests exercise real behavior any more. Covered
+# instead by DisabledHashAffiliationFetcherTest in
+# chromium_src/components/affiliations/core/browser/hash_affiliation_fetcher_unittest.cc.
+-HashAffiliationFetcherTest.*
+
+# These AffiliationFetcherManagerTest cases exercise the same stubbed
+# `HashAffiliationFetcher::StartRequest` indirectly via
+# AffiliationFetcherManager::Fetch, so they no longer see a real network
+# request or real response data.
+-AffiliationFetcherManagerTest.OneFetchCallCreatesOneFetcher
+-AffiliationFetcherManagerTest.MultipleFetchCallsCreateMultipleFetchers
+-AffiliationFetcherManagerTest.CompletionClosureInvokedOnFetchCompletion
+-AffiliationFetcherManagerTest.CompletionClosureInvokedOnMultipleFetchCompletions
+-AffiliationFetcherManagerTest.DelegateInvokedOnFetchSuccess
+-AffiliationFetcherManagerTest.DelegateInvokedOnAllPossibleResponses
+
 # This test fails because we use a different sync server endpoint.
 -HistoryNoticeUtilsTest.WebHistoryStates
 
@@ -66,17 +93,31 @@
 -SyncServiceImplStartupWithDetermineAccountTypeTest.StartupWithConsumerAccount
 -SyncServiceImplStartupWithDetermineAccountTypeTest.StartupWithManagedAccount
 
+# These tests fail because we force a resolved (non-managed) consumer status in
+# SyncAuthManager::ActiveAccount::StartDeterminingAccountType, skipping
+# AccountManagedStatusFinder, since Brave Sync uses a fake account with no
+# refresh token. See brave/rewrite/components/sync/service/sync_auth_manager.cc.yaml.
+-SyncAuthManagerTest.AccountChangeWhileDeterminingAccountType
+-SyncAuthManagerTest.DeterminesAccountTypeAsynchronously
+-SyncAuthManagerTest.DeterminesAccountTypeSynchronously
+
 # This test fails because we use different search engine keywords.
 -SearchEngineChoiceEligibilityTest.ChoiceScreenConditions_SkipFor3p_Waffle
 
+# These tests assume Google is the default search engine for the JP test
+# fixture, but Brave overrides the per-country default DSE (see
+# regional_capabilities_utils.cc's JP entry in the default-engine map and
+# template_url_prepopulate_data_resolver.cc's GetPrepopulatedFallbackSearch
+# override), so JP resolves to a Yahoo JP engine instead. That engine also
+# carries our own prepopulate_id, not upstream's yahoo_jp/yahoo_jp_next id, so
+# it can't classify as kLegacy/kNew and always records kUnknown.
+-SearchEngineSettingsDataProviderSplitRegionTest.RecordsEngineStateForEachSplitEngine
+-SearchEngineSplitTemplateURLServiceSplitRegionTest.SearchEngineSplitProfileLoadMetrics_SplitRegion
+
 # These tests fail because upstream doesn't expect passwords to be syncable
--SyncPrefsMigrationTest.DoNotMigratePasswordsToPerAccountPrefIfLastGaiaIdMissing
--SyncPrefsMigrationTest.DoNotMigratePasswordsToPerAccountPrefIfPasswordsEnabled
--SyncPrefsMigrationTest.DoNotMigratePasswordsToPerAccountPrefIfSyncEverythingEnabled
 -SyncPrefsMigrationTest.GlobalToAccount_CustomPassphrase
 -SyncPrefsMigrationTest.GlobalToAccount_CustomState
 -SyncPrefsMigrationTest.GlobalToAccount_DefaultState
--SyncPrefsMigrationTest.MigratePasswordsToPerAccountPrefRunsOnce
 -SyncPrefsTest.DefaultSelectedTypesForAccountInTransportMode_SyncToSigninDisabled
 -SyncPrefsTest.DefaultSelectedTypesForAccountInTransportMode_SyncToSigninEnabled
 -SyncPrefsTest.SelectedTypesKeepEverythingSynced
@@ -101,8 +142,11 @@
 
 # These tests fail because IdentityManager's primary account has no kSignin
 # consent level
+-AccountPreviewDataServiceTest.*
 -AccountUtilsTest.*
 -ContextualTasksServiceImplTest.CreateTaskFromUrl_MatchesPrimaryAccount
+-IdentityUtilsTest.GetOrderedAccountsForDisplayCookieOrderOnDesktop
+-LensIdentityDelegationHelperTest.FetchIdentityDelegationHeaders_*
 -WebSigninTrackerTest.FreshCookiesWithSigninAccountShouldTriggerSuccessResult
 
 # These tests fail because we do not record permissions UKM, see
@@ -134,6 +178,12 @@
 
 # This tests fails because we disable safe browsing enhanced protection and
 # patch safe_browsing::IsEnhancedProtectionEnabled to return false
+-All/ClientSideDetectionServiceBaseLimitTest.AtPhishingReportLimitESB/*
+-All/ClientSideDetectionServiceBaseLimitTest.GetNumReportTestESB/*
+-All/ClientSideDetectionServiceBaseOnlyESBTest.TestReceivingImageClassifierUpdatesAfterResubscription/*
+-All/ClientSideDetectionServiceOnlyESBTest.TestReceivingImageClassifierUpdatesAfterResubscription/*
+-ClientSideDetectionHostBaseTest.*
+-ClientSideDetectionServiceBaseTest.TestReceivingImageEmbedderUpdatesAfterResubscription
 -GetUserPopulationTest.PopulatesPopulation_WithoutSBERDeprecation
 -RealTimeUrlLookupServiceTest.TestCanSendRTSampleRequest_FeatureEnabled
 -RealTimeUrlLookupServiceTest.TestFillLlamaForcedTriggerCapability
@@ -158,10 +208,13 @@
 # This test fails because we have a different set of regional search engines.
 -RegionalCapabilitiesUtilsTest.GetPrepopulatedEngines
 
-# This test fails because it uses raw
+# These tests fail because they use raw
 # TemplateURLPrepopulateData::kCurrentDataVersion to compare with the version
 # that is overridden to add Brave's version bump.
+-TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/UpgradeToBoth
+-TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/UpToDateMetadataWithBothMigrations
 -TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/UpToDateMetadataWithEngineMigration
+-TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/UpToDateMetadataWithShadowVariants
 
 # These tests fail because we disable kAimEnabled.
 -AimEligibilityServiceTest.*
@@ -185,6 +238,89 @@
 -HistoryURLProviderTest.PromoteShorterURLs
 -InMemoryURLIndexTest.TitleSearch
 -URLDatabaseTest.EnumeratorForSignificant
+
+# These fail because we disable kPersonalContext feature, which prevents
+# PersonalContextService from being created and ContextHubService which depends
+# on PersonalContextService.
+-PersonalContextFetcherTest.*
+
+# This test fails because brave.omnibox.history_suggestions_enabled is not
+# registered.
+-SearchboxUtilsTest.CanPasteAndGo
+-SearchboxUtilsTest.ClassifyStringSearchQuery
+-SearchboxUtilsTest.ClassifyStringUrl
+
+# This test fails because its message is hardcoded to look for "Google Search"
+# instead of "Brave Search"
+-AiModeButtonServiceTest.ConfigWithGoogleDse
+
+# These tests fail because we use our own hardcoded CUP signing key (see
+# chromium_src/components/update_client/request_sender.cc), bypassing upstream's
+# ECDSA/ML-DSA-44 (PQC) key-selection logic entirely, so this assertion of
+# upstream key selection never holds in our builds.
+-All/RequestSenderTest.CupKeySelection/*
+
+# Brave ships blink::features::kPrerender2 disabled.
+-PageLoadTrackerTest.PrerenderActivationInBackgroundTab
+-RecordReplayDriverFactoryTest.GetActiveDrivers
+-ContentAutofillDriverTest_Prerender.BadMessageIfPrerendering
+-ContentAutofillDriverTest_Prerender.ObserveFieldVisibilityDisconnectsIfInactive
+
+# This test asserts features::kSkillsEnabled's upstream default which we
+# override.
+-SkillsFeaturesTest.IsSkillsEnabled_Default_PrefOn
+
+# These tests fail because of the following CHECK in identity_test_utils.cc:
+# identity_manager->AreRefreshTokensLoaded()
+-AccountPreviewDataServiceTest.GetPreferredAccountForPromo
+-AccountPreviewDataServiceTest.GetPreferredAccountForPromoRespectsDefaultAccountOrderCookieJar
+-AccountPreviewDataServiceTest.GetPreferredAccountForPromoRespectsUsernamePatternPolicy
+-AccountPreviewDataServiceTest.RateLimitOn429PeriodicRefresh
+-AccountPreviewDataServiceTest.RemainingAccountsAllCachedDoesNotCrashAndRecomputes
+-IdentityUtilsTest.GetOrderedAccountsForDisplayCookieOrderOnDesktop
+
+# This test fails because we disable kEmailVerificationProtocol feature.
+-EmailVerifierDelegateTestBase.ThirdPartyOriginTrialEnabled
+
+# These tests enable kReplaceSyncPromos* via ScopedFeatureList and assert
+# the sign-in-promo behavior that Brave unconditionally disables,
+# brave-browser#58511
+-AccountCheckerTest.TestFetchPriceEmailPref
+-AccountCheckerTest.TestSendPriceEmailPrefOnPrefChange
+-All/PrimaryAccountManagerExplicitSigninNewFeatureTest.*
+-All/ShoppingServiceReadyTest.TestServiceReadyDelaysForSync_TransportStartsInactive/*
+-BrowsingDataUtilsTest.AutofillCounterResultWithReplaceSyncPromosWithSignInPromosEnabled
+-CollaborationServiceImplTest.SyncDisabledByEnterprise
+-CollaborationServiceImplTest.SyncTypeDisabledByEnterprise
+-PasswordManagerFeaturesUtilTest.ShouldShowAccountStorageSettingToggle_SyncToSigninOn
+-ShoppingBookmarkModelObserverTest.TestShoppingCollectionChangeMetrics/*
+-SyncPrefsMigrationTest.GlobalPrefsAreUnchanged
+-SyncPrefsMigrationTest.GlobalToAccount_HistoryDisabled
+-SyncPrefsMigrationTest.GlobalToAccount_SavedTabGroupsEnabled
+-SyncPrefsMigrationTest.GlobalToAccount_TabsDisabled
+-SyncPrefsMigrationTest.Part2RunsOnSecondAttempt
+-SyncPrefsMigrationTest.RunsAgainAfterFeatureReenabled
+-SyncPrefsMigrationTest.TurnsAutofillOffForCustomPassphraseUser
+-SyncToSigninMigrationDataTypesTest.*
+-SyncToSigninMigrationMetricsTest.*
+-SyncToSigninMigrationTest.*
+-SyncToSigninMigrationUndoTest.*
+-UnifiedConsentServiceTest.ReplaceSync_*
+
+# These tests fail because we override VariationsIdsProvider's method
+# GetClientDataHeaders to return nullptr, so the X-Client-Data header the tests
+# expect to find is never added.
+-ContextualSearchDelegateImplTest.DiscourseContextHeaderRemovedOnCrossOriginRedirect_GoogleDSE
+-LogoServiceImplTest.IncludesVariationsHeaderWhenDSEIsGoogle
+
+# brave/build/config/locales.gni re-enables desktop UI support for az, bs, ka,
+# kk, km, lo, mk, mn, my, si, sq, uz (upstream's `extended_locales` excludes
+# them from desktop). Upstream never exercises these locales in this test on
+# desktop as a result. But third_party/icu/filters/common.json (unmodified by
+# us) still strips full calendar/date data for exactly these locales to
+# save binary size, since upstream assumes desktop never needs it. So ICU falls
+# back to the root pattern ("M12 7") for these 12 locales only.
+-DateInfo.GetIcuDate_LocalizedPattern_AllPlatformLocales
 
 # Tests below this point have not been diagnosed or had issues created yet.
 -AccountInvestigatorTest.*
@@ -273,7 +409,6 @@
 -PrimaryAccountManagerTest.*
 -PrimaryAccountMutatorTest.RevokeSyncConsent
 -PrivacySandboxSettingsSharedStorageDebugTest.NoEnrollments
--RankerModelLoaderImplTest.*
 -RealTimePolicyEngineTest.TestCanPerformFullURLLookupWithToken_ClientControlledWithEnhancedProtection
 -RealTimePolicyEngineTest.TestCanPerformFullURLLookup_EnhancedProtection
 -RealTimePolicyEngineTest.TestCanPerformFullURLLookup_RTLookupForEpEnabled_WithTokenDisabled
@@ -326,6 +461,7 @@
 -TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/DbOlder
 -TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/DifferentCountry
 -TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/DifferentCountryWithEngineMigrationDowngrade
+-TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/ShadowVariantsRollback
 -TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/UpToDateMetadata
 -TemplateURLPrepopulateDataUpdateRequirementsTest.ComputeDatabaseUpdateRequirements/UpToDateMetadataWithEngineMigrationDowngrade
 -TemplateURLServiceUtilLoadTest.GetSearchProvidersUsingLoadedEngines_InEea

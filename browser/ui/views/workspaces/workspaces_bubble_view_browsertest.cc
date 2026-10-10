@@ -18,7 +18,6 @@
 #include "brave/browser/workspaces/workspace_service.h"
 #include "brave/browser/workspaces/workspace_service_factory.h"
 #include "brave/grit/brave_generated_resources.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -36,7 +35,7 @@
 namespace {
 
 BraveHorizontalTabStripRegionView* GetHorizontalTabStripRegion(
-    Browser* browser) {
+    BrowserWindowInterface* browser) {
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   return views::AsViewClass<BraveHorizontalTabStripRegionView>(
       browser_view->tab_strip_view());
@@ -94,7 +93,7 @@ class WorkspacesBubbleBrowserTest : public InProcessBrowserTest {
   }
 
   WorkspaceService* GetWorkspaceService() {
-    return WorkspaceServiceFactory::GetForProfile(browser()->profile());
+    return WorkspaceServiceFactory::GetForProfile(browser()->GetProfile());
   }
 
   // Clicks the workspaces button and returns the bubble's contents view, or
@@ -144,6 +143,34 @@ class WorkspacesFeatureDisabledBrowserTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(WorkspacesFeatureDisabledBrowserTest,
                        ButtonAbsentWhenDisabled) {
   auto* region = GetHorizontalTabStripRegion(browser());
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->workspaces_button_for_testing(), nullptr);
+}
+
+// No workspaces button is created for private browsing windows, even when the
+// feature is enabled (the button is present in normal windows of the same
+// profile, so this verifies the private-window guard specifically).
+IN_PROC_BROWSER_TEST_F(WorkspacesBubbleBrowserTest,
+                       ButtonAbsentInPrivateBrowsing) {
+  // Sanity-check: the normal window already has the button.
+  ASSERT_TRUE(GetWorkspacesButton()) << "Workspaces button should exist in a "
+                                        "normal window with the feature on";
+
+  auto* incognito_browser = CreateIncognitoBrowser(browser()->GetProfile());
+  auto* region = GetHorizontalTabStripRegion(incognito_browser);
+  ASSERT_TRUE(region);
+  EXPECT_EQ(region->workspaces_button_for_testing(), nullptr);
+}
+
+// No workspaces button is created in a guest window, even when the feature is
+// enabled. Guest profiles are off-the-record (IsOffTheRecord() == true), so
+// they hit the same guard as private browsing windows.
+IN_PROC_BROWSER_TEST_F(WorkspacesBubbleBrowserTest, ButtonAbsentInGuest) {
+  ASSERT_TRUE(GetWorkspacesButton()) << "Workspaces button should exist in a "
+                                        "normal window with the feature on";
+
+  auto* guest_browser = CreateGuestBrowser();
+  auto* region = GetHorizontalTabStripRegion(guest_browser);
   ASSERT_TRUE(region);
   EXPECT_EQ(region->workspaces_button_for_testing(), nullptr);
 }

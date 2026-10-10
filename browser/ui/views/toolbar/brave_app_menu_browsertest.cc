@@ -13,6 +13,7 @@
 #include "brave/components/skus/common/features.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/toolbar/app_menu_icon_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/toolbar/app_menu.h"
@@ -52,9 +53,10 @@ class BraveAppMenuBrowserTest : public InProcessBrowserTest {
   }
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
-  void SetPurchasedUserForBraveVPN(Browser* browser, bool purchased) {
+  void SetPurchasedUserForBraveVPN(BrowserWindowInterface* browser,
+                                   bool purchased) {
     auto* service =
-        brave_vpn::BraveVpnServiceFactory::GetForProfile(browser->profile());
+        brave_vpn::BraveVpnServiceFactory::GetForProfile(browser->GetProfile());
     ASSERT_TRUE(!!service);
     auto target_state = purchased
                             ? brave_vpn::mojom::PurchasedState::PURCHASED
@@ -64,7 +66,7 @@ class BraveAppMenuBrowserTest : public InProcessBrowserTest {
     // Call explicitely to update vpn commands status because mojo works in
     // async way.
     static_cast<chrome::BraveBrowserCommandController*>(
-        browser->command_controller())
+        chrome::BrowserCommandController::From(browser))
         ->OnPurchasedStateChanged(target_state, std::nullopt);
   }
 
@@ -81,7 +83,7 @@ IN_PROC_BROWSER_TEST_F(BraveAppMenuBrowserTest, AppMenuButtonUpgradeAlertTest) {
 
   // Check our highlight color.
   auto* theme_service =
-      ThemeServiceFactory::GetForProfile(browser()->profile());
+      ThemeServiceFactory::GetForProfile(browser()->GetProfile());
   theme_service->SetBrowserColorScheme(
       ThemeService::BrowserColorScheme::kLight);
   EXPECT_EQ(brave_menu_button->GetHighlightColor(), std::nullopt);
@@ -110,7 +112,7 @@ IN_PROC_BROWSER_TEST_F(BraveAppMenuBrowserTest, AppMenuButtonUpgradeAlertTest) {
 // Check toggle menu item has additional toggle button for purchased user.
 IN_PROC_BROWSER_TEST_F(BraveAppMenuBrowserTest, PurchasedVPN) {
   SetPurchasedUserForBraveVPN(browser(), true);
-  menu_button()->ShowMenu(views::MenuRunner::NO_FLAGS);
+  menu_button()->ShowMenu();
   views::MenuItemView* menu_root = menu_button()->app_menu()->root_menu_item();
   auto* toggle_menu_item = menu_root->GetMenuItemByID(IDC_TOGGLE_BRAVE_VPN);
   ASSERT_TRUE(!!toggle_menu_item);
@@ -123,7 +125,7 @@ IN_PROC_BROWSER_TEST_F(BraveAppMenuBrowserTest, PurchasedVPN) {
 // Check app menu has show vpn panel menu item for not purchased user.
 IN_PROC_BROWSER_TEST_F(BraveAppMenuBrowserTest, NotPurchasedVPN) {
   SetPurchasedUserForBraveVPN(browser(), false);
-  menu_button()->ShowMenu(views::MenuRunner::NO_FLAGS);
+  menu_button()->ShowMenu();
   views::MenuItemView* menu_root = menu_button()->app_menu()->root_menu_item();
   EXPECT_TRUE(!!menu_root->GetMenuItemByID(IDC_SHOW_BRAVE_VPN_PANEL));
 }

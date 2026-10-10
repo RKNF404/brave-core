@@ -42,7 +42,7 @@ export const PhraseInput = ({
   onHideError,
 }: Props) => {
   const recoveryInstructions = formatLocale(
-    'braveWalletRecoveryWordInstructions',
+    S.BRAVE_WALLET_RECOVERY_WORD_INSTRUCTIONS,
     {
       $1: <Bold>{wordPosition}</Bold>,
     },
@@ -60,11 +60,8 @@ export const PhraseInput = ({
       ></FormInput>
       {showError ? (
         <AlertWrapper>
-          <InfoAlert
-            type='error'
-            kind='simple'
-          >
-            {getLocale('braveWalletVerifyError')}
+          <InfoAlert type='error'>
+            {getLocale(S.BRAVE_WALLET_VERIFY_ERROR)}
             <div
               slot='content-after'
               style={alertSlotStyle}

@@ -16,6 +16,7 @@
 #include "base/feature_list.h"
 #include "brave/browser/ui/color/brave_color_id.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/tabs/shared_pinned_tab_service.h"
 #include "brave/browser/ui/tabs/shared_pinned_tab_service_factory.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
@@ -27,7 +28,6 @@
 #include "brave/browser/ui/views/tabs/brave_tab.h"
 #include "brave/browser/ui/views/tabs/brave_tab_container.h"
 #include "brave/browser/ui/views/tabs/brave_tab_hover_card_controller.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -95,6 +95,13 @@ BraveTabStrip::BraveTabStrip(
       brave_tabs::kCompactHorizontalTabs, g_browser_process->local_state(),
       base::BindRepeating(&BraveTabStrip::OnCompactModePrefChanged,
                           base::Unretained(this)));
+#if BUILDFLAG(ENABLE_CONTAINERS)
+  always_use_mini_accent_icon_.Init(
+      brave_tabs::kAlwaysUseMiniAccentIcon,
+      controller_->GetBrowserWindowInterface()->GetProfile()->GetPrefs(),
+      base::BindRepeating(&BraveTabStrip::OnAlwaysUseMiniAccentIconPrefChanged,
+                          base::Unretained(this)));
+#endif  // BUILDFLAG(ENABLE_CONTAINERS)
 }
 
 BraveTabStrip::~BraveTabStrip() = default;
@@ -108,8 +115,7 @@ BraveVerticalTabStripRegionView* BraveTabStrip::GetVerticalTabStripRegionView()
 
   auto* browser = GetBrowserWindowInterface();
   DCHECK(browser);
-  auto* browser_view = static_cast<BraveBrowserView*>(
-      BrowserView::GetBrowserViewForBrowser(browser));
+  auto* browser_view = BraveBrowserView::GetBrowserViewForBrowser(browser);
   if (!browser_view) {
     // Could be null during the start-up.
     return nullptr;
@@ -256,7 +262,8 @@ void BraveTabStrip::AddedToWidget() {
   // When Chromium's upstream vertical tabs feature is active,
   // TabStrip::Initialize() is never called so tab_container_ remains null.
   // Skip UpdateOrientation() to avoid crashing when accessing it.
-  if (!tabs::utils::SupportsBraveVerticalTabs(GetBrowserWindowInterface())) {
+  if (auto* vtc = VerticalTabController::From(GetBrowserWindowInterface());
+      !vtc || !vtc->SupportsBraveVerticalTabs()) {
     return;
   }
 
@@ -323,15 +330,15 @@ bool BraveTabStrip::ShouldShowPinnedTabsInGrid() const {
 void BraveTabStrip::UpdateOrientation() {
   // Callers must guard against unsupported configurations (e.g. upstream
   // vertical tabs where tab_container_ is null).
-  CHECK(tabs::utils::SupportsBraveVerticalTabs(GetBrowserWindowInterface()));
+  auto* vtc = VerticalTabController::From(GetBrowserWindowInterface());
+  CHECK(vtc && vtc->SupportsBraveVerticalTabs());
 
   const bool using_vertical_tabs = ShouldShowVerticalTabs();
   auto* browser = GetBrowserWindowInterface();
   DCHECK(browser);
 
   if (using_vertical_tabs) {
-    auto* browser_view = static_cast<BraveBrowserView*>(
-        BrowserView::GetBrowserViewForBrowser(browser));
+    auto* browser_view = BraveBrowserView::GetBrowserViewForBrowser(browser);
     DCHECK(browser_view);
     auto* vertical_region_view =
         browser_view->vertical_tab_strip_container_view()
@@ -357,7 +364,8 @@ void BraveTabStrip::UpdateOrientation() {
 }
 
 bool BraveTabStrip::ShouldShowVerticalTabs() const {
-  return tabs::utils::ShouldShowBraveVerticalTabs(GetBrowserWindowInterface());
+  auto* vtc = VerticalTabController::From(GetBrowserWindowInterface());
+  return vtc && vtc->ShouldShowBraveVerticalTabs();
 }
 
 void BraveTabStrip::OnAlwaysHideCloseButtonPrefChanged() {
@@ -383,6 +391,24 @@ void BraveTabStrip::OnCompactModePrefChanged() {
   InvalidateTabContainerLayout();
   PreferredSizeChanged();
 }
+
+#if BUILDFLAG(ENABLE_CONTAINERS)
+void BraveTabStrip::OnAlwaysUseMiniAccentIconPrefChanged() {
+  // Invalidate layout of all tabs to update accent icon size.
+  // The size of the accent icon is determined in Tab::Layout().
+  for (int i = 0; i < GetTabCount(); ++i) {
+    auto* tab = tab_at(i);
+    tab->InvalidateLayout();
+    tab->SchedulePaint();
+  }
+
+  // We need to invalidate the ideal bounds of the tab container so that it
+  // doesn't skip the layout.
+  if (auto* tab_container = GetBraveTabContainer()) {
+    tab_container->InvalidateIdealBounds();
+  }
+}
+#endif  // BUILDFLAG(ENABLE_CONTAINERS)
 
 brave_tabs::TabMinWidthMode BraveTabStrip::GetTabMinWidthMode() const {
   const PrefService* prefs =
@@ -475,6 +501,14 @@ ui::ImageModel BraveTabStrip::GetTabAccentIcon(const Tab* tab) const {
           accent_colors->icon_color));
 #else
   return ui::ImageModel();
+#endif
+}
+
+bool BraveTabStrip::ShouldAlwaysShowMiniTabAccent() const {
+#if BUILDFLAG(ENABLE_CONTAINERS)
+  return *always_use_mini_accent_icon_;
+#else
+  return false;
 #endif
 }
 

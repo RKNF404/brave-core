@@ -25,6 +25,7 @@ inline constexpr char kAdBlockRegionalFilters[] =
     "brave.ad_block.regional_filters";
 inline constexpr char kAdBlockListSubscriptions[] =
     "brave.ad_block.list_subscriptions";
+inline constexpr char kAdBlockDebugMode[] = "brave.ad_block.debug_mode";
 inline constexpr char kAdBlockDeveloperMode[] = "brave.ad_block.developer_mode";
 
 inline constexpr char kMigratedAdblockSocialMediaBlockingSettings[] =
@@ -36,6 +37,8 @@ inline constexpr char kLinkedInEmbedControlType[] =
     "brave.shields.linkedin_embed_default";
 
 inline constexpr char kReduceLanguageEnabled[] = "brave.reduce_language";
+inline constexpr char kHttpsUpgradeSettingsMigrated[] =
+    "brave.https_upgrade_settings_migrated";
 
 inline constexpr char kAdBlockOnlyModeEnabled[] =
     "brave.shields.adblock_only_mode_enabled";

@@ -32,7 +32,7 @@ private struct AutocompleteTextFieldUX {
 }
 
 public class AutocompleteTextField: UITextField, UITextFieldDelegate {
-  var autocompleteDelegate: AutocompleteTextFieldDelegate?
+  weak var autocompleteDelegate: AutocompleteTextFieldDelegate?
 
   // AutocompleteTextLabel repersents the actual autocomplete text.
   // The textfields "text" property only contains the entered text, while this label holds the autocomplete text
@@ -46,7 +46,7 @@ public class AutocompleteTextField: UITextField, UITextFieldDelegate {
   }
 
   // This variable is a solution to get the right behavior for refocusing
-  // the AutocompleteTextField. The initial transition into Overlay Mode
+  // the AutocompleteTextField. The initial transition into the search container
   // doesn't involve the user interacting with AutocompleteTextField.
   // Thus, we update shouldApplyCompletion in touchesBegin() to reflect whether
   // the highlight is active and then the text field is updated accordingly
@@ -101,7 +101,8 @@ public class AutocompleteTextField: UITextField, UITextFieldDelegate {
         if self.isEditing {
           self.autocompleteDelegate?.autocompleteTextField(
             self,
-            didEnterText: self.text?.preferredSearchSuggestionText ?? ""
+            didEnterText: self.text?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+              ?? ""
           )
           self.isPasting = false
         }
@@ -118,7 +119,9 @@ public class AutocompleteTextField: UITextField, UITextFieldDelegate {
           }
           self.autocompleteDelegate?.autocompleteTextField(
             self,
-            didDeleteAutoSelectedText: text?.preferredSearchSuggestionText ?? ""
+            didDeleteAutoSelectedText: text?.trimmingCharacters(
+              in: CharacterSet.whitespacesAndNewlines
+            ) ?? ""
           )
         }
       }

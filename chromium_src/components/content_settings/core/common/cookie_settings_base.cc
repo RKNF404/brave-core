@@ -40,12 +40,14 @@ bool BraveIsAllowedThirdParty(const GURL& url,
                    {ContentSettingsPattern::FromString(kWordpress),
                     ContentSettingsPattern::FromString(kWp)}});
 
-  if (net::registry_controlled_domains::GetDomainAndRegistry(
-          url, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES) ==
-      net::registry_controlled_domains::GetDomainAndRegistry(
-          first_party_url,
-          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES))
+  // SameDomainOrHost requires a non-empty eTLD+1 (or an exact host match), so
+  // hosts without a registrable domain (localhost, IPs) are not treated as the
+  // same site just because GetDomainAndRegistry returns an empty string.
+  if (net::registry_controlled_domains::SameDomainOrHost(
+          url, first_party_url,
+          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES)) {
     return true;
+  }
 
   for (const auto& entity : *entity_list) {
     if (entity.first.Matches(url) && entity.second.Matches(first_party_url)) {
@@ -83,8 +85,9 @@ bool CookieSettingsBase::ShouldUseEphemeralStorage(
   const GURL first_party_url =
       GetFirstPartyURL(site_for_cookies, top_frame_origin.as_ptr());
 
-  if (!first_party_url.is_valid())
+  if (!first_party_url.is_valid()) {
     return false;
+  }
 
   // Enable ephemeral storage for a first party URL if SESSION_ONLY cookie
   // setting is set and the feature is enabled.
@@ -101,8 +104,9 @@ bool CookieSettingsBase::ShouldUseEphemeralStorage(
 
   if (net::registry_controlled_domains::SameDomainOrHost(
           first_party_url, url,
-          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES))
+          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES)) {
     return false;
+  }
 
   bool allow_3p = IsFullCookieAccessAllowed(
       url, site_for_cookies, top_frame_origin, net::CookieSettingOverrides(),
@@ -115,6 +119,22 @@ bool CookieSettingsBase::ShouldUseEphemeralStorage(
 
   // only use ephemeral storage for block 3p
   return allow_1p && !allow_3p;
+}
+
+bool CookieSettingsBase::IsMainFrameEphemeral(
+    const net::SiteForCookies& site_for_cookies,
+    base::optional_ref<const url::Origin> top_frame_origin,
+    net::CookieSettingOverrides overrides) const {
+  if (!base::FeatureList::IsEnabled(
+          net::features::kBraveFirstPartyEphemeralStorage)) {
+    return false;
+  }
+  // Ephemeral mode for the main frame can be enabled only via explicit rule.
+  const GURL first_party_url =
+      GetFirstPartyURL(site_for_cookies, top_frame_origin.as_ptr());
+  return IsSessionOnlyExplicit(GetCookieSettingInternal(
+      first_party_url, site_for_cookies, first_party_url, overrides,
+      /*info=*/nullptr));
 }
 
 bool CookieSettingsBase::IsEphemeralCookieAccessAllowed(
@@ -147,8 +167,9 @@ bool CookieSettingsBase::IsFullCookieAccessAllowed(
   const bool is_1p_ephemeral_feature_enabled = base::FeatureList::IsEnabled(
       net::features::kBraveFirstPartyEphemeralStorage);
   // If 1PES feature is enabled, we should do additional checks below.
-  if (allow && !is_1p_ephemeral_feature_enabled)
+  if (allow && !is_1p_ephemeral_feature_enabled) {
     return true;
+  }
 
   const GURL first_party_url =
       GetFirstPartyURL(site_for_cookies, top_frame_origin.as_ptr());
@@ -170,20 +191,17 @@ bool CookieSettingsBase::IsFullCookieAccessAllowed(
   };
   MainFrameMode main_frame_mode = MainFrameMode::kDefault;
   if (is_1p_ephemeral_feature_enabled) {
-    // Get CookieSetting for the main frame and get matched patterns if any.
-    SettingInfo setting_info;
-    CookieSettingWithMetadata setting_with_metadata =
-        GetCookieSettingInternal(first_party_url, site_for_cookies,
-                                 first_party_url, overrides, &setting_info);
-
-    // Ephemeral mode for the main frame can be enabled only via explicit rule.
-    if (IsSessionOnlyExplicit(setting_with_metadata)) {
+    if (IsMainFrameEphemeral(site_for_cookies, top_frame_origin, overrides)) {
       main_frame_mode = MainFrameMode::kEphemeral;
     } else {
       // Disabled shields mode allows everything in nested frames. To properly
       // handle this state we need to know if Shields are down in the main
       // frame. The shields check is done by analyzing the primary and secondary
       // patterns and expecting them to be in a specific state.
+      SettingInfo setting_info;
+      CookieSettingWithMetadata setting_with_metadata =
+          GetCookieSettingInternal(first_party_url, site_for_cookies,
+                                   first_party_url, overrides, &setting_info);
       if (setting_with_metadata.cookie_setting() == CONTENT_SETTING_ALLOW &&
           setting_info.primary_pattern.MatchesAllHosts() &&
           !setting_info.secondary_pattern.MatchesAllHosts()) {
@@ -205,8 +223,9 @@ bool CookieSettingsBase::IsFullCookieAccessAllowed(
     return false;
   }
 
-  if (BraveIsAllowedThirdParty(url, first_party_url, this))
+  if (BraveIsAllowedThirdParty(url, first_party_url, this)) {
     return true;
+  }
 
   // This allows Session-only frames to work as usual when Shields are down for
   // the main frame.
@@ -268,9 +287,35 @@ bool CookieSettingsBase::ShouldBlockThirdPartyIfSettingIsExplicit(
   if (false)
 
 #define IsFullCookieAccessAllowed IsFullCookieAccessAllowed_ChromiumImpl
+#define IsAnyStorageAccessAllowed IsAnyStorageAccessAllowed_ChromiumImpl
 
 #include <components/content_settings/core/common/cookie_settings_base.cc>
 
+#undef IsAnyStorageAccessAllowed
 #undef IsFullCookieAccessAllowed
 #undef BRAVE_COOKIE_SETTINGS_BASE_DECIDE_ACCESS
 #undef BRAVE_COOKIE_SETTINGS_BASE_GET_COOKIES_SETTINGS_INTERNAL_IS_EXPLICIT_SETTING
+
+namespace content_settings {
+
+bool CookieSettingsBase::IsAnyStorageAccessAllowed(
+    const GURL& url,
+    const net::SiteForCookies& site_for_cookies,
+    base::optional_ref<const url::Origin> top_frame_origin,
+    net::CookieSettingOverrides overrides,
+    base::optional_ref<const net::CookiePartitionKey> cookie_partition_key,
+    CookieSettingWithMetadata* cookie_settings) const {
+  if (!IsAnyStorageAccessAllowed_ChromiumImpl(
+          url, site_for_cookies, top_frame_origin, overrides,
+          cookie_partition_key, cookie_settings)) {
+    return false;
+  }
+
+  // Re-apply the main-frame-ephemeral (1PES) block that
+  // IsFullCookieAccessAllowed() above applies, since the ChromiumImpl call
+  // just above doesn't go through our override (see comment on the
+  // IsAnyStorageAccessAllowed #define).
+  return !IsMainFrameEphemeral(site_for_cookies, top_frame_origin, overrides);
+}
+
+}  // namespace content_settings

@@ -7,14 +7,20 @@ package org.chromium.chrome.browser.autofill;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 
-import androidx.test.filters.SmallTest;
+import android.view.View;
+import android.view.autofill.AutofillId;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /** Unit tests for pure utility methods in {@link BraveAutofillServiceImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -24,7 +30,6 @@ public class BraveAutofillServiceImplUnitTest {
     // --- splitName ---
 
     @Test
-    @SmallTest
     public void splitName_fullNameOnly_splitsIntoFirstAndLast() {
         assertArrayEquals(
                 new String[] {"Jane", "Doe"},
@@ -32,7 +37,6 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void splitName_singleWordFullName_firstNameOnly() {
         assertArrayEquals(
                 new String[] {"Madonna", ""},
@@ -40,7 +44,6 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void splitName_multiWordLastName_preservesRemainder() {
         assertArrayEquals(
                 new String[] {"Anna", "Maria Van Der Berg"},
@@ -48,7 +51,6 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void splitName_existingPartsNotOverridden() {
         assertArrayEquals(
                 new String[] {"Jonathan", "Smithson"},
@@ -56,21 +58,18 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void splitName_allNull_returnsEmptyStrings() {
         assertArrayEquals(
                 new String[] {"", ""}, BraveAutofillServiceImpl.splitName(null, null, null));
     }
 
     @Test
-    @SmallTest
     public void splitName_emptyFullName_returnsEmptyStrings() {
         assertArrayEquals(
                 new String[] {"", ""}, BraveAutofillServiceImpl.splitName("", null, null));
     }
 
     @Test
-    @SmallTest
     public void splitName_fullNameWithExtraWhitespace_trims() {
         assertArrayEquals(
                 new String[] {"Jane", "Doe"},
@@ -78,7 +77,6 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void splitName_firstNameEmpty_lastNameProvided_derivesFirstOnly() {
         assertArrayEquals(
                 new String[] {"Jane", "Smith"},
@@ -88,43 +86,36 @@ public class BraveAutofillServiceImplUnitTest {
     // --- countryCodeToDisplayName ---
 
     @Test
-    @SmallTest
     public void countryCodeToDisplayName_us_returnsUnitedStates() {
         assertEquals("United States", BraveAutofillServiceImpl.countryCodeToDisplayName("US"));
     }
 
     @Test
-    @SmallTest
     public void countryCodeToDisplayName_gb_returnsUnitedKingdom() {
         assertEquals("United Kingdom", BraveAutofillServiceImpl.countryCodeToDisplayName("GB"));
     }
 
     @Test
-    @SmallTest
     public void countryCodeToDisplayName_de_returnsGermany() {
         assertEquals("Germany", BraveAutofillServiceImpl.countryCodeToDisplayName("DE"));
     }
 
     @Test
-    @SmallTest
     public void countryCodeToDisplayName_null_returnsEmptyString() {
         assertEquals("", BraveAutofillServiceImpl.countryCodeToDisplayName(null));
     }
 
     @Test
-    @SmallTest
     public void countryCodeToDisplayName_emptyString_returnsEmpty() {
         assertEquals("", BraveAutofillServiceImpl.countryCodeToDisplayName(""));
     }
 
     @Test
-    @SmallTest
     public void countryCodeToDisplayName_threeLetterCode_returnsUnchanged() {
         assertEquals("USA", BraveAutofillServiceImpl.countryCodeToDisplayName("USA"));
     }
 
     @Test
-    @SmallTest
     public void countryCodeToDisplayName_lowercaseCode_returnsDisplayName() {
         // java.util.Locale handles lowercase country codes.
         assertEquals("United States", BraveAutofillServiceImpl.countryCodeToDisplayName("us"));
@@ -133,21 +124,18 @@ public class BraveAutofillServiceImplUnitTest {
     // --- matchListOption ---
 
     @Test
-    @SmallTest
     public void matchListOption_exactMatch_returnsIndex() {
         CharSequence[] options = {"Alabama", "California", "Texas"};
         assertEquals(1, BraveAutofillServiceImpl.matchListOption(options, "California"));
     }
 
     @Test
-    @SmallTest
     public void matchListOption_exactMatchCaseInsensitive_returnsIndex() {
         CharSequence[] options = {"Alabama", "California", "Texas"};
         assertEquals(1, BraveAutofillServiceImpl.matchListOption(options, "california"));
     }
 
     @Test
-    @SmallTest
     public void matchListOption_optionStartsWithValue_returnsIndex() {
         // Pass 2: value "CA" matches option "California".
         CharSequence[] options = {"Alabama", "California", "Texas"};
@@ -155,7 +143,6 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void matchListOption_valueStartsWithOption_returnsIndex() {
         // Pass 3: value "California" matches option "CA".
         CharSequence[] options = {"AL", "CA", "TX"};
@@ -163,27 +150,23 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void matchListOption_noMatch_returnsNegativeOne() {
         CharSequence[] options = {"Alabama", "California", "Texas"};
         assertEquals(-1, BraveAutofillServiceImpl.matchListOption(options, "New York"));
     }
 
     @Test
-    @SmallTest
     public void matchListOption_nullOptions_returnsNegativeOne() {
         assertEquals(-1, BraveAutofillServiceImpl.matchListOption(null, "California"));
     }
 
     @Test
-    @SmallTest
     public void matchListOption_emptyOptions_returnsNegativeOne() {
         assertEquals(
                 -1, BraveAutofillServiceImpl.matchListOption(new CharSequence[0], "California"));
     }
 
     @Test
-    @SmallTest
     public void matchListOption_singleCharValue_skipsPass2() {
         // Single character value should not match via prefix (pass 2 requires length >= 2).
         CharSequence[] options = {"Cat", "Car", "Cap"};
@@ -191,7 +174,6 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void matchListOption_nullOptionElement_skipped() {
         // Null elements in the options array should be safely skipped without NPE.
         CharSequence[] options = {null, "California", "Texas"};
@@ -199,7 +181,6 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void matchListOption_exactMatchPreferredOverPrefix() {
         // "CA" should match index 0 (exact) not index 1 (prefix).
         CharSequence[] options = {"CA", "California"};
@@ -207,12 +188,54 @@ public class BraveAutofillServiceImplUnitTest {
     }
 
     @Test
-    @SmallTest
     public void matchListOption_singleCharOption_skipsPass3() {
         // Pass 3 requires option length >= 2, so "C" is skipped.
         CharSequence[] options = {"C", "CALIF"};
         // "California" does not exact-match either, does not prefix-match either,
         // but starts with "CALIF" (pass 3).
         assertEquals(1, BraveAutofillServiceImpl.matchListOption(options, "California"));
+    }
+
+    // --- pickRequiredSaveField ---
+
+    private static Map<String, AutofillId> mapWithKeys(String... keys) {
+        Map<String, AutofillId> map = new HashMap<>();
+        for (int i = 0; i < keys.length; i++) {
+            map.put(keys[i], new AutofillId(i + 1));
+        }
+        return map;
+    }
+
+    @Test
+    public void pickRequiredSaveField_noAddressComponent_returnsNull() {
+        // The system prompt reads "Save address to Brave?" and Android shows it when the
+        // activity finishes, so a form with no address component must not arm it at all.
+        assertNull(
+                BraveAutofillServiceImpl.pickRequiredSaveField(
+                        mapWithKeys(
+                                View.AUTOFILL_HINT_NAME,
+                                View.AUTOFILL_HINT_EMAIL_ADDRESS,
+                                View.AUTOFILL_HINT_PHONE)));
+    }
+
+    @Test
+    public void pickRequiredSaveField_prefersStreetAddress() {
+        Map<String, AutofillId> fields =
+                mapWithKeys(
+                        View.AUTOFILL_HINT_POSTAL_ADDRESS,
+                        View.AUTOFILL_HINT_POSTAL_CODE,
+                        View.AUTOFILL_HINT_NAME);
+        assertSame(
+                fields.get(View.AUTOFILL_HINT_POSTAL_ADDRESS),
+                BraveAutofillServiceImpl.pickRequiredSaveField(fields));
+    }
+
+    @Test
+    public void pickRequiredSaveField_postalCodeOnly_returnsPostalCode() {
+        Map<String, AutofillId> fields =
+                mapWithKeys(View.AUTOFILL_HINT_POSTAL_CODE, View.AUTOFILL_HINT_NAME);
+        assertSame(
+                fields.get(View.AUTOFILL_HINT_POSTAL_CODE),
+                BraveAutofillServiceImpl.pickRequiredSaveField(fields));
     }
 }

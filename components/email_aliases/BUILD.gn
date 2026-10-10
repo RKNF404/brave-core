@@ -91,13 +91,7 @@ source_set("test_utils") {
   ]
 
   deps = [
-    ":email_aliases_api_types",
     ":service",
-    "//base/test:test_support",
-    "//brave/components/brave_account/endpoint_client",
-    "//brave/components/email_aliases:mojom",
-    "//mojo/public/cpp/bindings",
-    "//testing/gtest",
     "//url",
   ]
 }
@@ -118,6 +112,7 @@ source_set("unit_tests") {
     "//brave/components/brave_account",
     "//brave/components/brave_account:features",
     "//brave/components/brave_account:test_support",
+    "//brave/components/brave_account/mojom",
     "//brave/components/constants",
     "//brave/components/resources:strings_grit",
     "//components/os_crypt/async/browser:test_support",

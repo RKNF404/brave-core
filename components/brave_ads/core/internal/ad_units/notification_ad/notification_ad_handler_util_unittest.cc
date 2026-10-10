@@ -9,7 +9,7 @@
 #include "brave/components/brave_ads/core/internal/common/test/test_base.h"
 #include "brave/components/brave_ads/core/internal/settings/test/settings_test_util.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -35,9 +35,9 @@ TEST_F(BraveAdsNotificationAdUtilTest, ShouldServe) {
 }
 
 TEST_F(BraveAdsNotificationAdUtilTest,
-       ShouldNotServeIfOptedOutOfNotificationAds) {
+       ShouldNotServeIfNotificationAdsAreDisabled) {
   // Arrange
-  test::OptOutOfNotificationAds();
+  test::DisableNotificationAds();
 
   // Act & Assert
   EXPECT_FALSE(ShouldServe());

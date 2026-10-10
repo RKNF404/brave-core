@@ -19,18 +19,6 @@ import SwiftUI
 import UIKit
 import Web
 
-/// The behavior for sizing sections when the user is in landscape orientation
-enum NTPLandscapeSizingBehavior {
-  /// The section is given half the available space
-  ///
-  /// Layout is decided by device type (iPad vs iPhone)
-  case halfWidth
-  /// The section is given the full available space
-  ///
-  /// Layout is up to the section to define
-  case fullWidth
-}
-
 /// A section that will be shown in the NTP. Sections are responsible for the
 /// layout and interaction of their own items
 protocol NTPSectionProvider: NSObject, UICollectionViewDelegateFlowLayout,
@@ -39,15 +27,9 @@ protocol NTPSectionProvider: NSObject, UICollectionViewDelegateFlowLayout,
   /// Register cells and supplimentary views for your section to
   /// `collectionView`
   func registerCells(to collectionView: UICollectionView)
-  /// The defined behavior when the user is in landscape.
-  ///
-  /// Defaults to `halfWidth`, which will only give half of the available
-  /// width to the section (and adjust layout automatically based on device)
-  var landscapeBehavior: NTPLandscapeSizingBehavior { get }
 }
 
 extension NTPSectionProvider {
-  var landscapeBehavior: NTPLandscapeSizingBehavior { .halfWidth }
   /// The bounding size for auto-sizing cells, bound to the maximum available
   /// width in the collection view, taking into account safe area insets and
   /// insets for that given section
@@ -76,6 +58,44 @@ extension NTPSectionProvider {
       height: 1000
     )
   }
+
+  /// Horizontal section insets that constrain content to a maximum width,
+  /// centering it within the available space. When vertical space is limited
+  /// (iPhone landscape, or any device below `compactHeightThreshold`) the
+  /// content is instead pinned to the trailing half of the collection view so
+  /// the leading side stays clear for the sponsored image logo button.
+  ///
+  /// `minimumInset` is the smallest allowed horizontal inset (e.g. 16pt).
+  func horizontalInsets(
+    for collectionView: UICollectionView,
+    maxWidth: CGFloat,
+    minimumInset: CGFloat
+  ) -> (left: CGFloat, right: CGFloat) {
+    /// The available height below which content is pinned to the trailing half
+    /// so the sponsored image logo button remains tappable.
+    let compactHeightThreshold: CGFloat = 500
+    let compactWidthThreshold: CGFloat = 580
+    let availableWidth =
+      collectionView.bounds.width - collectionView.safeAreaInsets.left
+      - collectionView.safeAreaInsets.right
+    let availableHeight =
+      collectionView.bounds.height - collectionView.safeAreaInsets.top
+      - collectionView.safeAreaInsets.bottom
+    let isLandscape = collectionView.bounds.width > collectionView.bounds.height
+    let isCompactHeight = availableHeight < compactHeightThreshold
+    let isCompactWidth = availableWidth < compactWidthThreshold
+    if (UIDevice.isPhone && isLandscape) || (isCompactHeight && !isCompactWidth) {
+      // Pin the content to the trailing half of the collection view, centering
+      // it within that half (capped at `maxWidth`).
+      let halfWidth = availableWidth / 2.0
+      let contentWidth = min(halfWidth - minimumInset * 2, maxWidth)
+      let gap = max(minimumInset, (halfWidth - contentWidth) / 2)
+      return (left: halfWidth + gap, right: gap)
+    }
+    let contentWidth = min(availableWidth - minimumInset * 2, maxWidth)
+    let inset = max(minimumInset, (availableWidth - contentWidth) / 2)
+    return (inset, inset)
+  }
 }
 
 /// A section provider that can be observed for changes to tell the
@@ -87,11 +107,11 @@ protocol NTPObservableSectionProvider: NTPSectionProvider {
 protocol NewTabPageDelegate: AnyObject {
   func focusURLBar()
   func navigateToInput(_ input: String, inNewTab: Bool, switchingToPrivateMode: Bool)
-  func handleFavoriteAction(favorite: Favorite, action: BookmarksAction)
+  func handleTopSiteAction(action: TopSiteAction)
   func brandedImageCalloutActioned(_ state: BrandedImageCalloutState)
   func showNTPOnboarding()
   func showNewTabTakeoverInfoBarIfNeeded()
-  func isURLBarInOverlayMode() -> Bool
+  func isNewTabPageOccluded() -> Bool
 }
 
 /// The new tab page. Shows users a variety of information, including stats and
@@ -104,9 +124,7 @@ class NewTabPageViewController: UIViewController {
       return nil
     }
 
-    if let cell = collectionView.cellForItem(at: IndexPath(item: 0, section: section))
-      as? NewTabCenteredCollectionViewCell<BraveShieldStatsView>
-    {
+    if let cell = collectionView.cellForItem(at: IndexPath(item: 0, section: section)) {
       return cell.contentView.convert(cell.contentView.frame, to: view)
     }
     return nil
@@ -123,8 +141,6 @@ class NewTabPageViewController: UIViewController {
   private var background: NewTabPageBackground
   private let backgroundView = NewTabPageBackgroundView()
   private let backgroundButtonsView: NewTabPageBackgroundButtonsView
-  private var videoAdPlayer: NewTabPageVideoAdPlayer?
-  private var videoButtonsView = NewTabPageVideoAdButtonsView()
 
   // Track the ID of the last viewed sponsored background to prevent duplicate
   // viewed impressions.
@@ -148,7 +164,6 @@ class NewTabPageViewController: UIViewController {
   private let feedDataSource: FeedDataSource
   private let feedOverlayView = NewTabPageFeedOverlayView()
   private var preventReloadOnBraveNewsEnabledChange = false
-  private var didAttemptBackgroundVideoAutoplay = false
 
   private let notifications: NewTabPageNotifications
   private var cancellables: Set<AnyCancellable> = []
@@ -159,6 +174,7 @@ class NewTabPageViewController: UIViewController {
   init(
     tab: some TabState,
     profilePrefs: any PrefService,
+    mostVisitedSites: MostVisitedSites?,
     dataSource: NTPDataSource,
     feedDataSource: FeedDataSource,
     rewards: BraveRewards,
@@ -173,14 +189,18 @@ class NewTabPageViewController: UIViewController {
       privateBrowsingManager: privateBrowsingManager,
       profilePrefs: profilePrefs
     )
-    background = NewTabPageBackground(dataSource: dataSource, rewards: rewards)
+    background = NewTabPageBackground(dataSource: dataSource, prefs: profilePrefs)
     notifications = NewTabPageNotifications(rewards: rewards)
     collectionView = NewTabCollectionView(frame: .zero, collectionViewLayout: layout)
     super.init(nibName: nil, bundle: nil)
 
     Preferences.NewTabPage.showNewTabPrivacyHub.observe(from: self)
-    Preferences.NewTabPage.showNewTabFavourites.observe(from: self)
+    Preferences.NewTabPage.topSitesMode.observe(from: self)
 
+    let topSitesTileSource = TopSitesTileSource(
+      mostVisitedSites: mostVisitedSites,
+      isPrivateBrowsing: privateBrowsingManager.isPrivateBrowsing
+    )
     sections = [
       StatsSectionProvider(
         isPrivateBrowsing: tab.isPrivate,
@@ -223,18 +243,19 @@ class NewTabPageViewController: UIViewController {
           self?.hidePrivacyHub()
         }
       ),
-      FavoritesSectionProvider(
-        action: { [weak self] bookmark, action in
-          self?.handleFavoriteAction(favorite: bookmark, action: action)
+      TopSitesSectionProvider(
+        action: { [weak self] action in
+          self?.handleTopSiteAction(action: action)
         },
-        legacyLongPressAction: { [weak self] alertController in
-          self?.present(alertController, animated: true)
-        },
-        isPrivateBrowsing: privateBrowsingManager.isPrivateBrowsing
+        isPrivateBrowsing: privateBrowsingManager.isPrivateBrowsing,
+        tileSource: topSitesTileSource
       ),
-      FavoritesOverflowSectionProvider(action: { [weak self] in
-        self?.delegate?.focusURLBar()
-      }),
+      TopSitesOverflowSectionProvider(
+        action: { [weak self] in
+          self?.delegate?.focusURLBar()
+        },
+        tileSource: topSitesTileSource
+      ),
     ]
 
     var isBackgroundNTPSI = false
@@ -275,14 +296,10 @@ class NewTabPageViewController: UIViewController {
       setupBackgroundImage()
 
       let isTabVisible = viewIfLoaded?.window != nil
-      setupBackgroundVideoIfNeeded(shouldCreatePlayer: isTabVisible)
       if isTabVisible {
         // `viewDidAppear` is not called when the view is already visible, so
-        // report the viewed impression event and load the video asset here
-        // if needed.
+        // report the viewed impression event here if needed.
         reportSponsoredBackgroundViewedEventIfNeeded()
-
-        loadAndAutoplayBackgroundVideoAdIfNeeded()
       }
     }
 
@@ -325,7 +342,6 @@ class NewTabPageViewController: UIViewController {
 
     view.addSubview(backgroundView)
     view.insertSubview(gradientView, aboveSubview: backgroundView)
-    view.addSubview(videoButtonsView)
     view.addSubview(collectionView)
     view.addSubview(feedOverlayView)
 
@@ -356,11 +372,7 @@ class NewTabPageViewController: UIViewController {
     }
 
     setupBackgroundImage()
-    setupBackgroundVideoIfNeeded(shouldCreatePlayer: true)
     backgroundView.snp.makeConstraints {
-      $0.edges.equalToSuperview()
-    }
-    videoButtonsView.snp.makeConstraints {
       $0.edges.equalToSuperview()
     }
     collectionView.snp.makeConstraints {
@@ -392,33 +404,66 @@ class NewTabPageViewController: UIViewController {
         }
       }
     }
+
+    registerForTraitChanges([UITraitVerticalSizeClass.self]) { (self: Self, _) in
+      self.calculateBackgroundCenterPoints()
+    }
+    registerForTraitChanges([UITraitHorizontalSizeClass.self]) { (self: Self, _) in
+      self.collectionView.reloadData()
+    }
   }
 
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
+    collectionView.reloadData()
     checkForUpdatedFeed()
   }
 
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
 
-    collectionView.reloadData()
+    collectionView.collectionViewLayout.invalidateLayout()
 
     // Make sure that imageView has a frame calculated before we attempt
     // to use it.
     backgroundView.layoutIfNeeded()
 
-    updateVideoAdPlayer()
-
     calculateBackgroundCenterPoints()
+  }
+
+  override func viewWillTransition(
+    to size: CGSize,
+    with coordinator: any UIViewControllerTransitionCoordinator
+  ) {
+    super.viewWillTransition(to: size, with: coordinator)
+    guard
+      let topSitesSection = sections.firstIndex(where: { $0 is TopSitesSectionProvider }),
+      let provider = sections[topSitesSection] as? TopSitesSectionProvider
+    else {
+      return
+    }
+    // Only reload the top sites section (and its overflow section) when the
+    // number of favorites/mostVisited actually displayed would change, otherwise favorites
+    // may wrap onto a second row. The available width isn't known until the
+    // collection view's bounds & insets update, so compute the new displayed
+    // count in the transition completion handler.
+    let currentCount = collectionView.numberOfItems(inSection: topSitesSection)
+    coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+      guard let self else { return }
+      let updatedCount = provider.displayedItemCount(
+        in: self.collectionView,
+        section: topSitesSection
+      )
+      if currentCount != updatedCount {
+        self.collectionView.reloadSections(IndexSet([topSitesSection, topSitesSection + 1]))
+      }
+    }
   }
 
   override func viewDidAppear(_ animated: Bool) {
     super.viewDidAppear(animated)
 
     reportSponsoredBackgroundViewedEventIfNeeded()
-
-    loadAndAutoplayBackgroundVideoAdIfNeeded()
 
     presentNotification()
 
@@ -438,24 +483,7 @@ class NewTabPageViewController: UIViewController {
 
     backgroundView.imageView.image = parent == nil ? nil : background.backgroundImage
 
-    if parent == nil {
-      videoAdPlayer?.cancelPlayIfNeeded()
-      videoAdPlayer?.resetPlayer()
-    } else {
-      videoAdPlayer?.createPlayer()
-      videoAdPlayer?.seekToStopFrame()
-    }
-    backgroundView.playerLayer.player = videoAdPlayer?.player
-
     lastViewedSponsoredBackgroundId = nil
-  }
-
-  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-    if previousTraitCollection?.verticalSizeClass
-      != traitCollection.verticalSizeClass
-    {
-      calculateBackgroundCenterPoints()
-    }
   }
 
   // MARK: - Background
@@ -477,139 +505,6 @@ class NewTabPageViewController: UIViewController {
         // visible
         break
       }
-    }
-  }
-
-  private func fadeOutCollectionViewAndShowVideoButtons() {
-    self.videoButtonsView.isHidden = false
-    self.gradientView.isHidden = true
-
-    UIView.animate(
-      withDuration: 0.3,
-      animations: { [weak self] in
-        self?.collectionView.alpha = 0
-      },
-      completion: { [weak self] _ in
-        self?.collectionView.isHidden = true
-        self?.collectionView.alpha = 1
-      }
-    )
-  }
-
-  private func fadeInCollectionViewAndHideVideoButtons() {
-    videoButtonsView.isHidden = true
-    gradientView.isHidden = false
-    collectionView.isHidden = false
-    collectionView.alpha = 0
-    UIView.animate(
-      withDuration: 0.3,
-      animations: { [weak self] in
-        self?.collectionView.alpha = 1
-        self?.videoAdPlayer?.seekToStopFrame()
-      }
-    )
-  }
-
-  func setupBackgroundVideoIfNeeded(shouldCreatePlayer: Bool) {
-    videoButtonsView.isHidden = true
-
-    guard let backgroundVideoPath = background.backgroundVideoPath else {
-      videoAdPlayer = nil
-      backgroundView.resetPlayerLayer()
-      backgroundButtonsView.resetVideoBackgroundButtons()
-      return
-    }
-
-    gradientView.isHidden = false
-    videoAdPlayer = NewTabPageVideoAdPlayer(backgroundVideoPath)
-    if shouldCreatePlayer {
-      videoAdPlayer?.createPlayer()
-    }
-
-    backgroundView.setupPlayerLayer(backgroundVideoPath, player: videoAdPlayer?.player)
-
-    videoButtonsView.tappedBackgroundVideo = { [weak videoAdPlayer] in
-      guard let videoAdPlayer else {
-        return false
-      }
-      return videoAdPlayer.togglePlay()
-    }
-    videoButtonsView.tappedCancelButton = { [weak videoAdPlayer] in
-      videoAdPlayer?.cancelPlayIfNeeded()
-    }
-
-    backgroundButtonsView.activeButton = .none
-    backgroundButtonsView.tappedPlayButton = { [weak self] in
-      self?.videoAdPlayer?.startPlayback()
-    }
-    backgroundButtonsView.tappedBackgroundDuringAutoplay = { [weak self] in
-      self?.videoAdPlayer?.startPlayback()
-    }
-
-    videoAdPlayer?.didCancelPlaybackEvent = { [weak self] in
-      guard let self = self else { return }
-      self.fadeInCollectionViewAndHideVideoButtons()
-    }
-    videoAdPlayer?.didStartAutoplayEvent = { [weak self] in
-      self?.backgroundButtonsView.videoAutoplayStarted()
-    }
-    videoAdPlayer?.didFinishAutoplayEvent = { [weak self] in
-      guard let self = self else { return }
-      self.backgroundButtonsView.videoAutoplayFinished()
-      if case .sponsoredMedia(let background, _) = self.background.currentBackground {
-        self.backgroundButtonsView.activeButton = .brandLogo(background.logo)
-      }
-      self.backgroundButtonsView.alpha = 0
-      UIView.animate(
-        withDuration: 0.3,
-        animations: { [weak self] in
-          self?.backgroundButtonsView.alpha = 1
-        }
-      )
-    }
-    videoAdPlayer?.didFinishPlaybackEvent = { [weak self] in
-      guard let self = self else { return }
-      self.fadeInCollectionViewAndHideVideoButtons()
-      self.reportSponsoredBackgroundEvent(.media100)
-    }
-    videoAdPlayer?.didStartPlaybackEvent = { [weak self] in
-      guard let self = self else { return }
-      self.fadeOutCollectionViewAndShowVideoButtons()
-      self.reportSponsoredBackgroundEvent(.mediaPlay)
-    }
-    videoAdPlayer?.didPlay25PercentEvent = { [weak self] in
-      self?.reportSponsoredBackgroundEvent(.media25)
-    }
-  }
-
-  private func loadAndAutoplayBackgroundVideoAdIfNeeded() {
-    guard background.currentBackground != nil else { return }
-    let shouldAutoplay =
-      shouldShowBackgroundVideo()
-      && delegate?.isURLBarInOverlayMode() != true
-      && !didAttemptBackgroundVideoAutoplay
-    videoAdPlayer?.loadAndAutoplayVideoAssetIfNeeded(
-      shouldAutoplay: shouldAutoplay
-    )
-    // Autoplay is only attempted once per tab open to avoid background changes
-    // triggering autoplay when the tab is already in use.
-    didAttemptBackgroundVideoAutoplay = true
-  }
-
-  private func shouldShowBackgroundVideo() -> Bool {
-    let isLandscape = view.window?.windowScene?.interfaceOrientation.isLandscape == true
-    return !(isLandscape && UIDevice.isPhone)
-  }
-
-  private func updateVideoAdPlayer() {
-    backgroundView.playerLayer.frame = view.bounds
-
-    if shouldShowBackgroundVideo() {
-      backgroundView.playerLayer.isHidden = false
-    } else {
-      // Hide the player layer in landscape mode on iPhone.
-      backgroundView.playerLayer.isHidden = true
-      videoAdPlayer?.cancelPlayIfNeeded()
     }
   }
 
@@ -686,7 +581,7 @@ class NewTabPageViewController: UIViewController {
   private func reportSponsoredBackgroundViewedEventIfNeeded() {
     // Only record a sponsored background viewed impression when the NTP
     // background is not covered by the URL bar overlay.
-    if delegate?.isURLBarInOverlayMode() == true {
+    if delegate?.isNewTabPageOccluded() == true {
       return
     }
 
@@ -695,10 +590,10 @@ class NewTabPageViewController: UIViewController {
     }
 
     // Ensure we only record a viewed impression once per placement id.
-    if lastViewedSponsoredBackgroundId == newTabPageAd.placementID {
+    if lastViewedSponsoredBackgroundId == newTabPageAd.placementId {
       return
     }
-    lastViewedSponsoredBackgroundId = newTabPageAd.placementID
+    lastViewedSponsoredBackgroundId = newTabPageAd.placementId
 
     delegate?.showNewTabTakeoverInfoBarIfNeeded()
     reportSponsoredBackgroundEvent(.viewedImpression)
@@ -712,7 +607,7 @@ class NewTabPageViewController: UIViewController {
       case .sponsoredMedia(let sponsoredBackground, let newTabPageAd) = background.currentBackground
     {
       rewards.ads.triggerNewTabPageAdEvent(
-        newTabPageAd.placementID,
+        newTabPageAd.placementId,
         creativeInstanceId: sponsoredBackground.creativeInstanceId,
         metricType: sponsoredBackground.metricType,
         eventType: event,
@@ -808,8 +703,11 @@ class NewTabPageViewController: UIViewController {
         collectionView.deleteItems(at: [IndexPath(item: 0, section: section)])
       }
 
-      // scroll to offset .zero to preserve padding above section
-      collectionView.setContentOffset(.zero, animated: true)
+      // scroll to the top to preserve padding above section
+      collectionView.setContentOffset(
+        .init(x: 0, y: -collectionView.adjustedContentInset.top),
+        animated: true
+      )
       backgroundButtonsView.setNeedsLayout()
       collectionView.verticalScrollIndicatorInsets = .zero
       UIView.animate(withDuration: 0.25) {
@@ -922,7 +820,7 @@ class NewTabPageViewController: UIViewController {
           self.feedOverlayView.loaderView.isHidden = true
         }
       )
-      if collectionView.contentOffset.y == collectionView.contentInset.top {
+      if collectionView.contentOffset.y == -collectionView.adjustedContentInset.top {
         collectionView.reloadData()
         collectionView.layoutIfNeeded()
         let cells = collectionView.indexPathsForVisibleItems
@@ -969,7 +867,7 @@ class NewTabPageViewController: UIViewController {
         _completeLoading()
       }
     case (_, .loading):
-      if collectionView.contentOffset.y == collectionView.contentInset.top
+      if collectionView.contentOffset.y == -collectionView.adjustedContentInset.top
         || collectionView.numberOfItems(inSection: section) == 0
       {
         feedOverlayView.loaderView.isHidden = false
@@ -989,7 +887,7 @@ class NewTabPageViewController: UIViewController {
 
   @objc private func checkForUpdatedFeed() {
     if !isBraveNewsVisible || Preferences.BraveNews.isShowingOptIn.value { return }
-    if collectionView.contentOffset.y == collectionView.contentInset.top {
+    if collectionView.contentOffset.y == -collectionView.adjustedContentInset.top {
       // Reload contents if the user is not currently scrolled into the feed
       loadFeedContents()
     } else {
@@ -1045,15 +943,13 @@ class NewTabPageViewController: UIViewController {
     if case .loading = feedDataSource.state {
       return
     }
-    let todayStart =
-      collectionView.frame.height - feedOverlayView.headerView.bounds.height - 32 - 16
     newContentAvailableDismissTimer = nil
     feedOverlayView.newContentAvailableButton.isLoading = true
     loadFeedContents { [weak self] in
       guard let self = self else { return }
       self.feedOverlayView.hideNewContentAvailableButton()
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-        self.collectionView.setContentOffset(CGPoint(x: 0, y: todayStart), animated: true)
+        self.scrollToBraveNews()
       }
     }
   }
@@ -1094,15 +990,38 @@ class NewTabPageViewController: UIViewController {
 
   private func tappedSponsorButton(_ logo: NTPSponsoredImageLogo) {
     UIImpactFeedbackGenerator(style: .medium).vibrate()
-    if let url = logo.destinationURL {
-      delegate?.navigateToInput(url.absoluteString, inNewTab: false, switchingToPrivateMode: false)
+    reportSponsoredBackgroundEvent(.clicked)
+
+    guard let url = logo.destinationURL else { return }
+    if url.scheme != "https"
+      || !Preferences.General.followUniversalLinks.value
+      || (Preferences.General.keepYouTubeInBrave.value && url.isYouTubeURL)
+    {
+      delegate?.navigateToInput(
+        url.absoluteString,
+        inNewTab: false,
+        switchingToPrivateMode: false
+      )
+      return
     }
 
-    reportSponsoredBackgroundEvent(.clicked)
+    // Try to open the destination URL as a universal link in case there is
+    // an installed app configured to open it. Fall back to loading the URL
+    // in the browser if no app opened it.
+    UIApplication.shared.open(url, options: [.universalLinksOnly: true]) {
+      [weak self] didOpen in
+      if !didOpen {
+        self?.delegate?.navigateToInput(
+          url.absoluteString,
+          inNewTab: false,
+          switchingToPrivateMode: false
+        )
+      }
+    }
   }
 
-  private func handleFavoriteAction(favorite: Favorite, action: BookmarksAction) {
-    delegate?.handleFavoriteAction(favorite: favorite, action: action)
+  private func handleTopSiteAction(action: TopSiteAction) {
+    delegate?.handleTopSiteAction(action: action)
   }
 
   private func presentImageCredit(_ button: UIControl) {
@@ -1153,7 +1072,7 @@ class NewTabPageViewController: UIViewController {
 extension NewTabPageViewController: PreferencesObserver {
   func preferencesDidChange(for key: String) {
     if key == Preferences.NewTabPage.showNewTabPrivacyHub.key
-      || key == Preferences.NewTabPage.showNewTabFavourites.key
+      || key == Preferences.NewTabPage.topSitesMode.key
     {
       collectionView.reloadData()
       return
@@ -1186,14 +1105,20 @@ extension NewTabPageViewController {
     if collectionView.numberOfItems(inSection: newsSection) > 0 {
       // Hide the buttons as Brave News feeds appear
       backgroundButtonsView.alpha =
-        1.0 - max(0.0, min(1.0, (scrollView.contentOffset.y - scrollView.contentInset.top) / 16))
+        1.0
+        - max(
+          0.0,
+          min(1.0, (scrollView.contentOffset.y + scrollView.adjustedContentInset.top) / 16)
+        )
       // Show the header as Brave News feeds appear
       // Offset of where Brave News starts
-      let todayStart =
-        collectionView.frame.height - feedOverlayView.headerView.bounds.height - 32 - 16
+      let braveNewsStart =
+        layout.layoutAttributesForItem(at: IndexPath(item: 0, section: newsSection))?.frame.minY
+        ?? collectionView.frame.height
+      let todayStart = braveNewsStart - scrollView.adjustedContentInset.top
       // Offset of where the header should begin becoming visible
-      let alphaInStart = collectionView.frame.height / 2.0
-      let value = scrollView.contentOffset.y
+      let alphaInStart = todayStart / 2.0
+      let value = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
       let alpha = max(0.0, min(1.0, (value - alphaInStart) / (todayStart - alphaInStart)))
       feedOverlayView.headerView.alpha = alpha
 
@@ -1201,7 +1126,7 @@ extension NewTabPageViewController {
         && !feedOverlayView.newContentAvailableButton.isLoading
       {
         let velocity = scrollView.panGestureRecognizer.velocity(in: scrollView).y
-        if velocity > 0 && collectionView.contentOffset.y < todayStart {
+        if velocity > 0 && value < todayStart {
           // Scrolling up
           self.feedOverlayView.hideNewContentAvailableButton()
         } else if velocity < 0 {
@@ -1223,7 +1148,7 @@ extension NewTabPageViewController {
         }
       }
 
-      if scrollView.contentOffset.y >= todayStart {
+      if value >= todayStart {
         recordBraveNewsUsageP3A()
       }
     }
@@ -1235,9 +1160,15 @@ extension NewTabPageViewController {
       return
     }
     // Offset of where Brave News starts
-    let todayStart =
-      collectionView.frame.height - feedOverlayView.headerView.bounds.height - 32 - 16
-    collectionView.contentOffset.y = todayStart
+    guard let section = layout.braveNewsSection,
+      collectionView.numberOfItems(inSection: section) != 0,
+      let item = layout.layoutAttributesForItem(at: IndexPath(item: 0, section: section))
+    else {
+      return
+    }
+    // FIXME: Use size of header + padding
+    collectionView.contentOffset.y =
+      item.frame.minY - collectionView.adjustedContentInset.top - 56
   }
 
   // MARK: - P3A
@@ -1392,28 +1323,11 @@ extension NewTabPageViewController: UICollectionViewDelegateFlowLayout {
     layout collectionViewLayout: UICollectionViewLayout,
     insetForSectionAt section: Int
   ) -> UIEdgeInsets {
-    let sectionProvider = sections[section]
-    var inset =
-      sectionProvider.collectionView?(
-        collectionView,
-        layout: collectionViewLayout,
-        insetForSectionAt: section
-      ) ?? .zero
-    if sectionProvider.landscapeBehavior == .halfWidth {
-      let isIphone = UIDevice.isPhone
-      let isLandscape = view.frame.width > view.frame.height
-      if isLandscape {
-        let availableWidth =
-          collectionView.bounds.width - collectionView.safeAreaInsets.left
-          - collectionView.safeAreaInsets.right
-        if isIphone {
-          inset.left = availableWidth / 2.0
-        } else {
-          inset.right = availableWidth / 2.0
-        }
-      }
-    }
-    return inset
+    sections[section].collectionView?(
+      collectionView,
+      layout: collectionViewLayout,
+      insetForSectionAt: section
+    ) ?? .zero
   }
   func collectionView(
     _ collectionView: UICollectionView,
@@ -1506,37 +1420,36 @@ extension NewTabPageViewController: UICollectionViewDataSource {
   }
   func collectionView(
     _ collectionView: UICollectionView,
-    contextMenuConfigurationForItemAt indexPath: IndexPath,
+    contextMenuConfigurationForItemsAt indexPaths: [IndexPath],
     point: CGPoint
   ) -> UIContextMenuConfiguration? {
-    sections[indexPath.section].collectionView?(
+    guard let indexPath = indexPaths.first else { return nil }
+    return sections[indexPath.section].collectionView?(
       collectionView,
-      contextMenuConfigurationForItemAt: indexPath,
+      contextMenuConfigurationForItemsAt: indexPaths,
       point: point
     )
   }
   func collectionView(
     _ collectionView: UICollectionView,
-    previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
+    contextMenuConfiguration configuration: UIContextMenuConfiguration,
+    highlightPreviewForItemAt indexPath: IndexPath
   ) -> UITargetedPreview? {
-    guard let indexPath = configuration.identifier as? IndexPath else {
-      return nil
-    }
     return sections[indexPath.section].collectionView?(
       collectionView,
-      previewForHighlightingContextMenuWithConfiguration: configuration
+      contextMenuConfiguration: configuration,
+      highlightPreviewForItemAt: indexPath
     )
   }
   func collectionView(
     _ collectionView: UICollectionView,
-    previewForDismissingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
+    contextMenuConfiguration configuration: UIContextMenuConfiguration,
+    dismissalPreviewForItemAt indexPath: IndexPath
   ) -> UITargetedPreview? {
-    guard let indexPath = configuration.identifier as? IndexPath else {
-      return nil
-    }
     return sections[indexPath.section].collectionView?(
       collectionView,
-      previewForHighlightingContextMenuWithConfiguration: configuration
+      contextMenuConfiguration: configuration,
+      dismissalPreviewForItemAt: indexPath
     )
   }
   func collectionView(
@@ -1565,14 +1478,14 @@ extension NewTabPageViewController: UICollectionViewDragDelegate, UICollectionVi
     at indexPath: IndexPath
   ) -> [UIDragItem] {
     // Check If the item that is dragged is a favourite item
-    guard sections[indexPath.section] is FavoritesSectionProvider else {
+    guard sections[indexPath.section] is TopSitesSectionProvider else {
       return []
     }
 
     let itemProvider = NSItemProvider(object: "\(indexPath)" as NSString)
     let dragItem = UIDragItem(itemProvider: itemProvider).then {
       $0.previewProvider = { () -> UIDragPreview? in
-        guard let cell = collectionView.cellForItem(at: indexPath) as? FavoritesCell else {
+        guard let cell = collectionView.cellForItem(at: indexPath) as? TopSitesCell else {
           return nil
         }
         return UIDragPreview(view: cell.imageView)
@@ -1603,7 +1516,7 @@ extension NewTabPageViewController: UICollectionViewDragDelegate, UICollectionVi
       guard let item = coordinator.items.first else { return }
       _ = coordinator.drop(item.dragItem, toItemAt: destinationIndexPath)
 
-      guard let favouritesSection = sections.firstIndex(where: { $0 is FavoritesSectionProvider })
+      guard let favouritesSection = sections.firstIndex(where: { $0 is TopSitesSectionProvider })
       else {
         return
       }
@@ -1627,8 +1540,8 @@ extension NewTabPageViewController: UICollectionViewDragDelegate, UICollectionVi
     withDestinationIndexPath destinationIndexPath: IndexPath?
   ) -> UICollectionViewDropProposal {
     guard let destinationIndexSection = destinationIndexPath?.section,
-      let favouriteSection = sections[destinationIndexSection] as? FavoritesSectionProvider,
-      favouriteSection.hasMoreThanOneFavouriteItems
+      let topSitesSection = sections[destinationIndexSection] as? TopSitesSectionProvider,
+      topSitesSection.isReorderingEnabled
     else {
       return .init(operation: .cancel)
     }
@@ -1662,7 +1575,7 @@ extension NewTabPageViewController: UICollectionViewDragDelegate, UICollectionVi
     let previewParameters = UIDragPreviewParameters().then {
       $0.backgroundColor = .clear
 
-      if let cell = collectionView.cellForItem(at: indexPath) as? FavoritesCell {
+      if let cell = collectionView.cellForItem(at: indexPath) as? TopSitesCell {
         $0.visiblePath = UIBezierPath(roundedRect: cell.imageView.frame, cornerRadius: 8)
       }
     }
@@ -1701,7 +1614,7 @@ extension NewTabPageViewController {
 
 // MARK: - URL bar overlay
 extension NewTabPageViewController {
-  func urlBarDidLeaveOverlayMode() {
+  func searchContainerDidDismiss() {
     reportSponsoredBackgroundViewedEventIfNeeded()
   }
 }

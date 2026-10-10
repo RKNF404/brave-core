@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/overlay/playback_image_button.cc b/chrome/browser/ui/views/overlay/playback_image_button.cc
-index 1c95b8d6b35db2e197aa4db433bc879daa4f5ff1..6319d70d8cf5866213e9bb39137d753d56afc86f 100644
+index f18618340f55fd81d4897170cf00d4b470052b10..8e124f58c6a68eeacb53749a2ffe3441b0bb09b7 100644
 --- a/chrome/browser/ui/views/overlay/playback_image_button.cc
 +++ b/chrome/browser/ui/views/overlay/playback_image_button.cc
-@@ -38,15 +38,15 @@ PlaybackImageButton::PlaybackImageButton(PressedCallback callback)
+@@ -34,15 +34,15 @@ PlaybackImageButton::PlaybackImageButton(PressedCallback callback)
    play_image_ = ui::ImageModel::FromVectorIcon(
        features::IsRoundedIconsEnabled()
            ? vector_icons::kPlayArrowFilledFlippableIcon

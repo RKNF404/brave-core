@@ -14,6 +14,7 @@
 #include "base/feature_list.h"
 #include "brave/browser/ai_chat/ai_chat_service_factory.h"
 #include "brave/browser/ai_chat/tab_tracker_service_factory.h"
+#include "brave/browser/ui/side_panel/ai_chat/ai_chat_full_page_link_observer.h"
 #include "brave/browser/ui/side_panel/ai_chat/ai_chat_side_panel_utils.h"
 #include "brave/browser/ui/webui/ai_chat/ai_chat_ui_page_handler.h"
 #include "brave/browser/ui/webui/brave_webui_source.h"
@@ -30,6 +31,7 @@
 #include "brave/components/ai_chat/core/common/pref_names.h"
 #include "brave/components/ai_chat/resources/grit/ai_chat_ui_generated_map.h"
 #include "brave/components/constants/webui_url_constants.h"
+#include "brave/components/version_info/version_info.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -49,8 +51,9 @@
 #include "ui/webui/webui_util.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #else
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
@@ -104,6 +107,15 @@ AIChatUI::AIChatUI(content::WebUI* web_ui)
   source->AddBoolean("isConversationShareEnabled",
                      base::FeatureList::IsEnabled(
                          ai_chat::features::kAIChatConversationShare));
+  source->AddBoolean(
+      "isAIChatExportJSONEnabled",
+      base::FeatureList::IsEnabled(ai_chat::features::kAIChatExportJSON));
+  // Brave client version, used to tag serialized conversations for sharing.
+  source->AddString("braveVersion",
+                    version_info::GetBraveVersionWithoutChromiumMajorVersion());
+  source->AddBoolean(
+      "isWorkspaceToolsEnabled",
+      base::FeatureList::IsEnabled(ai_chat::features::kAIChatWorkspaceTools));
 
   web_ui->AddRequestableScheme(content::kChromeUIUntrustedScheme);
   source->OverrideContentSecurityPolicy(
@@ -121,6 +133,13 @@ AIChatUI::AIChatUI(content::WebUI* web_ui)
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ChildSrc,
       absl::StrFormat("child-src %s;", kAIChatUntrustedConversationUIURL));
+  // Allow framing workspace pages in the lightbox for viewing workspace files.
+  // Workspaces live at chrome-untrusted://<uuid>.leo-workspace origins.
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::FrameSrc,
+      absl::StrFormat("frame-src %s chrome-untrusted://*.%s;",
+                      kAIChatUntrustedConversationUIURL,
+                      ai_chat::kAIChatLeoWorkspaceUIHost));
 
   content::URLDataSource::Add(
       profile_, std::make_unique<FaviconSource>(
@@ -129,6 +148,16 @@ AIChatUI::AIChatUI(content::WebUI* web_ui)
   content::URLDataSource::Add(profile_,
                               std::make_unique<ThemeSource>(profile_));
 #endif
+
+  // Links in a conversation are plain anchors, so the browser opens them
+  // without going through any AI Chat handler. Watch for that so a full-page
+  // conversation can move into the side panel and let the link take its place.
+  if (base::FeatureList::IsEnabled(
+          ai_chat::features::kAIChatMoveFullPageToSidePanel)) {
+    full_page_link_observer_ =
+        std::make_unique<ai_chat::AIChatFullPageLinkObserver>(
+            web_ui->GetWebContents());
+  }
 }
 
 AIChatUI::~AIChatUI() = default;
@@ -144,10 +173,10 @@ void AIChatUI::BindInterface(
   // Get the WebContents which SidePanel mode should be associated with
   content::WebContents* web_contents = nullptr;
 #if !BUILDFLAG(IS_ANDROID)
-  Browser* browser =
+  BrowserWindowInterface* browser =
       ai_chat::GetBrowserForWebContents(web_ui()->GetWebContents());
   if (browser) {
-    TabStripModel* tab_strip_model = browser->tab_strip_model();
+    TabStripModel* tab_strip_model = browser->GetTabStripModel();
     if (tab_strip_model) {
       // If this WebUI is a main tab, we never want to be associated with
       // the active tab

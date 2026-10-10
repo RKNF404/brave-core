@@ -7,12 +7,11 @@
 #define BRAVE_BROWSER_NET_BRAVE_PROXYING_URL_LOADER_FACTORY_H_
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
-#include <utility>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/unique_ptr_adapters.h"
@@ -22,7 +21,6 @@
 #include "base/memory/ref_counted_delete_on_sequence.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "brave/browser/net/resource_context_data.h"
 #include "brave/browser/net/url_context.h"
@@ -31,6 +29,7 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/net_errors.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/http_request_headers_update_params.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -40,6 +39,7 @@
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace content {
 class BrowserContext;
@@ -47,7 +47,12 @@ class RenderFrameHost;
 }  // namespace content
 
 // Cargoculted from WebRequestProxyingURLLoaderFactory and
-// signin::ProxyingURLLoaderFactory
+// signin::ProxyingURLLoaderFactory.
+//
+// NOTE: FollowRedirect()'s validation against an unsolicited/malformed call
+// (see `deferred_redirect_url_` and `RejectFollowRedirect()` below) is ported
+// from WebRequestProxyingURLLoaderFactory::InProgressRequest::FollowRedirect()
+// (crbug.com/497494634). Re-diff against it when rebasing.
 template <template <typename> class T>
 class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
  public:
@@ -75,6 +80,19 @@ class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
     ~InProgressRequest() override;
 
     void Restart();
+
+    // Records on the navigation's NavigationHandle (if this request belongs to
+    // one) that its next redirect was authorized by us, so the eventual
+    // navigation loader doesn't reject it as unsafe.
+    void AuthorizeBypassRedirectChecks();
+
+    // True when the redirect we are about to forward was already authorized on
+    // the navigation's NavigationHandle by an inner proxy, i.e. the WebRequest
+    // proxy synthesizing an extension or DNR redirect. Those redirects are
+    // trusted and must not be re-checked here, as the authorization is
+    // consumed further up by the navigation loader.
+    bool IsBypassRedirectChecksAuthorized() const;
+
     // Called when ThrottlingURLLoader disconnects our proxied_loader_receiver_.
     // For redirect-restart disconnects (kFollowRedirectReason), we forward the
     // same disconnect reason to target_loader_ so that any inner proxy layer
@@ -127,12 +145,20 @@ class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
     void OnRequestError(const network::URLLoaderCompletionStatus& status);
     void HandleBeforeRequestRedirect();
 
+    // Terminates a request whose client violated the URLLoader contract for
+    // FollowRedirect(), and reports `reason` as a bad message if the client is
+    // a renderer process. Deletes `this`.
+    void RejectFollowRedirect(
+        std::string_view reason,
+        net::Error error_code = net::ERR_INVALID_ARGUMENT);
+
     base::ElapsedTimer elapsed_timer_;
 
     std::unique_ptr<brave::BraveRequestInfo> ctx_owned_;
     T<brave::BraveRequestInfo> ctx_;
     const raw_ref<BraveProxyingURLLoaderFactory> factory_;
     network::ResourceRequest request_;
+    const std::optional<url::Origin> original_initiator_;
     const uint64_t request_id_;
     const int32_t network_service_request_id_;
 
@@ -164,9 +190,15 @@ class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
     network::mojom::URLResponseHeadPtr current_response_head_;
     mojo::ScopedDataPipeConsumerHandle current_response_body_;
     scoped_refptr<net::HttpResponseHeaders> override_headers_;
+    // A redirect *requested by an extension/onHeadersReceived handler*, which
+    // this class then synthesizes. Not to be confused with
+    // `deferred_redirect_url_` below.
     GURL redirect_url_;
 
-    bool request_completed_ = false;
+    // The target of a redirect already forwarded to `target_client_` via
+    // OnReceiveRedirect(), but not yet followed. Must be set for a legitimate
+    // call to FollowRedirect(). See RejectFollowRedirect().
+    std::optional<GURL> deferred_redirect_url_;
 
     // This stores the parameters to FollowRedirect that came from
     // the client. That way we can combine it with any other changes that
@@ -197,6 +229,11 @@ class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
       content::BrowserContext* browser_context,
       content::GlobalRenderFrameHostToken render_frame_token,
       network::URLLoaderFactoryBuilder& factory_builder,
+      content::ContentBrowserClient::URLLoaderFactoryType
+          url_loader_factory_type,
+      const url::Origin& request_initiator,
+      const net::IsolationInfo& isolation_info,
+      std::optional<int64_t> navigation_id,
       scoped_refptr<RequestIDGenerator> request_id_generator,
       DisconnectCallback on_disconnect,
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner);
@@ -211,6 +248,11 @@ class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
       content::BrowserContext* browser_context,
       content::RenderFrameHost* render_frame_host,
       network::URLLoaderFactoryBuilder& factory_builder,
+      content::ContentBrowserClient::URLLoaderFactoryType
+          url_loader_factory_type,
+      const url::Origin& request_initiator,
+      const net::IsolationInfo& isolation_info,
+      std::optional<int64_t> navigation_id,
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner);
 
   // network::mojom::URLLoaderFactory:
@@ -238,6 +280,11 @@ class BraveProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
   const raw_ref<BraveRequestHandler<T>> request_handler_;
   raw_ptr<content::BrowserContext> browser_context_ = nullptr;
   const content::GlobalRenderFrameHostToken render_frame_token_;
+  const content::ContentBrowserClient::URLLoaderFactoryType
+      url_loader_factory_type_;
+  const url::Origin request_initiator_;
+  const net::IsolationInfo isolation_info_;
+  const std::optional<int64_t> navigation_id_;
 
   mojo::ReceiverSet<network::mojom::URLLoaderFactory> proxy_receivers_;
   mojo::Remote<network::mojom::URLLoaderFactory> target_factory_;

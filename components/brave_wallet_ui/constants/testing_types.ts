@@ -8,6 +8,7 @@ import { TokenBalancesRegistry } from '../common/slices/entities/token-balance.e
 import { BraveWallet, RewardsExternalWallet } from './types'
 
 export interface WalletApiDataOverrides {
+  isWalletCreated?: boolean
   selectedCoin?: BraveWallet.CoinType
   selectedAccountId?: BraveWallet.AccountId
   chainIdsForCoins?: Record<BraveWallet.CoinType, string>
@@ -19,9 +20,6 @@ export interface WalletApiDataOverrides {
   accountInfos?: BraveWallet.AccountInfo[]
   nativeBalanceRegistry?: NativeAssetBalanceRegistry
   tokenBalanceRegistry?: TokenBalancesRegistry
-  simulationOptInStatus?: BraveWallet.BlowfishOptInStatus
-  evmSimulationResponse?: BraveWallet.EVMSimulationResponse | null
-  svmSimulationResponse?: BraveWallet.SolanaSimulationResponse | null
   signSolTransactionsRequests?: BraveWallet.SignSolTransactionsRequest[]
   signCardanoTransactionRequests?: BraveWallet.SignCardanoTransactionRequest[]
 }

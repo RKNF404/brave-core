@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/modules/BUILD.gn b/third_party/blink/renderer/modules/BUILD.gn
-index 3955d4448f604402a153da7c0ed0fe1db81c21f9..8873358e6a339de75990a4cb7d728e3de25b6882 100644
+index 57908c79e9e445feb9eeb52f56d317505fa5db5a..29d89b0688343f5a0000d005daa679189ea0266f 100644
 --- a/third_party/blink/renderer/modules/BUILD.gn
 +++ b/third_party/blink/renderer/modules/BUILD.gn
-@@ -20,6 +20,7 @@ if (is_ios) {
+@@ -21,6 +21,7 @@ if (is_ios) {
  }
  
  visibility = [ "//third_party/blink/renderer/*" ]
@@ -10,7 +10,7 @@ index 3955d4448f604402a153da7c0ed0fe1db81c21f9..8873358e6a339de75990a4cb7d728e3d
  
  config("modules_implementation") {
    defines = [ "BLINK_MODULES_IMPLEMENTATION=1" ]
-@@ -166,6 +167,7 @@ component("modules") {
+@@ -169,6 +170,7 @@ component("modules") {
      "//third_party/blink/renderer/modules/worklet",
      "//third_party/blink/renderer/modules/xr",
    ]

@@ -6,6 +6,8 @@
 #ifndef BRAVE_COMPONENTS_BRAVE_REFERRALS_BROWSER_BRAVE_REFERRALS_SERVICE_H_
 #define BRAVE_COMPONENTS_BRAVE_REFERRALS_BROWSER_BRAVE_REFERRALS_SERVICE_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,9 +15,11 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 
@@ -25,6 +29,10 @@
 
 class PrefRegistrySimple;
 class PrefService;
+
+namespace net {
+class HttpResponseHeaders;
+}  // namespace net
 
 namespace network {
 namespace mojom {
@@ -76,6 +84,11 @@ class BraveReferralsService {
 
   static bool IsDefaultReferralCode(const std::string& code);
 
+  // Returns the interval to use for the periodic finalization checks timer for
+  // a randomized draw of `random_seconds`, clamped to a non-zero minimum so
+  // that the timer can never refire immediately and forever.
+  static base::TimeDelta GetFinalizationChecksInterval(uint64_t random_seconds);
+
  private:
   void GetFirstRunTime();
   void SetFirstRunTime(const base::Time& first_run_timestamp);
@@ -106,8 +119,15 @@ class BraveReferralsService {
 
 #if BUILDFLAG(IS_ANDROID)
   void InitAndroidReferrer();
-  void OnAndroidBraveReferrerReady();
+  void OnAndroidBraveReferrerReady(const std::string& gbraid);
+  // Reports the conversion on the first run after the one that captured the
+  // gbraid. The value is dropped either way, so this reports at most once.
+  void MaybeReportAndroidConversion();
+  std::string BuildConversionPayload(const std::string& gbraid) const;
+  void OnConversionLoadComplete(
+      scoped_refptr<net::HttpResponseHeaders> headers);
   android_brave_referrer::BraveReferrer android_brave_referrer_;
+  std::unique_ptr<network::SimpleURLLoader> conversion_loader_;
 #endif
 
   bool initialized_ = false;

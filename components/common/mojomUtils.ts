@@ -41,11 +41,23 @@ export function mojoTimeToJSDate(mojoTime: mojo.Time): Date {
   // conversion from microseconds to milliseconds.
   const windowsEpoch = Date.UTC(1601, 0, 1, 0, 0, 0, 0)
   const unixEpoch = Date.UTC(1970, 0, 1, 0, 0, 0, 0)
-  // |epochDeltaInMs| equals to base::Time::kTimeTToMicrosecondsOffset.
+  // |epochDeltaInMs| equals to base::Time::kMicrosecondsFromWindowsToUnixEpoch.
   const epochDeltaInMs = unixEpoch - windowsEpoch
   const timeInMs = Number(mojoTime.internalValue) / 1000
 
   return new Date(timeInMs - epochDeltaInMs)
+}
+
+/**
+ * Converts a JS time to a mojo time. Inverse of mojoTimeToJSDate().
+ */
+export function jsDateToMojoTime(date: Date): mojo.Time {
+  const epochDeltaInMs = Date.UTC(1970, 0, 1) - Date.UTC(1601, 0, 1)
+  // Convert to BigInt before scaling to microseconds: the result exceeds
+  // Number.MAX_SAFE_INTEGER.
+  return {
+    internalValue: BigInt(date.getTime() + epochDeltaInMs) * BigInt(1000),
+  }
 }
 
 /**

@@ -57,6 +57,7 @@ void AdsInitializer::MigrateClientStateCallback(mojom::WalletInfoPtr wallet,
                                                 ResultCallback callback,
                                                 bool success) {
   if (!success) {
+    BLOG(0, "Failed to migrate client state");
     return std::move(callback).Run(/*success=*/false);
   }
 
@@ -69,6 +70,7 @@ void AdsInitializer::LoadClientStateCallback(mojom::WalletInfoPtr wallet,
                                              ResultCallback callback,
                                              bool success) {
   if (!success) {
+    BLOG(0, "Failed to load client state");
     return std::move(callback).Run(/*success=*/false);
   }
 

@@ -12,6 +12,7 @@ import { useAppDispatch } from '../../../../common/hooks/use-redux'
 // utils
 import { getLocale } from '../../../../../common/locale'
 import { getWordIndicesToVerify } from '../../../../utils/ordinal-utils'
+import { splitRecoveryPhraseWords } from '../../../../utils/recovery-phrase-utils'
 import { useCompleteWalletBackupMutation } from '../../../../common/slices/api.slice'
 
 // selectors
@@ -27,7 +28,6 @@ import { WalletRoutes } from '../../../../constants/types'
 import { WalletPageActions } from '../../../actions'
 
 // components
-import Button from '@brave/leo/react/button'
 import {
   OnboardingContentLayout, //
 } from '../../onboarding/components/onboarding_content_layout/content_layout'
@@ -40,7 +40,7 @@ import {
 } from '../../onboarding/components/onboarding_content_layout/content_layout.style'
 import { Column, Row } from '../../../../components/shared/style'
 import { BackButton } from './verify_recovery_phrase.style'
-import { ContinueButton } from '../../onboarding/onboarding.style'
+import { ContinueButton, SkipButton } from '../../onboarding/onboarding.style'
 
 const numberOfVerificationSteps = 3
 
@@ -85,7 +85,10 @@ export const VerifyRecoveryPhrase = () => {
   const onContinue = () => {
     if (showError) setShowError(false)
     // check if the word matches
-    if (enteredPhrase === verificationWord) {
+    if (
+      enteredPhrase.trim().toLowerCase()
+      === (verificationWord || '').trim().toLowerCase()
+    ) {
       setEnteredPhrase('')
 
       if (currentStep === numberOfVerificationSteps - 1) {
@@ -107,7 +110,7 @@ export const VerifyRecoveryPhrase = () => {
 
   // memos
   const recoveryPhrase = React.useMemo(() => {
-    return (mnemonic || '').split(' ')
+    return splitRecoveryPhraseWords(mnemonic || '')
   }, [mnemonic])
 
   const verificationIndices = React.useMemo(
@@ -128,7 +131,9 @@ export const VerifyRecoveryPhrase = () => {
           justifyContent='center'
           alignItems='center'
         >
-          <Title>{getLocale('braveWalletVerifyRecoveryPhraseTitle')}</Title>
+          <Title>
+            {getLocale(S.BRAVE_WALLET_VERIFY_RECOVERY_PHRASE_TITLE)}
+          </Title>
           <VerificationProgress
             steps={numberOfVerificationSteps}
             currentStep={currentStep}
@@ -151,7 +156,7 @@ export const VerifyRecoveryPhrase = () => {
             : history.push(WalletRoutes.BackupRecoveryPhrase)
         }
       >
-        {getLocale('braveWalletVerifyRecoveryPhraseGoBack')}
+        {getLocale(S.BRAVE_WALLET_VERIFY_RECOVERY_PHRASE_GO_BACK)}
       </BackButton>
 
       <Column
@@ -162,14 +167,14 @@ export const VerifyRecoveryPhrase = () => {
           isDisabled={enteredPhrase === ''}
           onClick={onContinue}
         >
-          {getLocale('braveWalletButtonContinue')}
+          {getLocale(S.BRAVE_WALLET_BUTTON_CONTINUE)}
         </ContinueButton>
-        <Button
+        <SkipButton
           kind='plain-faint'
           onClick={onSkipBackup}
         >
-          {getLocale('braveWalletButtonSkip')}
-        </Button>
+          {getLocale(S.BRAVE_WALLET_BUTTON_SKIP)}
+        </SkipButton>
       </Column>
     </OnboardingContentLayout>
   )

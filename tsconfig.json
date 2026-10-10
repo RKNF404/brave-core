@@ -20,6 +20,11 @@
       "esnext",
     ],
     "resolveJsonModule": true,
+    // styled-components v6 (and other packages) ship an ESM `export default`.
+    // Allow synthetic default imports so `import styled from 'styled-components'`
+    // resolves to the real default type instead of `any`. This is type-check
+    // only; webpack handles the actual module interop at bundle time.
+    "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
@@ -76,9 +81,14 @@
         "../out/Release_arm64/gen/brave/ui/webui/resources/tsc/*",
         "../out/Debug_arm64/gen/brave/ui/webui/resources/tsc/*",
       ],
+      "$storybook/*": ["web/storybook/*"],
       "$web-common/*": ["components/common/*"],
+      "$wallet/*": ["components/brave_wallet_ui/*"],
     },
-    "typeRoots": ["./node_modules/@types", "./components/definitions"],
+    // Do not set typeRoots here: nested tsconfigs extend this file, and a
+    // relative typeRoots path is resolved against those configs (hiding
+    // @types/jest in the IDE). Webpack and Storybook keep typeRoots on their
+    // own configs because generated copies live under out/.../gen.
     // optional
     "forceConsistentCasingInFileNames": true,
     "noImplicitReturns": true,
@@ -86,4 +96,9 @@
     "noUnusedLocals": true,
   },
   "include": [],
+  "references": [
+    // Include the lit mangler tsconfig so `chromium_src/**/*.lit_mangler.ts`
+    // files can have working TypeScript intellisense.
+    { "path": "./tools/chromium_src/lit_mangler/tsconfig.json" },
+  ],
 }

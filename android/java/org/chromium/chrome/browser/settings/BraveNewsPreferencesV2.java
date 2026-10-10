@@ -7,23 +7,13 @@ package org.chromium.chrome.browser.settings;
 
 import static org.chromium.base.ThreadUtils.runOnUiThread;
 
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.core.content.ContextCompat;
-
-import com.airbnb.lottie.LottieAnimationView;
-import com.airbnb.lottie.LottieProperty;
-import com.airbnb.lottie.model.KeyPath;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
 import org.chromium.base.BravePreferenceKeys;
@@ -41,9 +31,9 @@ import org.chromium.chrome.browser.BraveConstants;
 import org.chromium.chrome.browser.brave_news.BraveNewsControllerFactory;
 import org.chromium.chrome.browser.brave_news.BraveNewsUtils;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
-import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
 import org.chromium.chrome.browser.preferences.BravePrefServiceBridge;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.theme.BraveDynamicColors;
 import org.chromium.chrome.browser.util.BraveTouchUtils;
 import org.chromium.components.browser_ui.settings.FragmentSettingsNavigation;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
@@ -55,11 +45,11 @@ import java.util.List;
 public class BraveNewsPreferencesV2 extends BravePreferenceFragment
         implements BraveNewsPreferencesDataListener,
                 ConnectionErrorHandler,
-                FragmentSettingsNavigation {
+                FragmentSettingsNavigation,
+                BottomInsetViewProvider {
     public static final String PREF_SHOW_OPTIN = "show_optin";
 
-    private LinearLayout mParentLayout;
-    private LinearLayout mOptinLayout;
+    private View mOptinLayout;
     private MaterialSwitch mSwitchShowNews;
     private TextView mTvSearch;
     private TextView mTvFollowingCount;
@@ -90,6 +80,11 @@ public class BraveNewsPreferencesV2 extends BravePreferenceFragment
     }
 
     @Override
+    public View getBottomInsetView(View fragmentView) {
+        return fragmentView;
+    }
+
+    @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         mPageTitle.set(getString(R.string.brave_news_title));
 
@@ -97,8 +92,7 @@ public class BraveNewsPreferencesV2 extends BravePreferenceFragment
 
         View view = getView();
         if (view != null) {
-            mParentLayout = (LinearLayout) view.findViewById(R.id.layout_parent);
-            mOptinLayout = (LinearLayout) view.findViewById(R.id.layout_optin_card);
+            mOptinLayout = view.findViewById(R.id.layout_optin_card);
             mSwitchShowNews = (MaterialSwitch) view.findViewById(R.id.switch_show_news);
             mDivider = view.findViewById(R.id.divider);
             mLayoutSwitch = view.findViewById(R.id.layout_switch);
@@ -111,6 +105,7 @@ public class BraveNewsPreferencesV2 extends BravePreferenceFragment
             mLayoutChannels = (View) view.findViewById(R.id.layout_channels);
             mLayoutFollowing = (View) view.findViewById(R.id.layout_following);
 
+            BraveDynamicColors.applyToFilledButtonIfEnabled(mBtnTurnOnNews);
             BraveTouchUtils.ensureMinTouchTarget(mBtnTurnOnNews);
             BraveTouchUtils.ensureMinTouchTarget(mLayoutChannels);
             BraveTouchUtils.ensureMinTouchTarget(mLayoutFollowing);
@@ -134,24 +129,12 @@ public class BraveNewsPreferencesV2 extends BravePreferenceFragment
         return mPageTitle;
     }
 
+    @Override
+    public String getMainMenuKey() {
+        return "brave_news_v2";
+    }
+
     private void setData() {
-        if (!GlobalNightModeStateProviderHolder.getInstance().isInNightMode()
-                && getView() != null) {
-            LottieAnimationView lottieAnimationVIew =
-                    (LottieAnimationView) getView().findViewById(R.id.animation_view);
-
-            try {
-                lottieAnimationVIew.addValueCallback(new KeyPath("newspaper", "**"),
-                        LottieProperty.COLOR_FILTER,
-                        frameInfo
-                        -> new PorterDuffColorFilter(ContextCompat.getColor(getActivity(),
-                                                             R.color.news_settings_optin_color),
-                                PorterDuff.Mode.SRC_ATOP));
-            } catch (Exception exception) {
-                // if newspaper keypath changed in animation json
-            }
-        }
-
         if (!BraveNewsUtils.getLocale().isEmpty()
                 && BraveNewsUtils.getSuggestionsPublisherList().size() > 0) {
             mIsSuggestionAvailable = true;
@@ -226,12 +209,7 @@ public class BraveNewsPreferencesV2 extends BravePreferenceFragment
         ChromeSharedPreferences.getInstance()
                 .writeBoolean(BravePreferenceKeys.BRAVE_NEWS_PREF_SHOW_NEWS, isEnable);
 
-        FrameLayout.LayoutParams parentLayoutParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-
         if (isEnable) {
-            parentLayoutParams.gravity = Gravity.NO_GRAVITY;
-            mParentLayout.setLayoutParams(parentLayoutParams);
             mOptinLayout.setVisibility(View.GONE);
             mLayoutSwitch.setVisibility(View.VISIBLE);
             mDivider.setVisibility(View.VISIBLE);
@@ -257,8 +235,6 @@ public class BraveNewsPreferencesV2 extends BravePreferenceFragment
             }
 
         } else {
-            parentLayoutParams.gravity = Gravity.CENTER_VERTICAL;
-            mParentLayout.setLayoutParams(parentLayoutParams);
             mOptinLayout.setVisibility(View.VISIBLE);
             mLayoutSwitch.setVisibility(View.GONE);
             mDivider.setVisibility(View.GONE);
@@ -276,7 +252,10 @@ public class BraveNewsPreferencesV2 extends BravePreferenceFragment
         fragmentArgs.putString(
                 BraveConstants.BRAVE_NEWS_PREFERENCES_TYPE, braveNewsPreferencesType.toString());
         mSettingsLauncher.startSettings(
-                getActivity(), BraveNewsPreferencesDetails.class, fragmentArgs);
+                getActivity(),
+                BraveNewsPreferencesDetails.class,
+                fragmentArgs,
+                /* addToBackStack= */ true);
     }
 
     private void initBraveNewsController(final Runnable action) {

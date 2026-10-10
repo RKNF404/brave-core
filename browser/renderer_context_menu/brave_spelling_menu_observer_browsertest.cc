@@ -12,7 +12,6 @@
 #include "brave/browser/renderer_context_menu/brave_mock_render_view_context_menu.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/prefs/pref_service.h"
 #include "components/spellcheck/browser/pref_names.h"
@@ -42,9 +41,9 @@ class BraveSpellingMenuObserverTest : public InProcessBrowserTest {
   void Reset(bool incognito = false) {
     observer_.reset();
     menu_ = std::make_unique<BraveMockRenderViewContextMenu>(
-        incognito ? browser()->profile()->GetPrimaryOTRProfile(
+        incognito ? browser()->GetProfile()->GetPrimaryOTRProfile(
                         /*create_if_needed=*/true)
-                  : browser()->profile());
+                  : browser()->GetProfile());
     observer_ = std::make_unique<SpellingMenuObserver>(menu_.get());
     menu_->SetObserver(observer_.get());
     // Uncomment to print the menu to standard output for each test.

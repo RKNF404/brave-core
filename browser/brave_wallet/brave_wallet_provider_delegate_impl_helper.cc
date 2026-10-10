@@ -13,13 +13,11 @@
 #include "base/notreached.h"
 #include "brave/browser/brave_wallet/brave_wallet_tab_helper.h"
 #include "brave/browser/ui/brave_pages.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "content/public/browser/web_contents.h"
 
 namespace {
 
-base::OnceCallback<void()>* g_new_setup_needed_callback_for_testing = nullptr;
 base::OnceCallback<void(std::string_view coin_name)>*
     g_account_creation_callback_for_testing = nullptr;
 
@@ -53,33 +51,25 @@ void UnlockWallet() {
   NOTREACHED();
 }
 
-void ShowWalletOnboarding(content::WebContents* web_contents) {
-  Browser* browser =
-      web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
-
-  if (browser) {
-    brave::ShowBraveWalletOnboarding(browser);
-  } else if (g_new_setup_needed_callback_for_testing) {
-    CHECK_IS_TEST();
-    CHECK(*g_new_setup_needed_callback_for_testing);
-    std::move(*g_new_setup_needed_callback_for_testing).Run();
-  }
-}
-
 void ShowAccountCreation(content::WebContents* web_contents,
                          brave_wallet::mojom::CoinType coin_type) {
-  Browser* browser =
-      web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
-
   auto it = kAccountCreationCoinName.find(coin_type);
   if (kAccountCreationCoinName.find(coin_type) ==
       kAccountCreationCoinName.end()) {
     return;
   }
 
-  if (browser) {
-    brave::ShowBraveWalletAccountCreation(browser, it->second);
-  } else if (g_account_creation_callback_for_testing) {
+  if (web_contents) {
+    BrowserWindowInterface* browser =
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents);
+    if (browser) {
+      brave::ShowBraveWalletAccountCreation(browser, it->second);
+      return;
+    }
+  }
+
+  if (g_account_creation_callback_for_testing) {
     CHECK_IS_TEST();
     CHECK(*g_account_creation_callback_for_testing);
     std::move(*g_account_creation_callback_for_testing).Run(it->second);
@@ -92,13 +82,6 @@ void WalletInteractionDetected(content::WebContents* web_contents) {}
 // on Android for permissions
 bool IsWeb3NotificationAllowed() {
   return true;
-}
-
-base::AutoReset<base::OnceCallback<void()>*>
-SetNewSetupNeededCallbackForTesting(base::OnceCallback<void()>* callback) {
-  CHECK_IS_TEST();
-  return base::AutoReset<base::OnceCallback<void()>*>(
-      &g_new_setup_needed_callback_for_testing, callback);
 }
 
 base::AutoReset<base::OnceCallback<void(std::string_view)>*>

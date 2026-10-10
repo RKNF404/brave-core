@@ -24,14 +24,12 @@
 #include "brave/components/vector_icons/vector_icons.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/omnibox/omnibox_theme.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/bubble/webui_bubble_manager.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/location_bar/location_bar_util.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "components/grit/brave_components_strings.h"
 #include "components/prefs/pref_service.h"
@@ -46,7 +44,7 @@
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/skia_util.h"
 #include "ui/menus/simple_menu_model.h"
-#include "ui/views/animation/ink_drop_impl.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/controls/button/label_button_border.h"
 #include "ui/views/controls/button/menu_button_controller.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -69,12 +67,8 @@ class ButtonHighlightPathGenerator : public views::HighlightPathGenerator {
     gfx::Rect rect(view->GetPreferredSize());
     rect.Inset(gfx::Insets::TLBR(0, 0, 0, -1 * kBraveActionLeftMarginExtra));
 
-    auto* layout_provider = ChromeLayoutProvider::Get();
-    DCHECK(layout_provider);
-
-    int radius = layout_provider->GetCornerRadiusMetric(views::Emphasis::kHigh,
-                                                        rect.size());
-
+    const int radius =
+        GetLayoutConstant(LayoutConstant::kLocationBarChildCornerRadius);
     return SkPath::RRect(gfx::RectToSkRect(rect), radius, radius);
   }
 };
@@ -174,10 +168,9 @@ class RewardsActionMenuModel : public ui::SimpleMenuModel,
 };
 
 std::unique_ptr<WebUIBubbleManager> CreateBubbleManager(
-    views::View* anchor_view,
     BrowserWindowInterface* browser_window_interface) {
   return WebUIBubbleManager::Create<brave_rewards::RewardsPageTopUI>(
-      anchor_view, browser_window_interface, GURL(kRewardsPageTopURL),
+      browser_window_interface, GURL(kRewardsPageTopURL),
       IDS_BRAVE_UI_BRAVE_REWARDS);
 }
 
@@ -193,7 +186,7 @@ BraveRewardsActionView::BraveRewardsActionView(
           nullptr,
           false),
       browser_window_interface_(browser_window_interface),
-      bubble_manager_(CreateBubbleManager(this, browser_window_interface)) {
+      bubble_manager_(CreateBubbleManager(browser_window_interface)) {
   DCHECK(browser_window_interface_);
 
   SetButtonController(std::make_unique<views::MenuButtonController>(
@@ -229,7 +222,7 @@ BraveRewardsActionView::BraveRewardsActionView(
   }
 
   panel_coordinator_ =
-      browser_window_interface_->GetFeatures().rewards_panel_coordinator();
+      brave_rewards::RewardsPanelCoordinator::From(browser_window_interface_);
   if (panel_coordinator_) {
     panel_observation_.Observe(panel_coordinator_);
   }
@@ -270,8 +263,8 @@ gfx::Rect BraveRewardsActionView::GetAnchorBoundsInScreen() const {
   if (!GetVisible()) {
     // If the button is currently hidden, then anchor the bubble to the
     // location bar instead.
-    auto* browser_view = BrowserView::GetBrowserViewForBrowser(
-        browser_window_interface_->GetBrowserForMigrationOnly());
+    auto* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser_window_interface_);
     DCHECK(browser_view);
     return browser_view->GetLocationBarView()->GetAnchorBoundsInScreen();
   }
@@ -288,23 +281,13 @@ BraveRewardsActionView::CreateDefaultBorder() const {
 void BraveRewardsActionView::OnThemeChanged() {
   ToolbarButton::OnThemeChanged();
 
-  // Replace toolbar button's ink drop effect as this button is not in toolbar.
-  const auto* const color_provider = GetColorProvider();
-  if (!color_provider) {
-    return;
-  }
-
-  // Apply same ink drop effect with location bar's other icon views.
+  // Match hover/pressed ink drop with other location bar icon views.
+  // Clear toolbar ink-drop config first since this inherits from ToolbarButton.
   auto* ink_drop = views::InkDrop::Get(this);
-
-  // It's based on Toolbar so need to clear toolbar's inkdrop config.
   ink_drop->SetCreateRippleCallback(base::NullCallback());
   ink_drop->SetCreateHighlightCallback(base::NullCallback());
-
-  ink_drop->SetMode(views::InkDropHost::InkDropMode::ON);
-  ink_drop->SetVisibleOpacity(kOmniboxOpacitySelected);
-  ink_drop->SetHighlightOpacity(kOmniboxOpacityHovered);
-  ink_drop->SetBaseColor(color_provider->GetColor(kColorOmniboxText));
+  ConfigureInkDropForRefresh2023(this, kColorOmniboxIconHover,
+                                 kColorOmniboxIconPressed);
 
   views::HighlightPathGenerator::Install(
       this, std::make_unique<ButtonHighlightPathGenerator>());
@@ -419,7 +402,7 @@ void BraveRewardsActionView::ToggleRewardsPanel() {
     return;
   }
 
-  bubble_manager_->ShowBubble();
+  bubble_manager_->ShowBubble(this);
 
   DCHECK(!bubble_observation_.IsObserving());
   bubble_observation_.Observe(bubble_manager_->GetBubbleWidget());

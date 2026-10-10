@@ -5,8 +5,8 @@
 
 source_set("impl") {
   visibility = [
+    "//brave/browser:core",
     "//brave/browser/workspaces:*",
-    "//chrome/browser",
   ]
 
   sources = [
@@ -21,9 +21,13 @@ source_set("impl") {
     ":workspaces",
     "//base",
     "//chrome/browser/ui",
+    "//chrome/browser/ui:browser_tabrestore",
+    "//chrome/browser/ui:browser_window_header",
+    "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/tabs:tab_strip",
   ]
 }
+
 source_set("workspaces") {
   sources = [
     "features.h",

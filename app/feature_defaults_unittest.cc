@@ -5,26 +5,28 @@
 
 #include "base/debug/debugging_buildflags.h"
 #include "base/feature_list.h"
-#include "base/feature_override.h"
 #include "base/features.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
 #include "chrome/browser/policy/policy_util.h"
 #include "chrome/browser/preloading/preloading_features.h"
-#include "chrome/browser/ui/tab_search_feature.h"
+#include "chrome/browser/ttc/core/features.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
-#include "components/aggregation_service/features.h"
 #include "components/attribution_reporting/features.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "components/browser_actuator/internal/features.h"
+#include "components/browser_actuator/public/features.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/compose/core/browser/compose_features.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/critical_actions/core/browser/features.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/heap_profiling/in_process/heap_profiler_parameters.h"
 #include "components/history/core/browser/features.h"
@@ -34,40 +36,45 @@
 #include "components/lens/lens_features.h"
 #include "components/manta/features.h"
 #include "components/metrics/metrics_features.h"
-#include "components/metrics/private_metrics/private_insights/private_insights_features.h"
 #include "components/metrics/private_metrics/private_metrics_features.h"
 #include "components/metrics/structured/structured_metrics_features.h"
 #include "components/multistep_filter/core/features.h"
 #include "components/network_time/network_time_tracker.h"
+#include "components/ntp_tiles/features.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/one_time_tokens/core/common/one_time_token_features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/page_info/core/features.h"
 #include "components/passage_embeddings/core/passage_embeddings_features.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/performance_manager/public/features.h"
 #include "components/permissions/features.h"
 #include "components/personal_context/core/personal_context_features.h"
-#include "components/plus_addresses/core/common/features.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/private_ai/features.h"
+#include "components/private_insights/private_insights_features.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/search/ntp_features.h"
 #include "components/segmentation_platform/public/features.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/site_token_provider/features.h"
 #include "components/skills/features.h"
 #include "components/subresource_filter/core/common/common_features.h"
 #include "components/sync/base/features.h"
 #include "components/user_education/common/user_education_features.h"
-#include "components/variations/net/omnibox_autofocus_http_headers.h"
 #include "components/webapps/browser/features.h"
 #include "content/common/features.h"
 #include "content/public/common/btm_utils.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_features.h"
+#include "extensions/buildflags/buildflags.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "media/base/media_switches.h"
 #include "net/base/features.h"
+#include "pdf/buildflags.h"
 #include "services/network/public/cpp/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
@@ -80,6 +87,7 @@
 #include "components/feed/feed_feature_list.h"
 #include "components/security_interstitials/core/features.h"
 #else
+#include "chrome/browser/child_module/features.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_features.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
@@ -87,8 +95,11 @@
 #include "components/device_signals/core/common/signals_features.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/translate/core/common/translate_util.h"
-#include "extensions/common/extension_features.h"
 #include "services/device/public/cpp/device_features.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "extensions/common/extension_features.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -99,70 +110,96 @@
 #include "chrome/browser/media/webrtc/display_media_access_handler.h"
 #endif
 
+#if BUILDFLAG(ENABLE_PDF)
+#include "pdf/pdf_features.h"
+#endif
+
+namespace {
+
+void ExpectCompileOverriddenFeatureDefault(const base::Feature& feature,
+                                           bool enabled) {
+  SCOPED_TRACE(feature.name);
+  EXPECT_TRUE(base::internal::IsCompileOverriddenFeature(feature.name));
+  EXPECT_EQ(base::FeatureList::IsEnabled(feature), enabled);
+
+  auto* feature_list = base::FeatureList::GetInstance();
+  ASSERT_NE(feature_list, nullptr);
+  EXPECT_TRUE(feature_list->IsFeatureOverridden(feature.name));
+  EXPECT_EQ(base::FeatureList::GetStateIfOverridden(feature), enabled);
+}
+
+// Blink generates these from runtime_enabled_features.json5, where Brave's
+// value is the entry's own `base_feature_status`. Nothing overrides an
+// upstream default, so the feature is not, and must not be, reported as
+// overridden.
+void ExpectBlinkRuntimeEnabledFeatureDefault(const base::Feature& feature,
+                                             bool enabled) {
+  SCOPED_TRACE(feature.name);
+  EXPECT_FALSE(base::internal::IsCompileOverriddenFeature(feature.name));
+  EXPECT_EQ(base::FeatureList::IsEnabled(feature), enabled);
+}
+
+}  // namespace
+
 TEST(FeatureDefaultsTest, DisabledFeatures) {
   // Please, keep alphabetized
   const base::Feature* disabled_features[] = {
-      &aggregation_service::kAggregationServiceMultipleCloudProviders,
       &attribution_reporting::features::kConversionMeasurement,
       &autofill::features::kAutofillAiServerModel,
+      &autofill::features::kAutofillAiWithDataSchema,
       &autofill::features::kAutofillEnableAmountExtraction,
       &autofill::features::kAutofillEnableBuyNowPayLater,
-      &autofill::features::kYourSavedInfoSettingsPage,
       &autofill::features::debug::kAutofillServerCommunication,
-      &blink::features::kAdInterestGroupAPI,
-      &blink::features::kAIProofreadingAPI,
-      &blink::features::kAIPromptAPI,
-      &blink::features::kAIPromptAPIMultimodalInput,
-      &blink::features::kAIRewriterAPI,
-      &blink::features::kAISummarizationAPI,
-      &blink::features::kAIWriterAPI,
       &blink::features::kAllowURNsInIframes,
       &blink::features::kBackgroundResourceFetch,
-      &blink::features::kControlledFrame,
       &blink::features::kFencedFrames,
-      &blink::features::kFledge,
-      &blink::features::kFledgeBiddingAndAuctionServer,
-      &blink::features::kFledgeConsiderKAnonymity,
-      &blink::features::kFledgeEnforceKAnonymity,
-      &blink::features::kLanguageDetectionAPI,
-      &blink::features::kParakeet,
-      &blink::features::kPrerender2,
       &blink::features::kPreloadingEagerViewportHeuristics,
-      &blink::features::kPrivateAggregationApi,
-      &blink::features::kTranslationAPI,
-      &blink::features::kUserMediaElement,
+      &browser_actuator::kBrowserActuator,
+      &browser_actuator::kBrowserActuatorProtoStreamTransport,
+#if !BUILDFLAG(IS_ANDROID)
+      &child_module::features::kDynamicPatching,
+#endif
 #if BUILDFLAG(IS_ANDROID)
       &chrome::android::kAndroidPageInfoAsAppMenuItem,
-      &chrome::android::kAndroidSearchInSettings,
+#endif
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+      &chrome_pdf::features::kPdfSaveToDrive,
+      &chrome_pdf::features::kPdfSaveToDriveSurvey,
 #endif
       &commerce::kCommerceAllowOnDemandBookmarkUpdates,
-      &commerce::kCommerceDeveloper,
       &commerce::kCommerceMerchantViewer,
       &commerce::kPriceAnnotations,
       &commerce::kShoppingList,
       &commerce::kShoppingPDPMetrics,
       &commerce::kRetailCoupons,
       &compose::features::kEnableCompose,
-      &content_settings::features::kUserBypassUI,
       &contextual_tasks::kContextualTasks,
+      &contextual_tasks::kContextualTasksCookiePrefetch,
+      &critical_actions::features::kCriticalActionHistory,
 #if !BUILDFLAG(IS_ANDROID)
       &enterprise_data_protection::kEnableForceDownloadToCloud,
-      &enterprise_data_protection::kEnableForceDownloadToOneDrive,
-      &enterprise_signals::features::kDeviceSignalsConsentDialog,
-      &extensions_features::kExtensionManifestV2Unsupported,
-      &extensions_features::kExtensionsManifestV3Only,
+      &extensions_features::kApiGlicPrivate,
+#endif
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+      &extensions_features::kApiDesktopAndroidNativeMessaging,
 #endif
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX)
       &feature_engagement::kIPHAutofillAccountNameEmailSuggestionFeature,
+      &feature_engagement::kIPHBookmarkBarSimplifiedFeature,
       &feature_engagement::kIPHDiscardRingFeature,
       &feature_engagement::kIPHGMCCastStartStopFeature,
       &feature_engagement::kIPHPasswordsManagementBubbleAfterSaveFeature,
+      &feature_engagement::kIPHPdfInkSignaturesFeature,
+      &feature_engagement::kIPHReadingListInSidePanelFeature,
       &feature_engagement::kIPHSideBySidePinnableFeature,
       &feature_engagement::kIPHSideBySideTabSwitchFeature,
-      &feature_engagement::kIPHTabSearchToolbarButtonFeature,
+      &feature_engagement::kIPHSplitViewHorizontalIndirectAccessFeature,
+      &feature_engagement::kIPHTabGroupsSaveV2IntroFeature,
+      &feature_engagement::kIPHVerticalTabstripTutorialFeature,
 #endif
       &features::kBookmarkTriggerForPrefetch,
       &features::kChromeStructuredMetrics,
+      &features::kDestroyProfileOnBrowserClose,
       &features::kDevToolsAiAssistanceContextSelectionAgent,
       &features::kDevToolsAiCodeCompletion,
       &features::kDevToolsAiCodeGeneration,
@@ -180,7 +217,6 @@ TEST(FeatureDefaultsTest, DisabledFeatures) {
       &features::kFewerUpdateConfirmations,
 #endif
       &features::kHttpsFirstBalancedMode,
-      &features::kIdleDetection,
       &features::kIndigo,
 #if BUILDFLAG(IS_WIN)
       &features::kLaunchOnStartup,
@@ -189,6 +225,7 @@ TEST(FeatureDefaultsTest, DisabledFeatures) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
       &features::kPdfInfoBar,
 #endif
+      &features::kPrefetchProxy,
       &features::kPrivacySandboxAdsAPIsOverride,
       &features::kPrivacySandboxAdsAPIsM1Override,
 #if !BUILDFLAG(IS_ANDROID)
@@ -207,6 +244,8 @@ TEST(FeatureDefaultsTest, DisabledFeatures) {
       &features::kWebOTP,
 #if BUILDFLAG(IS_ANDROID)
       &feed::kAndroidOpenIncognitoAsWindow,
+      &feed::kFeedContainment,
+      &feed::kInterestFeedV2,
 #endif
       &heap_profiling::kHeapProfilerReporting,
       &history::kOrganicRepeatableQueries,
@@ -221,6 +260,7 @@ TEST(FeatureDefaultsTest, DisabledFeatures) {
       &history_embeddings::kHistoryEmbeddingsAnswers,
       &history_embeddings::kLaunchedHistoryEmbeddings,
       &lens::features::kLensOverlay,
+      &lens::features::kLensOverlayOmniboxEntryPoint,
       &lens::features::kLensStandalone,
       &media::kLiveCaption,
       &metrics::features::kStructuredMetrics,
@@ -228,72 +268,76 @@ TEST(FeatureDefaultsTest, DisabledFeatures) {
       &metrics::structured::kPhoneHubStructuredMetrics,
       &multistep_filter::kMultistepFilter,
       &net::features::kEnableWebTransportDraft07,
-      &net::features::kWaitForFirstPartySetsInit,
+      &net::features::kTLSTrustAnchorIDs,
       &network::features::kBrowsingTopics,
-      &network::features::kInterestGroupStorage,
-      &network::features::kSharedStorageAPI,
       &network_time::kNetworkTimeServiceQuerying,
       &ntp_features::kCustomizeChromeSidePanelExtensionsCard,
       &ntp_features::kCustomizeChromeWallpaperSearch,
       &ntp_features::kNtpAlphaBackgroundCollections,
       &ntp_features::kNtpBackgroundImageErrorDetection,
+      &ntp_features::kNtpCalendarModule,
       &ntp_features::kNtpChromeCartModule,
+      &ntp_features::kNtpDriveModule,
+      &ntp_features::kNtpDriveModuleLink,
+      &ntp_tiles::kNtpMostLikelyFaviconsFromServerFeature,
+      &ntp_tiles::kPopularSitesBakedInContentFeature,
+      &omnibox::internal::kWebUIOmniboxPopup,
+      &omnibox::internal::kWebUIOmniboxAimPopup,
+      &omnibox::kAimEnabled,
       &omnibox::kMlUrlScoring,
 #if BUILDFLAG(IS_ANDROID)
       &omnibox::kOmniboxMobileParityUpdateV2,
 #endif
       &omnibox::kRichAutocompletion,
       &omnibox::kStarterPackExpansion,
+      &one_time_tokens::features::kGmailOtpRetrievalService,
       &optimization_guide::features::kOptimizationGuideFetchingForSRP,
+      &optimization_guide::features::kOptimizationGuideModelExecution,
       &optimization_guide::features::kOptimizationHints,
       &passage_embeddings::kPassageEmbedder,
       &permissions::features::kCpssUseTfliteSignatureRunner,
-#if !BUILDFLAG(IS_ANDROID)
       &permissions::features::kPermissionsPromptSurvey,
-#endif
       &permissions::features::kPermissionPredictionsV2,
       &permissions::features::kShowRelatedWebsiteSetsPermissionGrants,
       &personal_context::features::kPersonalContext,
-      &plus_addresses::features::kPlusAddressesEnabled,
       &privacy_sandbox::kEnforcePrivacySandboxAttestations,
-      &privacy_sandbox::kPrivacySandboxSettings4,
 #if !BUILDFLAG(IS_ANDROID)
       &private_ai::kPrivateAi,
 #endif  // !BUILDFLAG(IS_ANDROID)
       &private_insights::kPrivateInsightsFeature,
+      &safe_browsing::kAntivirusTelemetryForDownloads,
       &safe_browsing::kClientSideDetectionClipboardCopyApi,
       &safe_browsing::kGooglePlayProtectInApkTelemetry,
       &safe_browsing::kNotificationTelemetry,
 #if BUILDFLAG(IS_ANDROID)
       &security_interstitials::features::kHttpsFirstDialogUi,
 #endif
+      &segmentation_platform::features::kAndroidTipsNotifications,
       &segmentation_platform::features::kSegmentationPlatformDeviceTier,
       &segmentation_platform::features::kSegmentationPlatformFeature,
       &segmentation_platform::features::kSegmentationPlatformTimeDelaySampling,
+      &site_token_provider::features::kSiteTokenProviderEnabled,
       &subresource_filter::kAdTagging,
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+      &switches::kFirstRunDesktopRefresh,
+#endif
       &switches::kSyncEnableBookmarksInTransportMode,
-      &syncer::kSyncDetermineAccountManagedStatus,
-#if !BUILDFLAG(IS_ANDROID)
-      &tabs::kVerticalTabsLaunch,
-#endif  // !BUILDFLAG(IS_ANDROID)
-      &variations::kReportOmniboxAutofocusHeader,
+      &syncer::kSyncAutofillValuableMetadata,
+      &ttc::kTtc,
       &webapps::features::kWebAppsEnableMLModelForPromotion,
   };
 
   for (const auto* feature : disabled_features) {
-    EXPECT_FALSE(base::FeatureList::IsEnabled(*feature)) << feature->name;
+    ExpectCompileOverriddenFeatureDefault(*feature, false);
   }
 }
 
 TEST(FeatureDefaultsTest, EnabledFeatures) {
   const base::Feature* enabled_features[] = {
       &omnibox::kAblateSearchProviderWarmup,
+      &blink::features::kMixedContentAutoupgrade,
       &blink::features::kReducedReferrerGranularity,
-      &blink::features::kReduceUserAgentMinorVersion,
       &blink::features::kUACHOverrideBlank,
-#if !BUILDFLAG(IS_ANDROID)
-      &extensions_features::kExtensionManifestV2ExceptionList,
-#endif
       &features::kBookmarkTriggerForPrerender2KillSwitch,
       &features::kCertificateTransparencyAskBeforeEnabling,
       &features::kDesktopPWAsTabStripSettings,
@@ -301,17 +345,60 @@ TEST(FeatureDefaultsTest, EnabledFeatures) {
       &features::kLocationProviderManager,
       &features::kSensorsAllowAskBlockPermissionModel,
 #endif
-      &history::kHistoryMoreSearchResults,
       &media::kEnableTabMuting,
       &net::features::kPartitionConnectionsByNetworkIsolationKey,
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
+    BUILDFLAG(IS_WIN)
+      &password_manager::features::kSkipUndecryptablePasswords,
+#endif
+      &ntp_features::kNtpSimplificationBookmarkBar,
 #if !BUILDFLAG(IS_ANDROID)
       &sharing_hub::kDesktopScreenshots,
 #endif
+#if !BUILDFLAG(IS_ANDROID)
+      &tabs::kVerticalTabsExpandOnHover,
+#endif  // !BUILDFLAG(IS_ANDROID)
       &network::features::kLocalNetworkAccessChecksWebSockets,
   };
 
   for (const auto* feature : enabled_features) {
-    EXPECT_TRUE(base::FeatureList::IsEnabled(*feature)) << feature->name;
+    ExpectCompileOverriddenFeatureDefault(*feature, true);
+  }
+}
+
+TEST(FeatureDefaultsTest, DisabledBlinkRuntimeEnabledFeatures) {
+  // Please, keep alphabetized.
+  const base::Feature* disabled_features[] = {
+      &blink::features::kAdInterestGroupAPI,
+      &blink::features::kAIProofreadingAPI,
+      &blink::features::kAIPromptAPI,
+      &blink::features::kAIPromptAPIMultimodalInput,
+      &blink::features::kAIRewriterAPI,
+      &blink::features::kAISummarizationAPI,
+      &blink::features::kAIWriterAPI,
+      &blink::features::kControlledFrame,
+      &blink::features::kExtensionScriptTagging,
+      &blink::features::kFledge,
+      &blink::features::kLanguageDetectionAPI,
+      &blink::features::kParakeet,
+      &blink::features::kPrerender2,
+      &blink::features::kTranslationAPI,
+      &blink::features::kUserMediaElement,
+  };
+
+  for (const auto* feature : disabled_features) {
+    ExpectBlinkRuntimeEnabledFeatureDefault(*feature, false);
+  }
+}
+
+TEST(FeatureDefaultsTest, EnabledBlinkRuntimeEnabledFeatures) {
+  // Please, keep alphabetized.
+  const base::Feature* enabled_features[] = {
+      &blink::features::kReduceUserAgentMinorVersion,
+  };
+
+  for (const auto* feature : enabled_features) {
+    ExpectBlinkRuntimeEnabledFeatureDefault(*feature, true);
   }
 }
 
@@ -326,10 +413,4 @@ TEST(FeatureDefaultsTest, DefaultFeatureParameters) {
 // it via its helper function
 TEST(FeatureDefaultsTest, IsOmniboxEntryPointEnabled) {
   EXPECT_FALSE(lens::features::IsOmniboxEntryPointEnabled());
-}
-
-TEST(FeatureDefaultsTest, HasTabSearchToolbarButton) {
-#if !BUILDFLAG(IS_ANDROID)
-  EXPECT_FALSE(features::HasTabSearchToolbarButton());
-#endif
 }

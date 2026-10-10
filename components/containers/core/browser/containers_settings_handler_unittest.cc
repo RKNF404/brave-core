@@ -70,28 +70,16 @@ class MockContainersSettingsObserver : public mojom::ContainersSettingsUI {
     containers_changed_count_++;
   }
 
-  void OnContainersEnabledChanged(bool enabled) override {
-    last_containers_enabled_ = enabled;
-    containers_enabled_changed_count_++;
-  }
-
   const std::vector<mojom::ContainerPtr>& last_containers() const {
     return last_containers_;
   }
 
   int containers_changed_count() const { return containers_changed_count_; }
 
-  bool last_containers_enabled() const { return last_containers_enabled_; }
-  int containers_enabled_changed_count() const {
-    return containers_enabled_changed_count_;
-  }
-
  private:
   mojo::Receiver<mojom::ContainersSettingsUI> receiver_{this};
   std::vector<mojom::ContainerPtr> last_containers_;
   int containers_changed_count_ = 0;
-  bool last_containers_enabled_ = false;
-  int containers_enabled_changed_count_ = 0;
 };
 
 }  // namespace
@@ -366,6 +354,48 @@ TEST_F(ContainersSettingsHandlerTest, RemoveInvalidContainer) {
   EXPECT_EQ(mojom::ContainerOperationError::kNotFound, error_future.Take());
 }
 
+TEST_F(ContainersSettingsHandlerTest, ReorderContainers) {
+  base::test::TestFuture<std::optional<mojom::ContainerOperationError>>
+      error_future;
+  for (const char* name : {"First", "Second", "Third"}) {
+    handler_->AddContainer(
+        mojom::Container::New("", name, mojom::Icon::kPersonal, SK_ColorWHITE),
+        error_future.GetCallback());
+    EXPECT_EQ(std::nullopt, error_future.Take());
+  }
+
+  base::test::TestFuture<std::vector<mojom::ContainerPtr>> future;
+  handler_->GetContainers(future.GetCallback());
+  std::vector<mojom::ContainerPtr> containers = future.Take();
+  ASSERT_EQ(3u, containers.size());
+  std::vector<std::string> ids = {containers[0]->id, containers[1]->id,
+                                  containers[2]->id};
+
+  // Move the last container to the front.
+  handler_->ReorderContainers({ids[2], ids[0], ids[1]},
+                              error_future.GetCallback());
+  EXPECT_EQ(std::nullopt, error_future.Take());
+
+  handler_->GetContainers(future.GetCallback());
+  containers = future.Take();
+  ASSERT_EQ(3u, containers.size());
+  EXPECT_EQ(ids[2], containers[0]->id);
+  EXPECT_EQ(ids[0], containers[1]->id);
+  EXPECT_EQ(ids[1], containers[2]->id);
+
+  // Mismatched set of ids is rejected.
+  handler_->ReorderContainers({ids[0], ids[1]}, error_future.GetCallback());
+  EXPECT_EQ(mojom::ContainerOperationError::kNotFound, error_future.Take());
+
+  handler_->ReorderContainers({ids[0], ids[1], "non-existing-id"},
+                              error_future.GetCallback());
+  EXPECT_EQ(mojom::ContainerOperationError::kNotFound, error_future.Take());
+
+  handler_->ReorderContainers({ids[0], ids[0], ids[1]},
+                              error_future.GetCallback());
+  EXPECT_EQ(mojom::ContainerOperationError::kNotFound, error_future.Take());
+}
+
 TEST_F(ContainersSettingsHandlerTest, ExternalContainerChanges) {
   // Simulate external change to container list
   std::vector<mojom::ContainerPtr> containers;
@@ -377,27 +407,6 @@ TEST_F(ContainersSettingsHandlerTest, ExternalContainerChanges) {
   ASSERT_EQ(1u, mock_observer_->last_containers().size());
   EXPECT_EQ("test-id", mock_observer_->last_containers()[0]->id);
   EXPECT_EQ("Test Container", mock_observer_->last_containers()[0]->name);
-}
-
-TEST_F(ContainersSettingsHandlerTest, ContainersEnabledGetSetAndObserver) {
-  base::test::TestFuture<bool> enabled_future;
-  handler_->GetContainersEnabled(enabled_future.GetCallback());
-  EXPECT_TRUE(enabled_future.Take());
-  EXPECT_EQ(0, mock_observer_->containers_enabled_changed_count());
-
-  handler_->SetContainersEnabled(false);
-  mock_observer_->FlushForTesting();
-  EXPECT_EQ(1, mock_observer_->containers_enabled_changed_count());
-  EXPECT_FALSE(mock_observer_->last_containers_enabled());
-
-  base::test::TestFuture<bool> enabled_future2;
-  handler_->GetContainersEnabled(enabled_future2.GetCallback());
-  EXPECT_FALSE(enabled_future2.Take());
-
-  prefs_.SetBoolean(prefs::kContainersEnabled, true);
-  mock_observer_->FlushForTesting();
-  EXPECT_EQ(2, mock_observer_->containers_enabled_changed_count());
-  EXPECT_TRUE(mock_observer_->last_containers_enabled());
 }
 
 }  // namespace containers

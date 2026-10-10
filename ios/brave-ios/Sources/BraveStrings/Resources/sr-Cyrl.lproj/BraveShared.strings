@@ -1,12 +1,6 @@
 /* About settings section title */
 "About" = "Основни подаци";
 
-/* The title of the screen explaining Brave Shields */
-"AboutBraveShields" = "О Brave штитовима";
-
-/* The body of the screen explaining Brave Shields */
-"AboutBraveShieldsBody" = "Сајтови често укључују колачиће и скрипте који покушавају да идентификују вас и ваш уређај. Желе да утврде ко сте и да вас прате на вебу – да прате шта радите на сваком сајту.\n\nBrave блокира те ствари, тако да можете да прегледате веб, а да притом не будете праћени.";
-
 /* See http://mzl.la/1G7uHo7 */
 "AccessPhotoDeniedAlertMessage" = "То вам омогућава да сачувате слику у галерију.";
 
@@ -36,9 +30,6 @@
 
 /* Text for the toggle switch to clear 'Brave Ads' data in settings */
 "ads.braveAdsDataToggleOption" = "Подаци о Brave огласима";
-
-/* individual blocking statistic title */
-"AdsAndTrackers" = "Огласи и праћења";
 
 /* Setting to always request the desktop version of a website. */
 "AlwaysRequestDesktopSite" = "Увек захтевај десктоп верзију сајта";
@@ -79,6 +70,9 @@
 /* Label for account when indicating that a domain has multiple accounts */
 "autofill.managePassword.multipleAccounts" = "Налози";
 
+/* The reason string shown in the biometric/passcode authentication prompt when the user tries to access autofill management. */
+"autofill.managePasswords.authenticationReason" = "Потврдите идентитет да бисте управљали лозинкама.";
+
 /* Alert message warning the user that deleting non-synced passwords will permanently remove them */
 "autofill.managePasswords.deleteCredentialConfirmMessage" = "Ово ће уклонити сачуване лозинке за %@ из вашег синхронизационог ланца и са вашег уређаја.";
 
@@ -87,6 +81,9 @@
 
 /* Label for the button used to delete the current login. */
 "autofill.managePasswords.deleteManagePasswordButtonTitle" = "Избриши";
+
+/* Label for the button used to confirm delete action for the current password. */
+"autofill.managePasswords.deleteManagePasswordConfrimButtonTitle" = "Избриши лозинку";
 
 /* Title for the section header in the Manage Passwords list screen, that lists the saved sites */
 "autofill.managePasswords.headerTitle" = "Сачувано";
@@ -100,6 +97,18 @@
 /* Display text for the option to offer to save passwords */
 "autofill.managePasswords.offerToSavePasswords" = "Понуди чување лозинки";
 
+/* Navigation title when creating a new saved login from password management */
+"autofill.managePasswords.passwordDetail.addCredentialTitle" = "Додај лозинку";
+
+/* Alert message warning the user that deleting the password will remove it from their sync chain and device */
+"autofill.managePasswords.passwordDetail.deleteConfirmMessage" = "Ова лозинка ће бити уклоњена из вашег ланца синхронизације и са вашег уређаја.";
+
+/* Placeholder for the password field when adding or editing a login */
+"autofill.managePasswords.passwordDetail.inputPasswordPlaceholder" = "Унесите лозинку";
+
+/* Reveal password label */
+"autofill.managePasswords.passwordDetail.revealPassword" = "Откриј";
+
 /* Prompt that is diplayed in the search bar of the Manage Passwords list screen */
 "autofill.managePasswords.searchWebsitesPrompt" = "Претражите веб-сајтове";
 
@@ -111,18 +120,6 @@
 
 /* Settings autofill section title */
 "autofill.settings.title" = "Аутоматски унос";
-
-/* This is a title for a setting toggle that enables/disables auto-redirect of Google's AMP (Accelerated Mobile Page) pages to the original (non-AMP) pages. The text 'AMP' is not to be translated. */
-"AutoRedirectAMPPages" = "Аутоматски преусмери AMP странице";
-
-/* This is a description for a setting toggle that enables/disables auto-redirect of Google's AMP (Accelerated Mobile Page) pages to the original (non-AMP) pages. The text 'AMP' and 'Accelerated Mobile Page' is not to be translated. */
-"AutoRedirectAMPPagesDescription" = "Увек посећујте URL-ове изворних страница (које нису AMP), уместо Google-ових верзија убрзане мобилне странице";
-
-/* This is a title for a setting toggle that enables/disables auto-redirection of tracking pages (Debouncing). Debouncing skips certain intermediate tracker pages and goes directly to the target without the intermediate tracker page. */
-"AutoRedirectTrackingURLs" = "Аутоматски преусмери URL-ове за праћење";
-
-/* This is a description for a setting toggle that enables/disables auto-redirect of tracking URLs (i.e. Debouncing). */
-"AutoRedirectTrackingURLsDescription" = "Активирај заобилажење URL-ова за праћење са преусмеравањем на највишем нивоу";
 
 /* cookie settings option */
 "Block3rdPartyCookies" = "Блокирај колачиће трећих страна";
@@ -142,20 +139,11 @@
 /* Message of alert displayed to user when block all cookie operation fails */
 "BlockAllCookiesFailedAlertMsg" = "Подешавање опције није успело. Пробајте поново касније.";
 
-/* A title for a setting that enables cookie consent notices */
-"BlockCookieConsentNotices" = "Блокирај обавештења о давању сагласности за колачиће";
-
 /* title for section showing page blocking statistics */
 "BlockingMonitor" = "Преглед блокирања";
 
 /* Setting to enable popup blocking */
 "BlockPopups" = "Блокирај искачуће прозоре";
-
-/* No comment provided by engineer. */
-"BlockScripts" = "Блокирај скрипте";
-
-/* No comment provided by engineer. */
-"BlockScriptsDescription" = "Блокира JavaScript (може да доведе до нефункционалности сајта).";
 
 /* Action item title of long press for Adding Bookmark for All Tabs in Tab List - The parameter indicates the number of tabs like Add Bookmark for 5 Tabs */
 "BookmarkAllTabsTitle" = "Додај обележивач за картице (%lld)";
@@ -221,46 +209,10 @@
 "braveSearchPromotion.braveSearchPromotionBannerDismissButtonTitle" = "Одбаци";
 
 /* No comment provided by engineer. */
-"BraveShieldsAdvancedControls" = "Напредне контроле";
-
-/* No comment provided by engineer. */
 "BraveShieldsAndPrivacy" = "Brave штитови и приватност";
 
 /* No comment provided by engineer. */
 "BraveShieldsAndPrivacyTitle" = "Штитови и приватност";
-
-/* The number of ads and trackers blocked will be next to this */
-"BraveShieldsBlockedCountLabel" = "Огласи и остале језиве ствари су блокирани";
-
-/* What the screen reader will read out when the user has VoiceOver on and taps on the question-mark info button on the shields panel */
-"BraveShieldsBlockedInfoButtonAccessibilityLabel" = "Сазнајте више";
-
-/* No comment provided by engineer. */
-"BraveShieldsGlobalChangeButton" = "Промени опште подразумеване вредности штитова";
-
-/* No comment provided by engineer. */
-"BraveShieldsGlobalControls" = "Глобалне контроле";
-
-/* Shields panel toggle label that would save webcompat report contact info data when enabled. */
-"BraveShieldsSaveContactInfo" = "Сачувај информације за контакт за будуће пријаве сајтова који не функционишу";
-
-/* Description for shields panel toggle label that would save webcompat report contact info data when enabled. */
-"BraveShieldsSaveContactInfoDescription" = "Ако дате информације за контакт, оне ће бити сачуване за будуће пријаве";
-
-/* No comment provided by engineer. */
-"BraveShieldsSiteBroken" = "Ако је на овом сајту приказано да не функционише, пробајте да искључите штитове";
-
-/* Context: 'Brave Shields Up' or 'Brave Shields Down' */
-"BraveShieldsStatusTitle" = "Brave штитови";
-
-/* Context: The 'Down' in 'Brave Shields Down' */
-"BraveShieldsStatusValueDown" = "Искључено";
-
-/* Context: The 'Up' in 'Brave Shields Up' */
-"BraveShieldsStatusValueUp" = "Укључено";
-
-/* The accessibility hint spoken when focused on the main shields toggle */
-"BraveShieldsToggleHint" = "Двапут додирните да активирате Brave штитове";
 
 /* The name of the feature */
 "bravetalk.braveTalkTitle" = "Brave разговор";
@@ -718,6 +670,18 @@
 /* Accessibility Title for the button that edits the quick-search engines list. */
 "EditQuickSearchEnginesAccessibilityTitle" = "Измени брзе претраживаче";
 
+/* The message on an alert presented to the user after the app crashes */
+"EnableCrashReporterAlertMessage" = "Ако дође до пада или замрзавања, Brave може аутоматски да пошаље анонимне дијагностичке извештаје ради решавања проблема. Ово увек можете да искључите касније у подешавањима.";
+
+/* The title on an alert presented to the user after the app crashes */
+"EnableCrashReporterAlertTitle" = "Омогући аутоматске извештаје о падовима";
+
+/* The confirmation button title on an alert presented to the user after the app crashes which will enable crash reporting */
+"EnableCrashReporterConfirmButtonTitle" = "Активирај";
+
+/* The button title on an alert presented to the user after the app crashes that ignores the alert */
+"EnableCrashReporterDenyButtonTitle" = "Не сада";
+
 /* Describes whether or not the feature that allows the user to pull down from the top of a web page a certain amount before it triggers a page refresh */
 "enablePullToRefresh" = "Активирај освежавање превлачењем";
 
@@ -814,15 +778,6 @@
 /* Label to display in the Discoverability overlay for keyboard shortcuts */
 "findPreviousTitle" = "Пронађи претходно";
 
-/* individual blocking statistic title */
-"FingerprintingMethods" = "Методе отискивања";
-
-/* No comment provided by engineer. */
-"FingerprintingProtection" = "Блокирај отискивање";
-
-/* No comment provided by engineer. */
-"FingerprintingProtectionDescription" = "Отежава сајтовима да препознају карактеристике вашег уређаја. ";
-
 /* Setting to follow universal links */
 "FollowUniversalLinks" = "Дозволи да се универзални линкови отворе у екстерним апликацијама";
 
@@ -889,15 +844,6 @@
 /* No comment provided by engineer. */
 "Home" = "Дом";
 
-/* No comment provided by engineer. */
-"HTTPSEverywhere" = "Надогради везе на HTTPS";
-
-/* No comment provided by engineer. */
-"HTTPSEverywhereDescription" = "Отвара сајтове користећи безбедни HTTPS уместо HTTP када је могуће.";
-
-/* individual blocking statistic title */
-"HTTPSUpgrades" = "HTTPS надоградње";
-
 /* Title of the button in settings where the user can import browsing data from other browsers. */
 "importBrowsingDataSettingsMenuTitle" = "Увези податке прегледања веба";
 
@@ -918,6 +864,9 @@
 
 /* Title for Brave Leo menu item. Brave Leo is the name of a product and should not be translated */
 "LeoMenuItem" = "Leo";
+
+/* Title for Brave Leo voice input menu item. Brave Leo is the name of a product and should not be translated */
+"LeoVoiceInputMenuItem" = "Leo гласовни унос";
 
 /* The message displayed in alert when a login entry deleted */
 "login.loginEntryDeleteAlertMessage" = "Сачувана пријава ће бити трајно уклоњена.";
@@ -999,12 +948,6 @@
 
 /* Abbreviation for 'Month', use full word' Month' if this word can't be shortened in your language */
 "monthAbbreviation" = "мес.";
-
-/* No comment provided by engineer. */
-"MyFirstAdBody" = "Додирните овде да сазнате више.";
-
-/* No comment provided by engineer. */
-"MyFirstAdTitle" = "Ово је ваш први Brave оглас";
 
 /* Bookmark title / Device name */
 "Name" = "Назив";
@@ -1092,9 +1035,6 @@
 
 /* A selection to let the users only see a set of predefined, default images on the background of the app. */
 "ntp.settingsDefaultImagesOnly" = "Подразумеване слике";
-
-/* A selection to let the users see sponsored image and video backgrounds when opening a new tab. */
-"ntp.settingsSponsoredImagesAndVideosSelection" = "Спонзорисане слике и видео садржај";
 
 /* A selection to let the users see sponsored image backgrounds when opening a new tab. */
 "ntp.settingsSponsoredImagesSelection" = "Спонзорисане слике";
@@ -1534,7 +1474,7 @@
 /* Title for the Playlist Settings Option for Enable/Disable Auto-Play */
 "playlist.playlistAutoPlaySettingsOptionTitle" = "Аутоматско пуштање";
 
-/* Auto Download turn Off Option */
+/* Auto Cache turn Off Option */
 "playlist.playlistAutoSaveOptionOff" = "Искључено";
 
 /* Auto Save turn On Option */
@@ -1543,10 +1483,10 @@
 /* Option Text for Auto Save Only Wi-Fi Option */
 "playlist.playlistAutoSaveOptionOnlyWifi" = "Само Wi-Fi";
 
-/* Description for the Playlist Settings Option for Auto Save Videos for Offline (Off/On/Only Wi-fi) */
-"playlist.playlistAutoSaveSettingsDescription" = "Додавање видео и аудио фајлова за офлајн употребу може да заузме доста меморијског простора на вашем уређају, као и да троши ваше мобилне податке";
+/* Description for the Playlist Settings Option for Auto Caching media (Off/On/Only Wi-fi) */
+"playlist.playlistAutoSaveSettingsDescription" = "Кеширање видео и аудио датотека може да троши и мобилне податке и складишни простор на вашем уређају";
 
-/* Footer Text for the Playlist Settings Option for Auto Save Videos for Offline (Off/On/Only Wi-fi)) */
+/* Footer Text for the Playlist Settings Option for media Auto Cache (Off/On/Only Wi-fi)) */
 "playlist.playlistAutoSaveSettingsFooterText" = "Када отворите садржај у плејлисти, ова опција ће сачувати отворене ставке плејлисте на вашем уређају тако да можете да их репродукујете без везе са интернетом.";
 
 /* Title for the Playlist Settings Option for Auto Save Videos for Offline (Off/On/Only Wi-fi) */
@@ -1556,7 +1496,7 @@
 "playlist.playlistDiskSpaceAddAnywayButtonTitle" = "Додај ипак";
 
 /* When the user's disk space is almost full */
-"playlist.playlistDiskSpaceWarningMessage" = "Ваш уређај нема довољно простора. Додавање овог видеа у Brave плејлисту може да се не успи или да утиче на друга преузимања.";
+"playlist.playlistDiskSpaceWarningMessage" = "Ваш уређај нема довољно простора. Додавање овог видеа у Brave плејлисту може да не успе или да утиче на друге кеширане видео записе.";
 
 /* When the user's disk space is almost full */
 "playlist.playlistDiskSpaceWarningTitle" = "Меморијски простор је скоро пун";
@@ -1567,20 +1507,17 @@
 /* Title for the Playlist Settings Option for long press gesture */
 "playlist.playlistLongPressSettingsOptionTitle" = "Активирај опцију за дуго притискање";
 
-/* Text for Playlist Media & Offline Data Toggle while clearing the offline data storage in settings */
-"playlist.playlistMediaAndOfflineDataToggleOption" = "Медији и офлајн подаци за плејлисту";
-
-/* Text for Playlist Offline Data Toggle while clearing the offline data storage in settings */
-"playlist.playlistOfflineDataToggleOption" = "Офлајн подаци за плејлисту";
+/* Text for Playlist Data Toggle for clearing the cache in settings */
+"playlist.playlistOfflineDataToggleOption" = "Подаци Brave плејлисте";
 
 /* Title of a button displayed when first adding some media to Playlist. Its shown next to the name of a folder that the item is recently added to to imply that you are changing the folder it was saved to */
 "playlist.playlistPopoverChangeFoldersButtonTitle" = "Промени";
 
-/* The title for the alert that shows up when removing all videos and their offline mode storage. */
+/* The title for the alert that shows up when removing all playlist data. */
 "playList.playlistResetAlertTitle" = "Ресетуј";
 
 /* Footer Text for the Playlist Settings Option for resetting Playlist. */
-"playlist.playlistResetPlaylistOptionFooterText" = "Овом опцијом ће се уклонити сви видео садржаји из плејлисте, као и меморијски простор за офлајн режим.";
+"playlist.playlistResetPlaylistOptionFooterText" = "Ова опција ће уклонити све податке Brave плејлисте.";
 
 /* Title Playlist (used for back button, and playlist settings) */
 "playList.playListSettingTitle" = "Плејлиста";
@@ -1591,7 +1528,7 @@
 /* Title for the Playlist Settings Option for Enable/Disable ability to start playing from the point where user last left-off */
 "playlist.playlistStartPlaybackSettingsOptionTitle" = "Запамти позицију пуштања фајла";
 
-/* Title for removing offline mode storage */
+/* Title for removing cached media from the playlist */
 "playList.removeActionButtonTitle" = "Уклони";
 
 /* A message shown when the user removes media from the playlist. '%@' will be replaced by the folder it was added to. Example: 'Removed from Play Later' */
@@ -1611,9 +1548,6 @@
 
 /* The title for the toast that shows up on a page containing a playlist item */
 "playList.toastAddToPlaylistTitle" = "Додај на плејлисту";
-
-/* The title for the toast that shows up on a page when an item that has already been added, was updated. */
-"playList.toastExitingItemPlaylistTitle" = "Прикажи у Brave плејлисти";
 
 /* A button title that when tapped will re-add the media item (undo the removal) that the user recently removed. */
 "playList.undoRemoveButtonTitle" = "Поништи";
@@ -1650,9 +1584,6 @@
 
 /* The title of a folder when the user enters no name (untitled) */
 "playlistFolders.untitledFolderTitle" = "Плејлиста без наслова";
-
-/* Description for closing the `Brave Shields` popover menu that is displayed. */
-"PopoverShieldsMenuClose" = "Затвори мени за штитове";
 
 /* Settings privacy section title */
 "Privacy" = "Приватност";
@@ -2002,41 +1933,8 @@
 /* Button to remove a favorite */
 "RemoveFavorite" = "Уклони омиљено";
 
-/* No comment provided by engineer. */
-"ReportABrokenSite" = "Пријавите да сајт не функционише";
-
 /* Providers the user an email page where they can submit a but report. */
 "ReportABug" = "Пријавите грешку";
-
-/* A label for a text entry field where the user can provide additional details for a web-compatibility report */
-"ReportBrokenAdditionalDetails" = "Додатни детаљи (опционо)";
-
-/* A label for a text entry field where the user can provide additional details for a web-compatibility report */
-"reportBrokenAdditionalDetailsRequired" = "Додатни детаљи";
-
-/* A label for a drop down where the user provides a category for a web-compatibility report */
-"reportBrokenCategory" = "Који је главни проблем који видите?";
-
-/* A label for a text entry field where the user can provide contact details within a web-compatibilty report */
-"ReportBrokenContactMe" = "Обратите ми се на: (опционо)";
-
-/* Contact info storing description */
-"ReportBrokenContactMeDescription" = "Ако наведете информације за контакт, оне ће бити сачуване за будуће пријављивање неисправних сајтова.";
-
-/* A placeholder for a text entry field within a web-compatibilty report which shows a few suggestions of what the user should enter for their contact contact details (in a 'Contact me at: (optional)' field). */
-"ReportBrokenContactMeSuggestions" = "Имејл, Twitter итд.";
-
-/* A placeholder for a drop down where the user provides a category for a web-compatibility report */
-"ReportBrokenPlaceholder" = "Изаберите једну опцију";
-
-/* First part of the report a broken site copy. After the colon is a new line and then a website address */
-"ReportBrokenSiteBody1" = "Обавестите развојне програмере Brave-а да овај сајт не функционише како је очекивано:";
-
-/* This is the info text that is presented when a user is submitting a web-compatibility report. */
-"ReportBrokenSiteBody2" = "Напомена: Извештај који се шаље Brave-овим серверима садржи адресу сајта, број верзије Brave-а, подешавања штитова, статус VPN-а и подешавања језика.";
-
-/* No comment provided by engineer. */
-"ReportBrokenSubmitButtonTitle" = "Пошаљи";
 
 /* A title that appears on a permissions dialog on whether or not the user wants to allow a web page to access their device's camera & microphone. %@ will be replaced with the websites address (for example: "talk.brave.com") */
 "requestCameraAndMicrophonePermissionPrompt" = "„%@“ жели да приступи камери и микрофону";
@@ -2071,21 +1969,6 @@
 /* Restore Tabs Prompt Title */
 "RestoreTabOnCrashAlertTitle" = "Brave се неочекивано затворио.";
 
-/* Body for Brave Talk rewards opt-in screen */
-"rewards.braveTalkRewardsOptInBody" = "Уз Brave награде, можете да видите огласе који штите приватност на мрежи Brave огласа. Без праћења. Без успоравања. Ваши подаци остају потпуно безбедни.";
-
-/* Title for Brave Talk rewards opt-in screen button */
-"rewards.braveTalkRewardsOptInButtonTitle" = "Укључи награде";
-
-/* Body for successful Brave Talk rewards opt-in */
-"rewards.braveTalkRewardsOptInSuccessBody" = "Кликните било где на екрану да наставите на Brave разговор.";
-
-/* Title for successful Brave Talk rewards opt-in */
-"rewards.braveTalkRewardsOptInSuccessTitle" = "Сада можете да обавите бесплатан позив";
-
-/* Title for Brave Talk rewards opt-in screen */
-"rewards.braveTalkRewardsOptInTitle" = "Да обавите бесплатан позив, укључите Brave награде";
-
 /* Displayed when Brave Rewards is disabled */
 "rewards.disabledBody" = "Укључите да бисте подржали Brave и BAT заједницу.";
 
@@ -2098,8 +1981,14 @@
 /* Displayed in the status container when rewards is enabled but you're not currently supporting any publishers (0 AC count) */
 "rewards.enabledStatusBody" = "Хвала вам на помоћи у виду подршке Brave и BAT заједнице!";
 
-/* The placeholders say 'Terms of Service' and 'Privacy Policy'. So full sentence goes like: 'By clicking, you agree to the Terms of Service and Privacy Policy...' */
-"rewards.optInDisclaimer" = "Ако кликнете, сагласни сте са документима %1$@ и %2$@. Искључите било када у подешавањима.";
+/* Message of a confirmation dialog shown before resetting Brave Rewards */
+"rewards.settingsResetConfirmationMessage" = "Ресетовањем ће ваш тренутни профил Brave награда бити избрисан, а Brave награде више неће бити омогућене.";
+
+/* Title of a confirmation dialog shown before resetting Brave Rewards */
+"rewards.settingsResetConfirmationTitle" = "Ресетуј Brave награде";
+
+/* Title of a button that resets the user's Brave Rewards profile */
+"rewards.settingsResetTitle" = "Ресетуј";
 
 /* No comment provided by engineer. */
 "rewards.settingsToggleMessage" = "Пружите подршку Brave и BAT заједници тако што ћете активирати Brave награде и гледати Brave огласе.";
@@ -2323,9 +2212,6 @@
 /* Setting to enable the built-in password manager */
 "SaveLogins" = "Сачувај пријаве";
 
-/* individual blocking statistic title */
-"ScriptsBlocked" = "Блокиране скрипте";
-
 /* The placeholder text for bookmark search */
 "searchBookmarksTitle" = "Претрага обележивача";
 
@@ -2482,17 +2368,17 @@
 /* Title for the quality settings view */
 "settings.qualitySettings" = "Подешавања квалитета";
 
+/* Description to explain the send crash reports toggle */
+"settings.sendCrashReportsDescription" = "Пошаљите нам дијагностички извештај у случају да прегледач прекине са радом или се замрзне.";
+
+/* Title to explain the send crash reports toggle */
+"settings.sendCrashReportsTitle" = "Пошаљите извештаје о рушењу";
+
 /* Description to explain the daily usage ping toggle */
 "settings.sendUsagePingDescription" = "Овај приватни пинг омогућава Brave-у да процени активне кориснике.";
 
 /* Title to explain the daily usage ping toggle */
 "settings.sendUsagePingTitle" = "Аутоматски шаљи Brave-u пинг за свакодневно коришћење";
-
-/* Description to explain the survey panelist toggle */
-"settings.surveyPanelistDescription" = "Омогућава Brave-у да приказује линкове за приватне анкете на новој картици. Анкете нам помажу да креирамо боље функције и меримо ефикасност огласних кампања заснованих на прегледачу. [Сазнајте више](%@)";
-
-/* Title to explain the survey panelist toggle */
-"settings.surveyPanelistTitle" = "Активирај Brave анкете";
 
 /* Header for the YouTube settings section */
 "settings.youtube" = "YouTube";
@@ -2565,21 +2451,6 @@
 
 /* Title for Shield Education Tracker Video Ad Block */
 "shieldEducation.videoAdBlockTitle" = "Огласи су блокирани док гледате видео садржаје на овом веб-сајту.";
-
-/* Section title for adbblock, tracking protection, HTTPS-E, and cookies */
-"ShieldsDefaults" = "Глобалне подразумеване вредности за Brave штитове";
-
-/* Section footer for global shields defaults */
-"ShieldsDefaultsFooter" = "Ово су подразумевана подешавања штитова за нове сајтове. Промена ових подешавања неће утицати на ваша постојећа подешавања по сајту.";
-
-/* No comment provided by engineer. */
-"ShieldsDownDisclaimer" = "Прегледате овај сајт без Brave-ове заштите приватности. Да ли сајт не функционише исправно са укљученим штитовима?";
-
-/* shields overview message */
-"ShieldsOverview" = "Штитови за сајтове вам омогућавају да контролишете када су огласи и праћења блокирани за сваки сајт који посетите. Ако преферирате да видите огласе на одређеном сајту, можете их активирати овде.";
-
-/* shields overview footer message */
-"ShieldsOverviewFooter" = "Напомена: Неким сајтовима могу бити потребне скрипте да би правилно функционисали, тако да је овај штит подразумевано искључен.";
 
 /* Quick Action for 3D-Touch on the Application Icon */
 "ShortcutItemTitleNewPrivateTab" = "Нова приватна картица";
@@ -2766,15 +2637,6 @@
 
 /* Settings item for clearing site-specific settings and shields settings. */
 "SiteAndShieldsSettings" = "Подешавања сајтова и штитова";
-
-/* No comment provided by engineer. */
-"SiteReportedBody" = "Хвала што сте обавестили развојне програмере Brave-а да нешто није у реду са овим сајтом. Даћемо све од себе да то исправимо!";
-
-/* No comment provided by engineer. */
-"SiteReportedTitle" = "Хвала";
-
-/* Brave panel topmost title */
-"SiteShieldSettings" = "Штитови";
 
 /* Title used when in warning pop-over when domain specific data save appears */
 "socialSharing.domainSpecificDataSavedTitle" = "Сваки дан трошим мање података тако што прегледам веб помоћу Brave-а.";
@@ -2966,7 +2828,7 @@
 "sync.maximumDeviceReachedErrorTitle" = "Ограничење броја уређаја";
 
 /* New sync code button title */
-"sync.newSyncCode" = "Започни нови ланац синхронизације";
+"sync.newSyncCode" = "Нови ланац синхронизације";
 
 /* No internet connection alert body. */
 "sync.noConnectionBody" = "Проверите везу са интернетом и пробајте поново.";
@@ -3136,6 +2998,9 @@
 /* Accessibility label for the regular browsing option in the browsing mode picker */
 "tabGrid.privateBrowsingModeAccessibilityLabel" = "Приватно прегледање веба";
 
+/* A label in the tab tray mode switcher for private browsing mode */
+"tabGrid.privateBrowsingModeTitle" = "Приватно";
+
 /* A button title which when tapped will present settings for private tabs */
 "tabGrid.privateTabsSettingsTitle" = "Подешавања приватне картице";
 
@@ -3160,11 +3025,23 @@
 /* Accessibility label for a button that allows users to shred their tabs (erase them & associated data) */
 "tabGrid.shredTabsAccessibilityLabel" = "Уништи картице";
 
+/* A label in the tab tray mode switcher shown when there are 0 or more than 1 regular tabs open e.g. '129 Tabs' */
+"tabGrid.tabsCountFormatPlural" = "%lld картица";
+
+/* A label in the tab tray mode switcher shown when there is 1 regular tab open e.g. '1 Tab' */
+"tabGrid.tabsCountFormatSingular" = "%lld картица";
+
 /* Accessibility label for a button that when tapped presents the users history & recently closed tabs */
 "tabGrid.viewHistoryAccessibilityLabel" = "Прикажи историју";
 
+/* Label for history menu item button that when tapped presents the users history & recently closed tabs */
+"tabGrid.viewHistoryMenuItemLabel" = "Историја";
+
 /* Accessibility label for a button that when tapped presents the users synced tabs */
 "tabGrid.viewSyncedTabsAccessibilityLabel" = "Прикажи синхронизоване картице";
+
+/* Label for synced tabs menu item that when tapped presents the users synced tabs */
+"tabGrid.viewSyncedTabsMenuItemLabel" = "Синхронизуј";
 
 /* Accessiblity hint for toggling on/off private mode */
 "TabPrivateModeToggleAccessibilityHint" = "Укључује или искључује приватни режим";
@@ -3183,6 +3060,12 @@
 
 /* The title of the toggle for user to turn on auto-open keyboard when creating a new tab. */
 "tabs.settings.autoOpenKeyboardTitle" = "Аутоматски отвори тастатуру";
+
+/* The description of the toggle for user to turn on open link in quick view mode. */
+"tabs.settings.openLinkInQuickViewModeDescription" = "Отварајте везе из Ask Brave и Brave претраге на картицама за преглед";
+
+/* The title of the toggle for user to turn on open link in quick view mode. */
+"tabs.settings.openLinkInQuickViewModeTitle" = "Омогући картице брзог прегледа";
 
 /* No comment provided by engineer. */
 "tabs.settings.persistentPrivateBrowsingDescription" = "Оставите картице за приватно прегледање отворене када затворите апликацију како би сесије приватног прегледања могле да се наставе без прекида.";
@@ -3531,9 +3414,6 @@
 
 /* Error message if the payment workflow is canceled by the user */
 "userCancelledMessage" = "Корисник је прекинуо";
-
-/* Setting to allow user in non-english locale to use adblock rules specifc to their language */
-"UseRegionalAdblock" = "Користи додатни блокатор огласа";
 
 /* No comment provided by engineer. */
 "UserWalletCloseButtonTitle" = "Затвори";

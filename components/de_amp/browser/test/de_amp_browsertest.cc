@@ -16,7 +16,6 @@
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/common/pref_names.h"
@@ -26,6 +25,7 @@
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -55,6 +55,7 @@ constexpr char kTestRedirectingAmpPage1[] = "/redirecting_amp_page_1";
 constexpr char kTestRedirectingAmpPage2[] = "/redirecting_amp_page_2";
 constexpr char kTestSimpleNonAmpPage[] = "/simple_page";
 constexpr char kTestCanonicalPage[] = "/simple_canonical_page";
+constexpr char kTestHungCanonicalPage[] = "/hung_canonical_page";
 constexpr char kTestAmpBodyScaffolding[] =
     R"(
     <html amp>
@@ -132,7 +133,7 @@ class DeAmpBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
     host_resolver()->AddRule("*", "127.0.0.1");
-    prefs_ = browser()->profile()->GetPrefs();
+    prefs_ = browser()->GetProfile()->GetPrefs();
 
     content::SetupCrossSiteRedirector(https_server_.get());
   }
@@ -191,6 +192,19 @@ class DeAmpBrowserTest : public InProcessBrowserTest {
                             custom_headers, content_type));
   }
 
+  void SetHungRequestHandler(const std::string& page_path) {
+    https_server_->RegisterRequestHandler(base::BindRepeating(
+        [](const std::string& page_path,
+           const net::test_server::HttpRequest& request)
+            -> std::unique_ptr<net::test_server::HttpResponse> {
+          if (request.relative_url != page_path) {
+            return nullptr;
+          }
+          return std::make_unique<net::test_server::HungResponse>();
+        },
+        page_path));
+  }
+
   void TogglePref(const bool on) {
     prefs_->SetBoolean(de_amp::kDeAmpPrefEnabled, on);
     web_contents()->GetController().Reload(content::ReloadType::NORMAL, false);
@@ -207,13 +221,13 @@ class DeAmpBrowserTest : public InProcessBrowserTest {
     EXPECT_EQ(web_contents()->GetLastCommittedURL(), landing_url);
   }
 
-  void GoBack(Browser* browser) {
+  void GoBack(BrowserWindowInterface* browser) {
     content::TestNavigationObserver observer(web_contents());
     chrome::GoBack(browser, WindowOpenDisposition::CURRENT_TAB);
     observer.Wait();
   }
 
-  void GoForward(Browser* browser) {
+  void GoForward(BrowserWindowInterface* browser) {
     content::TestNavigationObserver observer(web_contents());
     chrome::GoForward(browser, WindowOpenDisposition::CURRENT_TAB);
     observer.Wait();
@@ -249,6 +263,34 @@ IN_PROC_BROWSER_TEST_F(DeAmpBrowserTest, SimpleDeAmp) {
                                    kTestRedirectingAmpPage1);
 }
 
+// Regression test: a pending canonical navigation must not update the omnibox,
+// otherwise a renderer-initiated navigation could spoof the address bar.
+IN_PROC_BROWSER_TEST_F(DeAmpBrowserTest, PendingCanonicalDoesNotSpoofOmnibox) {
+  TogglePref(true);
+  SetRequestHandler(kTestSimpleNonAmpPage, Canonical());
+  SetRequestHandler(kTestAmpPage, Amp(kTestHungCanonicalPage));
+  SetHungRequestHandler(kTestHungCanonicalPage);
+  StartServer();
+
+  const GURL simple = https_server_->GetURL(kTestHost, kTestSimpleNonAmpPage);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), simple));
+
+  const GURL amp_url = https_server_->GetURL(kTestHost, kTestAmpPage);
+  const GURL hung_canonical_url(Location(kTestHungCanonicalPage));
+
+  content::TestNavigationManager canonical_manager(web_contents(),
+                                                   hung_canonical_url);
+  ASSERT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("location.href = $1", amp_url),
+                              content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+  ASSERT_TRUE(canonical_manager.WaitForRequestStart());
+
+  EXPECT_EQ(web_contents()->GetController().GetVisibleEntry()->GetURL(),
+            simple);
+  EXPECT_NE(web_contents()->GetController().GetVisibleEntry()->GetURL(),
+            hung_canonical_url);
+}
+
 IN_PROC_BROWSER_TEST_F(DeAmpBrowserTest, ContentDispositionAttachment) {
   TogglePref(true);
   // AMP page served with Content-Disposition: attachment should not be
@@ -274,10 +316,10 @@ IN_PROC_BROWSER_TEST_F(DeAmpBrowserTest, ContentDispositionAttachment) {
   // for downloads). Disable the download prompt so it proceeds automatically,
   // then use a download observer + NO_WAIT instead.
   // Pattern from chrome/browser/download/download_browsertest.cc.
-  browser()->profile()->GetPrefs()->SetBoolean(prefs::kPromptForDownload,
-                                               false);
+  browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kPromptForDownload,
+                                                  false);
   content::DownloadTestObserverTerminal download_observer(
-      browser()->profile()->GetDownloadManager(), 1,
+      browser()->GetProfile()->GetDownloadManager(), 1,
       content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_ACCEPT);
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), amp_url, WindowOpenDisposition::CURRENT_TAB,
@@ -409,7 +451,7 @@ IN_PROC_BROWSER_TEST_F(DeAmpBrowserTest, RestoreTab) {
   SetRequestHandler(kTestAmpPage, Amp(kTestCanonicalPage));
   StartServer();
   NavigateToURLAndWaitForRedirects(kTestAmpPage, kTestCanonicalPage);
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
 
   ScopedKeepAlive test_keep_alive(KeepAliveOrigin::PANEL_VIEW,
                                   KeepAliveRestartOption::DISABLED);

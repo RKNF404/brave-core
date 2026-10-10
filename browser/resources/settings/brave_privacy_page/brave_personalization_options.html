@@ -4,7 +4,44 @@
     display: flex;
     justify-content: space-between;
   }
+
+  .settings-box .icon {
+    margin-inline-end: 20px;
+  }
 </style>
+<!-- <if expr="enable_local_ai"> -->
+<template is="dom-if" if="[[isSemanticHistorySearchAvailable_]]">
+  <settings-toggle-button id="semanticHistorySearchEnabled"
+      class="cr-row"
+      icon="history"
+      pref="{{prefs.brave.history_embeddings_enabled}}"
+      label="$i18n{semanticHistorySearchLabel}"
+      sub-label="$i18n{semanticHistorySearchSubLabel}"
+      learn-more-url="$i18n{semanticHistorySearchLearnMoreURL}">
+    <template is="dom-if" if="[[shouldShowRestartSemanticHistorySearch_(
+        prefs.brave.history_embeddings_enabled.value)]]">
+      <cr-button on-click="restartBrowser_" slot="more-actions">
+        $i18n{restart}
+      </cr-button>
+    </template>
+  </settings-toggle-button>
+</template>
+<!-- </if> -->
+<div class="settings-box">
+  <span class="icon" aria-hidden="true">
+    <cr-icon icon="calendar-time"></cr-icon>
+  </span>
+  <div class="start" id="historyRetentionLabelWrapper">
+    <div class="label">$i18n{historyRetentionLabel}</div>
+    <div class="secondary label" id="historyRetentionSubLabel">
+      $i18n{historyRetentionSubLabel}
+    </div>
+  </div>
+  <settings-dropdown-menu id="historyRetention"
+      pref-key="brave.history.retention_days"
+      menu-options="[[historyRetentionOptions_]]">
+  </settings-dropdown-menu>
+</div>
 <div class="settings-box">
   <div class="start" id="labelWrapper">
     <div class="label">$i18n{webRTCPolicyLabel}</div>
@@ -13,7 +50,7 @@
     </a>
   </div>
   <settings-dropdown-menu label="$i18n{webRTCLearnMoreURL}"
-      pref="{{prefs.webrtc.ip_handling_policy}}"
+      pref-key="webrtc.ip_handling_policy"
       menu-options="[[webRTCPolicies_]]">
   </settings-dropdown-menu>
 </div>
@@ -28,18 +65,6 @@
     </cr-button>
   </template>
 </settings-toggle-button>
-<div class="settings-box">
-  <div class="start" id="labelWrapper">
-    <div class="label">$i18n{historyRetentionLabel}</div>
-    <div class="secondary label" id="sub-label">
-      $i18n{historyRetentionSubLabel}
-    </div>
-  </div>
-  <settings-dropdown-menu id="historyRetention"
-      pref="{{prefs.brave.history.retention_days}}"
-      menu-options="[[historyRetentionOptions_]]">
-  </settings-dropdown-menu>
-</div>
 <settings-toggle-button
   class="cr-row"
   pref="{{prefs.brave.de_amp.enabled}}"
@@ -67,10 +92,22 @@
         <div class="label">$i18n{requestOTRLabel}</div>
     </div>
     <settings-dropdown-menu id="defaultRequestOTR"
-                            pref="{{prefs.brave.request_otr.request_otr_action_option}}"
+                            pref-key="brave.request_otr.request_otr_action_option"
                             menu-options="[[requestOTRActions_]]">
     </settings-dropdown-menu>
 </div>
+<!-- <if expr="enable_psst"> -->
+<template is="dom-if" if="[[isPsstFeatureEnabled_]]">
+  <settings-toggle-button
+    class="cr-row"
+    pref="{{prefs.brave.psst.settings.enable_psst}}"
+    label="$i18n{psstSettingsToggleLabel}"
+    sub-label="$i18n{psstSettingsToggleSubLabel}"
+    learn-more-url="$i18n{psstLearnMoreURL}">
+  </settings-toggle-button>
+</template>
+<!-- </if> -->
+
 <!-- <if expr="is_win"> -->
   <template is="dom-if" if="[[isWindowsRecallAvailable_]]">
     <settings-toggle-button id="windowsRecallDisabled"
@@ -88,5 +125,5 @@
     </settings-toggle-button>
   </template>
 <!-- </if> -->
-<settings-do-not-track-toggle id="doNotTrack" prefs="{{prefs}}">
+<settings-do-not-track-toggle id="doNotTrack">
 </settings-do-not-track-toggle>

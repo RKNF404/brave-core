@@ -10,7 +10,7 @@
 #include "brave/components/brave_ads/core/internal/common/challenge_bypass_ristretto/unblinded_token.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -25,7 +25,7 @@ TEST(BraveAdsCredentialBuilderTest, BuildCredential) {
   EXPECT_EQ(base::test::ParseJsonDict(
                 R"JSON(
                     {
-                      "signature": "PblFP7WI3ZC3aAX73A9UvBdqnvl87Wx8nnz9DIbhNjxbFamMZGbwn5Hi+FXsSXg2GZ671rCwQ6Xpwe61JjeW9Q==",
+                      "signature": "Q85iSA/ixHmLuwABfpbAj6bMKOOddjvt/DG4XsTP9mhR7nbV50e0a/i/zEoch1DmjdG/9LTLFyE0eTSKJvhW7A==",
                       "t": "IXDCnZnVEJ0orkbZfr2ut2NQPQ0ofdervKBmQ2hyjcClGCjA3/ExbBumO0ua5cxwo//nN0uKQ60kknru8hRXxw=="
                     })JSON"),
             *credential);

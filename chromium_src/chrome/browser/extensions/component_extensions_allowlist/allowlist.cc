@@ -5,36 +5,57 @@
 
 #include "chrome/browser/extensions/component_extensions_allowlist/allowlist.h"
 
-#define IsComponentExtensionAllowlisted IsComponentExtensionAllowlisted_ChromiumImpl  // NOLINT
-#include <chrome/browser/extensions/component_extensions_allowlist/allowlist.cc>
-#undef IsComponentExtensionAllowlisted
-
-#include "brave/components/brave_extension/grit/brave_extension.h"
+#include "chrome/common/extensions/extension_constants.h"
 #include "components/grit/brave_components_resources.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "brave/components/brave_extension/grit/brave_extension.h"
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 namespace extensions {
 
-  bool IsComponentExtensionAllowlisted(const std::string& extension_id) {
-    const char* const kAllowed[] = {brave_extension_id};
+namespace {
 
-    for (const auto* id : kAllowed) {
-      if (extension_id == id) {
-        return true;
-      }
+bool IsComponentExtensionAllowlistedBraveImpl(const std::string& extension_id) {
+  const char* const kAllowed[] = {brave_extension_id};
+
+  for (const auto* id : kAllowed) {
+    if (extension_id == id) {
+      return true;
     }
-
-    return IsComponentExtensionAllowlisted_ChromiumImpl(extension_id);
   }
 
-  bool IsComponentExtensionAllowlisted(int manifest_resource_id) {
-    switch (manifest_resource_id) {
-      // Please keep the list in alphabetical order.
-      case IDR_BRAVE_EXTENSION:
-        return true;
-    }
+  return false;
+}
 
-    return IsComponentExtensionAllowlisted_ChromiumImpl(manifest_resource_id);
+bool IsComponentExtensionDenylistedBraveImpl(const std::string& extension_id) {
+  const char* const kDenied[] = {extension_misc::kGlicExtensionId};
+
+  for (const auto* id : kDenied) {
+    if (extension_id == id) {
+      return true;
+    }
   }
+
+  return false;
+}
+
+bool IsComponentExtensionAllowlistedBraveImpl(int manifest_resource_id) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  switch (manifest_resource_id) {
+    // Please keep the list in alphabetical order.
+    case IDR_BRAVE_EXTENSION:
+      return true;
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+  return false;
+}
+
+}  // namespace
 
 }  // namespace extensions
+
+#include <chrome/browser/extensions/component_extensions_allowlist/allowlist.cc>

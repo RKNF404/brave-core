@@ -4,6 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import BraveShared
+import BraveStore
 import BraveStrings
 import BraveUI
 // To get cellular carrier name
@@ -29,7 +30,6 @@ struct VPNContactFormView: View {
     var appVersion: Bool = false
     var timezone: Bool = false
     var networkType: Bool = false
-    var cellularCarrier: Bool = false
     var logs: Bool = false
   }
 
@@ -72,13 +72,6 @@ struct VPNContactFormView: View {
         Toggle(isOn: $includes.networkType) {
           LabeledContent(Strings.VPN.contactFormNetworkType, value: networkType)
         }
-        Toggle(isOn: $includes.cellularCarrier) {
-          LabeledContent(
-            Strings.VPN.contactFormCarrier,
-            value: CTTelephonyNetworkInfo().serviceSubscriberCellularProviders?
-              .first?.value.carrierName ?? "-"
-          )
-        }
         Toggle(Strings.VPN.contactFormLogs, isOn: $includes.logs)
       }
       Section {
@@ -96,6 +89,12 @@ struct VPNContactFormView: View {
       if issueType == nil { return }
       if MFMailComposeViewController.canSendMail() {
         isEmailPresented = true
+      } else if let mailtoURL, UIApplication.shared.canOpenURL(mailtoURL) {
+        // The system mail app may have been deleted while a third party mail
+        // client is installed, in which case `MFMailComposeViewController` is
+        // unavailable but a `mailto:` link can still be handled.
+        UIApplication.shared.open(mailtoURL)
+        issueType = nil
       } else {
         isEmailUnavailableAlertPresented = true
         issueType = nil
@@ -103,9 +102,8 @@ struct VPNContactFormView: View {
     }
     .sheet(isPresented: $isEmailPresented) {
       MailComposeRepresentable(
-        subject:
-          "\(Strings.VPN.contactFormTitle) + \(issueType?.displayString ?? IssueType.other.displayString)",
-        recipients: ["braveios@guardianapp.com"],
+        subject: emailSubject,
+        recipients: [recipientEmail],
         messageBody: emailMessageBody
       )
     }
@@ -114,6 +112,30 @@ struct VPNContactFormView: View {
     } message: {
       Text(Strings.VPN.contactFormEmailNotConfiguredBody)
     }
+  }
+
+  private let recipientEmail = "braveios@guardianapp.com"
+
+  private var emailSubject: String {
+    "\(Strings.VPN.contactFormTitle) + \(issueType?.displayString ?? IssueType.other.displayString)"
+  }
+
+  /// A `mailto:` URL used as a fallback when `MFMailComposeViewController` is
+  /// unavailable (e.g. the system mail app was deleted in favour of a third
+  /// party client).
+  private var mailtoURL: URL? {
+    var components = URLComponents()
+    components.scheme = "mailto"
+    components.path = recipientEmail
+    components.queryItems = [
+      URLQueryItem(name: "subject", value: emailSubject),
+      URLQueryItem(name: "body", value: emailMessageBody),
+    ]
+    // `URLComponents` leaves literal `+` unencoded, which some mail clients
+    // interpret as a space, so encode it explicitly.
+    components.percentEncodedQuery = components.percentEncodedQuery?
+      .replacingOccurrences(of: "+", with: "%2B")
+    return components.url
   }
 
   private var emailMessageBody: String {
@@ -159,14 +181,6 @@ struct VPNContactFormView: View {
       body.append("\n\(networkType)\n\n")
     }
 
-    if includes.cellularCarrier {
-      let carrierName =
-        CTTelephonyNetworkInfo().serviceSubscriberCellularProviders?
-        .first?.value.carrierName ?? "-"
-      body.append(Strings.VPN.contactFormCarrier)
-      body.append("\n\(carrierName)\n\n")
-    }
-
     if includes.logs {
       let logs = BraveVPN.errorLog
       body.append("\(Strings.VPN.contactFormLogs)\n")
@@ -182,11 +196,10 @@ struct VPNContactFormView: View {
     }
 
     if includes.receipt,
-      let receiptUrl = Bundle.main.appStoreReceiptURL,
-      let receiptData = try? Data(contentsOf: receiptUrl)
+      let receipt = try? AppStoreReceipt.receipt
     {
       body.append(Strings.VPN.contactFormAppStoreReceipt)
-      body.append("\n\(receiptData.base64EncodedString())\n\n")
+      body.append("\n\(receipt)\n\n")
     }
 
     return body

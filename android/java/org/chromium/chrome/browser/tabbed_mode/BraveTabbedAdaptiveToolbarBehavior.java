@@ -7,7 +7,9 @@ package org.chromium.chrome.browser.tabbed_mode;
 
 import android.app.Activity;
 
+import org.chromium.base.BravePreferenceKeys;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -17,6 +19,7 @@ import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.glic.GlicButtonDelegate;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonController;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -25,6 +28,7 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarBehavior;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -58,7 +62,9 @@ public class BraveTabbedAdaptiveToolbarBehavior extends TabbedAdaptiveToolbarBeh
             MonotonicObservableSupplier<@StripVisibilityState Integer> tabStripVisibilitySupplier,
             GlicButtonDelegate toggleGlicCallback,
             Supplier<@Nullable ChromeAndroidTask> chromeAndroidTaskSupplier,
-            BrowserControlsVisibilityManager browserControlsVisibilityManager) {
+            BrowserControlsVisibilityManager browserControlsVisibilityManager,
+            NonNullObservableSupplier<Boolean> isVerticalTabsActiveSupplier,
+            NonNullObservableSupplier<Boolean> isGlicPinnedSupplier) {
         super(
                 activity,
                 activityLifecycleDispatcher,
@@ -72,18 +78,46 @@ public class BraveTabbedAdaptiveToolbarBehavior extends TabbedAdaptiveToolbarBeh
                 tabStripVisibilitySupplier,
                 toggleGlicCallback,
                 chromeAndroidTaskSupplier,
-                browserControlsVisibilityManager);
+                browserControlsVisibilityManager,
+                isVerticalTabsActiveSupplier,
+                isGlicPinnedSupplier);
         mActivity = activity;
     }
 
     @Override
     public int resultFilter(List<Integer> segmentationResults) {
+        if (!isTabGroupsEnabled()) {
+            // The "Enable tab groups" master switch is off: drop the adaptive "Tab grouping"
+            // toolbar button, which would merge the current tab(s) into a new group.
+            List<Integer> filteredResults = new ArrayList<>();
+            for (int result : segmentationResults) {
+                if (result != AdaptiveToolbarButtonVariant.TAB_GROUPING) {
+                    filteredResults.add(result);
+                }
+            }
+            segmentationResults = filteredResults;
+        }
         int result = AdaptiveToolbarBehavior.defaultResultFilter(mActivity, segmentationResults);
         if (result == AdaptiveToolbarButtonVariant.UNKNOWN) {
             maybeAddBraveButtonVariants();
             result = AdaptiveToolbarBehavior.defaultResultFilter(mActivity, segmentationResults);
         }
         return result;
+    }
+
+    @Override
+    public boolean canShowManualOverride(int manualOverride) {
+        // Don't let the "Tab grouping" button be pinned from adaptive-toolbar settings while the
+        // "Enable tab groups" master switch is off.
+        if (!isTabGroupsEnabled() && manualOverride == AdaptiveToolbarButtonVariant.TAB_GROUPING) {
+            return false;
+        }
+        return super.canShowManualOverride(manualOverride);
+    }
+
+    private static boolean isTabGroupsEnabled() {
+        return ChromeSharedPreferences.getInstance()
+                .readBoolean(BravePreferenceKeys.BRAVE_TAB_GROUPS_FEATURE_ENABLED, true);
     }
 
     private void maybeAddBraveButtonVariants() {

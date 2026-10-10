@@ -163,18 +163,20 @@ class ChromiumTabState: TabState, TabStateImpl {
     webViewObservations.append(
       contentsOf: keyValueObservations.map { observation in .init { observation.invalidate() } }
     )
-    if let webView = webView.internalWebView {
-      let sampledPageTopColorObservation =
-        StringKeyPathObserver<WKWebView, UIColor>(
-          object: webView,
-          keyPath: "_sampl\("edPageTopC")olor",
-          changeHandler: { [weak self] _ in
-            self?.webViewSampledPageTopColorDidChange()
-          }
+    if #unavailable(iOS 26.0) {
+      if let webView = webView.internalWebView {
+        let sampledPageTopColorObservation =
+          StringKeyPathObserver<WKWebView, UIColor>(
+            object: webView,
+            keyPath: "_sampl\("edPageTopC")olor",
+            changeHandler: { [weak self] _ in
+              self?.webViewSampledPageTopColorDidChange()
+            }
+          )
+        webViewObservations.append(
+          .init { sampledPageTopColorObservation.invalidate() }
         )
-      webViewObservations.append(
-        .init { sampledPageTopColorObservation.invalidate() }
-      )
+      }
     }
   }
 
@@ -372,8 +374,6 @@ class ChromiumTabState: TabState, TabStateImpl {
   }
   var backForwardList: (any BackForwardListProxy)?
 
-  var redirectChain: [URL] = []
-
   var currentInitialURL: URL? {
     webView?.originalRequestURLForLastCommitedNavigation
   }
@@ -440,6 +440,41 @@ class ChromiumTabState: TabState, TabStateImpl {
 
   @MainActor func createFullPagePDF() async throws -> Data? {
     return await webView?.createFullPagePDF()
+  }
+
+  @MainActor func downloadCurrentPage(to fileURL: URL) async throws {
+    guard let webView else {
+      throw URLError(.unknown)
+    }
+    // Retains the download isolated to main actor for the duration of this call since the
+    // underlying download is cancelled when its handle is deallocated.
+    @MainActor final class DownloadBox {
+      var download: CWVWebViewDownload?
+    }
+    let box = DownloadBox()
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation {
+        (continuation: CheckedContinuation<Void, Error>) in
+        box.download = webView.downloadCurrentPage(
+          toPath: fileURL.path(percentEncoded: false)
+        ) { error in
+          if let error {
+            continuation.resume(throwing: error)
+          } else {
+            continuation.resume()
+          }
+        }
+      }
+    } onCancel: {
+      Task { @MainActor in
+        box.download?.cancel()
+      }
+    }
+  }
+
+  func suggestedFilenameForCurrentPage(contentDisposition: String?) -> String {
+    webView?.suggestedFilenameForCurrentPage(contentDisposition: contentDisposition)
+      ?? "document"
   }
 
   var isFindNavigatorVisible: Bool {
@@ -547,7 +582,7 @@ class ChromiumTabState: TabState, TabStateImpl {
   var policyDeciders: OrderedSet<AnyTabPolicyDecider> = []
 }
 
-extension CWVWebView: WebViewProxy {}
+extension CWVWebView: nonisolated WebViewProxy {}
 
 extension CWVUserAgentType {
   init(_ userAgentType: UserAgentType) {

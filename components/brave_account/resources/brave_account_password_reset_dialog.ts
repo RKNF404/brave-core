@@ -9,13 +9,9 @@ import {
   BraveAccountBrowserProxy,
   BraveAccountBrowserProxyImpl,
 } from './brave_account_browser_proxy.js'
-import {
-  ResetPasswordClientErrorCode,
-  ResetPasswordError,
-} from './brave_account.mojom-webui.js'
 import { getCss } from './brave_account_password_reset_dialog.css.js'
 import { getHtml } from './brave_account_password_reset_dialog.html.js'
-import { showError } from './brave_account_common.js'
+import { showError } from './brave_account_shared.js'
 
 export class BraveAccountPasswordResetDialogElement extends CrLitElement {
   static get is() {
@@ -34,26 +30,21 @@ export class BraveAccountPasswordResetDialogElement extends CrLitElement {
     return {
       email: { type: String },
       isEmailValid: { type: Boolean },
+      isSubmitting: { type: Boolean, state: true },
     }
   }
 
   protected async onResetPasswordButtonClicked() {
+    if (this.isSubmitting) return
+    this.isSubmitting = true
+
     try {
-      await this.browserProxy.authentication.resetPasswordVerifyInit(this.email)
+      await this.browserProxy.authentication.resetPasswordStep1(this.email)
     } catch (e) {
-      let error: ResetPasswordError
-
-      if (e && typeof e === 'object') {
-        error = e as ResetPasswordError
-      } else {
-        console.error('Unexpected error:', e)
-        error = {
-          clientError: { errorCode: ResetPasswordClientErrorCode.kUnexpected },
-        }
-      }
-
-      showError({ kind: 'resetPassword', details: error })
+      showError('resetPassword', e)
     }
+
+    this.isSubmitting = false
   }
 
   private browserProxy: BraveAccountBrowserProxy =
@@ -61,6 +52,7 @@ export class BraveAccountPasswordResetDialogElement extends CrLitElement {
 
   protected accessor email: string = ''
   protected accessor isEmailValid: boolean = false
+  protected accessor isSubmitting: boolean = false
 }
 
 declare global {

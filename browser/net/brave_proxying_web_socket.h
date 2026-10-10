@@ -16,6 +16,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/values.h"
 #include "brave/browser/net/resource_context_data.h"
 #include "brave/browser/net/url_context.h"
 #include "content/public/browser/content_browser_client.h"
@@ -31,7 +32,6 @@
 
 namespace content {
 class BrowserContext;
-class RenderFrameHost;
 }  // namespace content
 
 // Ensures that all web socket requests go through Brave network request
@@ -56,15 +56,22 @@ class BraveProxyingWebSocket
   BraveProxyingWebSocket& operator=(const BraveProxyingWebSocket&) = delete;
   ~BraveProxyingWebSocket() override;
 
+  // `render_frame_token` is default-constructed when the initiator is a shared
+  // or service worker (no frame). In that case `initiator_origin` is the only
+  // origin source.
   static BraveProxyingWebSocket* ProxyWebSocket(
-      content::RenderFrameHost* frame,
+      content::BrowserContext* browser_context,
+      content::GlobalRenderFrameHostToken render_frame_token,
+      const url::Origin& initiator_origin,
       content::ContentBrowserClient::WebSocketFactory factory,
       const GURL& url,
       const net::SiteForCookies& site_for_cookies,
       const std::optional<std::string>& user_agent);
 
   void Start(mojo::PendingRemote<network::mojom::WebSocketHandshakeClient>
-                 handshake_client);
+                 handshake_client,
+             mojo::PendingRemote<network::mojom::TrustedHeaderClient>
+                 trusted_header_client = mojo::NullRemote());
 
   content::ContentBrowserClient::WebSocketFactory CreateWebSocketFactory();
   bool proxy_has_extra_headers();
@@ -89,7 +96,8 @@ class BraveProxyingWebSocket
                       OnAuthRequiredCallback callback) override;
 
   // network::mojom::TrustedHeaderClient methods:
-  void OnBeforeSendHeaders(const net::HttpRequestHeaders& headers,
+  void OnBeforeSendHeaders(const GURL& request_url,
+                           const net::HttpRequestHeaders& headers,
                            OnBeforeSendHeadersCallback callback) override;
   void OnHeadersReceived(const std::string& headers,
                          const ::net::IPEndPoint& remote_endpoint,
@@ -113,9 +121,11 @@ class BraveProxyingWebSocket
   void ContinueToStartRequest(int error_code);
   void OnHeadersReceivedComplete(int error_code);
   void ContinueToHeadersReceived();
+  void ContinueToCompleted();
   void OnBeforeSendHeadersCompleteFromProxy(
       int error_code,
-      const std::optional<net::HttpRequestHeaders>& headers);
+      const std::optional<net::HttpRequestHeaders>& headers,
+      std::optional<base::DictValue> extended_net_log_events = std::nullopt);
   void OnHeadersReceivedCompleteFromProxy(
       int error_code,
       const std::optional<std::string>& headers,
@@ -148,7 +158,11 @@ class BraveProxyingWebSocket
   network::ResourceRequest request_;
   network::mojom::URLResponseHead response_;
   scoped_refptr<net::HttpResponseHeaders> override_headers_;
-  net::IPEndPoint remote_endpoint_;
+  mojo::PendingRemote<network::mojom::WebSocket> websocket_;
+  mojo::PendingReceiver<network::mojom::WebSocketClient> client_receiver_;
+  network::mojom::WebSocketHandshakeResponsePtr handshake_response_;
+  mojo::ScopedDataPipeConsumerHandle readable_;
+  mojo::ScopedDataPipeProducerHandle writable_;
 
   GURL redirect_url_;
   bool is_done_ = false;

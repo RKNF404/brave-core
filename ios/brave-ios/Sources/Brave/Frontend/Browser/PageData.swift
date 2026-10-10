@@ -25,9 +25,9 @@ import WebKit
   /// The stats class to get the engine data from
   private var groupsManager: AdBlockGroupsManager
 
-  init(mainFrameURL: URL, groupsManager: AdBlockGroupsManager = AdBlockGroupsManager.shared) {
+  init(mainFrameURL: URL, groupsManager: AdBlockGroupsManager? = nil) {
     self.mainFrameURL = mainFrameURL
-    self.groupsManager = groupsManager
+    self.groupsManager = groupsManager ?? AdBlockGroupsManager.shared
   }
 
   /// This method builds all the user scripts that should be included for this page
@@ -78,6 +78,7 @@ import WebKit
 
   /// Return all the user script types for this page. The number of script types grows as more frames are loaded.
   @MainActor func makeUserScriptTypes(
+    isPrivateBrowsing: Bool,
     isDeAmpEnabled: Bool,
     isAdBlockEnabled: Bool,
     isBlockFingerprintingEnabled: Bool,
@@ -88,9 +89,16 @@ import WebKit
       return []
     }
 
-    var userScriptTypes: Set<UserScriptType> = [
-      .siteStateListener, .gpc(isGPCEnabled),
-    ]
+    var userScriptTypes: Set<UserScriptType> = [.siteStateListener]
+
+    // On iOS 27+ WebKit handles GPC natively when the feature is enabled
+    var isGPCHandledByWebKit = false
+    if #available(iOS 27.0, *), FeatureList.kWebKitGlobalPrivacyControl.enabled {
+      isGPCHandledByWebKit = true
+    }
+    if !isGPCHandledByWebKit {
+      userScriptTypes.insert(.gpc(isGPCEnabled))
+    }
 
     // Handle dynamic domain level scripts on the main document.
     // These are scripts that change depending on the domain and the main document
@@ -104,7 +112,10 @@ import WebKit
 
     // Handle dynamic domain level scripts on the request that don't use shields
     // This shield is always on and doesn't need sheild settings
-    if let domainUserScript = DomainUserScript(for: mainFrameURL) {
+    if let domainUserScript = DomainUserScript(
+      for: mainFrameURL,
+      isPrivateBrowsing: isPrivateBrowsing
+    ) {
       userScriptTypes.insert(.domainUserScript(domainUserScript))
     }
 

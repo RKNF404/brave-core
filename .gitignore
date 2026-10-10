@@ -7,10 +7,11 @@ vendor/web-discovery-project
 vendor/depot_tools
 vendor/omaha/
 .DS_Store
-.brave_gclient_*
+.brave_gclient*
 .gclient_*
 .tags*
 .cipd
+/.gitconfig*
 /chromium_src/.clang-format
 /.idea/
 /browser/resources/brave_new_tab_page_refresh/state/background_images/LICENSE
@@ -23,6 +24,7 @@ vendor/omaha/
 /out/
 node_modules/
 patches/**/*.patchinfo
+/tools/recipes/.recipe_deps/
 /third_party/argon2/src
 /third_party/boringtun/.cargo-home/
 /third_party/boringtun/target/
@@ -34,10 +36,9 @@ patches/**/*.patchinfo
 /third_party/playlist_component/src
 /third_party/reclient_configs/src
 /third_party/rust/futures_retry/v0_5/crate
-/third_party/cryptography
-/third_party/macholib
 /third_party/libdmg-hfsplus/
 /third_party/node/node-*/
+/third_party/node/node_modules/
 /third_party/node/linux/
 /third_party/node/mac/
 /third_party/node/mac_arm64/
@@ -47,7 +48,9 @@ patches/**/*.patchinfo
 /third_party/wintun/
 /third_party/ast-grep-intermediate/
 /third_party/ast-grep-src/
+/third_party/tree-sitter-gn-src/
 /third_party/ast-grep/ast-grep-*
+/third_party/updater/mac/
 *.xcodeproj
 !/ios/brave-ios/App/*.xcodeproj
 *.swp
@@ -101,9 +104,22 @@ xcuserdata
 # A file that may be left behind in the CI after running presubmits
 .presubmit_results.json
 
+# Per-developer configuration for tools/swift/bsp/gn_bsp_server.py
+buildServer.json
+
 # Claude LLM settings (user-specific, not tracked)
 .claude/settings.local.json
 .claude/CLAUDE.md
 .claude/worktrees/
 
+# Generated agent-skill discovery dir. Source of truth is agents/skills/;
+# .claude/skills/ is populated with symlinks by agents/skills/setup.py on sync.
+.claude/skills/
+
+# Skill-eval harness scratch (harvested results, python caches).
+agents/testing/.last_run/
+agents/**/__pycache__/
+
 /.ignore/
+
+.ruff_cache/

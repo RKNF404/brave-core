@@ -8,6 +8,7 @@
 
 #include <optional>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 
 // Immersive mode requires special handling for vertical tabs, including
@@ -18,7 +19,7 @@
   bool UsesImmersiveFullscreenTabbedMode_ChromiumImpl() const; \
                                                                \
  private:                                                      \
-  mutable std::optional<bool> vertical_tabs_on_at_startup_;    \
+  mutable std::optional<bool> disabled_at_startup_;            \
                                                                \
  public:                                                       \
   bool UsesImmersiveFullscreenMode

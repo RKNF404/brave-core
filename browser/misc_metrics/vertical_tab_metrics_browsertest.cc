@@ -9,7 +9,6 @@
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -23,7 +22,7 @@ namespace misc_metrics {
 class VerticalTabMetricsTest : public InProcessBrowserTest {
  protected:
   void SetVerticalTabsEnabled(bool enabled) {
-    return browser()->profile()->GetPrefs()->SetBoolean(
+    return browser()->GetProfile()->GetPrefs()->SetBoolean(
         brave_tabs::kVerticalTabsEnabled, enabled);
   }
 
@@ -49,7 +48,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabMetricsTest, OpenTabs) {
   histogram_tester_.ExpectBucketCount(kVerticalOpenTabsHistogramName, 2, 1);
 
   // Test combined counts between two windows
-  Browser* second_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
   for (size_t i = 0; i < 4; i++) {
     chrome::AddTabAt(second_browser, {}, -1, true);
   }
@@ -108,7 +108,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabMetricsTest, PinnedTabs) {
 IN_PROC_BROWSER_TEST_F(VerticalTabMetricsTest, GroupTabs) {
   auto* tab_groups_service =
       tab_groups::TabGroupSyncServiceFactory::GetForProfile(
-          browser()->profile());
+          browser()->GetProfile());
   ASSERT_TRUE(tab_groups_service);
   tab_groups_service->SetIsInitializedForTesting(true);
 

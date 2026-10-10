@@ -4,6 +4,7 @@
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import("//brave/components/brave_talk/buildflags/buildflags.gni")
+import("//brave/components/playlist/core/common/buildflags/buildflags.gni")
 
 config("config") {
   # For our own public headers to be able to import the official public headers
@@ -32,15 +33,23 @@ source_set("web_view") {
     "//base",
     "//brave/components/ai_chat/core/common",
     "//brave/components/ai_chat/ios/browser",
+    "//brave/components/brave_account/mojom:mojom_objc",
     "//brave/components/brave_talk/buildflags",
+    "//brave/components/playlist/core/common/buildflags",
     "//brave/components/serp_metrics:features",
     "//brave/ios/browser/ai_chat",
     "//brave/ios/browser/api/profile",
     "//brave/ios/browser/api/url",
     "//brave/ios/browser/api/web_view/autofill",
     "//brave/ios/browser/api/web_view/passwords",
+    "//brave/ios/browser/brave_account",
     "//brave/ios/browser/brave_ads",
     "//brave/ios/browser/brave_search",
+    "//brave/ios/browser/brave_shields",
+    "//brave/ios/browser/brave_shields/cosmetic_filtering",
+    "//brave/ios/browser/brave_shields/request_blocking",
+    "//brave/ios/browser/brave_shields/scriptlets",
+    "//brave/ios/browser/brave_wallet",
     "//brave/ios/browser/favicon",
     "//brave/ios/browser/serp_metrics",
     "//brave/ios/browser/skus",
@@ -51,6 +60,7 @@ source_set("web_view") {
     "//brave/ios/browser/web/logins",
     "//brave/ios/browser/web/page_metadata",
     "//brave/ios/browser/web/reader_mode",
+    "//brave/ios/browser/web/text_content_distiller",
     "//brave/ios/browser/youtube",
     "//brave/ios/web_view",
     "//components/favicon/core",
@@ -64,7 +74,9 @@ source_set("web_view") {
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/tabs/model",
     "//ios/chrome/browser/translate/model",
+    "//ios/chrome/browser/web/model",
     "//ios/chrome/browser/web/model/print",
+    "//ios/net",
     "//ios/web/common",
     "//ios/web/web_state",
     "//ios/web/web_state/ui:wk_web_view_configuration_provider_header",
@@ -73,6 +85,9 @@ source_set("web_view") {
   ]
   if (enable_brave_talk) {
     deps += [ "//brave/ios/browser/brave_talk" ]
+  }
+  if (enable_playlist) {
+    deps += [ "//brave/ios/browser/playlist" ]
   }
   frameworks = [
     "Foundation.framework",

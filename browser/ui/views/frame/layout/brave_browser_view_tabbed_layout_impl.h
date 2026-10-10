@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 
 // Provides a specialized layout implementation for Brave tabbed browsers
 // using the new layout architecture (BrowserViewTabbedLayoutImpl).
@@ -21,7 +22,6 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
  public:
   BraveBrowserViewTabbedLayoutImpl(
       std::unique_ptr<BrowserViewLayoutDelegate> delegate,
-      Browser* browser,
       BrowserViewLayoutViews views);
   ~BraveBrowserViewTabbedLayoutImpl() override;
 
@@ -61,8 +61,6 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
       int full_window_width,
       std::optional<gfx::Insets> vtab_insets);
 
-  views::View* contents_container() { return views().contents_container; }
-
   // Returns the ideal sidebar width, given the current available width. Used
   // for determining the target width in sidebar width animations.
   int GetIdealSideBarWidth() const;
@@ -78,6 +76,7 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
   void ConfigureTopContainerBackground(
       const BrowserLayoutParams& params,
       CustomCornersBackground* background) override;
+  void DoPreLayoutComputations(const BrowserLayoutParams& params) override;
   void DoPostLayoutVisualAdjustments(
       const BrowserLayoutParams& params) override;
   // SeparatorInfo is the upstream's private nested type. Friend access (added
@@ -96,6 +95,20 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
   bool GetMultiContentsSeparatorForTesting() const;
   bool GetShadowBoxForTesting() const;
 
+  // Test-only accessor for GetContentsMargins(), which is private and
+  // non-virtual.
+  gfx::Insets GetContentsMarginsForTesting() const;
+
+  // Test-only accessor for CalculateContentsCornerRadii(), which is private.
+  gfx::RoundedCornersF CalculateContentsCornerRadiiForTesting() const;
+
+  // Populates `layout_data_` with the given window state (and a zero side
+  // panel width) so `CalculateSeparatorInfo()` can be exercised without
+  // running a full layout pass. Implemented alongside CalculateSeparatorInfo()
+  // in the chromium_src shadow.
+  void SetWindowStateForTesting(
+      BrowserViewLayoutDelegate::WindowState window_state);
+
  private:
   void CalculateBraveVerticalTabStripLayout(
       ProposedLayout& layout,
@@ -109,6 +122,23 @@ class BraveBrowserViewTabbedLayoutImpl : public BrowserViewTabbedLayoutImpl {
   void UpdateInsetsForVerticalTabStrip();
 
   gfx::Insets GetContentsMargins() const;
+
+  // Whether the contents area reaches the top edge of the window, which happens
+  // when nothing above it (tab strip, toolbar, bookmark bar, infobar, focus
+  // mode title bar) is laid out within the browser view.
+  bool IsContentsAtTopEdge() const;
+
+  // Whether the vertical tab strip / sidebar UI sits beside the contents area
+  // rather than floating above it or being hidden.
+  bool IsVerticalTabStripAtContentsEdge() const;
+  bool IsSidebarAtContentsEdge() const;
+
+  // Returns the corner radii for the contents area, where a corner meeting the
+  // window frame follows the window's corner and a corner meeting other UI
+  // uses the smaller border radius. Empty when the contents should not be
+  // rounded at all.
+  gfx::RoundedCornersF CalculateContentsCornerRadii() const;
+
   bool ShouldPushBookmarkBarForVerticalTabs() const;
   gfx::Insets GetInsetsConsideringVerticalTabHost() const;
 

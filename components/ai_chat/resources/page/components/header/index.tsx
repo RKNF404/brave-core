@@ -8,7 +8,6 @@ import Icon from '@brave/leo/react/icon'
 import Button from '@brave/leo/react/button'
 import Label from '@brave/leo/react/label'
 import { Conversation } from '../../../common/mojom'
-import { serializeConversationForSharing } from '../../../common/conversation_serialization'
 import useCanStartNewConversation from '../../hooks/useCanStartNewConversation'
 import FeatureButtonMenu, {
   Props as FeatureButtonMenuProps,
@@ -18,6 +17,10 @@ import { useAIChat, useIsSmall } from '../../state/ai_chat_context'
 import { useConversation } from '../../state/conversation_context'
 import { getLocale } from '$web-common/locale'
 import { useActiveChat } from '../../state/active_chat_context'
+
+type Props = FeatureButtonMenuProps & {
+  startSharingConversation: () => void
+}
 
 const Logo = ({ isPremium }: { isPremium: boolean }) => (
   <div className={styles.logo}>
@@ -41,11 +44,11 @@ const newChatButtonLabel = getLocale(S.CHAT_UI_NEW_CONVERSATION_BUTTON_LABEL)
 const closeButtonLabel = getLocale(S.CHAT_UI_LABEL_CLOSE)
 const openFullPageButtonLabel = getLocale(S.CHAT_UI_OPEN_LABEL)
 const shareConversationButtonLabel = getLocale(
-  S.CHAT_UI_SHARE_CONVERSATION_BUTTON_LABEL,
+  S.CHAT_UI_SHARE_CONVERSATION_LABEL,
 )
 
 export const ConversationHeader = React.forwardRef(function (
-  props: FeatureButtonMenuProps,
+  props: Props,
   ref: React.Ref<HTMLDivElement>,
 ) {
   const aiChatContext = useAIChat()
@@ -70,21 +73,12 @@ export const ConversationHeader = React.forwardRef(function (
     && conversationHistory.length > 0
     && !conversationState.isRequestInProgress
 
-  const handleShareConversation = () => {
-    // The serialized conversation will eventually be sent to the sharing
-    // server, which will encrypt it and return a shareable link. For now, copy
-    // the serialized string to the clipboard so the flow can be demoed.
-    const json = serializeConversationForSharing(conversationHistory)
-    navigator.clipboard.writeText(json)
-  }
-
   const showTitle =
     (!isMainConversation || aiChatContext.isStandalone) && !isMobile
   const canShowFullScreenButton =
     aiChatContext.isHistoryFeatureEnabled
     && !isMobile
     && !aiChatContext.isStandalone
-    && conversationContext.conversationUuid
 
   return (
     <div
@@ -128,63 +122,66 @@ export const ConversationHeader = React.forwardRef(function (
         <Logo isPremium={aiChatContext.isPremiumUser} />
       )}
       <div className={styles.actions}>
+        {aiChatContext.hasAcceptedAgreement && shouldDisplayEraseAction && (
+          <Button
+            fab
+            kind='plain-faint'
+            aria-label={newChatButtonLabel}
+            title={newChatButtonLabel}
+            onClick={createNewConversation}
+          >
+            <Icon
+              name={
+                aiChatContext.isHistoryFeatureEnabled ? 'edit-box' : 'erase'
+              }
+            />
+          </Button>
+        )}
+        {canShowFullScreenButton && (
+          <Button
+            fab
+            kind='plain-faint'
+            aria-label={openFullPageButtonLabel}
+            title={openFullPageButtonLabel}
+            data-testid='open-full-page-button'
+            onClick={() =>
+              aiChatContext.api.uiHandler.openConversationFullPage(
+                conversationContext.conversationUuid ?? '',
+              )
+            }
+          >
+            <Icon name='expand' />
+          </Button>
+        )}
+        {aiChatContext.hasAcceptedAgreement && canShareConversation && (
+          <Button
+            fab
+            kind='plain-faint'
+            aria-label={shareConversationButtonLabel}
+            title={shareConversationButtonLabel}
+            onClick={props.startSharingConversation}
+          >
+            <Icon name='share' />
+          </Button>
+        )}
         {aiChatContext.hasAcceptedAgreement && (
-          <>
-            {shouldDisplayEraseAction && (
-              <Button
-                fab
-                kind='plain-faint'
-                aria-label={newChatButtonLabel}
-                title={newChatButtonLabel}
-                onClick={createNewConversation}
-              >
-                <Icon
-                  name={
-                    aiChatContext.isHistoryFeatureEnabled ? 'edit-box' : 'erase'
-                  }
-                />
-              </Button>
-            )}
-            {canShowFullScreenButton && (
-              <Button
-                fab
-                kind='plain-faint'
-                aria-label={openFullPageButtonLabel}
-                title={openFullPageButtonLabel}
-                onClick={() =>
-                  aiChatContext.api.uiHandler.openConversationFullPage(
-                    conversationContext.conversationUuid!,
-                  )
-                }
-              >
-                <Icon name='expand' />
-              </Button>
-            )}
-            {canShareConversation && (
-              <Button
-                fab
-                kind='plain-faint'
-                aria-label={shareConversationButtonLabel}
-                title={shareConversationButtonLabel}
-                onClick={handleShareConversation}
-              >
-                <Icon name='share' />
-              </Button>
-            )}
-            <FeatureButtonMenu {...props} />
-            {!aiChatContext.isStandalone && (
-              <Button
-                fab
-                kind='plain-faint'
-                aria-label={closeButtonLabel}
-                title={closeButtonLabel}
-                className={styles.closeButton}
-                onClick={() => aiChatContext.api.uiHandler.closeUI()}
-              >
-                <Icon name='close' />
-              </Button>
-            )}
-          </>
+          <FeatureButtonMenu
+            setIsConversationsListOpen={props.setIsConversationsListOpen}
+            manageSharedConversations={props.manageSharedConversations}
+          />
+        )}
+        {!aiChatContext.isStandalone && (
+          <Button
+            fab
+            kind='plain-faint'
+            aria-label={closeButtonLabel}
+            title={closeButtonLabel}
+            className={styles.closeButton}
+            data-testid='close-button'
+            onClick={() => aiChatContext.api.uiHandler.closeUI()}
+          >
+            <Icon name='close' />
+          </Button>
         )}
       </div>
     </div>

@@ -9,9 +9,12 @@ import * as React from 'react'
 import { useArgs } from '@storybook/preview-api'
 import { Meta, StoryObj } from '@storybook/react'
 import '@brave/leo/tokens/css/variables.css'
-import { getKeysForMojomEnum } from '$web-common/mojomUtils'
-import { Url } from 'gen/url/mojom/url.mojom.m.js'
-import { InferControlsFromArgs } from '../../../../../.storybook/utils'
+import { getKeysForMojomEnum, jsDateToMojoTime } from '$web-common/mojomUtils'
+import { InferControlsFromArgs } from '$storybook/utils'
+import {
+  ConversationDataJson,
+  parseConversationData,
+} from '../../common/conversation_serialization'
 import * as Mojom from '../../common/mojom'
 import FullPage from '../components/full_page'
 import Loading from '../components/loading'
@@ -72,7 +75,7 @@ const MODELS: Mojom.Model[] = [
     audioSupport: false,
     videoSupport: false,
     supportsTools: false,
-    supportedCapabilities: [Mojom.ConversationCapability.CHAT],
+    supportedCapabilities: [],
     isSuggestedModel: true,
     isNearModel: false,
     supportsPrivateInference: false,
@@ -96,10 +99,7 @@ const MODELS: Mojom.Model[] = [
     audioSupport: false,
     videoSupport: false,
     supportsTools: true,
-    supportedCapabilities: [
-      Mojom.ConversationCapability.CHAT,
-      Mojom.ConversationCapability.CONTENT_AGENT,
-    ],
+    supportedCapabilities: [Mojom.ConversationCapability.CONTENT_AGENT],
     isSuggestedModel: true,
     isNearModel: false,
     supportsPrivateInference: false,
@@ -123,7 +123,7 @@ const MODELS: Mojom.Model[] = [
     audioSupport: false,
     videoSupport: false,
     supportsTools: false,
-    supportedCapabilities: [Mojom.ConversationCapability.CHAT],
+    supportedCapabilities: [],
     isSuggestedModel: false,
     isNearModel: false,
     supportsPrivateInference: false,
@@ -147,7 +147,7 @@ const MODELS: Mojom.Model[] = [
     audioSupport: false,
     videoSupport: false,
     supportsTools: true,
-    supportedCapabilities: [Mojom.ConversationCapability.CHAT],
+    supportedCapabilities: [],
     isSuggestedModel: false,
     isNearModel: false,
     supportsPrivateInference: false,
@@ -204,12 +204,40 @@ const ASSOCIATED_CONTENT_WITH_TOOLS: Mojom.AssociatedContent = {
   toolsAttached: true,
 }
 
+// Shown in the dialog opened from the "Tools" pill. The first description is
+// long enough to be clamped, so expand/collapse is exercised.
+const SAMPLE_CONTENT_TOOLS: Mojom.ToolInfo[] = [
+  {
+    name: 'browse_invoices',
+    description:
+      'Browse OR navigate to invoices. Set navigate=true whenever the user'
+      + ' wants to be taken to an invoice page in the browser (triggers:'
+      + ' "browse to", "go to", "show me", "open", "take me to", "navigate to"'
+      + ' an invoice). With navigate=false (default), returns invoice data'
+      + ' without changing the page — use this only when the user is asking a'
+      + ' question about their invoices, not asking to view one.',
+    permission: Mojom.ToolPermission.kAsk,
+  },
+  {
+    name: 'create_invoice',
+    description: 'Create a new draft invoice for a given customer and amount.',
+    permission: Mojom.ToolPermission.kAllowSession,
+  },
+  {
+    name: 'send_invoice',
+    description:
+      'Email an existing draft invoice to its customer. Verifies the invoice'
+      + ' has a customer and at least one line item first.',
+    permission: Mojom.ToolPermission.kNeverAllow,
+  },
+]
+
 const SAMPLE_SKILLS: Mojom.Skill[] = [
   {
     id: 'translate-mode',
     shortcut: 'translate',
     prompt: 'Translate the following text to English',
-    model: 'claude-3-haiku',
+    model: 'automatic',
     createdTime: { internalValue: BigInt(Date.now() * 1000) },
     lastUsed: { internalValue: BigInt(Date.now() * 1000) },
   },
@@ -228,6 +256,21 @@ const SAMPLE_SKILLS: Mojom.Skill[] = [
     model: undefined,
     createdTime: { internalValue: BigInt(Date.now() * 1000) },
     lastUsed: { internalValue: BigInt((Date.now() - 3600000) * 1000) },
+  },
+]
+
+const SAMPLE_CONVERSATION_SHARES: Mojom.ConversationShare[] = [
+  {
+    shareId: 'a1b2c3d4e5f6',
+    conversationUuid: '1',
+    conversationTitle: 'What is the best way to make a cup of tea?',
+    createdTime: jsDateToMojoTime(new Date(Date.now() - 3600000)),
+  },
+  {
+    shareId: 'f6e5d4c3b2a1',
+    conversationUuid: '2',
+    conversationTitle: 'Summarize the latest news about space exploration',
+    createdTime: jsDateToMojoTime(new Date(Date.now() - 3 * 86400000)),
   },
 ]
 
@@ -335,7 +378,6 @@ type CustomArgs = {
   isUploadingFiles: boolean
   attachmentsDialog: 'tabs' | 'bookmarks' | 'history' | null
   isNewConversation: boolean
-  generatedUrlToBeOpened: Url | undefined
   ratingTurnUuid: { isLiked: boolean; turnUuid: string } | undefined
   isTemporaryChat: boolean
   isDragActive: boolean
@@ -351,7 +393,7 @@ const args: CustomArgs = {
   inputText: [
     `Write a Star Trek poem about Data's life on board the Enterprise`,
   ],
-  capabilitiesEnabled: ['CHAT'],
+  capabilitiesEnabled: [],
   conversationListCount: CONVERSATIONS.length,
   hasSuggestedQuestions: true,
   hasAssociatedContent: true,
@@ -387,7 +429,6 @@ const args: CustomArgs = {
   isUploadingFiles: false,
   attachmentsDialog: null,
   isNewConversation: false,
-  generatedUrlToBeOpened: undefined,
   ratingTurnUuid: undefined,
   isTemporaryChat: false,
   isDragActive: false,
@@ -435,10 +476,6 @@ const meta: Meta<CustomArgs> = {
       options: CONVERSATIONS.map((conversation) => conversation.uuid),
       control: { type: 'select' },
     },
-    generatedUrlToBeOpened: {
-      options: [{ url: 'https://www.example.com' }],
-      control: { type: 'select' },
-    },
     ratingTurnUuid: {
       options: [{ isLiked: true, turnUuid: 'turn-uuid' }],
       control: { type: 'select' },
@@ -463,23 +500,49 @@ const meta: Meta<CustomArgs> = {
 async function getConversationContent(
   conversationType: (typeof CONVERSATION_TYPES)[number],
 ): Promise<Mojom.ConversationTurn[]> {
+  // When adding new varieties of conversation content, add it to one of these
+  // cases or create a new case for any sub-variations of the content's rendering.
+  // These files are created from real data by enabling the
+  // brave://flags/#brave-ai-chat-export-json feature flag and clicking the
+  // "Copy entire conversation" menu item with alt+meta keys pressed.
+  // Then get the content in devtools with `copy(JSON.parse(_your_pasted_content_.data))`
+  // and paste it as the ConversationDataJson literal of a new file in
+  // ./conversations, so that the type checker validates the shape.
+  let serializedContent: ConversationDataJson | undefined
   switch (conversationType) {
     case 'ALL':
-      return (await import('./conversations/all')).default
+      serializedContent = (await import('./conversations/all')).default
+      break
     case 'MEMORY':
-      return (await import('./conversations/memory')).default
+      serializedContent = (await import('./conversations/memory')).default
+      break
     case 'SEARCH':
-      return (await import('./conversations/search')).default
+      serializedContent = (await import('./conversations/search')).default
+      break
     case 'SEARCHING':
-      return (await import('./conversations/searching')).default
+      serializedContent = (await import('./conversations/searching')).default
+      break
     case 'WEATHER':
-      return (await import('./conversations/weather')).default
+      serializedContent = (await import('./conversations/weather')).default
+      break
     case 'CODE_EXECUTION':
-      return (await import('./conversations/code_execution')).default
+      serializedContent = (await import('./conversations/code_execution'))
+        .default
+      break
     case 'MULTI_TOOL_MULTI_TURN':
-      return (await import('./conversations/multi_tool_multi_turn')).default
+      serializedContent = (
+        await import('./conversations/multi_tool_multi_turn')
+      ).default
+      break
     case 'MULTI_TOOL_MULTI_TURN_IN_PROGRESS':
-      return (await import('./conversations/multi_tool_multi_turn')).InProgress
+      serializedContent = (
+        await import('./conversations/multi_tool_multi_turn_in_progress')
+      ).default
+      break
+  }
+
+  if (serializedContent) {
+    return parseConversationData(JSON.stringify(serializedContent)).messages
   }
 
   return []
@@ -550,6 +613,8 @@ function StoryContext(
               : Mojom.PremiumStatus.Inactive,
             info: null,
           }),
+        getConversationShares: () =>
+          Promise.resolve({ shares: SAMPLE_CONVERSATION_SHARES }),
       }}
       bookmarksService={{
         getBookmarks: () => Promise.resolve({ bookmarks: SAMPLE_BOOKMARKS }),
@@ -586,15 +651,6 @@ function StoryContext(
               currentModelKey: currentModel.key,
               defaultModelKey: MODELS[0].key,
               allModels: MODELS,
-              suggestedQuestions: argsRef.current.hasSuggestedQuestions
-                ? SAMPLE_QUESTIONS
-                : argsRef.current.hasAssociatedContent
-                  ? [SAMPLE_QUESTIONS[0]]
-                  : [],
-              suggestionStatus:
-                Mojom.SuggestionGenerationStatus[
-                  argsRef.current.suggestionStatus
-                ],
               associatedContent: getAssociatedContent(),
               error: currentError,
               errorDetails: undefined,
@@ -610,6 +666,7 @@ function StoryContext(
         getConversationHistory: async () => ({
           conversationHistory: await getConversationHistory(),
         }),
+        getContentTools: () => Promise.resolve({ tools: SAMPLE_CONTENT_TOOLS }),
       }}
       conversationProps={{
         selectedConversationId: activeChatContext.selectedConversationId,
@@ -628,6 +685,8 @@ function StoryContext(
         isAIChatAgentProfile: args.isAIChatAgentProfile,
         isMobile: args.isMobile,
         isHistoryFeatureEnabled: args.isHistoryEnabled,
+        isConversationShareEnabled: true,
+        isAIChatExportJSONEnabled: true,
         skillDialog: args.skillDialog,
       }}
       conversationOverrides={{
@@ -639,7 +698,6 @@ function StoryContext(
         attachmentsDialog: args.attachmentsDialog,
         isDragActive: args.isDragActive,
         isDragOver: args.isDragOver,
-        generatedUrlToBeOpened: args.generatedUrlToBeOpened,
         isUploadingFiles: args.isUploadingFiles,
       }}
       deps={[...Object.values(args)]}
@@ -673,11 +731,26 @@ function StoryContext(
               totalTokens: BigInt(args.totalTokens),
               trimmedTokens: BigInt(args.trimmedTokens),
               canSubmitUserEntries: currentError === Mojom.APIError.None,
+              suggestedQuestions: argsRef.current.hasSuggestedQuestions
+                ? SAMPLE_QUESTIONS
+                : argsRef.current.hasAssociatedContent
+                  ? [SAMPLE_QUESTIONS[0]]
+                  : [],
+              suggestionStatus:
+                Mojom.SuggestionGenerationStatus[
+                  argsRef.current.suggestionStatus
+                ],
               allModels: MODELS,
               currentModelKey: currentModel?.key ?? '',
               conversationCapabilities: args.capabilitiesEnabled.map(
                 (value) => Mojom.ConversationCapability[value],
               ),
+            },
+            serviceState: {
+              hasAcceptedAgreement: args.hasAcceptedAgreement,
+              isStoragePrefEnabled: args.isStoragePrefEnabled,
+              isStorageNoticeDismissed: args.isStorageNoticeDismissed,
+              canShowPremiumPrompt: args.canShowPremiumPrompt,
             },
           }}
           overrides={{

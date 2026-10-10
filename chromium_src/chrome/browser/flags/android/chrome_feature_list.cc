@@ -3,7 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "base/feature_override.h"
 #include "brave/browser/android/safe_browsing/features.h"
 #include "brave/browser/android/youtube_script_injector/features.h"
 #include "brave/browser/brave_browser_features.h"
@@ -19,7 +18,6 @@
 #include "brave/components/debounce/core/common/features.h"
 #include "brave/components/email_aliases/buildflags/buildflags.h"
 #include "brave/components/google_sign_in_permission/features.h"
-#include "brave/components/ntp_background_images/browser/features.h"
 #include "brave/components/playlist/core/common/features.h"
 #include "brave/components/request_otr/common/features.h"
 #include "brave/components/web_discovery/buildflags/buildflags.h"
@@ -106,9 +104,8 @@
     &brave_shields::features::kBraveShowStrictFingerprintingMode,              \
     &brave_shields::features::kBlockAllCookiesToggle,                          \
     &brave_shields::features::kBraveShieldsElementPicker,                      \
-    &features::kBraveAndroidDynamicColors,                                     \
+    &features::kBraveAndroidDynamicColorsByDefault,                            \
     &features::kBraveFreshNtpAfterIdleExperiment,                              \
-    &ntp_background_images::features::kBraveNTPBrandedWallpaperSurveyPanelist, \
     &brave_shields::features::kBraveShredFeature,                              \
     &brave_origin::features::kBraveOrigin,                                     \
     &features::kBraveCustomSearchEngines,                                      \
@@ -123,13 +120,3 @@
 #undef BRAVE_WEB_DISCOVERY_FLAG
 #undef BRAVE_VPN_FLAG
 #undef EMAIL_ALIASES_FLAG
-
-namespace chrome {
-namespace android {
-
-OVERRIDE_FEATURE_DEFAULT_STATES({{
-    {kAndroidSearchInSettings, base::FEATURE_DISABLED_BY_DEFAULT},
-}});
-
-}  // namespace android
-}  // namespace chrome

@@ -19,7 +19,7 @@ import os
   struct ClearableSetting: Identifiable {
     enum ClearableType: String {
       case history, cache, cookiesAndCache, passwords, siteAndShieldsSettings,
-        downloads, braveNews, recentSearches, braveAdsData
+        downloads, braveNews, recentSearches, braveAdsData, playlistCache
     }
 
     var id: ClearableType
@@ -38,6 +38,9 @@ import os
   var isP3AManaged: Bool {
     p3aUtilities.isP3APreferenceManaged
   }
+  var isMetricsReportingManaged: Bool {
+    localState.isManagedPreference(forPath: kMetricsReportingEnabled)
+  }
   var isStatsReportingManaged: Bool {
     braveStats.isStatsReportingManaged
   }
@@ -51,9 +54,14 @@ import os
       p3aUtilities.isP3AEnabled = isP3AEnabled
     }
   }
+  @Published var isCrashReportingEnabled: Bool {
+    didSet {
+      localState.set(isCrashReportingEnabled, forPath: kMetricsReportingEnabled)
+    }
+  }
   @Published var isDeAmpEnabled: Bool {
     didSet {
-      deAmpPrefs.isDeAmpEnabled = isDeAmpEnabled
+      prefs.set(isDeAmpEnabled, forPath: kDeAmpEnabled)
     }
   }
   @Published var isDebounceEnabled: Bool {
@@ -114,6 +122,23 @@ import os
         fromStart: Date.distantPast,
         end: Date.distantFuture
       )
+      clearHttpsUpgradeAllowlist()
+    }
+  }
+  @Published var isHttpsOnlyModeEnabled: Bool {
+    didSet {
+      prefs.set(isHttpsOnlyModeEnabled, forPath: kHttpsOnlyModeEnabled)
+      clearHttpsUpgradeAllowlist()
+    }
+  }
+  /// Whether or not HTTPS upgrades are enabled at any level.
+  ///
+  /// Enabling restores the level that was set prior to disabling, or `standard` if there is none.
+  var isHTTPSUpgradeEnabled: Bool {
+    get { httpsUpgradeLevel.isEnabled }
+    set {
+      httpsUpgradeLevel =
+        newValue ? (Preferences.Shields.httpsUpgradePriorEnabledLevel ?? .standard) : .disabled
     }
   }
   @Published var shredLevel: SiteShredLevel {
@@ -141,10 +166,18 @@ import os
     }
   }
 
-  @Published var isSurveyPanelistEnabled: Bool = false {
+  @Published var isSponsoredAdsEnabled: Bool {
     didSet {
-      rewards?.ads.isSurveyPanelistEnabled = isSurveyPanelistEnabled
+      prefs.set(isSponsoredAdsEnabled, forPath: kBraveAdsSponsoredEnabledPrefName)
     }
+  }
+
+  /// Hide the Sponsored Ads toggle when Rewards is disabled by policy or in
+  /// an unsupported region, because it would have no effect. This matches
+  /// `AdsServiceImplIOS` logic when it is not started if Rewards is not
+  /// supported.
+  var isSponsoredAdsSupported: Bool {
+    BraveRewardsAPI.isSupported(prefs)
   }
 
   /// If we should write Shields setting changes to content settings.
@@ -166,7 +199,7 @@ import os
   private var subscriptions: [AnyCancellable] = []
   private let prefs: any PrefService
   private let p3aUtilities: BraveP3AUtils
-  private let deAmpPrefs: DeAmpPrefs
+  private let localState: any PrefService
   private let debounceService: (any DebounceService)?
   private let braveShieldsSettings: (any BraveShieldsSettings)?
   private let rewards: BraveRewards?
@@ -183,17 +216,19 @@ import os
     braveShieldsSettings: (any BraveShieldsSettings)?,
     braveCore: BraveProfileController,
     p3aUtils: BraveP3AUtils,
+    localState: any PrefService,
     rewards: BraveRewards?,
     braveStats: BraveStats,
     webcompatReporterHandler: WebcompatReporterWebcompatReporterHandler?,
     clearDataCallback: @escaping ClearDataCallback
   ) {
     self.p3aUtilities = p3aUtils
-    self.deAmpPrefs = braveCore.deAmpPrefs
+    self.localState = localState
     self.debounceService = debounceService
     self.braveShieldsSettings = braveShieldsSettings
     self.tabManager = tabManager
     self.isP3AEnabled = p3aUtilities.isP3AEnabled
+    self.isCrashReportingEnabled = localState.boolean(forPath: kMetricsReportingEnabled)
     self.isStatsReportingEnabled = braveStats.isStatsReportingEnabled
     self.rewards = rewards
     self.clearDataCallback = clearDataCallback
@@ -213,13 +248,16 @@ import os
       self.shredLevel = Preferences.Shields.shredLevel
     }
     self.httpsUpgradeLevel = Preferences.Shields.httpsUpgradeLevel
-    self.isDeAmpEnabled = deAmpPrefs.isDeAmpEnabled
+    self.isHttpsOnlyModeEnabled = prefs.boolean(forPath: kHttpsOnlyModeEnabled)
+    self.isDeAmpEnabled = prefs.boolean(forPath: kDeAmpEnabled)
     self.isGPCEnabled = prefs.boolean(forPath: kGlobalPrivacyControlEnabled)
     self.isBlockAllCookiesEnabled = prefs.boolean(forPath: kBlockAllCookiesEnabled)
     self.isDebounceEnabled = debounceService?.isEnabled ?? false
     self.shredHistoryItems = Preferences.Shields.shredHistoryItems.value
     self.webcompatReporterHandler = webcompatReporterHandler
-    self.isSurveyPanelistEnabled = rewards?.ads.isSurveyPanelistEnabled ?? false
+    self.isSponsoredAdsEnabled = prefs.boolean(
+      forPath: kBraveAdsSponsoredEnabledPrefName
+    )
 
     blockMobileAnnoyances = FilterListStorage.shared.isEnabled(
       for: AdblockFilterListCatalogEntry.mobileAnnoyancesComponentID
@@ -255,6 +293,12 @@ import os
           clearable: BraveNewsClearable(feedDataSource: feedDataSource),
           isEnabled: true
         )
+      )
+    }
+
+    if braveCore.profile.prefs.isPlaylistAvailable {
+      clearableSettings.append(
+        ClearableSetting(id: .playlistCache, clearable: PlayListCacheClearable(), isEnabled: false)
       )
     }
 
@@ -294,6 +338,13 @@ import os
     Task { @MainActor in
       self.isSaveContactInfoEnabled = await webcompatReporterHandler?.browserParams().1 ?? false
     }
+  }
+
+  private func clearHttpsUpgradeAllowlist() {
+    HttpsUpgradeServiceFactory.get(privateMode: false)?.clearAllowlist(
+      fromStart: Date.distantPast,
+      end: Date.distantFuture
+    )
   }
 
   func clearPrivateData(_ clearables: [Clearable]) async {
@@ -388,8 +439,8 @@ import os
         for filterList in filterLists {
           switch filterList.entry.componentId {
           case AdblockFilterListCatalogEntry.mobileAnnoyancesComponentID:
-            if filterList.isEnabled != self.blockMobileAnnoyances {
-              self.blockMobileAnnoyances = filterList.isEnabled
+            if filterList.isEnabledOrDefault != self.blockMobileAnnoyances {
+              self.blockMobileAnnoyances = filterList.isEnabledOrDefault
             }
           default:
             continue

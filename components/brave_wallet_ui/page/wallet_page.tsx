@@ -3,11 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // you can obtain one at https://mozilla.org/MPL/2.0/.
 
+import '../common/strings'
+
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 import { initLocale } from 'brave-ui'
 import { BrowserRouter } from 'react-router-dom'
+import StyledComponentsProvider from '$web-common/StyledComponentsProvider'
 
 // assets
 import faveiconUrl from '../assets/svg-icons/brave-icon.svg'
@@ -21,6 +24,7 @@ import {
 // redux
 import * as WalletActions from '../common/actions/wallet_actions'
 import { store } from './store'
+import { ensureSnapHostFrame } from '../common/snap/snap_host_frame'
 
 // components
 import BraveCoreThemeProvider from '../../common/BraveCoreThemeProvider'
@@ -67,8 +71,16 @@ function App() {
 function initialize() {
   initLocale(loadTimeData.data_)
   const root = createRoot(document.getElementById('root')!)
-  root.render(<App />)
+  root.render(
+    <StyledComponentsProvider>
+      <App />
+    </StyledComponentsProvider>,
+  )
   store.dispatch(WalletActions.initialize())
+
+  if (loadTimeData.getBoolean('isSnapEnabled')) {
+    ensureSnapHostFrame()
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initialize)

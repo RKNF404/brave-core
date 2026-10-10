@@ -28,6 +28,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.qrreader.CameraSourcePreview;
 import org.chromium.chrome.browser.qrreader.QRCodeCameraManager;
 import org.chromium.chrome.browser.util.BraveTouchUtils;
+import org.chromium.components.omnibox.TextSelection;
 
 public class BraveLocationBarQRDialogFragment extends DialogFragment
         implements QRCodeCameraManager.Callback, QRCodeCameraManager.HostProvider {
@@ -35,6 +36,7 @@ public class BraveLocationBarQRDialogFragment extends DialogFragment
 
     private QRCodeCameraManager mCameraManager;
     private BraveLocationBarMediator mLocationBarMediator;
+    private Dialog mPlayServicesErrorDialog;
 
     // The Android Fragment framework requires a zero-argument constructor to
     // instantiate fragments. It usually happens on a fragment re-creation
@@ -98,10 +100,21 @@ public class BraveLocationBarQRDialogFragment extends DialogFragment
 
     @Override
     public void onDestroy() {
+        dismissPlayServicesErrorDialog();
         if (mCameraManager != null) {
             mCameraManager.release();
         }
         super.onDestroy();
+    }
+
+    /** Dismisses the Google Play Services error dialog without dismissing this fragment again. */
+    private void dismissPlayServicesErrorDialog() {
+        if (mPlayServicesErrorDialog == null) {
+            return;
+        }
+        mPlayServicesErrorDialog.setOnDismissListener(null);
+        mPlayServicesErrorDialog.dismiss();
+        mPlayServicesErrorDialog = null;
     }
 
     @Override
@@ -159,7 +172,7 @@ public class BraveLocationBarQRDialogFragment extends DialogFragment
                         mLocationBarMediator.setUrlBarData(
                                 UrlBarData.forNonUrlText(barcodeValue),
                                 UrlBar.ScrollType.NO_SCROLL,
-                                UrlBarData.SELECT_ALL);
+                                TextSelection.SELECT_ALL);
                     } else {
                         mLocationBarMediator.performSearchQuery(barcodeValue);
                     }
@@ -169,12 +182,20 @@ public class BraveLocationBarQRDialogFragment extends DialogFragment
     }
 
     @Override
-    public boolean onPlayServicesUnavailable(Dialog errorDialog) {
-        if (errorDialog != null) {
-            errorDialog.show();
+    public void onPlayServicesUnavailable(Dialog errorDialog) {
+        if (errorDialog == null || !isHostValid() || requireActivity().isFinishing()) {
+            dismiss();
+            return;
         }
-        dismiss();
-        return true;
+        // The dialog is attached to the activity window, so this fragment stays around until the
+        // user acknowledges it and dismisses it in onDestroy, otherwise the window is leaked.
+        mPlayServicesErrorDialog = errorDialog;
+        errorDialog.setOnDismissListener(
+                dialog -> {
+                    mPlayServicesErrorDialog = null;
+                    dismiss();
+                });
+        errorDialog.show();
     }
 
     // QRCodeCameraManager.HostProvider implementation

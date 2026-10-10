@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/browser_window/BUILD.gn b/chrome/browser/ui/browser_window/BUILD.gn
-index ab08cd298d5b072856b62c15ba8c4a95e1de2d9c..7cc80bad55478d072a8e992d9200745e16ed1515 100644
+index 6b598cd678ed1cc08b67fcd7c82704194c13cf18..84b61f87291c95a797e33c28d7d8fe4c89934cde 100644
 --- a/chrome/browser/ui/browser_window/BUILD.gn
 +++ b/chrome/browser/ui/browser_window/BUILD.gn
-@@ -39,6 +39,7 @@ source_set("browser_window") {
-       "//ui/base:types",
-     ]
-   }
-+  deps += [ "//brave/browser/ui/browser_window" ]
- }
- 
- source_set("create_browser_window") {
+@@ -22,6 +22,7 @@ source_set("browser_window") {
+     "//ui/gfx",
+   ]
+   deps = [
++    "//brave/browser/ui/browser_window",
+     "//components/sessions:session_id",
+     "//ui/base/unowned_user_data",
+   ]

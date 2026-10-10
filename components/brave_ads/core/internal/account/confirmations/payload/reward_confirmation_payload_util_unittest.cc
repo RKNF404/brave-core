@@ -15,7 +15,7 @@
 #include "brave/components/brave_ads/core/internal/account/tokens/test/token_generator_test_util.h"
 #include "brave/components/brave_ads/core/internal/common/test/test_base.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -38,7 +38,7 @@ TEST_F(BraveAdsRewardConfirmationPayloadUtilTest,
                 R"JSON(
                     {
                       "blindedPaymentTokens": [
-                        "+qJiMi6k0hRzRAEN239nLthLqrNm53O78x/PV8I/JS0="
+                        "Gth1bHgNtDx689fPCEdua/1ggMRHRahtzIdDr/EyWAg="
                       ],
                       "publicKey": "OqhZpUC8B15u+Gc11rQYRl8O3zOSAUIEC2JuDHI32TM="
                     })JSON"),

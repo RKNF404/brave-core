@@ -12,8 +12,7 @@ import MobileCoreServices
 import Playlist
 import Preferences
 import Shared
-import Storage
-import Web
+@_spi(ChromiumWebViewAccess) import Web
 import WebKit
 import os.log
 
@@ -32,8 +31,8 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
 
   private let tab: any TabState
 
-  private weak var certStore: CertStore?
   private var handler: ((PlaylistInfo?) -> Void)?
+  private var timeoutTask: Task<Void, Error>?
 
   init(profile: any Profile) {
     var initialConfiguration: WKWebViewConfiguration?
@@ -57,11 +56,18 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
     super.init(frame: .zero)
 
     tab.browserData = .init(tab: tab)
+    if FeatureList.kUseProfileWebViewConfiguration.enabled {
+      tab.playlist = .init(tab: tab, delegate: self)
+    }
     tab.createWebView()
-    tab.browserData?.setScript(
-      script: .playlistMediaSource,
-      enabled: true
-    )
+    if !FeatureList.kUseProfileWebViewConfiguration.enabled {
+      tab.browserData?.setScript(
+        script: .playlistMediaSource,
+        enabled: true
+      )
+    } else {
+      BraveWebView.from(tab: tab)?.enablePlaylistCompatibilityMode()
+    }
     tab.webViewProxy?.scrollView?.layer.masksToBounds = true
 
     self.addSubview(tab.view)
@@ -84,6 +90,8 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
       self.handler = { [weak self] in
         // Handler cannot be called more than once!
         self?.handler = nil
+        self?.timeoutTask?.cancel()
+        self?.timeoutTask = nil
         continuation.resume(returning: $0)
       }
 
@@ -93,16 +101,18 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
         return
       }
 
-      self.certStore = browserViewController.profile.certStore
-      browserViewController.tabDidCreateWebView(AnyTabState(tab))
-
       tab.addObserver(self)
       tab.addPolicyDecider(self)
-      tab.browserData?.replaceContentScript(
-        PlaylistWebLoaderContentHelper(self),
-        name: PlaylistWebLoaderContentHelper.scriptName,
-        forTab: AnyTabState(tab)
-      )
+
+      if !FeatureList.kUseProfileWebViewConfiguration.enabled {
+        // Install content script handlers
+        browserViewController.tabDidCreateWebView(AnyTabState(tab))
+        tab.browserData?.replaceContentScript(
+          PlaylistWebLoaderContentHelper(self),
+          name: PlaylistWebLoaderContentHelper.scriptName,
+          forTab: AnyTabState(tab)
+        )
+      }
 
       tab.view.frame = superview?.bounds ?? self.bounds
       tab.loadRequest(
@@ -115,7 +125,7 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
     tab.removeObserver(self)
     tab.removePolicyDecider(self)
     tab.stopLoading()
-    self.handler?(nil)
+    handler?(nil)
     tab.loadHTMLString("<html><body>PlayList</body></html>", baseURL: nil)
   }
 
@@ -206,7 +216,8 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
         return
       }
 
-      guard let item = PlaylistInfo.from(message: message),
+      guard let body = message.body as? [String: Any],
+        let item = PlaylistInfo.from(dictionary: body),
         item.detected
       else {
         cancelRequest()
@@ -267,15 +278,62 @@ class LivePlaylistWebLoader: UIView, PlaylistWebLoader {
   }
 }
 
+extension LivePlaylistWebLoader: PlaylistTabHelperDelegate {
+  func updatePlaylistURLBar(
+    tab: (any Web.TabState)?,
+    state: PlaylistItemAddedState,
+    item: PlaylistInfo?
+  ) {
+    guard let item else { return }
+
+    if item.src.hasPrefix("data:") || item.src.hasPrefix("blob:") {
+      handler?(nil)
+      tab?.stopLoading()
+      return
+    }
+
+    handler?(item)
+    tab?.stopLoading()
+  }
+
+  func showPlaylistAlert(
+    tab: (any Web.TabState)?,
+    state: PlaylistItemAddedState,
+    item: PlaylistInfo?
+  ) {
+    // Not handled
+  }
+
+  func showPlaylistOnboarding(tab: (any Web.TabState)?) {
+    // Not handled
+  }
+}
+
 extension LivePlaylistWebLoader: TabObserver {
   func tabDidCommitNavigation(_ tab: some TabState) {
-    tab.evaluateJavaScript(
-      functionName:
-        "window.__firefox__.\(PlaylistWebLoaderContentHelper.playlistProcessDocumentLoad)()",
-      args: [],
-      contentWorld: PlaylistWebLoaderContentHelper.scriptSandbox,
-      asFunction: false
-    )
+    if !FeatureList.kUseProfileWebViewConfiguration.enabled {
+      tab.evaluateJavaScript(
+        functionName:
+          "window.__firefox__.\(PlaylistWebLoaderContentHelper.playlistProcessDocumentLoad)()",
+        args: [],
+        contentWorld: PlaylistWebLoaderContentHelper.scriptSandbox,
+        asFunction: false
+      )
+    }
+  }
+
+  func tabDidFinishNavigation(_ tab: some TabState) {
+    if FeatureList.kUseProfileWebViewConfiguration.enabled {
+      // Start timeout if handler hasn't already been called
+      guard handler != nil else {
+        return
+      }
+      timeoutTask = Task { @MainActor [weak self] in
+        guard !Task.isCancelled, let self else { return }
+        try await Task.sleep(for: .seconds(Self.pageLoadTimeout))
+        handler?(nil)
+      }
+    }
   }
 
   func tab(_ tab: some TabState, didFailNavigationWithError error: any Error) {
@@ -292,6 +350,7 @@ extension LivePlaylistWebLoader: TabObserver {
 }
 
 extension LivePlaylistWebLoader: TabPolicyDecider {
+  @MainActor
   func tab(
     _ tab: some TabState,
     shouldAllowRequest request: URLRequest,
@@ -317,12 +376,15 @@ extension LivePlaylistWebLoader: TabPolicyDecider {
         )
         let scriptTypes =
           await tab.currentPageData?.makeUserScriptTypes(
+            isPrivateBrowsing: tab.isPrivate,
             isDeAmpEnabled: false,
             isAdBlockEnabled: true,  // enabled for playlist
             isBlockFingerprintingEnabled: true,
             isGPCEnabled: true
           ) ?? []
-        tab.browserData?.setCustomUserScript(scripts: scriptTypes)
+        if !FeatureList.kUseProfileWebViewConfiguration.enabled {
+          tab.browserData?.setCustomUserScript(scripts: scriptTypes)
+        }
       }
     }
 
@@ -358,11 +420,13 @@ extension LivePlaylistWebLoader: TabPolicyDecider {
         tab.contentBlocker?.set(ruleLists: ruleLists)
       }
 
-      // Cookie Blocking code below
-      tab.browserData?.setScript(
-        script: .cookieBlocking,
-        enabled: tab.profile.prefs.boolean(forPath: kBlockAllCookiesEnabled)
-      )
+      if !FeatureList.kUseProfileWebViewConfiguration.enabled {
+        // Cookie Blocking code below
+        tab.browserData?.setScript(
+          script: .cookieBlocking,
+          enabled: tab.profile.prefs.boolean(forPath: kBlockAllCookiesEnabled)
+        )
+      }
     }
     return .allow
   }

@@ -25,16 +25,17 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
-#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/actions/actions.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/events/event_constants.h"
 #include "ui/gfx/text_elider.h"
+#include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
 #include "ui/views/controls/menu/menu_runner.h"
+#include "ui/views/view.h"
 
 namespace page_actions {
 
@@ -93,21 +94,30 @@ PartitionedStoragePageActionController::
 }
 
 void PartitionedStoragePageActionController::Init() {
-  did_activate_subscription_ = tab_->RegisterDidActivate(
-      base::BindRepeating([](PartitionedStoragePageActionController* self,
-                             tabs::TabInterface*) { self->UpdatePageAction(); },
-                          base::Unretained(this)));
-  did_become_visible_subscription_ = tab_->RegisterDidBecomeVisible(
-      base::BindRepeating([](PartitionedStoragePageActionController* self,
-                             tabs::TabInterface*) { self->UpdatePageAction(); },
-                          base::Unretained(this)));
+  did_activate_subscription_ = tab_->RegisterDidActivate(base::BindRepeating(
+      [](PartitionedStoragePageActionController* self,
+         tabs::TabInterface* tab) {
+        self->UpdatePageAction(tab->GetContents());
+      },
+      base::Unretained(this)));
+  did_become_visible_subscription_ =
+      tab_->RegisterDidBecomeVisible(base::BindRepeating(
+          [](PartitionedStoragePageActionController* self,
+             tabs::TabInterface* tab) {
+            self->UpdatePageAction(tab->GetContents());
+          },
+          base::Unretained(this)));
   will_discard_contents_subscription_ =
       tab_->RegisterWillDiscardContents(base::BindRepeating(
           [](PartitionedStoragePageActionController* self, tabs::TabInterface*,
-             content::WebContents*,
-             content::WebContents*) { self->UpdatePageAction(); },
+             content::WebContents*, content::WebContents* new_contents) {
+            // TabInterface::GetContents() still returns the outgoing contents
+            // at this point, so the swapped in contents has to be taken from
+            // the argument.
+            self->UpdatePageAction(new_contents);
+          },
           base::Unretained(this)));
-  UpdatePageAction();
+  UpdatePageAction(tab_->GetContents());
 }
 
 void PartitionedStoragePageActionController::ExecuteAction(
@@ -137,8 +147,10 @@ void PartitionedStoragePageActionController::ExecuteAction(
     return;
   }
 
-  IconLabelBubbleView* const anchor_view =
-      toolbar_button_provider->GetPageActionView(kActionShowPartitionedStorage);
+  views::View* const anchor_view =
+      toolbar_button_provider
+          ->GetPageActionBubbleAnchor(kActionShowPartitionedStorage)
+          .GetIfView();
   if (!anchor_view || !anchor_view->GetWidget()) {
     return;
   }
@@ -167,8 +179,8 @@ void PartitionedStoragePageActionController::ExecuteAction(
       views::MenuAnchorPosition::kTopLeft, ui::mojom::MenuSourceType::kMouse);
 }
 
-void PartitionedStoragePageActionController::UpdatePageAction() {
-  content::WebContents* web_contents = tab_->GetContents();
+void PartitionedStoragePageActionController::UpdatePageAction(
+    content::WebContents* web_contents) {
   std::optional<containers::ContainerModel> model =
       GetContainerModelForWebContents(web_contents);
   if (!model) {

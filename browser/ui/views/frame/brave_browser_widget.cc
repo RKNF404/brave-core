@@ -13,7 +13,6 @@
 #include "brave/browser/ui/views/frame/brave_browser_root_view.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
@@ -22,18 +21,19 @@
 
 BraveBrowserWidget::BraveBrowserWidget(BrowserView* browser_view)
     : BrowserWidget(browser_view), view_(browser_view) {
-  if (view_->browser()->profile()->IsIncognitoProfile() ||
-      view_->browser()->profile()->IsTor() ||
-      view_->browser()->profile()->IsGuestSession()) {
+  if (view_->browser()->GetProfile()->IsIncognitoProfile() ||
+      view_->browser()->GetProfile()->IsTor() ||
+      view_->browser()->GetProfile()->IsGuestSession() ||
+      view_->browser()->GetProfile()->IsEnterpriseIsolatedModeProfile()) {
     theme_supplier_ = base::MakeRefCounted<BravePrivateWindowThemeSupplier>(
-        !view_->browser()->profile()->IsTor());
+        !view_->browser()->GetProfile()->IsTor());
   }
 }
 
 BraveBrowserWidget::~BraveBrowserWidget() {
   // Some modules need to get fullscreen state change but they can't
   // know the observing stop timing by themselves.
-  // As exclusive_access_manager() is destroyed from BrowserWindowFeatures
+  // As the ExclusiveAccessManager is destroyed from BrowserWindowFeatures
   // at the start of BrowserWidget dtor, this method is should be called here.
   BraveBrowserView::From(view_)->StopListeningFullscreenChanges();
 }
@@ -71,8 +71,17 @@ void BraveBrowserWidget::SetTabDragKind(TabDragKind kind) {
 ui::ColorProviderKey BraveBrowserWidget::GetColorProviderKey() const {
   auto key = BrowserWidget::GetColorProviderKey();
 
+  // `ThemeService::GetColorProviderKey()` clears `custom_theme` for incognito
+  // profiles, which drops the private/Tor/guest window theme supplier we
+  // install via GetCustomTheme(). Re-apply it here so private window colors
+  // (e.g. `ui::kColorFrameActive`) come from BravePrivateWindowThemeSupplier
+  // instead of falling back to `ui::kColorSysHeader`.
+  if (theme_supplier_) {
+    key.custom_theme = GetCustomTheme();
+  }
+
   // We want to use dark mode for guest profile.
-  if (view_->browser()->profile()->IsGuestSession()) {
+  if (view_->browser()->GetProfile()->IsGuestSession()) {
     key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
     key.user_color_source = ui::ColorProviderKey::UserColorSource::kGrayscale;
   }
@@ -83,7 +92,7 @@ ui::ColorProviderKey BraveBrowserWidget::GetColorProviderKey() const {
     // private/tor/guest window and we don't want to set kDarker for them.
     if (!theme_supplier_ &&
         key.color_mode == ui::ColorProviderKey::ColorMode::kDark &&
-        browser_view_->browser()->profile()->GetPrefs()->GetBoolean(
+        browser_view_->browser()->GetProfile()->GetPrefs()->GetBoolean(
             darker_theme::prefs::kBraveDarkerMode)) {
       key.scheme_variant = ui::ColorProviderKey::SchemeVariant::kDarker;
     }

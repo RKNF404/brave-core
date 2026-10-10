@@ -6,8 +6,16 @@
 #include "components/permissions/permission_util.h"
 
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
+#include "brave/components/containers/buildflags/buildflags.h"
 #include "components/permissions/permission_uma_util.h"
+#include "content/public/browser/render_process_host.h"
+#include "content/public/browser/storage_partition.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
+
+#if BUILDFLAG(ENABLE_CONTAINERS)
+#include "brave/components/containers/content/browser/storage_partition_utils.h"
+#include "brave/components/containers/core/common/features.h"
+#endif
 
 #define PermissionUtil PermissionUtil_ChromiumImpl
 
@@ -15,7 +23,8 @@
 #define BRAVE_WALLET_UMA_CASES      \
   case RequestType::kBraveEthereum: \
   case RequestType::kBraveSolana:   \
-  case RequestType::kBraveCardano:
+  case RequestType::kBraveCardano:  \
+  case RequestType::kBravePolkadot:
 
 // Since we don't do UMA just reuse an existing UMA type instead of adding one.
 #define BRAVE_GET_UMA_VALUE_FOR_REQUEST_TYPE      \
@@ -42,13 +51,16 @@
   case PermissionType::BRAVE_SOLANA:            \
     return ContentSettingsType::BRAVE_SOLANA;   \
   case PermissionType::BRAVE_CARDANO:           \
-    return ContentSettingsType::BRAVE_CARDANO;
+    return ContentSettingsType::BRAVE_CARDANO;  \
+  case PermissionType::BRAVE_POLKADOT:          \
+    return ContentSettingsType::BRAVE_POLKADOT;
 #else
 // CHROMIUM_SRC_INTERNAL_USE
 #define BRAVE_WALLET_PERMISSION_TYPE_CASES \
   case PermissionType::BRAVE_ETHEREUM:     \
   case PermissionType::BRAVE_SOLANA:       \
   case PermissionType::BRAVE_CARDANO:      \
+  case PermissionType::BRAVE_POLKADOT:     \
     break;
 #endif
 
@@ -96,6 +108,8 @@ std::string PermissionUtil::GetPermissionString(
       return "BraveSolana";
     case ContentSettingsType::BRAVE_CARDANO:
       return "BraveCardano";
+    case ContentSettingsType::BRAVE_POLKADOT:
+      return "BravePolkadot";
 #endif
     case ContentSettingsType::BRAVE_GOOGLE_SIGN_IN:
       return "BraveGoogleSignInPermission";
@@ -112,7 +126,8 @@ bool PermissionUtil::GetPermissionType(ContentSettingsType type,
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
   if (type == ContentSettingsType::BRAVE_ETHEREUM ||
       type == ContentSettingsType::BRAVE_SOLANA ||
-      type == ContentSettingsType::BRAVE_CARDANO) {
+      type == ContentSettingsType::BRAVE_CARDANO ||
+      type == ContentSettingsType::BRAVE_POLKADOT) {
     *out = PermissionType::WINDOW_MANAGEMENT;
     return true;
   }
@@ -136,6 +151,7 @@ bool PermissionUtil::IsPermission(ContentSettingsType type) {
     case ContentSettingsType::BRAVE_ETHEREUM:
     case ContentSettingsType::BRAVE_SOLANA:
     case ContentSettingsType::BRAVE_CARDANO:
+    case ContentSettingsType::BRAVE_POLKADOT:
       return true;
 #endif
     case ContentSettingsType::BRAVE_GOOGLE_SIGN_IN:
@@ -172,6 +188,8 @@ PermissionType PermissionUtil::ContentSettingsTypeToPermissionType(
       return PermissionType::BRAVE_SOLANA;
     case ContentSettingsType::BRAVE_CARDANO:
       return PermissionType::BRAVE_CARDANO;
+    case ContentSettingsType::BRAVE_POLKADOT:
+      return PermissionType::BRAVE_POLKADOT;
 #endif
     case ContentSettingsType::BRAVE_GOOGLE_SIGN_IN:
       return PermissionType::BRAVE_GOOGLE_SIGN_IN;
@@ -187,16 +205,35 @@ GURL PermissionUtil::GetCanonicalOrigin(ContentSettingsType permission,
                                         const GURL& requesting_origin,
                                         const GURL& embedding_origin) {
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
-  // Use requesting_origin which will have ethereum or solana address info.
+  // Use requesting_origin which will have the account identifier info.
   if (permission == ContentSettingsType::BRAVE_ETHEREUM ||
       permission == ContentSettingsType::BRAVE_SOLANA ||
-      permission == ContentSettingsType::BRAVE_CARDANO) {
+      permission == ContentSettingsType::BRAVE_CARDANO ||
+      permission == ContentSettingsType::BRAVE_POLKADOT) {
     return requesting_origin;
   }
 #endif
 
   return PermissionUtil_ChromiumImpl::GetCanonicalOrigin(
       permission, requesting_origin, embedding_origin);
+}
+
+// static
+bool PermissionUtil::IsPermissionBlockedInPartition(
+    ContentSettingsType permission,
+    const GURL& requesting_origin,
+    content::RenderProcessHost* render_process_host) {
+#if BUILDFLAG(ENABLE_CONTAINERS)
+  if (base::FeatureList::IsEnabled(containers::features::kContainers)) {
+    const auto& config =
+        render_process_host->GetStoragePartition()->GetConfig();
+    if (containers::IsContainersStoragePartition(config)) {
+      return false;
+    }
+  }
+#endif
+  return PermissionUtil_ChromiumImpl::IsPermissionBlockedInPartition(
+      permission, requesting_origin, render_process_host);
 }
 
 }  // namespace permissions

@@ -14,7 +14,7 @@
 #include "brave/components/brave_ads/core/internal/account/tokens/test/token_generator_test_util.h"
 #include "brave/components/brave_ads/core/internal/common/test/test_base.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -42,7 +42,7 @@ TEST_F(BraveAdsRewardCredentialJsonWriterTest, WriteRewardCredential) {
   EXPECT_EQ(base::test::ParseJsonDict(
                 R"JSON(
                     {
-                      "signature": "jo8LVg8FpHtLKMakT7WcfGulrCB6ttSJpAaMcD95pDKTcdBRVf1yUDEZmhLKXWTIPDCDRCPKEx3gChO4S5GtHw==",
+                      "signature": "W3dsRH69leXicv8tXwSuQZhkrL8g4GBSW0texS7h/pyHwD0zPMG6chbIaIrw4Uu54h9k4omnfccP3EdKc4Scig==",
                       "t": "/mfTAAjHrWmAlLiEktbqNS/dxoMVdnz1esoVplQUs7yG/apAq2K6OeST6lBTKFJmOq7rV8QbY/DF2HFRMcz/JQ=="
                     })JSON"),
             base::test::ParseJsonDict(*reward_credential));

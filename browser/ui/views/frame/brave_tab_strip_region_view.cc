@@ -10,23 +10,20 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/views/tabs/brave_tab_container.h"
 #include "brave/browser/ui/views/tabs/brave_tab_strip.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/browser/ui/views/workspaces/workspaces_bubble_controller.h"
 #include "brave/browser/workspaces/features.h"
 #include "brave/components/vector_icons/vector_icons.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
-#include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
@@ -198,6 +195,11 @@ ui::DropTargetEvent ConvertRootLocation(views::View* view,
 
 }  // namespace
 
+std::unique_ptr<TabStripRegionView> CreateBraveHorizontalTabStripRegionView(
+    BrowserView* browser_view) {
+  return std::make_unique<BraveHorizontalTabStripRegionView>(browser_view);
+}
+
 BraveHorizontalTabStripRegionView::~BraveHorizontalTabStripRegionView() =
     default;
 
@@ -272,35 +274,40 @@ void BraveHorizontalTabStripRegionView::CreateScrollButtonsIfNeeded() {
 }
 
 void BraveHorizontalTabStripRegionView::CreateWorkspaceButtonIfNeeded() {
-  if (base::FeatureList::IsEnabled(features::kWorkspaces)) {
-    auto* bwi = tab_strip_->GetBrowserWindowInterface();
-    if (bwi->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL) {
-      return;
-    }
-
-    // Insert before the tab strip so the button appears at the left edge of the
-    // tab area, before the first tab.
-    const std::optional<size_t> strip_idx = GetIndexOf(tab_strip_);
-    CHECK(strip_idx.has_value());
-    workspaces_button_ = AddChildViewAt(
-        std::make_unique<TabStripControlButton>(
-            bwi,
-            base::BindRepeating(
-                &BraveHorizontalTabStripRegionView::OnWorkspacesButtonPressed,
-                weak_factory_.GetWeakPtr()),
-            kLeoSpacesIcon),
-        strip_idx.value());
-    workspaces_button_->SetProperty(views::kCrossAxisAlignmentKey,
-                                    views::LayoutAlignment::kCenter);
-    workspaces_button_->SetProperty(
-        views::kFlexBehaviorKey,
-        views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
-                                 views::MaximumFlexSizeRule::kPreferred));
-    workspaces_button_->SetTooltipText(
-        l10n_util::GetStringUTF16(IDS_TOOLTIP_WORKSPACES_BUTTON));
-    workspaces_button_->GetViewAccessibility().SetName(
-        l10n_util::GetStringUTF16(IDS_ACCNAME_WORKSPACES_BUTTON));
+  // Only show the spaces button if the feature is enabled and this is a regular
+  // browser window (not private, not PWA/popup/PIP/etc).
+  if (!base::FeatureList::IsEnabled(features::kWorkspaces)) {
+    return;
   }
+
+  auto* bwi = tab_strip_->GetBrowserWindowInterface();
+  if (bwi->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL ||
+      bwi->GetProfile()->IsOffTheRecord()) {
+    return;
+  }
+
+  // Insert before the tab strip so the button appears at the left edge of the
+  // tab area, before the first tab.
+  const std::optional<size_t> strip_idx = GetIndexOf(tab_strip_);
+  CHECK(strip_idx.has_value());
+  workspaces_button_ = AddChildViewAt(
+      std::make_unique<TabStripControlButton>(
+          bwi,
+          base::BindRepeating(
+              &BraveHorizontalTabStripRegionView::OnWorkspacesButtonPressed,
+              weak_factory_.GetWeakPtr()),
+          kLeoSpacesIcon),
+      strip_idx.value());
+  workspaces_button_->SetProperty(views::kCrossAxisAlignmentKey,
+                                  views::LayoutAlignment::kCenter);
+  workspaces_button_->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
+                               views::MaximumFlexSizeRule::kPreferred));
+  workspaces_button_->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_TOOLTIP_WORKSPACES_BUTTON));
+  workspaces_button_->GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ACCNAME_WORKSPACES_BUTTON));
 }
 
 void BraveHorizontalTabStripRegionView::
@@ -364,7 +371,7 @@ bool BraveHorizontalTabStripRegionView::ShouldShowHorizontalScrollButton()
 
 void BraveHorizontalTabStripRegionView::OnWorkspacesButtonPressed() {
   auto* bwi = tab_strip_->GetBrowserWindowInterface();
-  auto* controller = bwi->GetFeatures().workspaces_bubble_controller();
+  auto* controller = WorkspacesBubbleController::From(bwi);
   CHECK(controller);
   controller->ShowBubble(workspaces_button_, bwi->GetProfile());
 }
@@ -421,11 +428,11 @@ void BraveHorizontalTabStripRegionView::Layout(PassKey) {
     return;
   }
 
-  UpdateTabStripMargin();
   UpdateScrollButtonsVisibility();
+  UpdateTabStripMargin();
 
-  if (!tabs::utils::ShouldShowBraveVerticalTabs(
-          tab_strip_->GetBrowserWindowInterface())) {
+  if (!VerticalTabController::From(tab_strip_->GetBrowserWindowInterface())
+           ->ShouldShowBraveVerticalTabs()) {
     if (workspaces_button_) {
       workspaces_button_->SetVisible(true);
     }
@@ -434,28 +441,23 @@ void BraveHorizontalTabStripRegionView::Layout(PassKey) {
     // the overflow state of tab container. In this case, schedule layout.
     if (HaveScrollButtons() && ShouldShowHorizontalScrollButton() !=
                                    tab_scroll_next_button_->GetVisible()) {
-      InvalidateLayout();
+      UpdateScrollButtonsVisibility();
+      UpdateTabStripMargin();
+      LayoutSuperclass<HorizontalTabStripRegionView>(this);
     }
 
     // NTB is ignored by flex (`kViewIgnoredByLayoutKey`) and positioned
     // manually by `HorizontalTabStripRegionView::Layout` relative to the tab
-    // strip edge. When scroll buttons are visible, leave a gap using layout
-    // constants (same family as toolbar spacing). That can overlap the combo's
-    // flex slot; we paint NTB above the combo in GetChildrenInZOrder so it
-    // stays clickable.
+    // strip edge.
     if (new_tab_button_) {
-      if (tab_scroll_next_button_ && tab_scroll_next_button_->GetVisible()) {
-        const gfx::Size button_size = new_tab_button_->GetPreferredSize();
-        const int x = tab_scroll_next_button_->bounds().right() +
-                      GetLayoutConstant(LayoutConstant::kTabStripPadding) +
-                      GetLayoutConstant(LayoutConstant::kToolbarDividerSpacing);
-        new_tab_button_->SetBoundsRect(
-            gfx::Rect(gfx::Point(x, 0), button_size));
-      } else {
-        new_tab_button_->SetX(
-            tab_strip_->bounds().right() +
-            GetLayoutConstant(LayoutConstant::kTabStripPadding));
-      }
+      auto* anchor =
+          tab_scroll_next_button_ && tab_scroll_next_button_->GetVisible()
+              ? static_cast<views::View*>(tab_scroll_next_button_.get())
+              : static_cast<views::View*>(tab_strip_.get());
+      const int x = anchor->bounds().right() +
+                    GetLayoutConstant(LayoutConstant::kTabStripPadding);
+      new_tab_button_->SetBoundsRect(
+          gfx::Rect(gfx::Point(x, 0), new_tab_button_->GetPreferredSize()));
     }
 
     // Upstream positions combo_button_ at the leading edge via
@@ -499,10 +501,10 @@ void BraveHorizontalTabStripRegionView::Layout(PassKey) {
 void BraveHorizontalTabStripRegionView::UpdateTabStripMargin() {
   HorizontalTabStripRegionView::UpdateTabStripMargin();
 
-  bool vertical_tabs = tabs::utils::ShouldShowBraveVerticalTabs(
-      tab_strip_->GetBrowserWindowInterface());
-
-  UpdateTrailingScrollButtonMargin(vertical_tabs);
+  BrowserWindowInterface* browser_window_interface =
+      tab_strip_->GetBrowserWindowInterface();
+  bool vertical_tabs = VerticalTabController::From(browser_window_interface)
+                           ->ShouldShowBraveVerticalTabs();
 
   gfx::Insets margins;
 
@@ -526,8 +528,6 @@ void BraveHorizontalTabStripRegionView::UpdateTabStripMargin() {
   // the frame edge so that the leftmost tab can be selected at the edge of the
   // screen.
   if (tabs::HorizontalTabsUpdateEnabled()) {
-    BrowserWindowInterface* browser_window_interface =
-        tab_strip_->GetBrowserWindowInterface();
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser_window_interface);
     BrowserFrameView* browser_frame_view =
@@ -541,7 +541,16 @@ void BraveHorizontalTabStripRegionView::UpdateTabStripMargin() {
     }
   }
 
+  // Keep the invalidation inside the tab strip. This runs from Layout(), and an
+  // invalidation that reaches BrowserView re-dirties the whole widget for the
+  // next frame.
   tab_strip_->SetProperty(views::kMarginsKey, margins);
+  tab_strip_->InvalidateLayout(/*avoid_propagate_during_layout*/ true);
+
+  // This will move the right margin to the trailing scroll button when it is
+  // visible. So this should be called after the right margin for tab strip is
+  // set.
+  UpdateTrailingScrollButtonMargin(vertical_tabs);
 }
 
 void BraveHorizontalTabStripRegionView::UpdateTrailingScrollButtonMargin(
@@ -570,7 +579,6 @@ void BraveHorizontalTabStripRegionView::UpdateTrailingScrollButtonMargin(
 
   const bool scroll_active = container->ShouldShowHorizontalScrollButton() &&
                              *show_horizontal_tab_scroll_buttons_;
-
   if (scroll_active) {
     // Upstream reserves a right margin on the tab strip so the layered NTB can
     // overlap it.  Move that reserve to the trailing scroll button: the strip
@@ -586,6 +594,7 @@ void BraveHorizontalTabStripRegionView::UpdateTrailingScrollButtonMargin(
     if (auto* current = tab_strip_->GetProperty(views::kMarginsKey)) {
       tab_strip_->SetProperty(views::kMarginsKey,
                               gfx::Insets::TLBR(0, current->left(), 0, 0));
+      tab_strip_->InvalidateLayout();
     }
   } else {
     tab_scroll_next_button_->ClearProperty(views::kMarginsKey);
@@ -595,8 +604,8 @@ void BraveHorizontalTabStripRegionView::UpdateTrailingScrollButtonMargin(
 void BraveHorizontalTabStripRegionView::OnDragEntered(
     const ui::DropTargetEvent& event) {
 #if BUILDFLAG(IS_LINUX)
-  if (!tabs::utils::ShouldShowBraveVerticalTabs(
-          tab_strip_->GetBrowserWindowInterface())) {
+  if (!VerticalTabController::From(tab_strip_->GetBrowserWindowInterface())
+           ->ShouldShowBraveVerticalTabs()) {
     return HorizontalTabStripRegionView::OnDragEntered(event);
   }
 
@@ -613,8 +622,8 @@ void BraveHorizontalTabStripRegionView::OnDragEntered(
 int BraveHorizontalTabStripRegionView::OnDragUpdated(
     const ui::DropTargetEvent& event) {
 #if BUILDFLAG(IS_LINUX)
-  if (!tabs::utils::ShouldShowBraveVerticalTabs(
-          tab_strip_->GetBrowserWindowInterface())) {
+  if (!VerticalTabController::From(tab_strip_->GetBrowserWindowInterface())
+           ->ShouldShowBraveVerticalTabs()) {
     return HorizontalTabStripRegionView::OnDragUpdated(event);
   }
 
@@ -632,12 +641,6 @@ void BraveHorizontalTabStripRegionView::Initialize() {
   // Use our own icon for the new tab button.
   if (auto* ntb = views::AsViewClass<TabStripControlButton>(new_tab_button_)) {
     ntb->SetVectorIcon(kLeoPlusAddIcon);
-  }
-
-  if (features::HasTabSearchToolbarButton() && tab_search_button_) {
-    // We have tab search button on toolbar, so we don't need to show the
-    // tab search container in horizontal tab strip region view.
-    tab_search_button_->SetVisible(false);
   }
 
   CreateWorkspaceButtonIfNeeded();

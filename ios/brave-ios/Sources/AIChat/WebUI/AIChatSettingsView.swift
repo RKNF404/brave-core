@@ -35,8 +35,8 @@ public struct AIChatSettingsView: View {
               .foregroundStyle(.secondary)
               .font(.caption)
           }
-          .tint(Color(braveSystemName: .primitivePrimary40))
         }
+        .tint(Color(braveSystemName: .primitivePrimary40))
         NavigationLink {
           ModelListPicker(
             modelsWithSubtitles: viewModel.modelsWithSubtitles,
@@ -290,6 +290,7 @@ public struct AIChatSettingsView: View {
           .buttonStyle(.plain)
           .sheet(isPresented: $isPaywallPresented) {
             AIChatPaywallView(
+              storeSDK: viewModel.storeSDK,
               premiumUpgrageSuccessful: { _ in
                 Task {
                   await viewModel.updatePremiumStatus()

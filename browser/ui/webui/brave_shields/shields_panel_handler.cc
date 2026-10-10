@@ -14,7 +14,6 @@
 #include "brave/components/constants/pref_names.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -58,13 +57,13 @@ void ShieldsPanelHandler::GetPosition(GetPositionCallback callback) {
     std::move(callback).Run(std::nullopt);
     return;
   }
-  auto const* browser = browser_window_interface->GetBrowserForMigrationOnly();
-  if (!browser || !browser->window()) {
+  auto* brave_browser_window =
+      BraveBrowserWindow::FromBrowser(browser_window_interface);
+  if (!brave_browser_window) {
     std::move(callback).Run(std::nullopt);
     return;
   }
-  auto* browser_window = BraveBrowserWindow::From(browser->window());
-  auto rect = browser_window->GetShieldsBubbleRect();
+  auto rect = brave_browser_window->GetShieldsBubbleRect();
   if (rect.IsEmpty()) {
     // If the browser cannot determine the location of the Shields bubble
     // (e.g. the WebUI is being displayed in the page info bubble), then use

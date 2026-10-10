@@ -1,5 +1,5 @@
 <!-- Add brave-browser issue below that this PR will resolve -->
-Resolves
+- Resolves
 
 <!-- CI-related labels that can be applied to this PR:
 * CI/disable-pipeline-step-cache - do not cache build steps between runs for the same commit hash
@@ -36,7 +36,7 @@ Resolves
 - Squash any review feedback or "fixup" commits before merge, so that history is a record of what happened in the repo, not your PR
 - Add appropriate labels (`QA/Yes` or `QA/No`; `release-notes/include` or `release-notes/exclude`; `OS/...`) to the associated issue
 - Checked the PR locally:
-  * `npm run test -- brave_browser_tests`, `npm run test -- brave_unit_tests` [wiki](https://github.com/brave/brave-browser/wiki/Tests)
-  * `npm run presubmit` [wiki](https://github.com/brave/brave-browser/wiki/Presubmit-checks), `npm run gn_check`, `npm run tslint`
+  * `pnpm run test brave_browser_tests`, `pnpm run test brave_unit_tests` [wiki](https://github.com/brave/brave-browser/wiki/Tests)
+  * `pnpm run presubmit` [wiki](https://github.com/brave/brave-browser/wiki/Presubmit-checks), `pnpm run gn_check`
 - Run `git rebase master` (if needed)
 -->

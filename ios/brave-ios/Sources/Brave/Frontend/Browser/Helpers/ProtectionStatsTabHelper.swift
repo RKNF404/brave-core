@@ -8,7 +8,7 @@ import BraveShields
 import Data
 import Preferences
 import Shared
-import Web
+@_spi(ChromiumWebViewAccess) import Web
 import os.log
 
 extension TabDataValues {
@@ -26,11 +26,11 @@ extension TabDataValues {
 /// legacy `TrackingProtectionStats` script handler and the
 /// `ProtectionStatsJavaScriptFeature` bridge.
 @MainActor
-class ProtectionStatsTabHelper {
+class ProtectionStatsTabHelper: TabObserver, @preconcurrency ProtectionStatsTabHelperBridge {
   /// A single resource reported by the page.
   struct BlockedResource {
     let resourceURL: String
-    let resourceType: AdblockEngine.ResourceType
+    let resourceType: AdblockResourceType
   }
 
   private enum BlockedType: Hashable {
@@ -42,6 +42,41 @@ class ProtectionStatsTabHelper {
 
   init(tab: some TabState) {
     self.tab = tab
+
+    tab.addObserver(self)
+  }
+
+  isolated deinit {
+    tab?.removeObserver(self)
+  }
+
+  // MARK: - TabObserver
+
+  func tabDidCreateWebView(_ tab: some TabState) {
+    if FeatureList.kUseProfileWebViewConfiguration.enabled {
+      BraveWebView.from(tab: tab)?.protectionStatsHelper = self
+    }
+  }
+
+  func tabWillBeDestroyed(_ tab: some TabState) {
+    tab.removeObserver(self)
+  }
+
+  // MARK: - ProtectionStatsTabHelperBridge
+
+  func handleBlockedResources(
+    _ resources: [ProtectionStatsResource],
+    securityOrigin: URL
+  ) {
+    let blockedResources = resources.compactMap { resource -> BlockedResource? in
+      guard let resourceType = AdblockResourceType(rawValue: resource.resourceType)
+      else {
+        return nil
+      }
+      return BlockedResource(resourceURL: resource.resourceURL, resourceType: resourceType)
+    }
+
+    handleBlockedResources(blockedResources, sourceURL: securityOrigin)
   }
 
   // MARK: -
@@ -161,7 +196,7 @@ class ProtectionStatsTabHelper {
     requestURL: URL,
     sourceURL: URL,
     enabledRuleTypes: Set<ContentBlockerManager.GenericBlocklistType>,
-    resourceType: AdblockEngine.ResourceType,
+    resourceType: AdblockResourceType,
     isAdBlockEnabled: Bool,
     isAdBlockModeAggressive: Bool
   ) async -> BlockedType? {

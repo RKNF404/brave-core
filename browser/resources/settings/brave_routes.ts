@@ -63,6 +63,9 @@ export default function addBraveRoutes(r: Partial<SettingsRoutes>) {
 
     r.BRAVE_LEO_CUSTOMIZATION = r.BRAVE_LEO_ASSISTANT
       .createChild('/leo-ai/customization')
+
+    r.BRAVE_LEO_ADD_MODEL = r.BRAVE_LEO_ASSISTANT
+      .createChild('/leo-ai/add-model')
   }
   if (pageVisibility.content) {
     r.BRAVE_CONTENT = r.BASIC.createSection('/braveContent', 'content')
@@ -72,10 +75,6 @@ export default function addBraveRoutes(r: Partial<SettingsRoutes>) {
         delete r.FONTS
     }
     r.FONTS = r.BRAVE_CONTENT.createChild('/fonts')
-  }
-  if (pageVisibility.surveyPanelist && r.PRIVACY) {
-    r.BRAVE_SURVEY_PANELIST =
-      r.PRIVACY.createChild('/surveyPanelist')
   }
   if (r.SEARCH) {
     r.DEFAULT_SEARCH = r.SEARCH.createChild('defaultSearch')
@@ -150,6 +149,13 @@ export default function addBraveRoutes(r: Partial<SettingsRoutes>) {
   }
   if (r.SYNC) {
     delete r.SYNC
+  }
+  // Delete identity docs and travel autofill routes
+  if (r.IDENTITY_DOCS) {
+    delete r.IDENTITY_DOCS
+  }
+  if (r.TRAVEL) {
+    delete r.TRAVEL
   }
   // Delete /syncSetup/advanced
   if (r.SYNC_ADVANCED) {

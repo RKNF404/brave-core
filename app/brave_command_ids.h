@@ -57,11 +57,6 @@
 #define IDC_CONTENT_CONTEXT_IMPORT_IPNS_KEYS_START 56100
 #define IDC_CONTENT_CONTEXT_IMPORT_IPNS_KEYS_END 56199
 
-#define IDC_BRAVE_BOOKMARK_BAR_SUBMENU 56200
-#define IDC_BRAVE_BOOKMARK_BAR_ALWAYS 56201
-#define IDC_BRAVE_BOOKMARK_BAR_NTP 56202
-#define IDC_BRAVE_BOOKMARK_BAR_NEVER 56203
-
 #define IDC_TOGGLE_SHIELDS 56204
 #define IDC_TOGGLE_JAVASCRIPT 56205
 
@@ -73,6 +68,7 @@
 #define IDC_WINDOW_CLOSE_TABS_TO_LEFT 56210
 #define IDC_WINDOW_CLOSE_UNPINNED_TABS 56211
 #define IDC_WINDOW_ADD_ALL_TABS_TO_NEW_GROUP 56212
+#define IDC_CLOSE_ALL_DUPLICATE_TABS 56213
 
 #define IDC_TOGGLE_VERTICAL_TABS_EXPANDED 56215
 
@@ -157,6 +153,18 @@
 // PSST
 #define IDC_PSST_DONT_SHOW_FOR_THIS_SITE 56461
 #define IDC_PSST_DISABLE_PRIVACY_SETTINGS_TUNING 56462
+
+// Side panel toggle commands. These ship with no default accelerators and let
+// users bind their own shortcuts to open/close specific side panels.
+#define IDC_TOGGLE_BOOKMARKS_SIDE_PANEL 56463
+#define IDC_TOGGLE_READING_LIST_SIDE_PANEL 56464
+#define IDC_TOGGLE_PLAYLIST_SIDE_PANEL 56465
+#define IDC_TOGGLE_BRAVE_NEWS_SIDE_PANEL 56466
+
+// Launches the element picker so users can block page elements. Unlike
+// IDC_ADBLOCK_CONTEXT_BLOCK_ELEMENTS (a context-menu-only command), this is
+// acceleratable so users can assign it a custom keyboard shortcut.
+#define IDC_BLOCK_ELEMENTS 56470
 
 #define IDC_BRAVE_COMMANDS_LAST 57000
 

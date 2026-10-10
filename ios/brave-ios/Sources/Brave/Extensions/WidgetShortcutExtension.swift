@@ -4,12 +4,10 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import BraveCore
-import BraveStrings
 import BraveWidgetsModels
 import DesignSystem
 import Foundation
 import OrderedCollections
-import Strings
 import UIKit
 
 extension WidgetShortcut {
@@ -26,6 +24,7 @@ extension WidgetShortcut {
       .braveNews,
       .braveLeo,
       .askBrave,
+      .braveLeoVoiceInput,
     ])
     if !prefs.isPlaylistAvailable {
       options.remove(.playlist)
@@ -38,6 +37,7 @@ extension WidgetShortcut {
     }
     if !AIChatUtils.isAIChatEnabled(for: prefs) {
       options.remove(.braveLeo)
+      options.remove(.braveLeoVoiceInput)
     }
     return options
   }
@@ -60,64 +60,9 @@ extension WidgetShortcut {
     }
     if !AIChatUtils.isAIChatEnabled(for: prefs) {
       disabled.insert(.braveLeo)
+      disabled.insert(.braveLeoVoiceInput)
     }
     return disabled
-  }
-
-  var displayString: String {
-    switch self {
-    case .unknown:
-      return ""
-    case .bookmarks:
-      return Strings.bookmarksMenuItem
-    case .history:
-      return Strings.historyMenuItem
-    case .downloads:
-      return Strings.downloadsMenuItem
-    case .playlist:
-      return Strings.bravePlaylistItemTitle
-    case .wallet:
-      return Strings.Wallet.wallet
-    case .braveNews:
-      return Strings.braveNewsItemTitle
-    case .braveLeo:
-      return Strings.leoMenuItem
-    case .askBrave:
-      return Strings.askBraveMenuItem
-    default:
-      return ""
-    }
-  }
-
-  var braveSystemImageName: String? {
-    switch self {
-    case .unknown:
-      return nil
-    case .newTab:
-      return "leo.browser.mobile-tab-new"
-    case .newPrivateTab:
-      return "leo.product.private-window"
-    case .bookmarks:
-      return "leo.product.bookmarks"
-    case .history:
-      return "leo.history"
-    case .downloads:
-      return "leo.download"
-    case .playlist:
-      return "leo.product.playlist"
-    case .search:
-      return "leo.search"
-    case .wallet:
-      return "leo.product.brave-wallet"
-    case .scanQRCode:
-      return "leo.qr.code"
-    case .braveNews:
-      return "leo.product.brave-news"
-    case .braveLeo, .askBrave:
-      return "leo.product.brave-leo"
-    @unknown default:
-      return nil
-    }
   }
 
   var image: UIImage? {

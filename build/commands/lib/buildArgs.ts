@@ -11,22 +11,17 @@ import path from 'node:path'
 
 const FORWARD_ENV_CONFIG_VARS_TO_GN_ARGS = [
   'brave_android_developer_options_code',
-  'brave_google_api_endpoint',
   'brave_google_api_key',
   'brave_safebrowsing_api_key',
-  'brave_services_key_id',
   'brave_services_key',
   'brave_stats_api_key',
-  'brave_stats_updater_url',
   'brave_sync_endpoint',
-  'brave_variations_server_url',
   'concurrent_links',
   'dcheck_always_on',
   'enable_updater',
   'google_default_client_id',
   'google_default_client_secret',
   'msan_track_origins',
-  'safebrowsing_api_endpoint',
   'service_key_aichat',
   'service_key_search',
   'service_key_stt',
@@ -61,8 +56,6 @@ export function getBuildArgs(config: Config) {
     enable_cdm_host_verification: config.enableCDMHostVerification(),
     skip_signing: !config.shouldSign(),
     use_remoteexec: config.useRemoteExec,
-    use_reclient: config.useReclient,
-    use_siso: config.useSiso,
     use_libfuzzer: config.use_libfuzzer,
     enable_update_notifications: config.isOfficialBuild(),
   }
@@ -166,14 +159,6 @@ export function getBuildArgs(config: Config) {
     args.enable_profiling = true
   }
 
-  if (!config.useSiso) {
-    if (config.useRemoteExec) {
-      args.reclient_bin_dir = path.join(config.nativeRedirectCCDir)
-    } else {
-      args.cc_wrapper = path.join(config.nativeRedirectCCDir, 'redirect_cc')
-    }
-  }
-
   // Adjust symbol_level to 1 to workaround size restrictions:
   // 1. On Linux x86, ELF32 cannot be > 4GiB.
   // 2. On Linux Static builds, enable symbols (symbol_level is 0 by default in
@@ -201,8 +186,7 @@ export function getBuildArgs(config: Config) {
   }
 
   // For Linux Release builds, upstream doesn't want to use symbol_level = 2
-  // unless use_debug_fission is set. However, they don't set it when a
-  // cc_wrapper is used. Since we use cc_wrapper we need to set it manually.
+  // unless use_debug_fission is set.
   if (config.targetOS === 'linux' && config.isReleaseBuild()) {
     // use_debug_fission requires symbol_level >= 1
     args.symbol_level = 1
@@ -233,12 +217,6 @@ export function getBuildArgs(config: Config) {
       // https://github.com/brave/brave-browser/issues/1024#issuecomment-1175397914
       args.use_vaapi = true
     }
-  }
-
-  // Devtools: Now we patch devtools frontend, so it is useful to see
-  // if something goes wrong on CI builds.
-  if (config.targetOS !== 'android' && config.targetOS !== 'ios' && isCI) {
-    args.devtools_skip_typecheck = false
   }
 
   if (config.targetOS) {
@@ -317,9 +295,11 @@ export function getBuildArgs(config: Config) {
     // https://chromium.googlesource.com/chromium/src/+/master/docs/component_build.md
     args.is_component_build = false
 
-    if (!config.isBraveReleaseBuild()) {
+    if (!config.isBraveReleaseBuild() && config.isDebug()) {
       // When building locally iOS needs dSYMs in order for Xcode to map source
-      // files correctly since we are using a framework build
+      // files correctly since we are using a framework build, however this step
+      // takes a lot of extra time even with incremental builds so only generate
+      // dSYMs when making debug builds
       args.enable_dsyms = true
       if (args.use_remoteexec) {
         // RBE expects relative paths in dSYMs
@@ -329,11 +309,8 @@ export function getBuildArgs(config: Config) {
 
     args.brave_ios_developer_options_code = config.braveIOSDeveloperOptionsCode
 
-    delete args.safebrowsing_api_endpoint
     delete args.enable_hangout_services_extension
-    delete args.brave_google_api_endpoint
     delete args.brave_google_api_key
-    delete args.brave_stats_updater_url
     delete args.use_blink_v8_binding_new_idl_interface
     delete args.v8_enable_verify_heap
     delete args.service_key_stt

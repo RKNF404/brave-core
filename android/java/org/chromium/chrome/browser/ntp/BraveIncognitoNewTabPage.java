@@ -9,8 +9,9 @@ import android.app.Activity;
 
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
 import org.chromium.chrome.browser.vpn.BraveVpnPolicy;
@@ -22,13 +23,13 @@ public class BraveIncognitoNewTabPage extends IncognitoNewTabPage {
     public BraveIncognitoNewTabPage(
             Activity activity,
             NativePageHost host,
+            Profile profile,
+            TabModelSelector tabModelSelector,
             Tab tab,
-            MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
-            @Nullable IncognitoNtpMetrics incognitoNtpMetrics) {
-        super(activity, host, tab, edgeToEdgeControllerSupplier, incognitoNtpMetrics);
+            MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier) {
+        super(activity, host, profile, tabModelSelector, tab, edgeToEdgeControllerSupplier);
 
         // Pass VPN policy state to the view for VPN CTA visibility
-        mIncognitoNewTabPageView.setVpnDisabledByPolicy(
-                BraveVpnPolicy.isDisabledByPolicy(tab.getProfile()));
+        mIncognitoNewTabPageView.setVpnDisabledByPolicy(BraveVpnPolicy.isDisabledByPolicy(profile));
     }
 }

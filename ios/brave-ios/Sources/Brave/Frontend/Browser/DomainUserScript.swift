@@ -14,10 +14,11 @@ enum DomainUserScript: CaseIterable {
   case braveSkus
 
   /// Initialize this script with a URL
-  init?(for url: URL) {
+  init?(for url: URL, isPrivateBrowsing: Bool) {
     // First we look for an exact domain match
     if let host = url.host,
-      let found = Self.allCases.first(where: { $0.associatedDomains.contains(host) })
+      let found = Self.allCases.first(where: { $0.associatedDomains.contains(host) }),
+      found.isAllowedInPrivateMode || !isPrivateBrowsing
     {
       self = found
       return
@@ -25,7 +26,8 @@ enum DomainUserScript: CaseIterable {
 
     // If no matches, we look for a baseDomain (eTLD+1) match.
     if let baseDomain = url.baseDomain,
-      let found = Self.allCases.first(where: { $0.associatedDomains.contains(baseDomain) })
+      let found = Self.allCases.first(where: { $0.associatedDomains.contains(baseDomain) }),
+      found.isAllowedInPrivateMode || !isPrivateBrowsing
     {
       self = found
       return
@@ -49,6 +51,8 @@ enum DomainUserScript: CaseIterable {
         "talk.brave.com",
         "talk.bravesoftware.com",
         "talk.brave.software",
+        "dev2.talk.brave.software",
+        "dev3.talk.brave.software",
       ])
     case .braveSkus:
       return Set([
@@ -56,6 +60,15 @@ enum DomainUserScript: CaseIterable {
         "account.bravesoftware.com",
         "account.brave.software",
       ])
+    }
+  }
+
+  var isAllowedInPrivateMode: Bool {
+    switch self {
+    case .braveSearchHelper, .braveTalkHelper:
+      return true
+    case .braveSkus:
+      return false
     }
   }
 }

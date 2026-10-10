@@ -41,6 +41,13 @@ public class PlaylistCoordinator: NSObject {
   // in use at any given moment
   public static let shared = PlaylistCoordinator()
 
+  private override init() {
+    super.init()
+    PlaylistManager.shared.currentlyPlayingItemIDProvider = { [weak self] in
+      self?.playerModel?.currentlyPlayingItemUUID
+    }
+  }
+
   /// Whether or not playlist is available and CarPlay should display playlist data
   public var isPlaylistAvailable: Bool = true
 
@@ -162,9 +169,10 @@ public class PlaylistCoordinator: NSObject {
   ) {
     if let tab = tab,
       let item = tab.playlistItem,
-      let tag = tab.playlistItem?.tagId
+      let tag = tab.playlistItem?.tagId,
+      let playlist = tab.playlist
     {
-      PlaylistScriptHandler.getCurrentTime(tab: tab, nodeTag: tag) {
+      playlist.getCurrentTime(nodeTag: tag) {
         [unowned self] currentTime in
         completion(
           self.getPlaylistController(
@@ -209,17 +217,16 @@ public class PlaylistCoordinator: NSObject {
     }
   }
 
-  private func attemptInterfaceConnection(isCarPlayAvailable: Bool) {
+  private func attemptInterfaceConnection(isCarPlayAvailable: Bool, profile: (any Profile)?) {
     self.isCarPlayAvailable = isCarPlayAvailable
 
     // If there is no media player, create one,
     // pass it to the carplay controller
-    if isCarPlayAvailable {
+    if isCarPlayAvailable, let profile {
       // Protect against reentrancy.
-      if carPlayController == nil, let browserController {
-        carPlayController = getCarPlayController(
-          profile: browserController.profileController.profile
-        )
+      if carPlayController == nil {
+        isPlaylistAvailable = profile.prefs.isPlaylistAvailable
+        carPlayController = getCarPlayController(profile: profile)
       }
     } else {
       carPlayController = nil
@@ -233,14 +240,17 @@ public class PlaylistCoordinator: NSObject {
 }
 
 extension PlaylistCoordinator: CPSessionConfigurationDelegate {
-  public func connect(interfaceController: CPInterfaceController) {
+  /// - parameter profile: BraveCore's default profile, which the caller must ensure is already loaded before connecting
+  ///
+  /// CarPlay launches independently of a `BrowserViewController` when cold-launched from the CarPlay screen
+  public func connect(interfaceController: CPInterfaceController, profile: any Profile) {
     carplayInterface = interfaceController
     carplaySessionConfiguration = CPSessionConfiguration(delegate: self)
 
     isCarPlayAvailable = true
 
     DispatchQueue.main.async {
-      self.attemptInterfaceConnection(isCarPlayAvailable: true)
+      self.attemptInterfaceConnection(isCarPlayAvailable: true, profile: profile)
     }
   }
 
@@ -250,7 +260,7 @@ extension PlaylistCoordinator: CPSessionConfigurationDelegate {
     carplayInterface = nil
 
     DispatchQueue.main.async {
-      self.attemptInterfaceConnection(isCarPlayAvailable: false)
+      self.attemptInterfaceConnection(isCarPlayAvailable: false, profile: nil)
     }
   }
 

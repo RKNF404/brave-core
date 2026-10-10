@@ -12,9 +12,9 @@
 #include "brave/browser/ui/views/frame/brave_contents_view_util.h"
 #include "brave/browser/ui/views/frame/split_view/brave_multi_contents_view_mini_toolbar.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_capture_border_view.h"
@@ -69,9 +69,8 @@ BraveContentsContainerView::BraveContentsContainerView(
       browser_view_(*browser_view),
       for_web_panel_(for_web_panel) {
 #if BUILDFLAG(ENABLE_SPEEDREADER)
-  auto* browser = browser_view_->browser();
-  reader_mode_toolbar_ =
-      AddChildView(std::make_unique<ReaderModeToolbarView>(browser->profile()));
+  reader_mode_toolbar_ = AddChildView(
+      std::make_unique<ReaderModeToolbarView>(browser_view_->browser()));
   reader_mode_toolbar_->SetDelegate(this);
 #endif
 
@@ -92,11 +91,6 @@ BraveContentsContainerView::BraveContentsContainerView(
       std::make_unique<BraveContentsContainerOutline>(mini_toolbar_));
   capture_contents_border_view_ =
       AddChildView(std::make_unique<ContentsCaptureBorderView>(mini_toolbar_));
-
-  if (for_web_panel_) {
-    // tool bar's menu button is only valid for split view.
-    BraveMultiContentsViewMiniToolbar::From(mini_toolbar_)->HideMenuButton();
-  }
 }
 
 BraveContentsContainerView::~BraveContentsContainerView() = default;
@@ -110,9 +104,23 @@ bool BraveContentsContainerView::IsActive() const {
   return tabs::TabInterface::GetFromContents(web_contents)->IsActivated();
 }
 
+void BraveContentsContainerView::SetContentsCornerRadii(
+    const gfx::RoundedCornersF& corner_radii) {
+  contents_corner_radii_ = corner_radii;
+}
+
 void BraveContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
                                                         bool is_active,
                                                         bool is_highlighted) {
+  // Configure the mini toolbar before the base class updates its state.
+  using ToolbarStyle = BraveMultiContentsViewMiniToolbar::Style;
+  const bool show_domain = ShouldAlwaysShowDomain();
+  auto* mini_toolbar = BraveMultiContentsViewMiniToolbar::From(mini_toolbar_);
+  mini_toolbar->SetAlwaysShowDomain(show_domain);
+  mini_toolbar->SetStyle(for_web_panel_ ? ToolbarStyle::kWebPanel
+                         : is_in_split  ? ToolbarStyle::kSplit
+                                        : ToolbarStyle::kStandalone);
+
   // We don't use highlighted state as we're always using thicker border
   // for highlighting active split tab.
   ContentsContainerView::UpdateBorderAndOverlay(is_in_split, is_active,
@@ -123,6 +131,27 @@ void BraveContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
   UpdateBorderRoundedCorners();
 
   if (!is_in_split && !for_web_panel_) {
+    // Outside of a split, the mini toolbar is shown only to display the
+    // domain.
+    if (show_domain) {
+      mini_toolbar_->UpdateState(is_active, /*is_highlighted*/ false);
+    } else {
+      mini_toolbar_->SetVisible(false);
+    }
+
+    // Not in split view: draw a subtle 1px outline instead of the
+    // active/inactive split borders below. GetCornerRadius() returns all-zero
+    // corners whenever rounded corners aren't applicable here (feature
+    // disabled or fullscreen-for-tab), which doubles as the signal for
+    // whether to draw the outline at all.
+    const auto outline_corner_radius(
+        GetCornerRadius(kRoundedCornersContentsOutlineThickness));
+    if (outline_corner_radius.IsEmpty()) {
+      SetBorder(nullptr);
+    } else {
+      SetBorder(BraveContentsViewUtil::CreateContentsOutlineBorder(
+          GetColorProvider(), outline_corner_radius));
+    }
     return;
   }
 
@@ -136,7 +165,7 @@ void BraveContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
 
   // Draw active/inactive outlines around the contents areas and updates mini
   // toolbar visibility.
-  const auto border_corner_radius(GetCornerRadius(true));
+  const auto border_corner_radius(GetCornerRadius(kBorderThickness));
   if (is_active) {
     SetBorder(views::CreateBorderPainter(
         views::Painter::CreateSolidRoundRectPainterWithVariableRadius(
@@ -158,13 +187,14 @@ void BraveContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
 }
 
 void BraveContentsContainerView::UpdateBorderRoundedCorners() {
-  const auto contents_corner_radius(GetCornerRadius(false));
+  const auto contents_corner_radius(GetCornerRadius(/*border_thickness=*/0));
 
   contents_view_->layer()->SetRoundedCornerRadius(contents_corner_radius);
-  contents_view_->holder()->SetCornerRadii(contents_corner_radius);
+  contents_view_->holder()->SetNativeViewCornerRadii(contents_corner_radius);
   contents_scrim_view_->SetRoundedCorners(contents_corner_radius);
 
-  devtools_web_view_->holder()->SetCornerRadii(contents_corner_radius);
+  devtools_web_view_->holder()->SetNativeViewCornerRadii(
+      contents_corner_radius);
   devtools_scrim_view_->SetRoundedCorners(contents_corner_radius);
 
 #if BUILDFLAG(ENABLE_SPEEDREADER)
@@ -222,36 +252,33 @@ void BraveContentsContainerView::OnReaderModeToolbarActivate(
 }
 #endif
 
-gfx::RoundedCornersF BraveContentsContainerView::GetCornerRadius(
-    bool for_border) const {
+bool BraveContentsContainerView::ShouldAlwaysShowDomain() const {
+  if (for_web_panel_ || !IsActive() || IsTabFullscreen()) {
+    return false;
+  }
+
+  auto* brave_browser_view = BraveBrowserView::From(&browser_view_.get());
+  return brave_browser_view &&
+         brave_browser_view->show_active_contents_domain_in_mini_toolbar();
+}
+
+bool BraveContentsContainerView::IsTabFullscreen() const {
   auto* exclusive_access_manager =
-      browser_view_->browser()->GetFeatures().exclusive_access_manager();
-  if (exclusive_access_manager &&
-      exclusive_access_manager->fullscreen_controller()->IsTabFullscreen()) {
-    return {};
+      ExclusiveAccessManager::From(browser_view_->browser());
+  return exclusive_access_manager &&
+         exclusive_access_manager->fullscreen_controller()->IsTabFullscreen();
+}
+
+gfx::RoundedCornersF BraveContentsContainerView::GetCornerRadius(
+    int border_thickness) const {
+  if (contents_corner_radii_.IsEmpty() || !border_thickness) {
+    return contents_corner_radii_;
   }
 
-  if (!BraveBrowserView::ShouldUseBraveWebViewRoundedCornersForContents(
-          browser_view_->browser())) {
-    return {};
-  }
-
-  tabs::TabInterface* tab = nullptr;
-  if (is_in_split_ && contents_view_->web_contents()) {
-    tab = tabs::TabInterface::GetFromContents(contents_view_->web_contents());
-  }
-
-  auto rounded_corners =
-      BraveContentsViewUtil::GetRoundedCornersForContentsView(
-          browser_view_->browser(), tab);
-  if (for_border) {
-    return {rounded_corners.upper_left() + kBorderThickness,
-            rounded_corners.upper_right() + kBorderThickness,
-            rounded_corners.lower_right() + kBorderThickness,
-            rounded_corners.lower_left() + kBorderThickness};
-  }
-
-  return rounded_corners;
+  return {contents_corner_radii_.upper_left() + border_thickness,
+          contents_corner_radii_.upper_right() + border_thickness,
+          contents_corner_radii_.lower_right() + border_thickness,
+          contents_corner_radii_.lower_left() + border_thickness};
 }
 
 BEGIN_METADATA(BraveContentsContainerView)

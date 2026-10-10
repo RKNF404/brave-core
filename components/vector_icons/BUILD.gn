@@ -25,6 +25,7 @@ aggregate_vector_icons("brave_components_vector_icons") {
     "leo_arrow_small_right.icon",
     "leo_brave_icon_monochrome.icon",
     "leo_brave_icon_only_face.icon",
+    "leo_brave_icon_only_face_disabled.icon",
     "leo_browser_add.icon",
     "leo_browser_bookmark_add.icon",
     "leo_browser_bookmark_normal.icon",
@@ -36,6 +37,7 @@ aggregate_vector_icons("brave_components_vector_icons") {
     "leo_browser_sidebar_right.icon",
     "leo_browser_split_view_unsplit.icon",
     "leo_browser_split_view_vertical.icon",
+    "leo_calendar_time.icon",
     "leo_carat_down.icon",
     "leo_carat_last.icon",
     "leo_carat_right.icon",
@@ -67,6 +69,7 @@ aggregate_vector_icons("brave_components_vector_icons") {
     "leo_history.icon",
     "leo_import_arrow.icon",
     "leo_info_outline.icon",
+    "leo_internet_archive.icon",
     "leo_key.icon",
     "leo_launch.icon",
     "leo_link_broken.icon",
@@ -88,6 +91,7 @@ aggregate_vector_icons("brave_components_vector_icons") {
     "leo_product_bat_outline.icon",
     "leo_product_bookmarks.icon",
     "leo_product_brave_leo.icon",
+    "leo_product_brave_news.icon",
     "leo_product_brave_talk.icon",
     "leo_product_brave_wallet.icon",
     "leo_product_private_window.icon",
@@ -122,7 +126,6 @@ aggregate_vector_icons("brave_components_vector_icons") {
     "leo_user_picture.icon",
     "leo_verification_filled.icon",
     "leo_warning_triangle_outline.icon",
-    "leo_window_binary_code.icon",
     "leo_window_bookmark.icon",
     "leo_window_focus.icon",
     "leo_window_screwdriver.icon",
@@ -130,6 +133,7 @@ aggregate_vector_icons("brave_components_vector_icons") {
     "leo_window_tab_new.icon",
     "leo_window_tab_private.icon",
     "leo_window_tab_tor.icon",
+    "leo_window_task_manager.icon",
   ]
 
   if (enable_playlist_webui) {

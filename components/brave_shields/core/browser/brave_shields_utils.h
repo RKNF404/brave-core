@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "base/containers/span.h"
 #include "brave/components/brave_shields/core/common/brave_shields_panel.mojom-data-view.h"
 #include "brave/components/brave_shields/core/common/brave_shields_settings_values.h"
 #include "brave/components/brave_shields/core/common/shields_settings.mojom.h"
@@ -48,7 +47,7 @@ void SetBraveShieldsEnabled(HostContentSettingsMap* map,
                             bool enable,
                             const GURL& url,
                             PrefService* local_state = nullptr);
-bool GetBraveShieldsEnabled(HostContentSettingsMap* map, const GURL& url);
+bool IsBraveShieldsEnabled(HostContentSettingsMap* map, const GURL& url);
 
 void SetAdControlType(HostContentSettingsMap* map,
                       ControlType type,
@@ -93,10 +92,6 @@ void SetFingerprintingControlType(HostContentSettingsMap* map,
 ControlType GetFingerprintingControlType(HostContentSettingsMap* map,
                                          const GURL& url);
 
-bool IsBraveShieldsManaged(PrefService* prefs,
-                           HostContentSettingsMap* map,
-                           GURL url);
-
 void SetHttpsUpgradeControlType(HostContentSettingsMap* map,
                                 ControlType type,
                                 const GURL& url,
@@ -132,9 +127,6 @@ bool IsWebcompatEnabled(HostContentSettingsMap* map,
 
 mojom::FarblingLevel GetFarblingLevel(HostContentSettingsMap* map,
                                       const GURL& primary_url);
-base::Token GetFarblingToken(HostContentSettingsMap* map,
-                             const GURL& url,
-                             base::span<const uint8_t> additional_entropy);
 
 bool IsDeveloperModeEnabled(PrefService* profile_state);
 

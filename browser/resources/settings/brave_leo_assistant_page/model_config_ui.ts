@@ -169,7 +169,7 @@ export class ModelConfigUI extends ModelConfigUIBase {
       audioSupport: false,
       videoSupport: false,
       supportsTools: this.supportsTools,
-      supportedCapabilities: [mojom.ConversationCapability.CHAT],
+      supportedCapabilities: [],
       isSuggestedModel: false,
       isNearModel: false,
       supportsPrivateInference: false,
@@ -236,7 +236,10 @@ export class ModelConfigUI extends ModelConfigUIBase {
 
   private saveEnabled_() {
     // Make sure all required fields are filled
-    return this.label && this.modelRequestName && this.endpointUrl && !this.isUrlInvalid
+    return !!this.label?.trim()
+        && !!this.modelRequestName?.trim()
+        && !!this.endpointUrl?.trim()
+        && !this.isUrlInvalid
   }
 
   private checkEndpointValidity_() {

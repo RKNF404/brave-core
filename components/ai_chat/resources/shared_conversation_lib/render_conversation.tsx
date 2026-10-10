@@ -4,15 +4,17 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import './load_time_data'
-import '@brave/leo/tokens/css/variables.css'
+import './set_icon_base_path'
 import '$web-common/defaultTrustedTypesPolicy'
 import '../../../../ui/webui/resources/css/reset.css'
 
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
-import { setIconBasePath } from '@brave/leo/react/icon'
-import * as Mojom from '../common/mojom'
-import { parseConversationData } from '../common/conversation_serialization'
+import StyledComponentsProvider from '$web-common/StyledComponentsProvider'
+import {
+  parseConversationData,
+  type ConversationData,
+} from '../common/conversation_serialization'
 import Conversation from '../untrusted_conversation_frame/components/conversation'
 import { UntrustedConversationContextProvider } from '../untrusted_conversation_frame/untrusted_conversation_context'
 import createUntrustedConversationApi, {
@@ -21,17 +23,21 @@ import createUntrustedConversationApi, {
 import {
   createMockParentUIFrame,
   createMockUntrustedConversationHandler,
+  createMockUntrustedConversationUserActions,
   createMockUntrustedService,
   createMockUntrustedUIHandler,
 } from '../untrusted_conversation_frame/api/mock_interfaces'
+import setupRenderingElement from './setup_rendering_element'
 
-// Set the nala icon path to be relative to this script, which should be
-// the root of the output bundle.
-// Need to store import.meta.url in a separate variable to the URL building
-// otherwise webpack will try to resolve '.' locally (and probably fail).
-const scriptUrl = import.meta.url
-const relativePathUrl = new URL('./nala-icons', scriptUrl)
-setIconBasePath(relativePathUrl.toString())
+/**
+ * Since the shared conversation viewer can read from different versions
+ * of this code, we should try to retain backwards-compatibility with these
+ * fields.
+ */
+type RenderConversationResult = {
+  conversationTitle?: string
+  isError: boolean
+}
 
 /**
  * Create a minimal local-only read-only version of the AI Chat API interfaces.
@@ -44,12 +50,14 @@ setIconBasePath(relativePathUrl.toString())
  */
 function createLocalConversationApi(): UntrustedConversationAPI {
   const conversationHandler = createMockUntrustedConversationHandler()
+  const userActions = createMockUntrustedConversationUserActions()
   const uiHandler = createMockUntrustedUIHandler()
   const parentUIFrame = createMockParentUIFrame()
   const service = createMockUntrustedService()
 
   return createUntrustedConversationApi(
     conversationHandler,
+    userActions,
     uiHandler,
     parentUIFrame,
     service,
@@ -67,28 +75,41 @@ const api = createLocalConversationApi()
 export function renderConversation(
   conversationDataRaw: string,
   element: HTMLElement,
-) {
-  let conversation: Mojom.ConversationTurn[]
+): RenderConversationResult {
+  let conversation: ConversationData
 
   try {
     conversation = parseConversationData(conversationDataRaw)
   } catch (e) {
     console.error('Failed to parse conversation data', e)
     element.textContent = 'Failed to load conversation'
-    return
+    return {
+      isError: true,
+    }
   }
 
-  console.log('conversation', conversation)
+  api.getConversationHistory.update(null, conversation.messages)
+  // Conversations shared before associated content was included in the payload
+  // don't have the property.
+  api.associatedContent.update(conversation.associatedContent ?? [])
 
-  api.getConversationHistory.update(conversation)
-
-  const root = createRoot(element)
+  // Render to a shadow DOM to avoid style conflicts with the hosting page
+  const container = setupRenderingElement(element)
+  const root = createRoot(container)
 
   root.render(
-    <div style={{ backgroundColor: 'var(--leo-color-container-background)' }}>
-      <UntrustedConversationContextProvider api={api}>
+    <StyledComponentsProvider>
+      <UntrustedConversationContextProvider
+        api={api}
+        isReadOnly
+      >
         <Conversation />
       </UntrustedConversationContextProvider>
-    </div>,
+    </StyledComponentsProvider>,
   )
+
+  return {
+    conversationTitle: conversation.title,
+    isError: false,
+  }
 }

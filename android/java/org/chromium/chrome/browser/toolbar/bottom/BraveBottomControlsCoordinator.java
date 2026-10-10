@@ -11,8 +11,8 @@ import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
 
-import androidx.annotation.DimenRes;
 import androidx.annotation.Nullable;
+import androidx.annotation.Px;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
@@ -35,6 +35,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tasks.tab_management.BraveTabUiFeatureUtilities;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.LocationBarModel;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuButtonHelper;
@@ -60,6 +61,7 @@ public class BraveBottomControlsCoordinator extends BottomControlsCoordinator {
     private final ScrollingBottomViewResourceFrameLayout mRoot;
     private final NullableObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
     private final LocationBarModel mLocationBarModel;
+    private final Runnable mTabGroupsSettingsObserver = this::onTabGroupsSettingsChanged;
 
     public BraveBottomControlsCoordinator(
             OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier,
@@ -82,7 +84,7 @@ public class BraveBottomControlsCoordinator extends BottomControlsCoordinator {
             NullableObservableSupplier<Tab> tabSupplier,
             ScrollingBottomViewResourceFrameLayout root,
             @LayerType int layerType,
-            @DimenRes int heightResId,
+            @Px int height,
             OneshotSupplier<BottomControlsContentDelegate> contentDelegateSupplier,
             TabObscuringHandler tabObscuringHandler,
             NonNullObservableSupplier<@PanelState Integer> overlayPanelStateSupplier,
@@ -99,7 +101,7 @@ public class BraveBottomControlsCoordinator extends BottomControlsCoordinator {
                 tabSupplier,
                 root,
                 layerType,
-                heightResId,
+                height,
                 contentDelegateSupplier,
                 tabObscuringHandler,
                 overlayPanelStateSupplier,
@@ -116,6 +118,8 @@ public class BraveBottomControlsCoordinator extends BottomControlsCoordinator {
         mRoot = root;
         mBookmarkModelSupplier = bookmarkModelSupplier;
         mLocationBarModel = locationBarModel;
+
+        BraveTabUiFeatureUtilities.addSettingsObserver(mTabGroupsSettingsObserver);
     }
 
     public void initializeWithNative(
@@ -159,9 +163,17 @@ public class BraveBottomControlsCoordinator extends BottomControlsCoordinator {
 
     @Override
     public void destroy() {
+        BraveTabUiFeatureUtilities.removeSettingsObserver(mTabGroupsSettingsObserver);
         super.destroy();
 
         if (mBottomToolbarCoordinator != null) mBottomToolbarCoordinator.destroy();
+    }
+
+    /** Keeps the tab groups bar in step with the tab groups switches in settings. */
+    private void onTabGroupsSettingsChanged() {
+        if (mMediator instanceof BraveBottomControlsMediator) {
+            ((BraveBottomControlsMediator) mMediator).onTabGroupsSettingsChanged();
+        }
     }
 
     public void updateBookmarkButton(boolean isBookmarked, boolean editingAllowed) {

@@ -29,6 +29,7 @@ import PremiumSuggestion from '../premium_suggestion'
 import WarningPremiumDisconnected from '../alerts/warning_premium_disconnected'
 import LongConversationInfo from '../alerts/long_conversation_info'
 import styles from './style.module.scss'
+import { useModelIntroMarkers } from './useModelIntroMarkers'
 import { useScrollToBottom } from './useScrollToBottom'
 
 export interface ConversationProps {
@@ -64,6 +65,10 @@ function Conversation(props: ConversationProps) {
 
   const apiHasError = state.currentError !== Mojom.APIError.None
 
+  const currentModel = state.allModels.find(
+    (m) => m.key === state.currentModelKey,
+  )
+
   const shouldShowStorageNotice =
     hasAcceptedAgreement
     && context.isHistoryFeatureEnabled
@@ -77,8 +82,8 @@ function Conversation(props: ConversationProps) {
     && !isPremiumStatusFetching
     && !isPremiumUser
     && state.isLeoModel
-    && state.allModels.find((m) => m.key === state.currentModelKey)?.options
-      .leoModelOptions?.access === Mojom.ModelAccess.PREMIUM
+    && currentModel?.options.leoModelOptions?.access
+      === Mojom.ModelAccess.PREMIUM
 
   // Show premium status suggestion if the user isn't premium and either the
   // service states it's a good time, or the user has attempted to perform a
@@ -105,6 +110,7 @@ function Conversation(props: ConversationProps) {
           <ErrorConnection
             onRetry={() => context.conversationHandler.retryAPIRequest()}
             errorDetails={state.currentErrorDetails}
+            isNearModel={!!currentModel?.isNearModel}
           />
         )
         break
@@ -123,7 +129,13 @@ function Conversation(props: ConversationProps) {
         )
         break
       case Mojom.APIError.RateLimitReached:
-        currentErrorElement = <ErrorRateLimit />
+      case Mojom.APIError.ModelRateLimitReached:
+        currentErrorElement = (
+          <ErrorRateLimit
+            apiError={state.currentError}
+            errorDetails={state.currentErrorDetails}
+          />
+        )
         break
       case Mojom.APIError.ContextLimitReached:
         currentErrorElement = <ErrorConversationEnd />
@@ -141,6 +153,8 @@ function Conversation(props: ConversationProps) {
 
   // Total and trimmed tokens for long conversation info
   const shouldShowLongConversationInfo = state.trimmedTokens > BigInt(0)
+
+  const modelIntroMarkers = useModelIntroMarkers()
 
   // Scroll tracking
   const { scrollToBottomContinuously, hasScrollableContent } =
@@ -199,7 +213,14 @@ function Conversation(props: ConversationProps) {
         className={styles.conversationContent}
         ref={contentRef}
       >
-        <ModelIntro />
+        {modelIntroMarkers
+          .filter((marker) => marker.afterPairIndex === null)
+          .map((marker) => (
+            <ModelIntro
+              key={marker.id}
+              modelKey={marker.modelKey}
+            />
+          ))}
 
         {showTemporaryChatInfo && (
           <div className={styles.promptContainer}>
@@ -207,7 +228,10 @@ function Conversation(props: ConversationProps) {
           </div>
         )}
 
-        <ConversationEntries scrollToBottom={scrollToBottom} />
+        <ConversationEntries
+          modelIntroMarkers={modelIntroMarkers}
+          scrollToBottom={scrollToBottom}
+        />
 
         <div ref={noticesRef}>
           {showSuggestions && (

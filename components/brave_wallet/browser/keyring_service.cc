@@ -22,6 +22,7 @@
 #include "base/containers/span.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
@@ -66,7 +67,6 @@
 #include "brave/components/brave_wallet/common/fil_address.h"
 #include "brave/components/brave_wallet/common/hex_utils.h"
 #include "brave/components/brave_wallet/common/solana_utils.h"
-#include "brave/components/brave_wallet/common/switches.h"
 #include "components/grit/brave_components_strings.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
@@ -448,6 +448,9 @@ struct DerivedAccountInfo {
       derived_account.SetByDottedPath(kZcashAccountBirthdayBlockHash,
                                       zcash_account_birthday->second);
     }
+    if (zcash_ironwood_sync_state_reset) {
+      derived_account.SetByDottedPath(kZcashIronwoodSyncStateReset, true);
+    }
     if (cardano_next_external_address_index) {
       derived_account.SetByDottedPath(
           kCardanoNextExternalIndex,
@@ -516,6 +519,11 @@ struct DerivedAccountInfo {
                                              *zcash_account_birthday_hash};
     }
 
+    if (auto ironwood_sync_state_reset =
+            value_dict->FindBoolByDottedPath(kZcashIronwoodSyncStateReset)) {
+      account_info.zcash_ironwood_sync_state_reset = *ironwood_sync_state_reset;
+    }
+
     if (auto* cardano_external_string =
             value_dict->FindStringByDottedPath(kCardanoNextExternalIndex)) {
       uint32_t cardano_external_value = 0;
@@ -547,6 +555,7 @@ struct DerivedAccountInfo {
   std::optional<uint32_t> cardano_next_external_address_index;
   std::optional<uint32_t> cardano_next_internal_address_index;
   std::optional<std::pair<uint64_t, std::string>> zcash_account_birthday;
+  bool zcash_ironwood_sync_state_reset = false;
 };
 
 // Gets all hd account from prefs.
@@ -1239,6 +1248,8 @@ bool KeyringService::CreateWalletInternal(const std::string& mnemonic,
     Reset(true);
     return false;
   }
+
+  ReportUsageMetrics();
 
   for (const auto& observer : observers_) {
     if (from_restore) {
@@ -2331,6 +2342,11 @@ std::vector<mojom::AccountInfoPtr> KeyringService::GetHardwareAccountsSync(
     if (!account_value) {
       continue;
     }
+
+    if (IsFilecoinKeyring(keyring_id) && !IsFilecoinLedgerEnabled()) {
+      continue;
+    }
+
     SerializeHardwareAccounts(id, account_value, keyring_id, &accounts);
   }
 
@@ -2649,6 +2665,12 @@ void KeyringService::Lock() {
   StopAutoLockTimer();
 }
 
+void KeyringService::ReportUsageMetrics() {
+  UMA_HISTOGRAM_BOOLEAN(kWalletUsageDailyHistogramName, true);
+  UMA_HISTOGRAM_BOOLEAN(kWalletUsageWeeklyHistogramName, true);
+  UMA_HISTOGRAM_BOOLEAN(kWalletUsageMonthlyHistogramName, true);
+}
+
 void KeyringService::Unlock(const std::string& password,
                             KeyringService::UnlockCallback callback) {
   MaybeRunPasswordMigrations(profile_prefs_, password);
@@ -2680,10 +2702,17 @@ void KeyringService::Unlock(const std::string& password,
 
   UpdateLastUnlockPref(local_state_);
   request_unlock_pending_ = false;
+
+  ReportUsageMetrics();
+
   for (const auto& observer : observers_) {
     observer->Unlocked();
   }
   ResetAutoLockTimer();
+
+  // Defer BlockchainRegistry list parsing until unlock so startup does not
+  // pay for ParseLists when the wallet is never opened.
+  WalletDataFilesInstaller::GetInstance().OnWalletUnlocked();
 
   std::move(callback).Run(true);
 }
@@ -2723,8 +2752,7 @@ void KeyringService::StopAutoLockTimer() {
 
 void KeyringService::ResetAutoLockTimer() {
   // Autolock is disabled in most of the tests.
-  if (!is_autolock_enabled_.value_or(false)) {
-    CHECK_IS_TEST();
+  if (!is_autolock_enabled_) {
     return;
   }
 
@@ -3478,6 +3506,42 @@ bool KeyringService::SetZCashAccountBirthday(
   return false;
 }
 
+bool KeyringService::GetZCashIronwoodSyncStateReset(
+    const mojom::AccountIdPtr& account_id) {
+  CHECK(IsZCashAccount(account_id));
+
+  for (const auto& derived_account_info :
+       GetDerivedAccountsForKeyring(profile_prefs_, account_id->keyring_id)) {
+    if (account_id == derived_account_info.GetAccountId()) {
+      return derived_account_info.zcash_ironwood_sync_state_reset;
+    }
+  }
+  return false;
+}
+
+bool KeyringService::SetZCashIronwoodSyncStateReset(
+    const mojom::AccountIdPtr& account_id,
+    bool value) {
+  CHECK(IsZCashAccount(account_id));
+
+  ScopedDictPrefUpdate keyrings_update(profile_prefs_, kBraveWalletKeyrings);
+  base::ListValue& account_metas = GetListPrefForKeyringUpdate(
+      keyrings_update, kAccountMetas, account_id->keyring_id);
+  for (auto& item : account_metas) {
+    if (auto derived_account =
+            DerivedAccountInfo::FromValue(account_id->keyring_id, item)) {
+      if (account_id ==
+          MakeAccountInfoForDerivedAccount(*derived_account)->account_id) {
+        derived_account->zcash_ironwood_sync_state_reset = value;
+        item = derived_account->ToValue();
+        NotifyAccountsChanged();
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void KeyringService::UpdateNextUnusedAddressForZCashAccount(
     const mojom::AccountIdPtr& account_id,
     std::optional<uint32_t> next_receive_index,
@@ -3867,7 +3931,6 @@ void KeyringService::MaybeFixAccountSelection() {
 }
 
 void KeyringService::SetAutolockEnabled(bool enabled) {
-  CHECK(!is_autolock_enabled_.has_value());
   is_autolock_enabled_ = enabled;
 }
 

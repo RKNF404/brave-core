@@ -7,6 +7,8 @@ import { setIconBasePath } from '@brave/leo/react/icon'
 import { spacing } from '@brave/leo/tokens/css/variables'
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
+import { getLocale } from '$web-common/locale'
+import StyledComponentsProvider from '$web-common/StyledComponentsProvider'
 import styled from 'styled-components'
 import Feed from './Feed'
 import FeedControls from './FeedControls'
@@ -14,8 +16,6 @@ import Variables from './Variables'
 import getBraveNewsController from './shared/api'
 import { BraveNewsContextProvider, useBraveNews } from './shared/Context'
 import './strings'
-
-setIconBasePath('//resources/brave-icons')
 
 const Root = styled(Variables)`
   /* Consumed by SidebarMenu to position its slide-out beneath the header. */
@@ -36,8 +36,7 @@ const Header = styled.div`
   gap: ${spacing.m};
   padding-inline: ${spacing.xl};
 
-  background: var(--bn-glass-container);
-  backdrop-filter: blur(64px);
+  background: var(--leo-color-page-background);
 `
 
 const Content = styled.div`
@@ -64,7 +63,9 @@ export function Sidebar() {
       <Header>
         <Controls
           onCustomize={() => getBraveNewsController().openSettings()}
+          onClose={() => getBraveNewsController().closeUI()}
           showMenu
+          title={getLocale(S.BRAVE_NEWS_TITLE)}
         />
       </Header>
       <Content>
@@ -82,9 +83,16 @@ export function Sidebar() {
 // module import-safe for Storybook, which renders <Sidebar /> directly.
 const root = document.getElementById('root')
 if (root) {
+  // Note: must stay inside the guard. The icon base path is global and applies
+  // retroactively to every mounted icon, so setting it on import would break
+  // icons for Storybook, which can't load `//resources` URLs.
+  setIconBasePath('//resources/brave-icons')
+
   createRoot(root).render(
-    <BraveNewsContextProvider openArticlesInNewTab={false}>
-      <Sidebar />
-    </BraveNewsContextProvider>
+    <StyledComponentsProvider>
+      <BraveNewsContextProvider openArticlesInNewTab={false} renderImagesImmediately>
+        <Sidebar />
+      </BraveNewsContextProvider>
+    </StyledComponentsProvider>
   )
 }

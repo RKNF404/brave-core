@@ -8,12 +8,14 @@
 #include "base/feature_list.h"
 #include "brave/app/brave_command_ids.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
 
@@ -29,9 +31,10 @@ void BraveBrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(
     bool* override_titlebar_height,
     float* titlebar_height) {
   if (BrowserView* browser_view = browser_view_.get()) {
-    Browser* browser = browser_view->browser();
-    if (tabs::utils::ShouldShowBraveVerticalTabs(browser)) {
-      if (!tabs::utils::ShouldShowWindowTitleForVerticalTabs(browser)) {
+    BrowserWindowInterface* browser = browser_view->browser();
+    if (auto* vtc = VerticalTabController::From(browser);
+        vtc->ShouldShowBraveVerticalTabs()) {
+      if (!vtc->ShouldShowWindowTitleForVerticalTabs()) {
         // In this case, titlebar height should be the same as toolbar height.
         *titlebar_height = browser_view->toolbar()->GetPreferredSize().height();
         *override_titlebar_height = true;
@@ -46,6 +49,17 @@ void BraveBrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(
 
   BrowserNativeWidgetMac::GetWindowFrameTitlebarHeight(override_titlebar_height,
                                                        titlebar_height);
+
+  if (*override_titlebar_height && !browser_view_->ShouldDrawTabStrip()) {
+    if (tabs::UseCompactHorizontalTabs()) {
+      // Upstream always adds kWebAppMenuMargin * 2 (14px) to the titlebar
+      // height. In Compact mode use a tighter 5px of vertical padding
+      // instead.
+      constexpr int kCompactWebAppTitlebarPadding = 5;
+      *titlebar_height -=
+          (kWebAppMenuMargin * 2) - kCompactWebAppTitlebarPadding;
+    }
+  }
 }
 
 void BraveBrowserNativeWidgetMac::ValidateUserInterfaceItem(
@@ -59,8 +73,8 @@ void BraveBrowserNativeWidgetMac::ValidateUserInterfaceItem(
 
   // Update toggle state for tab mute menu bar entry.
   if (BrowserView* browser_view = browser_view_.get()) {
-    Browser* browser = browser_view->browser();
-    TabStripModel* model = browser->tab_strip_model();
+    BrowserWindowInterface* browser = browser_view->browser();
+    TabStripModel* model = browser->GetTabStripModel();
     result->set_toggle_state = true;
     result->new_toggle_state = !model->empty() &&
                                model->GetActiveWebContents() &&
@@ -78,8 +92,8 @@ bool BraveBrowserNativeWidgetMac::ExecuteCommand(
     // in distinguishing the 'file -> close tab' (false, as toolbar was in
     // focus) command from 'ctrl + w' (true, as tab was in focus) command.
     if (BrowserView* browser_view = browser_view_.get()) {
-      Browser* browser = browser_view->browser();
-      if (browser->profile()->GetPrefs()->GetBoolean(
+      BrowserWindowInterface* browser = browser_view->browser();
+      if (browser->GetProfile()->GetPrefs()->GetBoolean(
               brave_tabs::kSharedPinnedTab) &&
           command == IDC_CLOSE_TAB && is_before_first_responder &&
           browser->tab_strip_model()->IsTabPinned(

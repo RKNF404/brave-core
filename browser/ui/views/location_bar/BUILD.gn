@@ -3,8 +3,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import("//brave/components/brave_news/common/buildflags/buildflags.gni")
-import("//brave/components/tor/buildflags/buildflags.gni")
 import("//build/config/features.gni")
 
 assert(toolkit_views)
@@ -21,13 +19,6 @@ source_set("location_bar") {
     "brave_selected_keyword_view_util.h",
     "brave_shields_page_info_controller.cc",
     "brave_shields_page_info_controller.h",
-    "brave_star_view.cc",
-    "brave_star_view.h",
-  ]
-
-  public_deps = [
-    "//brave/components/brave_news/common/buildflags",
-    "//brave/components/tor/buildflags",
   ]
 
   deps = [
@@ -37,6 +28,7 @@ source_set("location_bar") {
     "//brave/browser/brave_shields",
     "//brave/browser/ui:brave_tab_prefs",
     "//brave/browser/ui/page_info",
+    "//brave/browser/ui/tabs:tabs_public",
     "//brave/browser/ui/views/page_info",
     "//brave/components/brave_search_conversion",
     "//brave/components/commander/browser",
@@ -47,11 +39,13 @@ source_set("location_bar") {
     "//chrome/browser/profiles",
     "//chrome/browser/search_engines",
     "//chrome/browser/themes",
+    "//chrome/browser/ui:browser_window_header",
     "//chrome/browser/ui:layout_constants",
     "//chrome/browser/ui/color:mixers",
     "//chrome/browser/ui/omnibox",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/user_education",
+    "//chrome/browser/ui/views:layout_provider",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/page_action",
     "//chrome/browser/ui/views/page_info",
@@ -62,18 +56,6 @@ source_set("location_bar") {
     "//ui/gfx",
     "//ui/views",
   ]
-
-  if (enable_tor) {
-    sources += [
-      "onion_location_view.cc",
-      "onion_location_view.h",
-    ]
-
-    deps += [
-      "//brave/browser/tor",
-      "//brave/components/tor",
-    ]
-  }
 }
 
 source_set("browser_tests") {
@@ -89,6 +71,8 @@ source_set("browser_tests") {
     "//chrome/browser",
     "//chrome/browser/search_engines",
     "//chrome/browser/ui",
+    "//chrome/browser/ui:view_ids",
+    "//chrome/browser/ui/views/frame:browser_view_header",
     "//chrome/common",
     "//chrome/test",
     "//chrome/test:test_support",

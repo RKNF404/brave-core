@@ -5,7 +5,6 @@
 
 import Foundation
 import Shared
-import WebKit
 import os.log
 
 public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
@@ -16,6 +15,7 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
   public var mimeType: String
   public var duration: TimeInterval
   public var lastPlayedOffset: TimeInterval
+  public var lastPlayedDate: Date?
   public var detected: Bool
   public var dateAdded: Date
   public var tagId: String
@@ -34,6 +34,7 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
     self.mimeType = ""
     self.duration = 0.0
     self.lastPlayedOffset = 0.0
+    self.lastPlayedDate = nil
     self.dateAdded = Date()
     self.detected = false
     self.tagId = UUID().uuidString
@@ -49,6 +50,7 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
     self.mimeType = item.mimeType
     self.duration = item.duration
     self.lastPlayedOffset = item.lastPlayedOffset
+    self.lastPlayedDate = item.lastPlayedDate
     self.dateAdded = item.dateAdded
     self.detected = false
     self.tagId = item.uuid ?? UUID().uuidString
@@ -64,6 +66,7 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
     mimeType: String,
     duration: TimeInterval,
     lastPlayedOffset: TimeInterval,
+    lastPlayedDate: Date? = nil,
     detected: Bool,
     dateAdded: Date,
     tagId: String,
@@ -77,6 +80,7 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
     self.mimeType = mimeType
     self.duration = duration
     self.lastPlayedOffset = lastPlayedOffset
+    self.lastPlayedDate = lastPlayedDate
     self.detected = detected
     self.dateAdded = dateAdded
     self.tagId = tagId.isEmpty ? UUID().uuidString : tagId
@@ -94,6 +98,7 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
     self.duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0.0
     self.lastPlayedOffset =
       try container.decodeIfPresent(TimeInterval.self, forKey: .lastPlayedOffset) ?? 0.0
+    self.lastPlayedDate = try container.decodeIfPresent(Date.self, forKey: .lastPlayedDate)
     self.detected = try container.decodeIfPresent(Bool.self, forKey: .detected) ?? false
     self.tagId = try container.decodeIfPresent(String.self, forKey: .tagId) ?? UUID().uuidString
     self.dateAdded = Date()
@@ -102,14 +107,14 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
     self.isInvisible = try container.decodeIfPresent(Bool.self, forKey: .isInvisible) ?? false
   }
 
-  public static func from(message: WKScriptMessage) -> PlaylistInfo? {
-    if !JSONSerialization.isValidJSONObject(message.body) {
+  public static func from(dictionary: [String: Any]) -> PlaylistInfo? {
+    if !JSONSerialization.isValidJSONObject(dictionary) {
       return nil
     }
 
     do {
       let data = try JSONSerialization.data(
-        withJSONObject: message.body,
+        withJSONObject: dictionary,
         options: [.fragmentsAllowed]
       )
       return try JSONDecoder().decode(PlaylistInfo.self, from: data)
@@ -153,6 +158,7 @@ public struct PlaylistInfo: Codable, Identifiable, Hashable, Equatable {
     case mimeType
     case duration
     case lastPlayedOffset
+    case lastPlayedDate
     case detected
     case tagId
     case dateAdded

@@ -9,7 +9,6 @@
 #include "brave/components/ai_chat/core/common/features.h"
 #include "brave/components/brave_search_conversion/pref_names.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -172,7 +171,7 @@ class NTPAIChatBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
 
     // Enable the show chat input pref
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         brave_search_conversion::prefs::kShowNTPChatInput, true);
   }
 
@@ -339,7 +338,7 @@ class NTPAIChatPrefDisabledBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
 
     // Disable the show chat input pref
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         brave_search_conversion::prefs::kShowNTPChatInput, false);
   }
 

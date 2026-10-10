@@ -46,6 +46,11 @@ BASE_FEATURE(kBraveOverrideDownloadDangerLevel,
 BASE_FEATURE(kBraveDayZeroExperiment,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Allows Brave shields to intercept WebSocket requests coming from
+// Shared/Service workers.
+BASE_FEATURE(kBraveEnableShieldsForWebSocketsFromWorkers,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 #if BUILDFLAG(BRAVE_V8_ENABLE_DRUMBRAKE)
 // Run WebAssembly code in the DrumBrake interpreter instead of the optimizing
 // compiler. Automatically enabled when V8 is in jitless mode.
@@ -59,17 +64,16 @@ BASE_FEATURE(kBraveV8JitlessMode,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-// Enable dynamic colors on Android, which allows the app to adapt its
-// color scheme based on the user's wallpaper and system theme.
-// This feature is only available on Android 12 and above.
-BASE_FEATURE(kBraveAndroidDynamicColors,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+// Controls the dynamic colors preference default when the user has not made a
+// choice. Dynamic colors are available on Android 12 and above.
+BASE_FEATURE(kBraveAndroidDynamicColorsByDefault,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable fresh NTP display after idle expiration on Android.
 // This feature allows showing a refreshed NTP when the app has been idle
 // for a specified duration.
 BASE_FEATURE(kBraveFreshNtpAfterIdleExperiment,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable custom search engines on Android, allowing users to add, edit, and
 // remove their own search engine entries from the search engine settings.
@@ -86,11 +90,12 @@ const base::FeatureParam<std::string> kBraveDayZeroExperimentVariant{
     /*default_value=*/""};
 
 #if BUILDFLAG(IS_ANDROID)
-// The variant of the fresh NTP experiment. i.e. A, B, C, etc.
+// The variant of the fresh NTP experiment: B (the default) or A for the control
+// arm.
 const base::FeatureParam<std::string> kBraveFreshNtpAfterIdleExperimentVariant{
     &kBraveFreshNtpAfterIdleExperiment,
     /*name=*/"variant",
-    /*default_value=*/"A"};
+    /*default_value=*/"B"};
 #endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace features

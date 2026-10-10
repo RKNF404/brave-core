@@ -16,6 +16,7 @@
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "base/types/pass_key.h"
+#include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "components/prefs/pref_member.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -41,7 +42,8 @@ class BraveVerticalTabStripRegionView : public views::View,
                                         public views::ResizeAreaDelegate,
                                         public views::AnimationDelegateViews,
                                         public views::WidgetObserver,
-                                        public views::ContextMenuController {
+                                        public views::ContextMenuController,
+                                        public FocusModeController::Observer {
   METADATA_HEADER(BraveVerticalTabStripRegionView, views::View)
  public:
   // We have a state machine which cycles like:
@@ -75,7 +77,7 @@ class BraveVerticalTabStripRegionView : public views::View,
   }
   TabStrip* tab_strip() { return original_region_view_->tab_strip_; }
 
-  const Browser* browser() const { return browser_; }
+  const BrowserWindowInterface* browser() const { return browser_; }
 
   void ToggleState();
 
@@ -99,15 +101,23 @@ class BraveVerticalTabStripRegionView : public views::View,
   void ListenFullscreenChanges();
   void StopListeningFullscreenChanges();
 
-  // Show vertical tab strip when mouse moves around the hot corner
-  // when it's completely hidden.
-  void ShowVerticalTabStripOnMouseOver(const gfx::PointF& point_in_screen);
+  // Handles a mouse move event from the browser-wide mouse move monitor.
+  // Shows the vertical tab strip when the mouse moves around the hot corner
+  // while it's completely hidden, and collapses it when the mouse moves out
+  // of its area while floating. The collapse check is a self-correcting
+  // fallback for OnMouseExited(): that callback can rely on a stale
+  // IsMouseHovered() reading right at the boundary with web contents and
+  // never schedule a collapse, whereas this re-checks the live cursor
+  // position on every subsequent move.
+  void HandleMouseEvent(const gfx::PointF& point_in_screen);
 
   // views::View:
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   gfx::Size GetMinimumSize() const override;
   void Layout(PassKey) override;
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
   void OnThemeChanged() override;
   void OnMouseExited(const ui::MouseEvent& event) override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
@@ -126,6 +136,9 @@ class BraveVerticalTabStripRegionView : public views::View,
 
   void OnFullscreenStateChanged();
 
+  // FocusModeController::Observer:
+  void OnFocusModeToggled(bool enabled) override;
+
   // views::ContextMenuController:
   void ShowContextMenuForViewImpl(
       views::View* source,
@@ -134,8 +147,6 @@ class BraveVerticalTabStripRegionView : public views::View,
 
  private:
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, VisualState);
-  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest,
-                           OriginalTabSearchButton);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedState);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedWidth);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest,
@@ -163,12 +174,26 @@ class BraveVerticalTabStripRegionView : public views::View,
   void OnExpandedStatePerWindowPrefChanged();
   void OnExpandedWidthPrefChanged();
   void OnHideComopletelyWhenCollapsedPrefChanged();
+  void OnShowToggleButtonPrefChanged();
 
   bool IsFloatingVerticalTabsEnabled() const;
   bool IsFloatingEnabledForBrowserFullscreen() const;
+  bool IsFloatingEnabledForBrowserMode() const;
+  void UpdateFloatingStateForBrowserMode();
+
   void ScheduleFloatingModeTimer();
   void ScheduleCollapseTimer();
   void OnMouseEntered();
+
+  // Show vertical tab strip when mouse moves around the hot corner when it's
+  // completely hidden. Returns true if the vertical tab strip is shown, false
+  // otherwise.
+  bool ShowVerticalTabStripOnMouseOver(const gfx::PointF& point_in_screen);
+
+  // Collapse vertical tab strip when mouse moves out of its area while
+  // floating.
+  void CollapseVerticalTabStripOnMouseOut(const gfx::PointF& point_in_screen);
+
   void OnMousePressedInTree();
   void UpdateBubbleArrow();
 
@@ -192,7 +217,7 @@ class BraveVerticalTabStripRegionView : public views::View,
   void OnCollapseAnimationEnded();
 
   raw_ptr<BrowserView> browser_view_ = nullptr;
-  raw_ptr<Browser> browser_ = nullptr;
+  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
   raw_ptr<HorizontalTabStripRegionView> original_region_view_ = nullptr;
 
   // Reportedly, when we add the TabStripRegionView to
@@ -217,6 +242,7 @@ class BraveVerticalTabStripRegionView : public views::View,
 
   State state_ = State::kExpanded;
   State last_state_ = State::kExpanded;
+  std::optional<State> floating_restore_state_;
 
   BooleanPrefMember sidebar_side_;
   BooleanPrefMember show_vertical_tabs_;
@@ -224,6 +250,7 @@ class BraveVerticalTabStripRegionView : public views::View,
   BooleanPrefMember expanded_state_per_window_pref_;
   BooleanPrefMember floating_mode_pref_;
   BooleanPrefMember hide_completely_when_collapsed_pref_;
+  BooleanPrefMember show_toggle_button_pref_;
 
   IntegerPrefMember expanded_width_pref_;
   int expanded_width_ = 220;
@@ -237,6 +264,9 @@ class BraveVerticalTabStripRegionView : public views::View,
 
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       widget_observation_{this};
+
+  base::ScopedObservation<FocusModeController, FocusModeController::Observer>
+      focus_mode_observation_{this};
 
 #if BUILDFLAG(IS_MAC)
   BooleanPrefMember show_toolbar_on_fullscreen_pref_;

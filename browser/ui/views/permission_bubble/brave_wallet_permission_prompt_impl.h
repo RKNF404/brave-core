@@ -13,12 +13,9 @@
 #include "base/time/time.h"
 #include "components/permissions/permission_prompt.h"
 
-class Browser;
-
 class BraveWalletPermissionPromptImpl : public permissions::PermissionPrompt {
  public:
-  BraveWalletPermissionPromptImpl(Browser* browser,
-                                  content::WebContents* web_contents,
+  BraveWalletPermissionPromptImpl(content::WebContents* web_contents,
                                   Delegate& delegate);
   ~BraveWalletPermissionPromptImpl() override;
 
@@ -34,7 +31,6 @@ class BraveWalletPermissionPromptImpl : public permissions::PermissionPrompt {
       const override;
   bool IsAskPrompt() const override;
   std::optional<gfx::Rect> GetViewBoundsInScreen() const override;
-  bool ShouldFinalizeRequestAfterDecided() const override;
   std::vector<permissions::ElementAnchoredBubbleVariant> GetPromptVariants()
       const override;
   std::optional<permissions::feature_params::PermissionElementPromptPosition>

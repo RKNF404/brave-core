@@ -93,6 +93,7 @@ class BraveTab : public Tab
   void MaybeUpdateHoverStatus(const ui::MouseEvent& event) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
+  bool IsHovering() const override;
 
   // Returns whether this tab should have an accent painted.
   bool ShouldPaintTabAccent() const;
@@ -117,6 +118,13 @@ class BraveTab : public Tab
   views::View* small_accent_icon_view_for_test() const {
     return small_accent_icon_view_;
   }
+
+  // Updates whether the small accent icon paints to a composited layer.
+  void UpdateSmallAccentIconLayer();
+
+#if BUILDFLAG(ENABLE_CONTAINERS)
+  std::optional<ContainerCardData> GetContainerCardData() const override;
+#endif  // BUILDFLAG(ENABLE_CONTAINERS)
 
  private:
   friend class BraveTabTest;
@@ -157,6 +165,9 @@ class BraveTab : public Tab
   FRIEND_TEST_ALL_PREFIXES(
       BraveTabTestWithTreeTab,
       TreeToggleButtonVisibleMouseHoveredEvenWhenCloseButtonHiddenByPref);
+  FRIEND_TEST_ALL_PREFIXES(
+      BraveTabTestWithTreeTabToggleVisibility,
+      InactiveVerticalTreeTabAtMinWidthDoesNotShowToggleButton);
 
   bool IsAtMinWidthForVerticalTabStrip() const;
 
@@ -176,6 +187,12 @@ class BraveTab : public Tab
   // Returns whether the tree tab node is collapsed.
   bool IsTreeNodeCollapsed() const;
 
+  // Returns whether the tree toggle button should currently be shown. At
+  // minimum width, the toggle button covers the tab's entire clickable area,
+  // so an inactive tab must remain selectable regardless of whether its tree
+  // is collapsed or expanded (issue #58992).
+  bool CanShowTreeTabToggle() const;
+
   raw_ptr<views::ImageButton> tree_toggle_button_ = nullptr;
 
   // Returns the tree tab node for this tab.
@@ -186,9 +203,6 @@ class BraveTab : public Tab
 
   // Lays out the small tab accent icon view (visibility and bounds).
   void LayoutSmallTabAccentIcon();
-
-  // Updates whether the small accent icon paints to a composited layer.
-  void UpdateSmallAccentIconLayer();
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
   // Starts observing container list changes if not already observing.

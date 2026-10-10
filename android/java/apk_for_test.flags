@@ -89,12 +89,6 @@
     public <init>(...);
 }
 
--keep class org.chromium.chrome.browser.sync.settings.ManageSyncSettings {
-    *** mGoogleActivityControls;
-    *** mSyncEncryption;
-    *** mSyncEverything;
-}
-
 -keep class org.chromium.chrome.browser.search_engines.settings.SearchEngineAdapter {
     *** mProfile;
     *** getSearchEngineSourceType(...);
@@ -117,14 +111,24 @@
     *** initCommandLine(...);
 }
 
+-keep class org.chromium.chrome.browser.settings.MainSettings {
+    *** openSearchResult(...);
+}
+
 -keep class org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils {
-    *** isInNarrowWindowOnTablet(...);
     *** isNtpThemeCustomizationEnabled(...);
 }
 
 -keep class org.chromium.chrome.browser.ntp_customization.BraveNtpCustomizationUtils {
-    *** isInNarrowWindowOnTablet(...);
     *** isNtpThemeCustomizationEnabled(...);
+}
+
+-keep class org.chromium.chrome.browser.ntp_customization.theme.NtpCustomizationPromoManager {
+    *** canShowCustomizationIph(...);
+}
+
+-keep class org.chromium.chrome.browser.ntp_customization.theme.BraveNtpCustomizationPromoManager {
+    *** canShowCustomizationIph(...);
 }
 
 -keep class org.chromium.chrome.browser.ui.appmenu.AppMenu {
@@ -298,6 +302,8 @@
 
 -keep class org.chromium.chrome.browser.ui.messages.snackbar.SnackbarView {
     *** mContainerView;
+    *** mSnackbarSwipeHandler;
+    *** mIsAnimating;
 }
 
 -keep class org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager {
@@ -396,11 +402,6 @@
 
 -keep class org.chromium.chrome.browser.toolbar.top.BraveToolbarLayoutImpl
 
--keep class org.chromium.chrome.browser.toolbar.top.ToolbarPhone {
-    *** mLocationBarBackgroundColorForNtp;
-    *** mToolbarBackgroundColorForNtp;
-}
-
 -keep class org.chromium.components.permissions.PermissionDialogModelFactory {
     *** getModel(...);
 }
@@ -468,12 +469,12 @@
     *** getAndroidAutofillFrameworkAvailability(...);
 }
 
--keep class org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment {
+-keep class org.chromium.chrome.browser.autofill.settings.options.AutofillOptionsFragment {
     *** createRequiredArgs(...);
     *** onCreate(...);
 }
 
--keep class org.chromium.chrome.browser.autofill.options.BraveAutofillOptionsFragmentBase {
+-keep class org.chromium.chrome.browser.autofill.settings.options.BraveAutofillOptionsFragmentBase {
     *** onCreate(...);
 }
 
@@ -545,10 +546,6 @@
     <init>(...);
 }
 
--keep class org.chromium.chrome.browser.omnibox.suggestions.BraveAutocompleteMediatorBase {
-    public <init>(...);
-}
-
 -keep class org.chromium.chrome.browser.multiwindow.MultiInstanceManagerApi31 {
     *** mInstanceId;
     handleMenuOrKeyboardAction(...);
@@ -597,7 +594,6 @@
 
 -keep class org.chromium.chrome.browser.omnibox.LocationBarCoordinator {
     *** mLocationBarMediator;
-    *** mUrlBar;
     public <init>(...);
 }
 
@@ -710,7 +706,6 @@
 
 -keep class org.chromium.chrome.browser.IntentHandler {
     public <init>(...);
-    *** getUrlForCustomTab(...);
     *** getUrlForWebapp(...);
     *** extractUrlFromIntent(...);
     *** isUrlUnsafe(...);
@@ -814,6 +809,16 @@
     public <init>(...);
 }
 
+-keep class org.chromium.chrome.browser.messages.MessageContainerCoordinator
+
+-keep class org.chromium.chrome.browser.messages.ChromeMessageQueueMediator {
+    public <init>(...);
+}
+
+-keep class org.chromium.chrome.browser.messages.BraveMessageQueueMediator {
+    public <init>(...);
+}
+
 -keep class org.chromium.chrome.browser.tabbed_mode.TabbedRootUiCoordinator {
     public <init>(...);
     *** mAdvancedProtectionCoordinator;
@@ -839,12 +844,8 @@
     public <init>(...);
 }
 
--keep class org.chromium.chrome.browser.firstrun.BraveFreIntentCreator {
-    public <init>(...);
-}
-
 -keep class org.chromium.chrome.browser.firstrun.FreIntentCreator {
-    public <init>(...);
+    *** createInternal(...);
 }
 
 -keep class org.chromium.chrome.browser.feedback.BraveHelpAndFeedbackLauncherImpl {
@@ -1100,15 +1101,6 @@
     *** handleUnsavedLocalTabGroups(...);
 }
 
--keep class org.chromium.chrome.browser.infobar.InfoBarContainerView {
-    <init>(...);
-    *** mEdgeToEdgeSupplier;
-}
-
--keep class org.chromium.chrome.browser.infobar.BraveInfoBarContainerView {
-    <init>(...);
-}
-
 -keep class org.chromium.chrome.browser.toolbar.ToolbarLongPressMenuHandler {
     public <init>(...);
 }
@@ -1200,4 +1192,12 @@
 
 -keep class org.chromium.chrome.browser.tabbed_mode.BraveTabbedAdaptiveToolbarBehavior {
     <init>(...);
+}
+
+-keep class com.google.android.material.color.DynamicColors {
+    *** applyToActivityIfAvailable(...);
+}
+
+-keep class org.chromium.chrome.browser.theme.BraveDynamicColors {
+    *** applyToActivityIfAvailable(...);
 }

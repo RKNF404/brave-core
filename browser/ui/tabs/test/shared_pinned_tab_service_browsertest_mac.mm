@@ -12,11 +12,12 @@
 #include "chrome/browser/ui/toasts/toast_features.h"
 #import "chrome/browser/ui/views/frame/browser_native_widget_mac.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/test/base/interactive_test_utils.h"
 
 IN_PROC_BROWSER_TEST_F(SharedPinnedTabServiceBrowserTest,
                        CloseTabShortCutShouldBeDisabled) {
   auto* browser = CreateNewBrowser();
-  chrome::NewTab(browser);
+  chrome::NewTab(browser, NewTabTypes::kNewTabCommand);
 
   EXPECT_EQ(browser->tab_strip_model()->count(), 2);
   EXPECT_EQ(browser->tab_strip_model()->active_index(), 1);
@@ -24,7 +25,15 @@ IN_PROC_BROWSER_TEST_F(SharedPinnedTabServiceBrowserTest,
   EXPECT_EQ(browser->tab_strip_model()->SetTabPinned(1, true), 0);
   EXPECT_EQ(browser->tab_strip_model()->active_index(), 0);
 
-  auto* browser_view = static_cast<BrowserView*>(browser->window());
+  auto* browser_view =
+      static_cast<BrowserView*>(BrowserWindow::FromBrowser(browser));
+
+  // The window must be key for AppKit's key-equivalent dispatch to route the
+  // event to this window and for the "Close Tab" menu item's enabled state
+  // (which is what actually gates whether Cmd+W fires) to be refreshed.
+  ASSERT_TRUE(ui_test_utils::ShowAndFocusNativeWindow(
+      browser_view->GetWidget()->GetNativeWindow()));
+
   auto* ns_window =
       browser_view->GetWidget()->GetNativeWindow().GetNativeNSWindow();
 

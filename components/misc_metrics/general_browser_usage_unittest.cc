@@ -3,13 +3,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+#include "brave/components/misc_metrics/general_browser_usage.h"
+
 #include <memory>
 #include <optional>
 #include <string>
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
-#include "brave/components/misc_metrics/general_browser_usage.h"
+#include "brave/components/p3a_utils/test_event_relay_observer.h"
 #include "components/prefs/testing_pref_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -58,14 +60,15 @@ class GeneralBrowserUsageUnitTest : public testing::Test {
   TestingPrefServiceSimple local_state_;
   std::unique_ptr<base::HistogramTester> histogram_tester_;
   std::unique_ptr<GeneralBrowserUsage> general_browser_usage_;
+  p3a_utils::TestEventRelayObserver event_relay_observer_;
 };
 
 TEST_F(GeneralBrowserUsageUnitTest, WeeklyUsage) {
 #if BUILDFLAG(IS_MAC)
   // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
   // unexpected test timeout failures are resolved.
-  if (base::mac::MacOSMajorVersion() == 26) {
-    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  if (base::mac::MacOSMajorVersion() >= 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe and later.";
   }
 #endif
   SetUpUsage({}, true, base::Time::Now());
@@ -107,27 +110,36 @@ TEST_F(GeneralBrowserUsageUnitTest, InstallTimeVariantSwitch) {
 #if BUILDFLAG(IS_MAC)
   // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
   // unexpected test timeout failures are resolved.
-  if (base::mac::MacOSMajorVersion() == 26) {
-    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  if (base::mac::MacOSMajorVersion() >= 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe and later.";
   }
 #endif
   base::Time install_time = base::Time::Now();
   SetUpUsage("B", true, install_time);
 
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 1, 1);
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            "b");
 
   task_environment_.FastForwardBy(base::Days(15));
 
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 1, 16);
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            "b");
 
   SetUpUsage("A", false, install_time);
   // Ensure histogram name does not change if "day zero" is enabled
   // after install; we only want to report the "day zero on" metric
   // if it was enabled at install time.
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 1, 16);
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            "b");
 
   task_environment_.FastForwardBy(base::Days(16));
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 1, 31);
+  // Past the 30-day window the attribute should be cleared.
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            std::nullopt);
 
   ResetHistogramTester();
   // Ensure there are no more reports past 30 days
@@ -135,30 +147,39 @@ TEST_F(GeneralBrowserUsageUnitTest, InstallTimeVariantSwitch) {
 
   histogram_tester_->ExpectTotalCount(kDayZeroVariantHistogramName, 0);
   histogram_tester_->ExpectTotalCount(kDayZeroVariantHistogramName, 0);
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            std::nullopt);
 }
 
 TEST_F(GeneralBrowserUsageUnitTest, InstallTimeBasic) {
 #if BUILDFLAG(IS_MAC)
   // TODO(crbug.com/434660312): Re-enable on macOS 26 once issues with
   // unexpected test timeout failures are resolved.
-  if (base::mac::MacOSMajorVersion() == 26) {
-    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  if (base::mac::MacOSMajorVersion() >= 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe and later.";
   }
 #endif
   base::Time install_time = base::Time::Now();
   SetUpUsage("A", true, install_time);
 
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 0, 1);
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            "a");
 
   task_environment_.FastForwardBy(base::Days(15));
 
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 0, 16);
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            "a");
 
   task_environment_.FastForwardBy(base::Days(15));
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 0, 31);
 
   task_environment_.FastForwardBy(base::Days(15));
   histogram_tester_->ExpectUniqueSample(kDayZeroVariantHistogramName, 0, 31);
+  // Past the 30-day window the attribute should be cleared.
+  EXPECT_EQ(event_relay_observer_.GetCustomAttribute(kDayZeroAttributeName),
+            std::nullopt);
 }
 
 }  // namespace misc_metrics

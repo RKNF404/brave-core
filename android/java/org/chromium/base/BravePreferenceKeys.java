@@ -11,10 +11,16 @@ import org.chromium.build.annotations.NullMarked;
 public final class BravePreferenceKeys {
     public static final String BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY =
             "brave_bottom_toolbar_enabled_key";
+    public static final String BRAVE_ANDROID_DYNAMIC_COLORS_ENABLED =
+            "brave_android_dynamic_colors_enabled";
     public static final String BRAVE_BOTTOM_TOOLBAR_SET_KEY = "brave_bottom_toolbar_enabled";
+    // The bottom bar is a separate implementation of the bottom navigation toolbar, used while the
+    // Android bottom bar flag is on, and carries a setting of its own.
+    public static final String BRAVE_ENABLE_BOTTOM_BAR = "brave_enable_bottom_bar";
     public static final String BRAVE_IS_MENU_FROM_BOTTOM = "brave_is_menu_from_bottom";
     public static final String BRAVE_USE_CUSTOM_TABS = "use_custom_tabs";
     public static final String BRAVE_APP_OPEN_COUNT = "brave_app_open_count";
+    public static final String BRAVE_RATE_DONT_SHOW_AGAIN = "brave_rate_dont_show_again";
     public static final String BRAVE_IS_DEFAULT = "brave_is_default";
     public static final String BRAVE_WAS_DEFAULT_ASK_COUNT = "brave_was_default_ask_count";
     public static final String BRAVE_SET_DEFAULT_BOTTOM_SHEET_COUNT =
@@ -40,6 +46,8 @@ public final class BravePreferenceKeys {
             "org.chromium.chrome.browser.Brave_Tab_Groups_Feature_Enabled";
     public static final String BRAVE_TAB_GROUPS_BAR_ENABLED =
             "org.chromium.chrome.browser.Brave_Tab_Groups_Bar_Enabled";
+    // Note: the user-facing preference is labelled "Sharing Hub", but this stored value is
+    // inverted. Be sure to invert it when reading/writing.
     public static final String BRAVE_DISABLE_SHARING_HUB =
             "org.chromium.chrome.browser.Brave_Disable_Sharing_Hub";
     public static final String BRAVE_NEWS_CHANGE_SOURCE = "brave_news_change_source";
@@ -134,6 +142,9 @@ public final class BravePreferenceKeys {
             "brave_origin_credential_summary_cached";
 
     public static final String PREF_PULL_TO_REFRESH = "brave_pull_to_refresh";
+
+    public static final String BRAVE_NTP_TOP_SITES_DISPLAY_MODE =
+            "brave_ntp_top_sites_display_mode";
 
     /*
      * Checks if preference key is used in Brave.

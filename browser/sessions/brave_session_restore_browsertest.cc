@@ -24,7 +24,6 @@
 #include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
@@ -50,17 +49,15 @@
 #include "services/network/public/cpp/network_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
-#include "third_party/blink/public/common/page_state/page_state.h"
-#include "third_party/blink/public/common/page_state/page_state_serialization.h"
 
 using BraveSessionRestoreBrowserTest = InProcessBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(BraveSessionRestoreBrowserTest,
-                       SerializationClearNonEmptyPageState) {
+                       SerializationClearPageStateForNewTab) {
   auto* tab_model = browser()->tab_strip_model();
   auto* web_contents = tab_model->GetActiveWebContents();
   SessionService* const session_service =
-      SessionServiceFactory::GetForProfile(browser()->profile());
+      SessionServiceFactory::GetForProfile(browser()->GetProfile());
   ui_test_utils::NavigateToURLBlockUntilNavigationsComplete(
       browser(), GURL("brave://newtab/"), 1);
   ASSERT_EQ(true, EvalJs(web_contents,
@@ -88,11 +85,10 @@ IN_PROC_BROWSER_TEST_F(BraveSessionRestoreBrowserTest,
         EXPECT_EQ(serialized_navigation.virtual_url(),
                   GURL("chrome://newtab/"));
 
-        // Check encoded data is not empty but clean state only with url info.
-        EXPECT_EQ(blink::PageState::CreateFromURL(GURL("chrome://newtab/"))
-                      .ToEncodedData(),
-                  serialized_navigation.encoded_page_state());
-        EXPECT_FALSE(serialized_navigation.encoded_page_state().empty());
+        // Check encoded data is empty. On restore, the virtual_url is
+        // re-resolved (e.g. to any current extension NTP override), so no
+        // page state should be persisted here.
+        EXPECT_TRUE(serialized_navigation.encoded_page_state().empty());
         loop.Quit();
       }));
   loop.Run();
@@ -103,7 +99,7 @@ IN_PROC_BROWSER_TEST_F(BraveSessionRestoreBrowserTest,
   auto* tab_model = browser()->tab_strip_model();
   auto* web_contents = tab_model->GetActiveWebContents();
   SessionService* const session_service =
-      SessionServiceFactory::GetForProfile(browser()->profile());
+      SessionServiceFactory::GetForProfile(browser()->GetProfile());
   ui_test_utils::NavigateToURLBlockUntilNavigationsComplete(
       browser(), GURL("brave://rewards/"), 1);
   ASSERT_EQ(true, EvalJs(web_contents,
@@ -210,10 +206,10 @@ class BraveTreeTabSessionRestoreBrowserTest : public InProcessBrowserTest {
     // Both vertical tabs and tree tabs prefs must be true for
     // BraveTabStripModel::BuildTreeTabs() to be called and tree_model() to
     // return non-null.
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         brave_tabs::kVerticalTabsEnabled, true);
-    browser()->profile()->GetPrefs()->SetBoolean(brave_tabs::kTreeTabsEnabled,
-                                                 true);
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
+        brave_tabs::kTreeTabsEnabled, true);
   }
 
   BraveTabStripModel* brave_tab_strip_model() {
@@ -248,7 +244,7 @@ class BraveTreeTabSessionRestoreBrowserTest : public InProcessBrowserTest {
   // Creates a new WebContents for the test browser's profile.
   std::unique_ptr<content::WebContents> CreateWebContents() {
     return content::WebContents::Create(
-        content::WebContents::CreateParams(browser()->profile()));
+        content::WebContents::CreateParams(browser()->GetProfile()));
   }
 
   // Adds a new tab at the end, optionally sets |opener|, and navigates it.
@@ -276,7 +272,7 @@ class BraveTreeTabSessionRestoreBrowserTest : public InProcessBrowserTest {
       base::Location location = base::Location::Current()) {
     SCOPED_TRACE(location.ToString());
     auto* service = tab_groups::TabGroupSyncServiceFactory::GetForProfile(
-        browser()->profile());
+        browser()->GetProfile());
     ASSERT_TRUE(service);
     service->SetIsInitializedForTesting(true);
   }
@@ -292,7 +288,7 @@ class BraveTreeTabSessionRestoreBrowserTest : public InProcessBrowserTest {
   }
 
   SessionService* session_service() {
-    return SessionServiceFactory::GetForProfile(browser()->profile());
+    return SessionServiceFactory::GetForProfile(browser()->GetProfile());
   }
 
   // Saves the last session using only incremental commands (no rebuild).
@@ -405,7 +401,7 @@ IN_PROC_BROWSER_TEST_F(BraveTreeTabSessionRestoreBrowserTest,
   // Create a new tab and add it to the tree, as a child of the first tab
   std::unique_ptr<tabs::TabModel> tab_model = std::make_unique<tabs::TabModel>(
       content::WebContents::Create(
-          content::WebContents::CreateParams(browser()->profile())),
+          content::WebContents::CreateParams(browser()->GetProfile())),
       browser()->tab_strip_model());
   brave_tab_strip_model()->AddTab(std::move(tab_model), -1,
                                   ui::PAGE_TRANSITION_AUTO_BOOKMARK, ADD_NONE);
@@ -538,7 +534,7 @@ IN_PROC_BROWSER_TEST_F(BraveTreeTabSessionRestoreBrowserTest,
   ASSERT_FALSE(node_a_id.empty());
 
   sessions::TabRestoreService* tab_restore_service =
-      TabRestoreServiceFactory::GetForProfile(browser()->profile());
+      TabRestoreServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(tab_restore_service);
 
   // Close B. This synchronously creates a TAB restore entry whose extra_data is
@@ -583,14 +579,14 @@ IN_PROC_BROWSER_TEST_F(BraveTreeTabSessionRestoreBrowserTest,
                        ClosedTabWithoutTreeModelHasNoTreeExtraData) {
   // Disable the tree tabs pref so BraveTabStripModel::tree_model() is null even
   // though the kBraveTreeTab feature is enabled.
-  browser()->profile()->GetPrefs()->SetBoolean(brave_tabs::kTreeTabsEnabled,
-                                               false);
+  browser()->GetProfile()->GetPrefs()->SetBoolean(brave_tabs::kTreeTabsEnabled,
+                                                  false);
   ASSERT_FALSE(brave_tab_strip_model()->tree_model());
 
   // Open a second tab and navigate it so it is recorded by TabRestoreService.
   auto tab_b = std::make_unique<tabs::TabModel>(
       content::WebContents::Create(
-          content::WebContents::CreateParams(browser()->profile())),
+          content::WebContents::CreateParams(browser()->GetProfile())),
       browser()->tab_strip_model());
   brave_tab_strip_model()->AddTab(std::move(tab_b), -1,
                                   ui::PAGE_TRANSITION_AUTO_BOOKMARK, ADD_NONE);
@@ -600,7 +596,7 @@ IN_PROC_BROWSER_TEST_F(BraveTreeTabSessionRestoreBrowserTest,
   ASSERT_TRUE(content::NavigateToURL(web_contents_b, GURL("about:blank")));
 
   sessions::TabRestoreService* tab_restore_service =
-      TabRestoreServiceFactory::GetForProfile(browser()->profile());
+      TabRestoreServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(tab_restore_service);
 
   browser()->tab_strip_model()->CloseWebContentsAt(
@@ -669,7 +665,7 @@ class BraveTreeTabSessionRestoreOnRelaunchBrowserTest
   void SetUpOnMainThread() override {
     BraveTreeTabSessionRestoreBrowserTest::SetUpOnMainThread();
     SessionStartupPref::SetStartupPref(
-        browser()->profile(), SessionStartupPref(SessionStartupPref::LAST));
+        browser()->GetProfile(), SessionStartupPref(SessionStartupPref::LAST));
   }
 };
 

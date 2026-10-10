@@ -25,7 +25,6 @@
 #include "brave/components/brave_wallet/common/web_ui_constants.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -213,7 +212,7 @@ class WalletPanelUIBrowserTest : public InProcessBrowserTest {
   }
 
   void WaitForNeonEVMNetworkUrl(const GURL& url) {
-    auto* prefs = browser()->profile()->GetPrefs();
+    auto* prefs = browser()->GetProfile()->GetPrefs();
 
     if (brave_wallet_service()->network_manager()->GetNetworkURL(
             mojom::kNeonEVMMainnetChainId, mojom::CoinType::ETH) == url) {
@@ -242,7 +241,7 @@ class WalletPanelUIBrowserTest : public InProcessBrowserTest {
 
   BraveWalletService* brave_wallet_service() {
     return BraveWalletServiceFactory::GetServiceForContext(
-        browser()->profile());
+        browser()->GetProfile());
   }
 
  private:

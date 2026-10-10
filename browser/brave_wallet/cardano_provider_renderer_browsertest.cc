@@ -13,12 +13,12 @@
 #include "brave/components/brave_wallet/browser/brave_wallet_service.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
 #include "brave/components/brave_wallet/browser/keyring_service.h"
+#include "brave/components/brave_wallet/browser/test_utils.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
 #include "brave/components/brave_wallet/common/features.h"
 #include "brave/components/constants/brave_paths.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -218,6 +218,10 @@ class CardanoProviderRendererTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
+    // The provider is only injected once a wallet exists, so create one before
+    // the navigations below.
+    ASSERT_TRUE(GetKeyringService()->RestoreWalletSync(
+        kMnemonicScarePiece, kTestWalletPassword, false));
     content::SetBrowserClientForTesting(&test_content_browser_client_);
     base::FilePath test_data_dir =
         base::PathService::CheckedGet(brave::DIR_TEST_DATA);
@@ -237,18 +241,18 @@ class CardanoProviderRendererTest : public InProcessBrowserTest {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   }
 
-  content::WebContents* web_contents(Browser* browser) const {
+  content::WebContents* web_contents(BrowserWindowInterface* browser) const {
     return browser->tab_strip_model()->GetActiveWebContents();
   }
 
-  void ReloadAndWaitForLoadStop(Browser* browser) {
+  void ReloadAndWaitForLoadStop(BrowserWindowInterface* browser) {
     chrome::Reload(browser, WindowOpenDisposition::CURRENT_TAB);
     ASSERT_TRUE(content::WaitForLoadStop(web_contents(browser)));
   }
 
   brave_wallet::KeyringService* GetKeyringService() {
     return brave_wallet::BraveWalletServiceFactory::GetServiceForContext(
-               browser()->profile())
+               browser()->GetProfile())
         ->keyring_service();
   }
 
@@ -285,7 +289,7 @@ IN_PROC_BROWSER_TEST_F(CardanoProviderDisabledRendererTest,
 }
 
 IN_PROC_BROWSER_TEST_F(CardanoProviderRendererTest, Incognito) {
-  Browser* private_browser = CreateIncognitoBrowser(nullptr);
+  BrowserWindowInterface* private_browser = CreateIncognitoBrowser(nullptr);
   GURL url = embedded_test_server()->GetURL("/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(private_browser, url));
 
@@ -351,19 +355,17 @@ IN_PROC_BROWSER_TEST_F(CardanoProviderRendererTest, Properties) {
 }
 
 IN_PROC_BROWSER_TEST_F(CardanoProviderRendererTest,
-                       AttachEvenIfNoWalletCreated) {
+                       DoNotAttachIfNoWalletCreated) {
   GetKeyringService()->Reset(false);
 
   ReloadAndWaitForLoadStop(browser());
 
-  auto result = EvalJs(web_contents(browser()), kCheckCardanoProviderScript);
-  EXPECT_EQ(base::Value(true), result);
+  auto result = EvalJs(web_contents(browser()), "!!window.cardano");
+  EXPECT_EQ(base::Value(false), result);
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(CardanoProviderRendererTest, AttachIfWalletCreated) {
-  GetKeyringService()->CreateWallet("password", base::DoNothing());
-
   ReloadAndWaitForLoadStop(browser());
 
   auto result = EvalJs(web_contents(browser()), kCheckCardanoProviderScript);
@@ -1804,7 +1806,7 @@ IN_PROC_BROWSER_TEST_F(CardanoProviderRendererTest,
 
 IN_PROC_BROWSER_TEST_F(CardanoProviderRendererTest, NotInstalled) {
   brave_wallet::SetDefaultCardanoWallet(
-      browser()->profile()->GetPrefs(),
+      browser()->GetProfile()->GetPrefs(),
       brave_wallet::mojom::DefaultWallet::None);
 
   GURL url = embedded_test_server()->GetURL("/simple.html");

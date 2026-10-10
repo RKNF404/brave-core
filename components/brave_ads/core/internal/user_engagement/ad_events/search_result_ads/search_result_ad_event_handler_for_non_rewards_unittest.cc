@@ -25,7 +25,7 @@
 #include "brave/components/brave_ads/core/internal/user_engagement/ad_events/test/ad_event_test_util.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -38,7 +38,7 @@ void VerifyDepositForCreativeInstanceIdExpectation(
   database_table.GetForCreativeInstanceId(creative_instance_id,
                                           test_future.GetCallback());
   const auto [_, deposit] = test_future.Take();
-  EXPECT_EQ(deposit, std::nullopt);
+  EXPECT_FALSE(deposit);
 }
 
 void VerifyCreativeSetConversionExpectation(size_t expected_count) {

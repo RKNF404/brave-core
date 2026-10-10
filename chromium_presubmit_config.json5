@@ -14,6 +14,8 @@
       "CheckGoogleSupportAnswerUrlOnUpload",
       // Disable check for hardcoded Google API urls.
       "CheckHardcodedGoogleHostsInLowerLayers",
+      // We run our own format check.
+      "CheckPatchFormatted",
     ],
     // Checks defined in depot_tools/presubmit_canned_checks.py.
     "canned": [
@@ -51,6 +53,8 @@
     "canned": [
       "CheckChangeLintsClean",
       "GetPylint",
+      "GetRuff",
+      "GetUnitTests",
     ],
   },
 
@@ -62,7 +66,6 @@
 
   // Files to skip in all checks.
   "default_files_to_skip": [
-    "\\.storybook/",
     "ios/brave-ios/Sources/Brave/Frontend/UserContent/UserScripts/Scripts_Dynamic/Scripts/Sandboxed/DarkReaderScript.js",
     "components/brave_wallet/resources/solana_web3_script\\.js",
     "third_party/rust/",
@@ -97,12 +100,9 @@
       ".*\\.jsx?",
       ".*\\.css",
     ],
-    "CheckParseErrors": [
+    "CheckJSONParseErrors": [
       ".*tsconfig.*\\.json",
       "components/brave_ads/core/test/data/invalid\\.json",
-    ],
-    "CheckNoBannedFunctions": [
-      // Use `ban_rule_excluded_paths` instead.
     ],
     "CheckNoJsInIos": ["ios/brave-ios/"],
     "CheckNoDeprecatedCss": ["ios/brave-ios/"],
@@ -112,6 +112,9 @@
       "android/java/org/chromium/chrome/browser/qrreader/BarcodeTrackerFactory.java",
       "android/java/org/chromium/chrome/browser/qrreader/CameraSource.java",
       "android/java/org/chromium/chrome/browser/qrreader/CameraSourcePreview.java",
+      // Verbatim port of chromium's //agents/testing asserts; keeps its
+      // upstream Chromium BSD header intentionally.
+      "agents/testing/asserts/check_changes.py",
     ],
 
     // Checks to be fixed.
@@ -163,15 +166,6 @@
     "CheckConsistentGrdChanges": [
       "browser/ui/android/strings/android_brave_strings\\.grd",
     ],
-    "CheckRawPtrUsage": [
-      "components/brave_search/renderer/brave_search_default_js_handler\\.h",
-      "components/brave_search/renderer/brave_search_fallback_js_handler\\.h",
-      "components/brave_search/renderer/brave_search_service_worker_holder\\.h",
-      "components/brave_wallet/renderer/js_ethereum_provider\\.h",
-      "components/content_settings/renderer/brave_content_settings_agent_impl_autoplay_browsertest\\.cc",
-      "components/cosmetic_filters/renderer/cosmetic_filters_js_handler\\.h",
-      "components/speedreader/renderer/speedreader_js_handler\\.h",
-    ],
     "CheckWebDevStyle": [
       "build/",
       "components/speedreader/resources/speedreader-desktop.css",
@@ -222,11 +216,14 @@
       "chromium_src/components/search_engines/brave_template_url_prepopulate_data_unittest\\.cc",
       "components/brave_shields/browser/ad_block_engine\\.cc",
     ],
-    "/v8::Extension\\(": [
-      "components/safe_builtins/renderer/safe_builtins\\.cc",
-    ],
     "StringFromGUID2": [
       "chromium_src/chrome/install_static/brave_install_util_unittest\\.cc",
+    ],
+    "IS_DESKTOP_ANDROID": [
+      "chromium_src/chrome/browser/ui/webui/favicon_source\\.cc",
+    ],
+    "/(?i)is_desktop_android": [
+      "browser/sources\\.gni",
     ],
   },
 }

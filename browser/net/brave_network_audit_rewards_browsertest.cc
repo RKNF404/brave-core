@@ -16,7 +16,6 @@
 #include "brave/components/brave_rewards/content/rewards_service_impl.h"
 #include "brave/components/brave_rewards/core/buildflags/buildflags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
@@ -63,7 +62,7 @@ class BraveRewardsNetworkAuditTest : public InProcessBrowserTest {
 
     // Create and start the Rewards service
     rewards_service_ = static_cast<brave_rewards::RewardsServiceImpl*>(
-        brave_rewards::RewardsServiceFactory::GetForProfile(profile()));
+        brave_rewards::RewardsServiceFactory::GetForProfile(GetProfile()));
     base::RunLoop run_loop;
     rewards_service_->StartProcessForTesting(run_loop.QuitClosure());
     run_loop.Run();
@@ -125,7 +124,7 @@ class BraveRewardsNetworkAuditTest : public InProcessBrowserTest {
     return pref_service->GetBoolean("brave.rewards.enabled");
   }
 
-  Profile* profile() { return browser()->profile(); }
+  Profile* profile() { return browser()->GetProfile(); }
 
  private:
   raw_ptr<brave_rewards::RewardsServiceImpl, DanglingUntriaged>

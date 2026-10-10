@@ -23,8 +23,8 @@ namespace {
 
 bool DoesRequireResource() {
   // Require resource only if:
-  // - The user has joined Brave Rewards and opted into notification ads.
-  return UserHasOptedInToNotificationAds();
+  // - The user has joined Brave Rewards and notification ads are enabled.
+  return IsNotificationAdsEnabled();
 }
 
 }  // namespace
@@ -87,7 +87,7 @@ void Subdivision::OnNotifyDidInitializeAds() {
 
 void Subdivision::OnNotifyPrefDidChange(const std::string& path) {
   if (DoesMatchUserHasJoinedBraveRewardsPrefPath(path) ||
-      DoesMatchUserHasOptedInToNotificationAdsPrefPath(path)) {
+      DoesMatchNotificationAdsEnabledPrefPath(path)) {
     // This condition should include all the preferences that are present in the
     // `DoesRequireResource` function.
     Initialize();
@@ -102,6 +102,7 @@ void Subdivision::OnDidFetchSubdivision(const std::string& subdivision) {
   std::optional<std::string> subdivision_code = GetSubdivisionCode(subdivision);
 
   if (!country_code || !subdivision_code) {
+    BLOG(0, "Failed to parse malformed subdivision: " << subdivision);
     return;
   }
 

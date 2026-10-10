@@ -1,8 +1,8 @@
 diff --git a/chrome/app/chrome_crash_reporter_client.cc b/chrome/app/chrome_crash_reporter_client.cc
-index f0c0ff0871ee92a9ae7f4c634372cf0a550321d0..731d8803cab27c787ba173738dacc923db7a6699 100644
+index fb679c183b368391bc90fcb429e365f17f5b893c..958017307957a163f69274886ba06c557aafc9e6 100644
 --- a/chrome/app/chrome_crash_reporter_client.cc
 +++ b/chrome/app/chrome_crash_reporter_client.cc
-@@ -169,7 +169,7 @@ bool ChromeCrashReporterClient::IsRunningUnattended() {
+@@ -180,7 +180,7 @@ bool ChromeCrashReporterClient::IsRunningUnattended() {
  }
  
  bool ChromeCrashReporterClient::GetCollectStatsConsent() {

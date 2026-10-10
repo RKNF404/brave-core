@@ -23,19 +23,20 @@
 #include "brave/components/brave_ads/core/internal/account/utility/refill_confirmation_tokens/url_requests/request_signed_tokens/request_signed_tokens_url_request_builder_util.h"
 #include "brave/components/brave_ads/core/internal/account/wallet/test/wallet_test_constants.h"
 #include "brave/components/brave_ads/core/internal/account/wallet/test/wallet_test_util.h"
-#include "brave/components/brave_ads/core/internal/ads_client/test/ads_client_mock.h"
 #include "brave/components/brave_ads/core/internal/common/test/mock_test_util.h"
 #include "brave/components/brave_ads/core/internal/common/test/profile_pref_value_test_util.h"
 #include "brave/components/brave_ads/core/internal/common/test/test_base.h"
 #include "brave/components/brave_ads/core/internal/common/test/time_test_util.h"
 #include "brave/components/brave_ads/core/public/prefs/pref_names.h"
+#include "brave/components/brave_ads/core/public/test/ads_client_mock.h"
 #include "net/http/http_status_code.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds
+// pnpm test brave_unit_tests --filter=BraveAds
 
 namespace brave_ads {
 
-class BraveAdsUserRewardsTest : public AdsClientMock, public test::TestBase {
+class BraveAdsUserRewardsTest : public test::AdsClientMock,
+                                public test::TestBase {
  protected:
   void SetUp() override {
     test::TestBase::SetUp();
@@ -75,32 +76,25 @@ TEST_F(BraveAdsUserRewardsTest, DoNotFetchInvalidIssuers) {
                 "name": "confirmations",
                 "publicKeys": [
                   {
-                    "publicKey": "OqhZpUC8B15u+Gc11rQYRl8O3zOSAUIEC2JuDHI32TM=",
-                    "associatedValue": ""
+                    "publicKey": "OqhZpUC8B15u+Gc11rQYRl8O3zOSAUIEC2JuDHI32TM="
                   },
                   {
-                    "publicKey": "QnShwT9vRebch3WDu28nqlTaNCU5MaOF1n4VV4Q3K1g=",
-                    "associatedValue": ""
+                    "publicKey": "QnShwT9vRebch3WDu28nqlTaNCU5MaOF1n4VV4Q3K1g="
                   },
                   {
-                    "publicKey": "6Orbju/jPQQGldu/MVyBi2wXKz8ynHIcdsbCWc9gGHQ=",
-                    "associatedValue": ""
+                    "publicKey": "6Orbju/jPQQGldu/MVyBi2wXKz8ynHIcdsbCWc9gGHQ="
                   },
                   {
-                    "publicKey": "ECEKAGeRCNmAWimTs7fo0tTMcg8Kcmoy8w+ccOSYXT8=",
-                    "associatedValue": ""
+                    "publicKey": "ECEKAGeRCNmAWimTs7fo0tTMcg8Kcmoy8w+ccOSYXT8="
                   },
                   {
-                    "publicKey": "xp9WArE+RkSt579RCm6EhdmcW4RfS71kZHMgXpwgZyI=",
-                    "associatedValue": ""
+                    "publicKey": "xp9WArE+RkSt579RCm6EhdmcW4RfS71kZHMgXpwgZyI="
                   },
                   {
-                    "publicKey": "AE7e4Rh38yFmnyLyPYcyWKT//zLOsEEX+WdLZqvJxH0=",
-                    "associatedValue": ""
+                    "publicKey": "AE7e4Rh38yFmnyLyPYcyWKT//zLOsEEX+WdLZqvJxH0="
                   },
                   {
-                    "publicKey": "HjID7G6LRrcRu5ezW0nLZtEARIBnjpaQFKTHChBuJm8=",
-                    "associatedValue": ""
+                    "publicKey": "HjID7G6LRrcRu5ezW0nLZtEARIBnjpaQFKTHChBuJm8="
                   }
                 ]
               },

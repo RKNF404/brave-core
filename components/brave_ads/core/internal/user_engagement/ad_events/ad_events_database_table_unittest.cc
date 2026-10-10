@@ -18,12 +18,13 @@
 #include "brave/components/brave_ads/core/internal/creatives/notification_ads/test/creative_notification_ad_test_util.h"
 #include "brave/components/brave_ads/core/internal/settings/test/settings_test_util.h"
 #include "brave/components/brave_ads/core/internal/user_engagement/ad_events/ad_event_builder.h"
+#include "brave/components/brave_ads/core/internal/user_engagement/ad_events/ad_events_database_table_test_util.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 #include "brave/components/brave_ads/core/public/ad_units/new_tab_page_ad/new_tab_page_ad_info.h"
 #include "brave/components/brave_ads/core/public/ad_units/notification_ad/notification_ad_info.h"
 #include "brave/components/brave_ads/core/public/ads_callback.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -48,7 +49,7 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest, RecordEvent) {
 
   // Assert
   base::test::TestFuture<bool, AdEventList> test_future;
-  database_table_.GetAll(test_future.GetCallback<bool, const AdEventList&>());
+  test::GetAll(test_future.GetCallback<bool, const AdEventList&>());
   const auto [success, ad_events] = test_future.Take();
   EXPECT_TRUE(success);
   EXPECT_THAT(ad_events, ::testing::ElementsAre(ad_event));
@@ -271,6 +272,74 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest, GetUnexpiredOnTheCuspOfExpiry) {
   EXPECT_THAT(ad_events, ::testing::ElementsAre(ad_event));
 }
 
+TEST_F(BraveAdsAdEventsDatabaseTableTest, GetUnexpiredForTimeWindow) {
+  // Arrange
+  AdvanceClockTo(test::TimeFromUTCString("Tue, 19 Mar 2024 05:35"));
+
+  base::MockCallback<ResultCallback> record_ad_event_callback;
+  EXPECT_CALL(record_ad_event_callback, Run(/*success=*/true)).Times(2);
+
+  // Ad event 1: Recorded on 19th March 2024. This ad event should not be
+  // included because it will occur outside the 30-day window.
+  const NotificationAdInfo ad_1 =
+      test::BuildNotificationAd(/*use_random_uuids=*/true);
+  const AdEventInfo ad_event_1 =
+      BuildAdEvent(ad_1, mojom::ConfirmationType::kViewedImpression,
+                   /*created_at=*/test::Now());
+  database_table_.RecordEvent(ad_event_1, record_ad_event_callback.Get());
+
+  // Move the clock forward past the 30-day window.
+  AdvanceClockBy(base::Days(30));
+
+  // Ad event 2: Recorded on 18th April 2024. This ad event should be included
+  // because it occurred within the 30-day window.
+  const NotificationAdInfo ad_2 =
+      test::BuildNotificationAd(/*use_random_uuids=*/true);
+  const AdEventInfo ad_event_2 =
+      BuildAdEvent(ad_2, mojom::ConfirmationType::kClicked,
+                   /*created_at=*/test::Now());
+  database_table_.RecordEvent(ad_event_2, record_ad_event_callback.Get());
+
+  // Act & Assert
+  base::test::TestFuture<bool, AdEventList> test_future;
+  database_table_.GetUnexpired(
+      /*time_window=*/base::Days(30),
+      test_future.GetCallback<bool, const AdEventList&>());
+  const auto [success, ad_events] = test_future.Take();
+  EXPECT_TRUE(success);
+  EXPECT_THAT(ad_events, ::testing::ElementsAre(ad_event_2));
+}
+
+TEST_F(BraveAdsAdEventsDatabaseTableTest,
+       GetUnexpiredForTimeWindowOnTheCuspOfExpiry) {
+  // Arrange
+  AdvanceClockTo(test::TimeFromUTCString("Tue, 19 Mar 2024 05:35"));
+
+  // Ad event: Recorded on 19th March 2024. This ad event should be included
+  // because it will occur on the cusp of the 30-day window.
+  const NotificationAdInfo ad =
+      test::BuildNotificationAd(/*use_random_uuids=*/true);
+  const AdEventInfo ad_event =
+      BuildAdEvent(ad, mojom::ConfirmationType::kViewedImpression,
+                   /*created_at=*/test::Now());
+
+  base::MockCallback<ResultCallback> record_ad_event_callback;
+  EXPECT_CALL(record_ad_event_callback, Run(/*success=*/true));
+  database_table_.RecordEvent(ad_event, record_ad_event_callback.Get());
+
+  // Move the clock forward to just before the ad events expire.
+  AdvanceClockBy(base::Days(30) - base::Milliseconds(1));
+
+  // Act & Assert
+  base::test::TestFuture<bool, AdEventList> test_future;
+  database_table_.GetUnexpired(
+      /*time_window=*/base::Days(30),
+      test_future.GetCallback<bool, const AdEventList&>());
+  const auto [success, ad_events] = test_future.Take();
+  EXPECT_TRUE(success);
+  EXPECT_THAT(ad_events, ::testing::ElementsAre(ad_event));
+}
+
 TEST_F(BraveAdsAdEventsDatabaseTableTest, GetUnexpiredForAdType) {
   // Arrange
   AdvanceClockTo(test::TimeFromUTCString("Tue, 19 Mar 2024 16:28"));
@@ -401,7 +470,7 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest, PurgeExpired) {
 
   // Assert
   base::test::TestFuture<bool, AdEventList> test_future;
-  database_table_.GetAll(test_future.GetCallback<bool, const AdEventList&>());
+  test::GetAll(test_future.GetCallback<bool, const AdEventList&>());
   const auto [success, ad_events] = test_future.Take();
   EXPECT_TRUE(success);
   EXPECT_THAT(ad_events, ::testing::ElementsAre(ad_event_2));
@@ -442,7 +511,7 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest, PurgeExpiredForNonRewardsUser) {
 
   // Assert
   base::test::TestFuture<bool, AdEventList> test_future;
-  database_table_.GetAll(test_future.GetCallback<bool, const AdEventList&>());
+  test::GetAll(test_future.GetCallback<bool, const AdEventList&>());
   const auto [success, ad_events] = test_future.Take();
   EXPECT_TRUE(success);
   EXPECT_THAT(ad_events, ::testing::ElementsAre(ad_event_2));
@@ -481,7 +550,7 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest,
 
   // Assert
   base::test::TestFuture<bool, AdEventList> test_future;
-  database_table_.GetAll(test_future.GetCallback<bool, const AdEventList&>());
+  test::GetAll(test_future.GetCallback<bool, const AdEventList&>());
   const auto [success, ad_events] = test_future.Take();
   EXPECT_TRUE(success);
   EXPECT_THAT(ad_events, ::testing::ElementsAre(ad_event));
@@ -537,7 +606,7 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest, PurgeOrphanedForType) {
 
   // Assert
   base::test::TestFuture<bool, AdEventList> test_future;
-  database_table_.GetAll(test_future.GetCallback<bool, const AdEventList&>());
+  test::GetAll(test_future.GetCallback<bool, const AdEventList&>());
   const auto [success, ad_events] = test_future.Take();
   EXPECT_TRUE(success);
   EXPECT_THAT(ad_events,
@@ -593,7 +662,7 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest, PurgeOrphaned) {
 
   // Assert
   base::test::TestFuture<bool, AdEventList> test_future;
-  database_table_.GetAll(test_future.GetCallback<bool, const AdEventList&>());
+  test::GetAll(test_future.GetCallback<bool, const AdEventList&>());
   const auto [success, ad_events] = test_future.Take();
   EXPECT_TRUE(success);
   EXPECT_THAT(ad_events,
@@ -647,7 +716,7 @@ TEST_F(BraveAdsAdEventsDatabaseTableTest, PurgeAllOrphaned) {
 
   // Assert
   base::test::TestFuture<bool, AdEventList> test_future;
-  database_table_.GetAll(test_future.GetCallback<bool, const AdEventList&>());
+  test::GetAll(test_future.GetCallback<bool, const AdEventList&>());
   const auto [success, ad_events] = test_future.Take();
   EXPECT_TRUE(success);
   EXPECT_THAT(ad_events, ::testing::UnorderedElementsAre(ad_event_1_served,

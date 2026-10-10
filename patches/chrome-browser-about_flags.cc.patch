@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/about_flags.cc b/chrome/browser/about_flags.cc
-index 65692f66ab989ec5ac057667e945d753e318923b..2c0db97c912cef3a030563474c0cacf307c00e3a 100644
+index 72d08507b6a6b7ab080b2aee2cab9f9baf1f8bdc..fe26491f68533434b7a2fe5c9bc40ece47c9e1d1 100644
 --- a/chrome/browser/about_flags.cc
 +++ b/chrome/browser/about_flags.cc
-@@ -4695,6 +4695,7 @@ const FeatureEntry::FeatureVariation kCanvasAccessibilityChoices[] = {
- //
+@@ -5193,6 +5193,7 @@ constexpr char kEnterpriseIsolatedModeInternalName[] =
+ 
  // When adding a new choice, add it to the end of the list.
  const FeatureEntry kFeatureEntries[] = {
 +    BRAVE_ABOUT_FLAGS_FEATURE_ENTRIES

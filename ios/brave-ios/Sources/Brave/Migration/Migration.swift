@@ -10,7 +10,6 @@ import Foundation
 import Growth
 import Preferences
 import Shared
-import Storage
 import os.log
 
 @MainActor
@@ -31,6 +30,10 @@ public class BraveProfileMigrations {
     migrateGPCPreference()
     migrateMediaBackgroundingPreference()
     migrateBlockAllCookiesPreference()
+    migrateDefaultWalletPreferences()
+    migrateShowNewFavoritesPreference()
+    migrateSponsoredAdsEnabledPreference()
+    migrateHTTPSUpgradeLevelPreference()
   }
 
   private func migrateDefaultUserAgentPreferences() {
@@ -49,7 +52,7 @@ public class BraveProfileMigrations {
     guard let isDeAmpEnabled = Preferences.Shields.autoRedirectAMPPagesDeprecated.value else {
       return
     }
-    profileController.deAmpPrefs.isDeAmpEnabled = isDeAmpEnabled
+    profileController.profile.prefs.set(isDeAmpEnabled, forPath: kDeAmpEnabled)
     Preferences.Shields.autoRedirectAMPPagesDeprecated.value = nil
   }
 
@@ -77,6 +80,18 @@ public class BraveProfileMigrations {
     // migrate global / default settings first, then site-specific
     braveShieldsSettings.migrateGlobalSettings()
     braveShieldsSettings.migrateShieldsToContentSettings(for: domainsToMigrate)
+  }
+
+  /// Migrates the HTTPS upgrade level onto upstream's HTTPS-Only Mode pref.
+  /// Both `standard` and `strict` become enabled, the interstitial standard
+  /// used to skip is now shown for any failed upgrade.
+  private func migrateHTTPSUpgradeLevelPreference() {
+    guard !Preferences.Migration.httpsOnlyModeCompleted.value else { return }
+    profileController.profile.prefs.set(
+      Preferences.Shields.httpsUpgradeLevel.isEnabled,
+      forPath: kHttpsOnlyModeEnabled
+    )
+    Preferences.Migration.httpsOnlyModeCompleted.value = true
   }
 
   /// Migrate sync passwords default value to enabled.
@@ -132,6 +147,61 @@ public class BraveProfileMigrations {
     Preferences.DeprecatedPreferences.blockAllCookies.migrate { value in
       profileController.profile.prefs.set(value, forPath: kBlockAllCookiesEnabled)
     }
+  }
+
+  private func migrateDefaultWalletPreferences() {
+    // iOS only ever exposed `none` and `brave` (`WalletType`) as options, which
+    // map onto the `DefaultWallet` values stored in the `PrefService`.
+    func defaultWallet(from value: Int) -> BraveWallet.DefaultWallet {
+      value == Preferences.DeprecatedPreferences.DeprecatedWalletType.none.rawValue
+        ? .none : .braveWallet
+    }
+    Preferences.DeprecatedPreferences.defaultEthWallet.migrate { value in
+      profileController.profile.prefs.set(
+        defaultWallet(from: value).rawValue,
+        forPath: kDefaultEthereumWallet
+      )
+    }
+    Preferences.DeprecatedPreferences.defaultSolWallet.migrate { value in
+      profileController.profile.prefs.set(
+        defaultWallet(from: value).rawValue,
+        forPath: kDefaultSolanaWallet
+      )
+    }
+    Preferences.DeprecatedPreferences.defaultCardanoWallet.migrate { value in
+      profileController.profile.prefs.set(
+        defaultWallet(from: value).rawValue,
+        forPath: kDefaultCardanoWallet
+      )
+    }
+  }
+
+  private func migrateShowNewFavoritesPreference() {
+    Preferences.NewTabPage.showNewTabFavourites.migrate { value in
+      if value {
+        Preferences.NewTabPage.topSitesMode.value =
+          Favorite.hasFavorites ? TopSitesMode.favourite : TopSitesMode.mostVisited
+      } else {
+        Preferences.NewTabPage.topSitesMode.value = TopSitesMode.none
+      }
+    }
+  }
+
+  /// Migrates deprecated `backgroundMediaTypeRaw` to `kBraveAdsSponsoredEnabledPrefName`.
+  /// Must run after `Preferences.migrateBackgroundSponsoredImages()`, which
+  /// migrates `backgroundMediaTypeRaw` from the older
+  /// `backgroundSponsoredImages` pref.
+  private func migrateSponsoredAdsEnabledPreference() {
+    Preferences.DeprecatedPreferences.backgroundMediaTypeRaw.migrate { rawValue in
+      profileController.profile.prefs.set(
+        BraveProfileMigrations.isSponsoredAdsEnabled(forBackgroundMediaTypeRawValue: rawValue),
+        forPath: kBraveAdsSponsoredEnabledPrefName
+      )
+    }
+  }
+
+  static func isSponsoredAdsEnabled(forBackgroundMediaTypeRawValue rawValue: Int) -> Bool {
+    rawValue != DeprecatedBackgroundMediaType.defaultImages.rawValue
   }
 }
 
@@ -293,6 +363,15 @@ extension Migration {
   /// Migrations that need to be run after data is loaded
   @MainActor public static func postDataLoadMigration() {
     migrateShieldLevel()
+    migratePlaylistLastPlayedDate()
+  }
+
+  @MainActor private static func migratePlaylistLastPlayedDate() {
+    guard !Preferences.Migration.playlistLastPlayedDateMigrationCompleted.value else { return }
+    PlaylistItem.migrateLastPlayedDate { success in
+      guard success else { return }
+      Preferences.Migration.playlistLastPlayedDateMigrationCompleted.value = true
+    }
   }
 
   /// Migrate the shield level from the previous on/off toggle to the new ShieldLevel picker
@@ -316,6 +395,14 @@ private enum DeprecatedYoutubeHighQualityPreference: String {
   case wifi
   case on
   case off
+}
+
+private enum DeprecatedBackgroundMediaType: Int {
+  case defaultImages = 0
+  case sponsoredImages = 1
+  // Video NTT was removed, but existing users' stored
+  // preference may still have this value.
+  case sponsoredImagesAndVideos = 2
 }
 
 extension Preferences {
@@ -343,6 +430,13 @@ extension Preferences {
     static let backgroundSponsoredImages = Option<Bool>(
       key: "newtabpage.background-sponsored-images",
       default: true
+    )
+
+    /// Used to specify the type of background media to display.
+    /// Superseded by the `kSponsoredEnabled` PrefService pref.
+    static let backgroundMediaTypeRaw = Option<Int>(
+      key: "newtabpage.background-media-type",
+      default: DeprecatedBackgroundMediaType.sponsoredImages.rawValue
     )
 
     /// Specifies whether the bookmark button is present on toolbar
@@ -384,10 +478,36 @@ extension Preferences {
       key: "privacy.block-all-cookies",
       default: false
     )
+
+    enum DeprecatedWalletType: Int, CaseIterable {
+      case none
+      case brave
+    }
+
+    /// The default wallet to use for Ethereum to communicate with web3.
+    /// Superseded by `kDefaultEthereumWallet` in the profile `PrefService`.
+    static let defaultEthWallet = Option<Int>(
+      key: "wallet.default-wallet",
+      default: DeprecatedWalletType.brave.rawValue
+    )
+
+    /// The default wallet to use for Solana to communicate with web3.
+    /// Superseded by `kDefaultSolanaWallet` in the profile `PrefService`.
+    static let defaultSolWallet = Option<Int>(
+      key: "wallet.default-sol-wallet",
+      default: DeprecatedWalletType.brave.rawValue
+    )
+
+    /// The default wallet to use for Cardano to communicate with web3.
+    /// Superseded by `kDefaultCardanoWallet` in the profile `PrefService`.
+    static let defaultCardanoWallet = Option<Int>(
+      key: "wallet.default-cardano-wallet",
+      default: DeprecatedWalletType.brave.rawValue
+    )
   }
 
   /// Migration preferences
-  fileprivate final class Migration {
+  internal final class Migration {
     static let completed = Option<Bool>(key: "migration.completed", default: false)
 
     /// A new preference key will be introduced in 1.44.x, indicates if Wallet Preferences migration has completed
@@ -418,6 +538,13 @@ extension Preferences {
     /// allows a user to select between `standard`, `strict` and `disabled` instead of a simple on/off `Bool`
     static let httpsUpgradesLivelCompleted = Option<Bool>(
       key: "migration.https-upgrades-level-completed",
+      default: false
+    )
+
+    /// The https upgrades preference is a simple on/off `Bool` again when using
+    /// upstream's HTTPS upgrades, stored in the profile `PrefService`
+    static let httpsOnlyModeCompleted = Option<Bool>(
+      key: "migration.https-only-mode-completed",
       default: false
     )
 
@@ -454,6 +581,12 @@ extension Preferences {
     /// Migrated sync passwords to enabled by default.
     static let syncPasswordsEnabledByDefault = Option<Bool>(
       key: "migration.sync-passwords-enabled-by-default",
+      default: false
+    )
+
+    /// Whether the one-time `lastPlayedDate` migration has completed after the Model36 upgrade.
+    static let playlistLastPlayedDateMigrationCompleted = Option<Bool>(
+      key: "migration.playlist-last-played-date-completed",
       default: false
     )
   }
@@ -599,8 +732,9 @@ extension Preferences {
 
     // Migrate old Background Sponsored Images setting
     DeprecatedPreferences.backgroundSponsoredImages.migrate { isEnabled in
-      Preferences.NewTabPage.backgroundMediaType =
-        isEnabled ? .sponsoredImagesAndVideos : .defaultImages
+      let backgroundMediaType: DeprecatedBackgroundMediaType =
+        isEnabled ? .sponsoredImages : .defaultImages
+      DeprecatedPreferences.backgroundMediaTypeRaw.value = backgroundMediaType.rawValue
     }
 
     Migration.backgroundSponsoredImagesCompleted.value = true

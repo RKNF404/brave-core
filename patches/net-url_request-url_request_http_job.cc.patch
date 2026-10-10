@@ -1,8 +1,8 @@
 diff --git a/net/url_request/url_request_http_job.cc b/net/url_request/url_request_http_job.cc
-index fce5645a3f08f921ebf64573f0dc4ebd855bbd26..36267c8d677a371aa8c91527902b225668f80b7e 100644
+index c909310d202002b724941bd4e2b4fede56b69d45..519893fd659016468e7febcde8e1413938d3bb1e 100644
 --- a/net/url_request/url_request_http_job.cc
 +++ b/net/url_request/url_request_http_job.cc
-@@ -801,6 +801,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
+@@ -746,6 +746,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
        request()->context()->enable_brotli(),
        request()->context()->enable_zstd());
  

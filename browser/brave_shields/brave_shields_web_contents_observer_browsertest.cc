@@ -19,7 +19,6 @@
 #include "brave/components/constants/brave_paths.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -81,7 +80,7 @@ class BraveShieldsWebContentsObserverBrowserTest : public InProcessBrowserTest {
 
     ASSERT_TRUE(embedded_test_server()->Start());
     content_settings_ =
-        HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+        HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile());
 
     // We can't simply create a new BraveShieldsWebContentsObserver for the same
     // WebContents, as that class will instatiate a RenderFrameHostReceiverSet

@@ -9,8 +9,10 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "brave/app/brave_command_ids.h"
 #include "brave/browser/ai_chat/ai_chat_service_factory.h"
+#include "brave/browser/ui/side_panel/ai_chat/ai_chat_side_panel_utils.h"
 #include "brave/browser/ui/sidebar/sidebar_controller.h"
 #include "brave/browser/ui/sidebar/sidebar_model.h"
 #include "brave/components/ai_chat/content/browser/ai_chat_tab_helper.h"
@@ -19,14 +21,15 @@
 #include "brave/components/ai_chat/core/browser/engine/engine_consumer.h"
 #include "brave/components/ai_chat/core/browser/engine/mock_engine_consumer.h"
 #include "brave/components/ai_chat/core/browser/utils.h"
+#include "brave/components/ai_chat/core/common/ai_chat_urls.h"
 #include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"
 #include "brave/components/ai_chat/core/common/mojom/common.mojom.h"
 #include "brave/components/constants/brave_paths.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -105,6 +108,12 @@ class MockConversationHandlerClient : public mojom::ConversationUI {
               (std::vector<mojom::AssociatedContentPtr>),
               (override));
 
+  MOCK_METHOD(void,
+              OnContentToolsChanged,
+              (const std::string& content_uuid,
+               std::vector<mojom::ToolInfoPtr> tools),
+              (override));
+
   MOCK_METHOD(void, OnConversationDeleted, (), (override));
 
  private:
@@ -149,7 +158,7 @@ class AIChatRenderViewContextMenuBrowserTest : public InProcessBrowserTest {
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
-  PrefService* GetPrefs() { return browser()->profile()->GetPrefs(); }
+  PrefService* GetPrefs() { return browser()->GetProfile()->GetPrefs(); }
 
   net::EmbeddedTestServer* https_server() { return &https_server_; }
 
@@ -241,7 +250,7 @@ class AIChatRenderViewContextMenuBrowserTest : public InProcessBrowserTest {
   }
 
   sidebar::SidebarController* GetSidebarController() {
-    auto* controller = browser()->GetFeatures().sidebar_controller();
+    auto* controller = sidebar::SidebarController::From(browser());
     EXPECT_TRUE(controller);
     return controller;
   }
@@ -260,7 +269,7 @@ class AIChatRenderViewContextMenuBrowserTest : public InProcessBrowserTest {
     }
 
     return AIChatServiceFactory::GetInstance()
-        ->GetForBrowserContext(browser()->profile())
+        ->GetForBrowserContext(browser()->GetProfile())
         ->GetOrCreateConversationHandlerForContent(
             helper->web_contents_content().content_id(),
             helper->web_contents_content().GetWeakPtr());
@@ -347,7 +356,7 @@ IN_PROC_BROWSER_TEST_F(AIChatRenderViewContextMenuBrowserTest, RewriteInPlace) {
   TestRewriteInPlace(contents, "textarea", "OK2", {},
                      base::unexpected(mojom::APIError::ConnectionIssue), "OK2");
   EXPECT_TRUE(IsAIChatSidebarActive());
-  GetSidebarController()->DeactivateCurrentPanel();
+  SidePanelUI::From(browser())->Close();
 
   EXPECT_FALSE(IsAIChatSidebarActive());
   // 2) Get partial streaming responses then error in completed callback.
@@ -419,12 +428,29 @@ IN_PROC_BROWSER_TEST_F(AIChatRenderViewContextMenuBrowserTest,
 
   ASSERT_TRUE(menu->IsCommandIdEnabled(IDC_AI_CHAT_CONTEXT_SUMMARIZE_TEXT));
 
+  // Capture the content-associated conversation the command submits to, so we
+  // can assert the side panel is routed to *that* conversation rather than a
+  // fresh/global one.
+  ConversationHandler* conversation_handler = GetConversationHandler();
+  ASSERT_TRUE(conversation_handler);
+  const std::string conversation_uuid =
+      conversation_handler->get_conversation_uuid();
+
   // Execute the command.
   menu->ExecuteCommand(IDC_AI_CHAT_CONTEXT_SUMMARIZE_TEXT, 0);
   run_loop.Run();
 
   EXPECT_EQ(submitted_text, "This is the way");
   EXPECT_TRUE(IsAIChatSidebarActive());
+
+  // With the (default) global side panel, the command routes through
+  // `ai_chat::OpenConversationInSidePanel()`, so the panel's live WebContents
+  // is navigated to the submitted conversation's URL.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    content::WebContents* panel_contents = GetSidePanelWebContents(browser());
+    return panel_contents && panel_contents->GetLastCommittedURL() ==
+                                 ai_chat::ConversationUrl(conversation_uuid);
+  }));
 }
 
 #if BUILDFLAG(ENABLE_PDF)

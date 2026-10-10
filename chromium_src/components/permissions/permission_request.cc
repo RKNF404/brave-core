@@ -27,6 +27,7 @@
   case RequestType::kBraveEthereum: \
   case RequestType::kBraveSolana:   \
   case RequestType::kBraveCardano:  \
+  case RequestType::kBravePolkadot: \
   case RequestType::kWidevine:      \
     NOTREACHED();
 #else
@@ -35,6 +36,7 @@
   case RequestType::kBraveEthereum: \
   case RequestType::kBraveSolana:   \
   case RequestType::kBraveCardano:  \
+  case RequestType::kBravePolkadot: \
   case RequestType::kWidevine:      \
     NOTREACHED();
 #endif
@@ -172,8 +174,8 @@ bool PermissionRequest::IsDuplicateOf(PermissionRequest* other_request) const {
       other_request);
 }
 
-base::WeakPtr<PermissionRequest> PermissionRequest::GetWeakPtr() {
-  return weak_factory_.GetWeakPtr();
+base::SafeRef<PermissionRequest> PermissionRequest::GetSafeRef() {
+  return weak_factory_.GetSafeRef();
 }
 
 }  // namespace permissions

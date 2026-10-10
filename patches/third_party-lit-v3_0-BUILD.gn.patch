@@ -1,20 +1,28 @@
 diff --git a/third_party/lit/v3_0/BUILD.gn b/third_party/lit/v3_0/BUILD.gn
-index 0e6caad92baf7a06e35d31729f63e1af1463a795..f3f006cfa6b158dc513e269bc49d31dd4246770b 100644
+index a75e73285cf865a2ae9f2c4e937f63e8b188f10d..1c5f7a4864f0ee7fe053cbd1028e0f53b77eba76 100644
 --- a/third_party/lit/v3_0/BUILD.gn
 +++ b/third_party/lit/v3_0/BUILD.gn
-@@ -165,6 +165,7 @@ ts_library("build_ts") {
-     "//ui/webui/resources/cr_components/searchbox:build_ts",
-     "//ui/webui/resources/cr_components/theme_color_picker:build_ts",
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file.
+ 
++import("//brave/third_party/lit/v3_0/sources.gni")
+ import("//tools/typescript/ts_library.gni")
+ import("//ui/webui/resources/tools/bundle_js.gni")
+ import("//ui/webui/resources/tools/generate_code_cache.gni")
+@@ -24,6 +25,7 @@ ts_library("build_ts") {
+     # dependency to CrOS-only UIs (to reduce coupling between Desktop and CrOS
+     # and reduce the maintenance burden for the Desktop WebUI team).
+ 
++    "//brave/ui/webui/resources:build_ts",
+     "//chrome/browser/resources/about_sys:build_ts",
+     "//chrome/browser/resources/access_code_cast:build_ts",
+     "//chrome/browser/resources/actor_overlay:build_ts",
+@@ -185,6 +187,7 @@ ts_library("build_ts") {
      "//ui/webui/resources/cr_elements:build_ts",
-+    "//chrome/browser/resources/settings:build_ts", "//brave/ui/webui/resources:build_ts"
+     "//ui/webui/resources/tools:webui_resources_tools_python_unittests",
    ]
++  visibility += brave_lit_build_ts_visibility
    tsconfig_base = "tsconfig_base.json"
    composite = true
-@@ -249,6 +250,7 @@ ts_library("build_ts") {
-             "${node_modules}/@lit/reactive-element/reactive-element.d.ts",
-             target_gen_dir),
-   ]
-+  import("//brave/third_party/lit/v3_0/sources.gni") visibility += brave_lit_build_ts_visibility
- }
- 
- bundle_js("build_bundle") {
+   in_files = [

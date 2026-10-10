@@ -13,6 +13,8 @@ resources outside this repository, go to:
   newer Chromium version.
 - [Patching with `plaster`](plaster.md) A patching engine for semantical
   patching of upstream Chromium.
+- [Plaster Dos and Don'ts](plaster_dos_and_donts.md) Guidance for authoring
+  robust plasters, and for choosing the right rewriter.
 - [WebUI Overriding](webui_overriding.md)
 - [DevTools Frontend Patching](devtools_frontend_patching.md) Managing changes
   to the upstream project.
@@ -41,6 +43,8 @@ resources outside this repository, go to:
   Suggestions on how to make chromium test work on our test targets.
 - [Ship a File to All Clients](ship_a_file_to_all_clients.md) - How to ship a
   file to all clients via component updater.
+- [Brave Variations (Griffin)](griffin.md) - Brave's feature rollout and
+  experimentation service, including best practices for staged rollouts.
 - [Git Configuration](git_configuration.md) - General recommendations for
   setting up and optimizing your Git environment.
 - [Ignoring Files from Format and Presubmit Checks](ignoring_format_checks.md) -
@@ -53,6 +57,9 @@ resources outside this repository, go to:
   \*.test.ts(x) suites.
 - [WebUI Strings Overview](./webui_strings_explainer.md) - Including strings in
   a Web UI frontend.
+- [WebUI Service Workers](./webui_service_workers.md) - Serving a
+  `chrome-untrusted://` WebUI from a service worker, and the restrictions that
+  come with it.
 
 ## Creating Documentation
 
@@ -66,7 +73,7 @@ resources outside this repository, go to:
 - Markdown documents must follow the
   [Markdown Style Guide](https://chromium.googlesource.com/chromium/src/+/HEAD/styleguide/markdown/markdown.md).
 
-Use `npm run format` to auto format documents.
+Use `pnpm run format` to auto format documents.
 
 ### Previewing changes
 
@@ -74,7 +81,7 @@ Use `npm run format` to auto format documents.
 
 ```bash
 # in src/brave/
-npm run docs
+pnpm run docs
 ```
 
 This is only an estimate. The **github** view may differ.

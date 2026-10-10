@@ -19,7 +19,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/translate/translate_test_utils.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/translate/translate_bubble_controller.h"
@@ -211,7 +210,16 @@ class BraveTranslateBrowserTest : public InProcessBrowserTest {
                             "cr.googleTranslate.onTranslateElementLoad()")));
   }
 
-  void WaitUntilLanguageDetermined() { language_determined_waiter_->Wait(); }
+  // Waits until the active tab's source language is detected as
+  // |expected_lang|. Designed to skip unwanted language-determination events
+  // (e.g. the initial about:blank tab).
+  void WaitUntilLanguageDetermined(const std::string& expected_lang) {
+    while (GetChromeTranslateClient()->GetLanguageState().source_language() !=
+           expected_lang) {
+      language_determined_waiter_->Wait();
+      ResetObserver();
+    }
+  }
 
   void WaitUntilPageTranslated() {
     translate::CreateTranslateWaiter(
@@ -255,10 +263,9 @@ class BraveTranslateBrowserTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(BraveTranslateBrowserTest, InternalTranslation) {
-  ResetObserver();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/espanol_page.html")));
-  WaitUntilLanguageDetermined();
+  WaitUntilLanguageDetermined("es");
 
   SetupTestScriptExpectations();
 
@@ -320,10 +327,9 @@ IN_PROC_BROWSER_TEST_F(BraveTranslateBrowserTest, NoAutoTranslate) {
   GetChromeTranslateClient()
       ->GetTranslatePrefs()
       ->AddLanguagePairToAlwaysTranslateList("es", "en");
-  ResetObserver();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/espanol_page.html")));
-  WaitUntilLanguageDetermined();
+  WaitUntilLanguageDetermined("es");
 
   auto* bubble = CHECK_DEREF(TranslateBubbleController::From(browser()))
                      .GetTranslateBubble();
@@ -351,11 +357,9 @@ class BraveTranslateBrowserGoogleRedirectTest
 
 IN_PROC_BROWSER_TEST_F(BraveTranslateBrowserGoogleRedirectTest,
                        JsRedirectionsSelectivity) {
-  ResetObserver();
-
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/espanol_page.html")));
-  WaitUntilLanguageDetermined();
+  WaitUntilLanguageDetermined("es");
 
   SetupTestScriptExpectations();
   GetTranslateManager()->TranslatePage("es", "en", true);

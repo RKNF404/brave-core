@@ -9,19 +9,23 @@
 
 #include "base/check.h"
 #include "brave/browser/ui/color/brave_color_id.h"
-#include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
+#include "brave/components/tabs/public/tree_tab_node.h"
 #include "brave/components/vector_icons/vector_icons.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
-#include "chrome/browser/ui/views/tabs/tab_group_style.h"
+#include "chrome/browser/ui/views/tabs/common/tab_group_style.h"
+#include "chrome/browser/ui/views/tabs/tab_group_style_views.h"
 #include "chrome/browser/ui/views/tabs/tab_group_underline.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
+#include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/views/background.h"
+#include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/widget/widget.h"
@@ -68,13 +72,19 @@ void BraveTabGroupHeader::VisualsChanged() {
 
   if (auto chip_background_color = GetChipBackgroundColor()) {
     title_chip_->SetBackground(views::CreateRoundedRectBackground(
-        *chip_background_color, group_style_->GetChipCornerRadius()));
+        *chip_background_color, TabGroupStyle::GetChipCornerRadius()));
   } else {
     title_chip_->SetBackground(nullptr);
   }
 
   if (ShouldShowVerticalTabs()) {
     LayoutTitleChipForVerticalTabs();
+
+    // TabGroupHeader::VisualsChanged() sets |title_chip_|'s clip path based on
+    // its bounds at that time, which are narrower than the bounds
+    // LayoutTitleChipForVerticalTabs() just applied. Just clear clip path as
+    // it's not necessary in vertical tab.
+    title_chip_->SetClipPath(SkPath());
   }
 
   if (ShouldShowHeaderIcon()) {
@@ -99,8 +109,9 @@ void BraveTabGroupHeader::Layout(PassKey) {
 }
 
 bool BraveTabGroupHeader::ShouldShowVerticalTabs() const {
-  return tabs::utils::ShouldShowBraveVerticalTabs(
+  auto* vtc = VerticalTabController::From(
       tab_slot_controller_->GetBrowserWindowInterface());
+  return vtc && vtc->ShouldShowBraveVerticalTabs();
 }
 
 void BraveTabGroupHeader::LayoutTitleChipForVerticalTabs() {
@@ -162,6 +173,14 @@ TabNestingInfo BraveTabGroupHeader::GetTabNestingInfo() const {
   return {
       .tree_height = tab_slot_controller_->GetTreeHeight(*tree_tab_node()),
       .level = tab_slot_controller_->GetTreeTabNode(*tree_tab_node())->level()};
+}
+
+views::BubbleBorder::Arrow BraveTabGroupHeader::GetAnchorPosition() const {
+  if (ShouldShowVerticalTabs()) {
+    return views::BubbleBorder::Arrow::LEFT_TOP;
+  }
+
+  return TabGroupHeader::GetAnchorPosition();
 }
 
 BEGIN_METADATA(BraveTabGroupHeader)

@@ -26,6 +26,7 @@ component("browser") {
   # All components should have their own InstallerPolicy and be
   # registered in RegisterComponentsForUpdate
   visibility = [
+    "//brave/browser:core",
     "//brave/browser/ephemeral_storage:browser_tests",
     "//brave/browser/extensions:component_loader",
     "//brave/browser/extensions:test_support",
@@ -40,6 +41,7 @@ component("browser") {
     "//brave/components/brave_shields/content/test:test_support",
     "//brave/components/brave_shields/core/browser",
     "//brave/components/debounce/core/browser",
+    "//brave/components/extension_malware_blocklist/browser",
     "//brave/components/https_upgrade_exceptions/browser",
     "//brave/components/request_otr/browser",
     "//brave/components/tor",
@@ -48,7 +50,6 @@ component("browser") {
     "//brave/ios/app",
     "//brave/ios/browser/application_context",
     "//brave/test:*",
-    "//chrome/browser",
   ]
 
   sources = [

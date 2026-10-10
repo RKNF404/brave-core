@@ -15,6 +15,8 @@
 #include "base/containers/extend.h"
 #include "base/strings/string_number_conversions.h"
 #include "brave/components/brave_wallet/browser/zcash/zcash_rpc.h"
+#include "brave/components/brave_wallet/common/common_utils.h"
+#include "brave/components/brave_wallet/common/zcash_utils.h"
 
 namespace brave_wallet {
 
@@ -100,10 +102,17 @@ void ZCashBlocksBatchScanTask::GetFrontierTreeState() {
 
 void ZCashBlocksBatchScanTask::OnGetFrontierTreeState(
     base::expected<zcash::mojom::TreeStatePtr, std::string> result) {
-  if (!result.has_value() || !result.value()) {
+  if (!result.has_value()) {
     error_ = ZCashShieldSyncService::Error{
         ZCashShieldSyncService::ErrorCode::kFailedToReceiveTreeState,
         base::StrCat({"Frontier tree state failed, ", result.error()})};
+    ScheduleWorkOnTask();
+    return;
+  }
+  if (!result.value()) {
+    error_ = ZCashShieldSyncService::Error{
+        ZCashShieldSyncService::ErrorCode::kFailedToReceiveTreeState,
+        "Frontier tree state failed, empty tree state"};
     ScheduleWorkOnTask();
     return;
   }
@@ -121,10 +130,18 @@ void ZCashBlocksBatchScanTask::GetFrontierBlock() {
 void ZCashBlocksBatchScanTask::OnGetFrontierBlock(
     base::expected<std::vector<zcash::mojom::CompactBlockPtr>, std::string>
         result) {
-  if (!result.has_value() || result.value().size() != 1) {
+  if (!result.has_value()) {
     error_ = ZCashShieldSyncService::Error{
         ZCashShieldSyncService::ErrorCode::kFailedToDownloadBlocks,
         result.error()};
+    ScheduleWorkOnTask();
+    return;
+  }
+
+  if (result.value().size() != 1) {
+    error_ = ZCashShieldSyncService::Error{
+        ZCashShieldSyncService::ErrorCode::kFailedToDownloadBlocks,
+        "Expected block count doesn't match actual"};
     ScheduleWorkOnTask();
     return;
   }
@@ -216,10 +233,42 @@ void ZCashBlocksBatchScanTask::ScanBlocks() {
     tree_state.frontier = std::move(frontier_bytes);
   }
 
+  const uint32_t ironwood_activation_height =
+      context_->chain_id == mojom::kZCashTestnet
+          ? kIronwoodActivationHeightTestnet
+          : kIronwoodActivationHeightMainnet;
+
+  std::optional<OrchardTreeState> ironwood_tree_state;
+  // Supply Ironwood tree state only when the scanned batch ends at or after
+  // the activation height.
+  if (IsZCashIronwoodEnabled() &&
+      downloaded_blocks_->back()->height >= ironwood_activation_height) {
+    std::vector<uint8_t> ironwood_frontier_bytes;
+    // Allow an empty ironwood tree to simplify testing, matching the orchard
+    // handling above.
+    if (!frontier_tree_state_.value()->ironwoodTree.empty() &&
+        !base::HexStringToBytes(frontier_tree_state_.value()->ironwoodTree,
+                                &ironwood_frontier_bytes)) {
+      error_ = ZCashShieldSyncService::Error{
+          ZCashShieldSyncService::ErrorCode::kScannerError,
+          "Failed to parse ironwood tree state"};
+      ScheduleWorkOnTask();
+      return;
+    }
+
+    OrchardTreeState state;
+    state.block_height = frontier_block_.value()->height;
+    state.tree_size =
+        frontier_block_.value()->chain_metadata->ironwood_commitment_tree_size;
+    state.frontier = std::move(ironwood_frontier_bytes);
+    ironwood_tree_state = std::move(state);
+  }
+
   latest_scanned_block_ = downloaded_blocks_->back().Clone();
 
   scanner_->ScanBlocks(
-      std::move(tree_state), std::move(downloaded_blocks_.value()),
+      std::move(tree_state), std::move(ironwood_tree_state),
+      std::move(downloaded_blocks_.value()),
       base::BindOnce(&ZCashBlocksBatchScanTask::OnBlocksScanned,
                      weak_ptr_factory_.GetWeakPtr()));
 }

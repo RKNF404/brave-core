@@ -21,23 +21,23 @@ bool IsAllowedToLandOnPage(mojom::AdType mojom_ad_type) {
   switch (mojom_ad_type) {
     case mojom::AdType::kNewTabPageAd: {
       // Only if:
-      // - The user has opted into new tab page ads and has joined Brave
+      // - New tab page ads are enabled and the user has joined Brave
       //   Rewards.
-      return UserHasOptedInToNewTabPageAds() && UserHasJoinedBraveRewards();
+      return IsNewTabPageAdsEnabled() && UserHasJoinedBraveRewards();
     }
 
     case mojom::AdType::kNotificationAd: {
       // Only if:
-      // - The user has opted into notification ads. Users cannot opt into
-      //   notification ads without joining Brave Rewards.
-      return UserHasOptedInToNotificationAds();
+      // - Notification ads are enabled. Notification ads cannot be enabled
+      //   without joining Brave Rewards.
+      return IsNotificationAdsEnabled();
     }
 
     case mojom::AdType::kSearchResultAd: {
       // Only if:
-      // - The user has opted into search result ads and has joined Brave
+      // - Sponsored ads are enabled and the user has joined Brave
       //   Rewards.
-      return UserHasJoinedBraveRewards() && UserHasOptedInToSearchResultAds();
+      return UserHasJoinedBraveRewards() && IsSponsoredAdsEnabled();
     }
 
     case mojom::AdType::kUndefined: {

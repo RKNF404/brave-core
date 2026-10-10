@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import AppIntents
 import Brave
 import BraveCore
 import BraveNews
@@ -17,9 +18,9 @@ import DesignSystem
 import Growth
 import Preferences
 import Shared
-import Storage
 import SwiftUI
 import UIKit
+import UserNotifications
 import os.log
 
 extension Logger {
@@ -142,6 +143,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     Task { @MainActor in
       let (profileController, profileState) = await loadDefaultProfile()
+
+      // The scene may have disconnected while `loadDefaultProfile` was awaiting. UIKit clears
+      // `session.scene` back to nil once a scene disconnects, so use that to detect this rather
+      // than tracking our own state. Creating a new `UIWindow` for a windowScene that has
+      // already disconnected will crash, so bail out if that's the case.
+      guard windowScene.session.scene != nil else { return }
+
       Self.profileState = profileState
       PlaylistCoordinator.shared.isPlaylistAvailable =
         profileController.profile.prefs.isPlaylistAvailable
@@ -196,7 +204,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     AppState.shared.uptimeMonitor.beginMonitoring()
 
     appDelegate.receivedURLs = nil
-    UIApplication.shared.applicationIconBadgeNumber = 0
+    UNUserNotificationCenter.current().setBadgeCount(0)
 
     if let browserViewController = scene.browserViewController {
       Preferences.AppState.backgroundedCleanly.value = false
@@ -284,13 +292,16 @@ extension SceneDelegate {
 
   @MainActor private func loadDefaultProfile() async -> (BraveProfileController, ProfileState) {
     let braveCore = AppState.shared.braveCore
-    if let profileController = braveCore.profileController, let profileState = Self.profileState {
+    let profileController = await AppState.shared.defaultProfileLoader.profileController(
+      braveCore: braveCore
+    )
+    if let profileState = Self.profileState {
       return (profileController, profileState)
     }
-    // Setup default profile & profile state
-    let defaultProfileController = await braveCore.loadDefaultProfile()
-    let profileState = ProfileState(profileController: defaultProfileController)
-    return (defaultProfileController, profileState)
+    // Setup profile state.
+    // Note that the profile itself may have already been loaded by CarPlay connecting independently of this scene.
+    let profileState = ProfileState(profileController: profileController)
+    return (profileController, profileState)
   }
 
   @objc private func enableUserSelectedTypesForSync() {
@@ -351,7 +362,8 @@ extension SceneDelegate {
       attributionManager: profileState.attributionManager,
       rewards: profileState.rewards,
       newsFeedDataSource: AppState.shared.newsFeedDataSource,
-      userActivity: sceneState.connectionOptions.userActivities.first
+      userActivity: sceneState.connectionOptions.userActivities.first,
+      downloadBackgroundTaskModel: AppState.shared.downloadBackgroundTaskModel
     )
 
     // Setup Playlist Car-Play
@@ -463,6 +475,13 @@ extension SceneDelegate {
       handleCustomUserActivityActions(sceneState.windowScene, userActivity: currentActivity)
     }
 
+    if #available(iOS 26.0, *) {
+      handleControlWidgetIntentIfNeeded(
+        sceneState.connectionOptions.appIntent,
+        browserViewController: browserViewController
+      )
+    }
+
     if sceneState.windowScene.activationState == .foregroundActive {
       // Perform any actions that would also execute in sceneDidBecomeActive
       Preferences.AppState.backgroundedCleanly.value = false
@@ -481,6 +500,15 @@ extension SceneDelegate {
       quickActions.handleShortCutItem(shortcut, withBrowserViewController: browserViewController)
       quickActions.launchedShortcutItem = nil
     }
+  }
+
+  @available(iOS 26.0, *)
+  private func handleControlWidgetIntentIfNeeded(
+    _ appIntent: (any UISceneAppIntent)?,
+    browserViewController: BrowserViewController
+  ) {
+    guard let intent = appIntent as? OpenControlWidgetShortcutIntent else { return }
+    browserViewController.handleNavigationPath(path: .widgetShortcutURL(intent.shortcut))
   }
 
   private func sendDAUPingIfNeeded() {
@@ -707,7 +735,8 @@ extension SceneDelegate {
     attributionManager: AttributionManager,
     rewards: Brave.BraveRewards,
     newsFeedDataSource: BraveNews.FeedDataSource,
-    userActivity: NSUserActivity?
+    userActivity: NSUserActivity?,
+    downloadBackgroundTaskModel: DownloadBackgroundTaskScheduler?
   ) -> BrowserViewController {
     let privateBrowsingManager = PrivateBrowsingManager()
 
@@ -777,7 +806,8 @@ extension SceneDelegate {
       rewards: rewards,
       crashedLastSession: crashedLastSession,
       newsFeedDataSource: newsFeedDataSource,
-      privateBrowsingManager: privateBrowsingManager
+      privateBrowsingManager: privateBrowsingManager,
+      downloadBackgroundTaskModel: downloadBackgroundTaskModel
     )
 
     browserViewController.do {
@@ -894,6 +924,16 @@ extension SceneDelegate {
     let onlyPrivateTabs = privateTabs.count == windowTabs.count
 
     return selectedTabIsPrivate || onlyPrivateTabs
+  }
+}
+
+@available(iOS 26.0, *)
+extension SceneDelegate: AppIntentSceneDelegate {
+  func scene(_ scene: UIScene, willPerformAppIntent appIntent: any UISceneAppIntent) {
+    guard let windowScene = scene as? UIWindowScene,
+      let browserViewController = windowScene.browserViewController
+    else { return }
+    handleControlWidgetIntentIfNeeded(appIntent, browserViewController: browserViewController)
   }
 }
 

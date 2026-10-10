@@ -7,8 +7,8 @@
 #include "brave/components/constants/pref_names.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -52,8 +52,8 @@ IN_PROC_BROWSER_TEST_F(BraveTabStripModelTest, MRUCyclingBasic) {
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
 
   // Open 3 tabs
-  chrome::NewTab(browser());
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   EXPECT_EQ(tab_strip_model->count(), 3);
   EXPECT_EQ(tab_strip_model->active_index(), 2);
 
@@ -68,7 +68,7 @@ IN_PROC_BROWSER_TEST_F(BraveTabStripModelTest, MRUCyclingBasic) {
   tab_visibility_waiter.WaitForTabToBecomeVisible();
 
   // Activate MRU cycling
-  browser()->profile()->GetPrefs()->SetBoolean(kMRUCyclingEnabled, true);
+  browser()->GetProfile()->GetPrefs()->SetBoolean(kMRUCyclingEnabled, true);
 
   // MRU cycling, 0 -> 2
   chrome::ExecuteCommand(browser(), IDC_SELECT_NEXT_TAB);
@@ -87,18 +87,18 @@ IN_PROC_BROWSER_TEST_F(BraveTabStripModelTest, MRUCyclingBasic) {
 // second Ctrl + tab should restart mru cycling.
 IN_PROC_BROWSER_TEST_F(BraveTabStripModelTest, TabClosingWhileMRUCycling) {
   // Activate MRU cycling
-  browser()->profile()->GetPrefs()->SetBoolean(kMRUCyclingEnabled, true);
+  browser()->GetProfile()->GetPrefs()->SetBoolean(kMRUCyclingEnabled, true);
 
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
 
   // Open 3 tabs. There's some kind of timing issue or flakiness on MacOS that
   // causes the tabs visibility not to be updated and the last active timestamp
   // doesn't get changed. So we force the visibility here.
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   tab_strip_model->GetWebContentsAt(1)->WasShown();
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   tab_strip_model->GetWebContentsAt(2)->WasShown();
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   tab_strip_model->GetWebContentsAt(3)->WasShown();
   EXPECT_EQ(tab_strip_model->count(), 4);
   EXPECT_EQ(tab_strip_model->active_index(), 3);

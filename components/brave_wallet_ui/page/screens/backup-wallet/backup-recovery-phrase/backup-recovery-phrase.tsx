@@ -5,13 +5,13 @@
 
 import * as React from 'react'
 import { useHistory, useLocation } from 'react-router'
-import Button from '@brave/leo/react/button'
 
 // redux
 import { useAppDispatch } from '../../../../common/hooks/use-redux'
 
 // utils
 import { getLocale } from '../../../../../common/locale'
+import { splitRecoveryPhraseWords } from '../../../../utils/recovery-phrase-utils'
 import { PageSelectors } from '../../../selectors'
 import { WalletPageActions } from '../../../actions'
 
@@ -27,7 +27,7 @@ import { useSafePageSelector } from '../../../../common/hooks/use-safe-selector'
 // components
 import {
   RecoveryPhrase, //
-} from '../../../../components/desktop/recovery-phrase/recovery-phrase'
+} from './components/recovery_phrase/recovery_phrase'
 import {
   OnboardingContentLayout, //
 } from '../../onboarding/components/onboarding_content_layout/content_layout'
@@ -45,6 +45,7 @@ import {
 } from '../explain-recovery-phrase/explain-recovery-phrase.style'
 import {
   ContinueButton,
+  SkipButton,
   NextButtonRow,
   PhraseCard,
   PhraseCardBody,
@@ -87,23 +88,25 @@ export const BackupRecoveryPhrase = () => {
 
   // memos
   const recoveryPhrase = React.useMemo(() => {
-    return (mnemonic || '').split(' ')
+    return splitRecoveryPhraseWords(mnemonic || '')
   }, [mnemonic])
 
   // render
   return (
     <ScrollableColumn>
       <OnboardingContentLayout
-        title={getLocale('braveWalletOnboardingRecoveryPhraseBackupIntroTitle')}
+        title={getLocale(
+          S.BRAVE_WALLET_ONBOARDING_RECOVERY_PHRASE_BACKUP_INTRO_TITLE,
+        )}
         subTitle=''
       >
         <Subtitle>
           {getLocale(
-            'braveWalletOnboardingRecoveryPhraseBackupIntroDescription',
+            S.BRAVE_WALLET_ONBOARDING_RECOVERY_PHRASE_BACKUP_INTRO_DESCRIPTION,
           )}
         </Subtitle>
         <BackupInstructions>
-          {getLocale('braveWalletRecoveryPhraseBackupWarningImportant')}
+          {getLocale(S.BRAVE_WALLET_RECOVERY_PHRASE_BACKUP_WARNING_IMPORTANT)}
         </BackupInstructions>
 
         <PhraseCard>
@@ -119,14 +122,14 @@ export const BackupRecoveryPhrase = () => {
               {isCopied ? (
                 <>
                   <CopyText>
-                    {getLocale('braveWalletToolTipCopiedToClipboard')}
+                    {getLocale(S.BRAVE_WALLET_TOOL_TIP_COPIED_TO_CLIPBOARD)}
                   </CopyText>
                   <div slot='icon-after'>
                     <CopiedTick />
                   </div>
                 </>
               ) : (
-                <CopyText>{getLocale('braveWalletClickToCopy')}</CopyText>
+                <CopyText>{getLocale(S.BRAVE_WALLET_CLICK_TO_COPY)}</CopyText>
               )}
             </CopyButton>
           </PhraseCardBottomRow>
@@ -142,15 +145,15 @@ export const BackupRecoveryPhrase = () => {
               )
             }
           >
-            {getLocale('braveWalletButtonContinue')}
+            {getLocale(S.BRAVE_WALLET_BUTTON_CONTINUE)}
           </ContinueButton>
         </NextButtonRow>
-        <Button
+        <SkipButton
           kind='plain-faint'
           onClick={() => setIsSkipWarningOpen(true)}
         >
-          {getLocale('braveWalletButtonSkip')}
-        </Button>
+          {getLocale(S.BRAVE_WALLET_BUTTON_SKIP)}
+        </SkipButton>
       </OnboardingContentLayout>
       <SkipWarningDialog
         isOpen={isSkipWarningOpen}

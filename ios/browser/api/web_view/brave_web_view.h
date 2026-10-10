@@ -10,6 +10,12 @@
 #import <UIKit/UIKit.h>
 #import <WebKit/WebKit.h>
 
+#if __swift__
+#import "brave_account.mojom.objc.h"
+#else
+#include "brave/components/brave_account/mojom/brave_account.mojom.objc.h"
+#endif
+
 #import "cwv_export.h"               // NOLINT
 #import "cwv_navigation_action.h"    // NOLINT
 #import "cwv_navigation_delegate.h"  // NOLINT
@@ -22,13 +28,20 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol AIChatUIHandlerBridge;
+@protocol BraveAccountDialogOpenerBridge;
 @protocol WalletPageHandlerBridge;
 @protocol AIChatAssociatedContentPageFetcher;
 @protocol ProfileBridge;
 @protocol LoginsTabHelperBridge;
 @protocol BraveTalkTabHelperBridge;
 @protocol BraveSearchMakeDefaultTabHelperBridge;
+@protocol PlaylistTabHelperBridge;
+@protocol ProtectionStatsTabHelperBridge;
 @protocol PrintHandler;
+@protocol RequestBlockingTabHelperBridge;
+@protocol CosmeticFilteringTabHelperBridge;
+@protocol ScriptletsTabHelperBridge;
+@protocol BraveWalletProviderDelegate;
 
 typedef void (^ResetConfigurationCallback)(id<ProfileBridge>,
                                            WKWebViewConfiguration*);
@@ -112,6 +125,15 @@ CWV_EXPORT
 /// Called when the favicon driver updates the web views favicon status
 - (void)webView:(CWVWebView*)webView
     didUpdateFaviconStatus:(nullable CWVFaviconStatus*)faviconStatus;
+/// Called when a page or tab helper (such as a security interstitial) requests
+/// a URL be opened in a new tab, and returns the web view of the created tab
+/// which the URL will then be loaded into.
+///
+/// `CWVWebView` ignores the requested disposition and loads every URL in the
+/// current web view, so this is required to match Chrome's behaviour.
+- (nullable CWVWebView*)webView:(CWVWebView*)webView
+     createWebViewForOpeningURL:(NSURL*)url
+                   inBackground:(BOOL)inBackground;
 @end
 
 /// A CWVWebView with Chrome tab helpers attached and the ability to handle
@@ -142,8 +164,8 @@ CWV_EXPORT
 // AdsReportingScript is converted to a Chromium JavaScriptFeature
 CWV_EXPORT
 @interface BraveWebView (AdsNotifier)
-- (void)notifyTabDidStartPlayingMedia;
-- (void)notifyTabDidStopPlayingMedia;
+- (void)notifyTabDidStartPlayingMedia:(NSInteger)playerId;
+- (void)notifyTabDidStopPlayingMedia:(NSInteger)playerId;
 @end
 
 CWV_EXPORT
@@ -163,16 +185,37 @@ CWV_EXPORT
 @end
 
 CWV_EXPORT
-@interface BraveWebView (WalletWebUI)
+@interface BraveWebView (BraveAccountWebUI)
+/// The dialog mode the Brave Account WebUI page is served in.
+/// Set before loading brave://account; read back by the page through
+/// `brave_account::mojom::DialogController::GetDialogMode()`.
+@property(nonatomic) BraveAccountDialogMode braveAccountDialogMode;
+/// A bridge for opening the Brave Account dialog over the WebUI page.
+@property(nonatomic, weak, nullable) id<BraveAccountDialogOpenerBridge>
+    braveAccountDialogOpener;
+@end
+
+CWV_EXPORT
+@interface BraveWebView (Wallet)
 /// A bridge for handling Brave Wallet WebUI page actions
 @property(nonatomic, weak, nullable) id<WalletPageHandlerBridge>
     walletPageHandler;
+/// A bridge for handling wallet provider actions
+@property(nonatomic, weak, nullable) id<BraveWalletProviderDelegate>
+    walletProviderDelegate;
 @end
 
 CWV_EXPORT
 @interface BraveWebView (ForcePaste)
 // Force pastes the contents into the active element in the web view
 - (void)forcePasteContents:(NSString*)contents;
+@end
+
+CWV_EXPORT
+@interface BraveWebView (ErrorPage)
+/// Loads Chromium's generic network error page for `URL` in place of the
+/// current page, as if a navigation to `URL` had failed.
+- (void)loadGenericErrorPageForURL:(NSURL*)URL;
 @end
 
 CWV_EXPORT
@@ -233,9 +276,51 @@ CWV_EXPORT
 @end
 
 CWV_EXPORT
+@interface BraveWebView (ProtectionStats)
+/// A bridge for handling Shields protection stats script messages
+@property(nonatomic, weak, nullable) id<ProtectionStatsTabHelperBridge>
+    protectionStatsHelper;
+@end
+
+CWV_EXPORT
 @interface BraveWebView (Print)
 /// A bridge for handling window.print script messages
 - (void)setPrintHandler:(id<PrintHandler>)printHandler;
+@end
+
+CWV_EXPORT
+@interface BraveWebView (Playlist)
+/// A bridge for handling Playlist media detection messages
+- (void)setPlaylistHelper:(id<PlaylistTabHelperBridge>)playlistHelper;
+/// Queries the current playback time, in seconds, of the media element tagged
+/// with `tag`. `completion` receives 0 when no matching element exists.
+- (void)playlistCurrentTimeForTag:(NSString*)tag
+                       completion:(void (^)(double currentTime))completion;
+/// Detects media at the long-pressed `point` and reports it through the
+/// registered playlist helper.
+- (void)playlistLongPressedAtPoint:(CGPoint)point;
+/// Enables playlist compatibility mode for this web view
+- (void)enablePlaylistCompatibilityMode;
+@end
+
+CWV_EXPORT
+@interface BraveWebView (RequestBlocking)
+/// A bridge for Request Blocking javascript feature
+- (void)setRequestBlockingTabHelperBridge:
+    (id<RequestBlockingTabHelperBridge>)bridge;
+@end
+
+CWV_EXPORT
+@interface BraveWebView (CosmeticFiltering)
+/// A bridge for Cosmetic Filtering javascript feature
+- (void)setCosmeticFilteringTabHelperBridge:
+    (id<CosmeticFilteringTabHelperBridge>)bridge;
+@end
+
+CWV_EXPORT
+@interface BraveWebView (Scriptlets)
+/// A bridge for the Scriptlets javascript feature
+- (void)setScriptletsTabHelperBridge:(id<ScriptletsTabHelperBridge>)bridge;
 @end
 
 NS_ASSUME_NONNULL_END

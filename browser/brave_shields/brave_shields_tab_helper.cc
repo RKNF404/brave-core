@@ -33,6 +33,7 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/reload_type.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/security_principal.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/features.h"
@@ -265,8 +266,8 @@ BraveShieldsTabHelper::GetInvokedWebcompatFeatures() {
   return webcompat_features_invoked_;
 }
 
-bool BraveShieldsTabHelper::GetBraveShieldsEnabled() {
-  return brave_shields_settings_->GetBraveShieldsEnabled(GetCurrentSiteURL());
+bool BraveShieldsTabHelper::IsBraveShieldsEnabled() {
+  return brave_shields_settings_->IsBraveShieldsEnabled(GetCurrentSiteURL());
 }
 
 bool BraveShieldsTabHelper::GetAllowElementBlockerInPrivateModeEnabled() {
@@ -391,25 +392,8 @@ bool BraveShieldsTabHelper::GetNoScriptEnabled() {
   return brave_shields_settings_->IsNoScriptEnabled(GetCurrentSiteURL());
 }
 
-mojom::ContentSettingsOverriddenDataPtr
-BraveShieldsTabHelper::GetJsContentSettingsOverriddenData() {
-  return brave_shields_settings_->GetJsContentSettingOverriddenData(
-      GetCurrentSiteURL());
-}
-
-bool BraveShieldsTabHelper::GetForgetFirstPartyStorageEnabled() {
-  return brave_shields_settings_->GetForgetFirstPartyStorageEnabled(
-      GetCurrentSiteURL());
-}
-
 void BraveShieldsTabHelper::SetAdBlockMode(mojom::AdBlockMode mode) {
   brave_shields_settings_->SetAdBlockMode(mode, GetCurrentSiteURL());
-
-  ReloadWebContents();
-}
-
-void BraveShieldsTabHelper::SetFingerprintMode(mojom::FingerprintMode mode) {
-  brave_shields_settings_->SetFingerprintMode(mode, GetCurrentSiteURL());
 
   ReloadWebContents();
 }
@@ -462,11 +446,6 @@ void BraveShieldsTabHelper::SetIsNoScriptEnabled(bool is_enabled) {
   ReloadWebContents();
 }
 
-void BraveShieldsTabHelper::SetForgetFirstPartyStorageEnabled(bool is_enabled) {
-  brave_shields_settings_->SetForgetFirstPartyStorageEnabled(
-      is_enabled, GetCurrentSiteURL());
-}
-
 void BraveShieldsTabHelper::BlockAllowedScripts(
     const std::vector<std::string>& origins) {
   BraveShieldsWebContentsObserver* observer =
@@ -502,15 +481,6 @@ void BraveShieldsTabHelper::AllowScriptsOnce(
   UMA_HISTOGRAM_BOOLEAN(kShieldsAllowScriptOnceHistogramName, true);
   observer->AllowScriptsOnce(origins);
   ReloadWebContents();
-}
-
-bool BraveShieldsTabHelper::IsBraveShieldsManaged() {
-  PrefService* profile_prefs =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext())
-          ->GetPrefs();
-
-  return brave_shields::IsBraveShieldsManaged(
-      profile_prefs, &*host_content_settings_map_, GetCurrentSiteURL());
 }
 
 void BraveShieldsTabHelper::HandleItemBlocked(const std::string& block_type,

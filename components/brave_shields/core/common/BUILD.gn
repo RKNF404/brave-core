@@ -11,6 +11,7 @@ static_library("common") {
     "brave_shield_utils.cc",
     "brave_shield_utils.h",
     "brave_shields_settings_values.h",
+    "farbling_prng.h",
     "features.cc",
     "features.h",
     "pref_names.h",
@@ -28,6 +29,7 @@ static_library("common") {
     "//brave/components/brave_shields/core/common:mojom_shared__generator",
     "//brave/components/webcompat/core/common",
     "//components/content_settings/core/common",
+    "//crypto",
     "//net",
     "//ui/base",
     "//url",
@@ -57,6 +59,7 @@ mojom_component("mojom") {
     "//url/mojom:url_mojom_gurl",
   ]
 
+  generate_blink = true
   export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
   export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
   export_header_blink = "third_party/blink/public/platform/web_common.h"

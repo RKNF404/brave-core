@@ -18,6 +18,7 @@ namespace brave_ads {
 namespace {
 constexpr char kScriptName[] = "ads_media_reporting";
 constexpr char kScriptHandlerName[] = "AdsMediaReportingMessageHandler";
+constexpr char kMessagePlayerIdKey[] = "playerId";
 constexpr char kMessageIsPlayingKey[] = "isPlaying";
 }  // namespace
 
@@ -49,13 +50,14 @@ void AdsMediaReportingJavaScriptFeature::ScriptMessageReceived(
     web::WebState* web_state,
     const web::ScriptMessage& message) {
   const base::DictValue* script_dict =
-      message.body() ? message.body()->GetIfDict() : nullptr;
+      message.legacy_body() ? message.legacy_body()->GetIfDict() : nullptr;
   if (!script_dict) {
     return;
   }
 
+  std::optional<int> player_id = script_dict->FindInt(kMessagePlayerIdKey);
   std::optional<bool> is_playing = script_dict->FindBool(kMessageIsPlayingKey);
-  if (!is_playing) {
+  if (!player_id || !is_playing) {
     return;
   }
 
@@ -65,9 +67,9 @@ void AdsMediaReportingJavaScriptFeature::ScriptMessageReceived(
   }
 
   if (*is_playing) {
-    tab_helper->NotifyTabDidStartPlayingMedia();
+    tab_helper->NotifyTabDidStartPlayingMedia(*player_id);
   } else {
-    tab_helper->NotifyTabDidStopPlayingMedia();
+    tab_helper->NotifyTabDidStopPlayingMedia(*player_id);
   }
 }
 

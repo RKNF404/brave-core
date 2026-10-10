@@ -8,7 +8,6 @@
 #include "base/base64.h"
 #include "base/rand_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/sync/service/glue/sync_transport_data_prefs.h"
 #include "content/public/test/browser_test.h"
@@ -33,7 +32,7 @@ class BraveBrowsingDataRemoverBrowserTest : public InProcessBrowserTest {
  protected:
   void RemoveAndWait(uint64_t remove_mask) {
     content::BrowsingDataRemover* remover =
-        browser()->profile()->GetBrowsingDataRemover();
+        browser()->GetProfile()->GetBrowsingDataRemover();
     content::BrowsingDataRemoverCompletionObserver completion_observer(remover);
     remover->RemoveAndReply(
         base::Time(), base::Time::Max(), remove_mask,
@@ -47,7 +46,7 @@ class BraveBrowsingDataRemoverBrowserTest : public InProcessBrowserTest {
     signin::GaiaIdHash gaia_id_hash =
         signin::GaiaIdHash::FromGaiaId(GaiaId("user_gaia_id"));
     syncer::SyncTransportDataPrefs sync_transport_data_prefs(
-        browser()->profile()->GetPrefs(), gaia_id_hash);
+        browser()->GetProfile()->GetPrefs(), gaia_id_hash);
     sync_transport_data_prefs.SetCacheGuid(GenerateCacheGUID());
     EXPECT_FALSE(sync_transport_data_prefs.GetCacheGuid().empty());
 

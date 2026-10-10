@@ -11,7 +11,6 @@
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/components/constants/webui_url_constants.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/bubble/webui_bubble_manager.h"
 #include "components/grit/brave_components_strings.h"
 #include "url/gurl.h"
@@ -41,8 +40,7 @@ void BraveVPNPanelController::ShowBraveVPNPanel(bool show_select) {
   }
   if (!webui_bubble_manager_) {
     webui_bubble_manager_ = WebUIBubbleManager::Create<VPNPanelUI>(
-        anchor_view, browser_view_->browser(), GURL(url),
-        IDS_BRAVE_VPN_PANEL_NAME);
+        browser_view_->browser(), GURL(url), IDS_BRAVE_VPN_PANEL_NAME);
   }
 
   if (webui_bubble_manager_->GetBubbleWidget()) {
@@ -50,7 +48,7 @@ void BraveVPNPanelController::ShowBraveVPNPanel(bool show_select) {
     return;
   }
 
-  webui_bubble_manager_->ShowBubble();
+  webui_bubble_manager_->ShowBubble(anchor_view);
 }
 
 void BraveVPNPanelController::ResetBubbleManager() {

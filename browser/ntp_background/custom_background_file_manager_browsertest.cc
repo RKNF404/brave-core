@@ -18,7 +18,6 @@
 #include "brave/browser/ntp_background/constants.h"
 #include "brave/components/constants/brave_paths.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/browser_test.h"
@@ -93,8 +92,8 @@ class CustomBackgroundFileManagerBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(base::WriteFile(*image_path_out, *encoded_png));
   }
 
-  Profile* profile() { return browser()->profile(); }
-  const Profile* profile() const { return browser()->profile(); }
+  Profile* profile() { return browser()->GetProfile(); }
+  const Profile* profile() const { return browser()->GetProfile(); }
 
   CustomBackgroundFileManager& custom_file_manager() { return *file_manager_; }
 

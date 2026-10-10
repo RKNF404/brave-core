@@ -8,7 +8,7 @@
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -35,9 +35,9 @@ TEST(BraveAdsNewTabPageAdEventTypeUtilTest, ToMojomNewTabPageAdEventType) {
   EXPECT_EQ(ToMojomNewTabPageAdEventType("media_100"),
             mojom::NewTabPageAdEventType::kMedia100);
 
-  EXPECT_EQ(ToMojomNewTabPageAdEventType(""), std::nullopt);
+  EXPECT_FALSE(ToMojomNewTabPageAdEventType(""));
 
-  EXPECT_EQ(ToMojomNewTabPageAdEventType("foobar"), std::nullopt);
+  EXPECT_FALSE(ToMojomNewTabPageAdEventType("foobar"));
 }
 
 TEST(BraveAdsNewTabPageAdEventTypeUtilTest, ToString) {

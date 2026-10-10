@@ -19,7 +19,8 @@ import UIKit
 class NewTabPageBackground: PreferencesObserver {
   /// The source of new tab page backgrounds
   private let dataSource: NTPDataSource
-  private let rewards: BraveRewards
+  private let prefs: any PrefService
+  private let prefsChangeRegistrar: PrefChangeRegistrar
   /// The current background image & possibly sponsor
   private(set) var currentBackground: NTPWallpaper? {
     didSet {
@@ -33,10 +34,6 @@ class NewTabPageBackground: PreferencesObserver {
   var backgroundImage: UIImage? {
     currentBackground?.backgroundImage
   }
-  /// The background video URL if available
-  var backgroundVideoPath: URL? {
-    currentBackground?.backgroundVideoPath
-  }
   /// The sponsors logo if available
   var sponsorLogoImage: UIImage? {
     currentBackground?.logoImage
@@ -45,16 +42,19 @@ class NewTabPageBackground: PreferencesObserver {
   /// while the New Tab Page is active
   var changed: (() -> Void)?
   /// Create a background holder given a source of all NTP background images
-  init(dataSource: NTPDataSource, rewards: BraveRewards) {
+  init(dataSource: NTPDataSource, prefs: any PrefService) {
     self.dataSource = dataSource
-    self.rewards = rewards
+    self.prefs = prefs
+    self.prefsChangeRegistrar = PrefChangeRegistrar(prefService: prefs)
     dataSource.newBackground { [weak self] background in
       self?.currentBackground = background
     }
 
     Preferences.NewTabPage.backgroundImages.observe(from: self)
-    Preferences.NewTabPage.backgroundMediaTypeRaw.observe(from: self)
     Preferences.NewTabPage.selectedCustomTheme.observe(from: self)
+    prefsChangeRegistrar.addObserver(forPath: kBraveAdsSponsoredEnabledPrefName) { [weak self] _ in
+      self?.handlePreferencesChange()
+    }
 
     recordSponsoredMediaTypeP3A()
   }
@@ -66,6 +66,10 @@ class NewTabPageBackground: PreferencesObserver {
   private var timer: Timer?
 
   func preferencesDidChange(for key: String) {
+    handlePreferencesChange()
+  }
+
+  private func handlePreferencesChange() {
     // Debounce multiple changes to preferences, since toggling bg images
     // cause sponsored images to also be toggled at the same time
     timer?.invalidate()
@@ -87,18 +91,13 @@ class NewTabPageBackground: PreferencesObserver {
     enum Answer: Int, CaseIterable {
       case disabled = 0
       case images = 1
-      case imagesAndVideos = 2
     }
 
     var answer = Answer.disabled
     if Preferences.NewTabPage.backgroundImages.value
-      && Preferences.NewTabPage.backgroundMediaType.isSponsored
+      && prefs.boolean(forPath: kBraveAdsSponsoredEnabledPrefName)
     {
-      answer =
-        Preferences.NewTabPage.backgroundMediaType == .sponsoredImagesAndVideos
-          && rewards.ads.shouldShowSponsoredImagesAndVideosSetting()
-        ? .imagesAndVideos
-        : .images
+      answer = .images
     }
 
     UmaHistogramEnumeration("Brave.NTP.SponsoredMediaType", sample: answer)

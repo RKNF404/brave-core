@@ -24,7 +24,7 @@
 #include "brave/components/brave_ads/core/public/ad_units/ad_info.h"
 #include "url/gurl.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -306,6 +306,54 @@ TEST_F(BraveAdsConversionsTest,
   test::RecordAdEvent(ad, mojom::ConfirmationType::kViewedImpression);
 
   AdvanceClockBy(base::Days(3));
+
+  // Act & Assert
+  VerifyOnDidNotConvertAdExpectation();
+  conversions_->MaybeConvert(test::BuildDefaultConversionRedirectChain());
+}
+
+TEST_F(BraveAdsConversionsTest,
+       ConvertAdIfObservationWindowIsOnTheCuspOfTheAdEventsTimeWindow) {
+  // Arrange
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      kConversionsFeature, {{"ad_events_time_window", "30d"}});
+
+  const AdInfo ad = test::BuildAd(mojom::AdType::kNotificationAd,
+                                  /*use_random_uuids=*/false);
+  test::BuildAndSaveCreativeSetConversion(
+      ad.creative_set_id, test::kMatchingUrlPattern,
+      /*observation_window=*/base::Days(30));
+  test::RecordAdEvent(ad, mojom::ConfirmationType::kViewedImpression);
+
+  AdvanceClockBy(base::Days(30) - base::Milliseconds(1));
+
+  // Act & Assert
+  base::RunLoop run_loop;
+  VerifyOnDidConvertAdExpectation(ad, ConversionActionType::kViewThrough,
+                                  run_loop.QuitClosure());
+  conversions_->MaybeConvert(test::BuildDefaultConversionRedirectChain());
+  run_loop.Run();
+}
+
+TEST_F(BraveAdsConversionsTest,
+       DoNotConvertAdIfTheAdEventsTimeWindowHasBeenExceeded) {
+  // Arrange
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      kConversionsFeature, {{"ad_events_time_window", "1d"}});
+
+  const AdInfo ad = test::BuildAd(mojom::AdType::kNotificationAd,
+                                  /*use_random_uuids=*/false);
+  // The observation window is longer than the ad events time window, so the
+  // ad event should be purged from the ad events fetch before the
+  // observation window is ever checked.
+  test::BuildAndSaveCreativeSetConversion(ad.creative_set_id,
+                                          test::kMatchingUrlPattern,
+                                          /*observation_window=*/base::Days(3));
+  test::RecordAdEvent(ad, mojom::ConfirmationType::kViewedImpression);
+
+  AdvanceClockBy(base::Days(1));
 
   // Act & Assert
   VerifyOnDidNotConvertAdExpectation();

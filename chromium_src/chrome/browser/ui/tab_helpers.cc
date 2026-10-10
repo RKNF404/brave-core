@@ -4,14 +4,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "brave/browser/brave_tab_helpers.h"
-#include "chrome/browser/font_prewarmer_tab_helper.h"
 #include "chrome/browser/net/net_error_tab_helper.h"
-#include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/ui_features.h"
-
-// Enable ThumbnailTabHelper
-#define kTabHoverCardImages kTabHoverCardImages) || \
-  base::FeatureList::IsEnabled(tabs::kBraveSharedPinnedTabs
 
 #define BRAVE_TAB_HELPERS brave::AttachTabHelpers(web_contents);
 
@@ -30,13 +23,10 @@ class NoTabHelper {
 //
 // Please keep all the redefinitions for disabling TabHelpers below this point.
 #define chrome_browser_net
-#define FontPrewarmerTabHelper NoTabHelper
 #define NetErrorTabHelper NoTabHelper
 
 #include <chrome/browser/ui/tab_helpers.cc>
 
 #undef NetErrorTabHelper
-#undef FontPrewarmerTabHelper
 #undef chrome_browser_net
 #undef BRAVE_TAB_HELPERS
-#undef kTabHoverCardImages

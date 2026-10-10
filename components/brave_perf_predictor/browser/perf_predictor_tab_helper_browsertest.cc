@@ -17,7 +17,6 @@
 #include "brave/components/constants/pref_names.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
@@ -30,14 +29,13 @@
 
 namespace {
 
-uint64_t getProfileBandwidthSaved(Browser* browser) {
-  return browser->profile()->GetPrefs()->GetUint64(
+uint64_t getProfileBandwidthSaved(BrowserWindowInterface* browser) {
+  return browser->GetProfile()->GetPrefs()->GetUint64(
       brave_perf_predictor::prefs::kBandwidthSavedBytes);
 }
 
-uint64_t getProfileAdsBlocked(Browser* browser) {
-  return browser->profile()->GetPrefs()->GetUint64(
-      kAdsBlocked);
+uint64_t getProfileAdsBlocked(BrowserWindowInterface* browser) {
+  return browser->GetProfile()->GetPrefs()->GetUint64(kAdsBlocked);
 }
 
 }  // namespace
@@ -60,7 +58,7 @@ class PerfPredictorTabHelperTest : public InProcessBrowserTest {
     host_resolver()->AddRule("*", "127.0.0.1");
 
     auto* content_settings =
-        HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+        HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile());
 
     // Most tests are written for aggressive mode. Individual tests should reset
     // this using `DisableAggressiveMode` if they are testing standard mode

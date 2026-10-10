@@ -19,7 +19,6 @@
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/browser/sessions/session_restore_test_helper.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
@@ -60,16 +59,18 @@ class NewTabTakeoverBrowserTest : public InProcessBrowserTest {
     // for tests, so the view counter is not incremented when trying to display
     // NTP background.
     // TODO(https://github.com/brave/brave-browser/issues/51437): Add proper
-    // values for kInitialCountToBrandedWallpaper and kCountToBrandedWallpaper
-    // once NTP background images data is available for tests.
+    // values for kInitialCountToNewTabTakeoverWallpaper and
+    // kCountToNewTabTakeoverWallpaper once NTP background images data is
+    // available for tests.
     base::FieldTrialParams parameters;
     std::vector<base::test::FeatureRefAndParams> enabled_features;
-    parameters[ntp_background_images::features::kInitialCountToBrandedWallpaper
+    parameters[ntp_background_images::features::
+                   kInitialCountToNewTabTakeoverWallpaper.name] = "1";
+    parameters[ntp_background_images::features::kCountToNewTabTakeoverWallpaper
                    .name] = "1";
-    parameters[ntp_background_images::features::kCountToBrandedWallpaper.name] =
-        "1";
     enabled_features.emplace_back(
-        ntp_background_images::features::kBraveNTPBrandedWallpaper, parameters);
+        ntp_background_images::features::kBraveNTPNewTabTakeoverWallpaper,
+        parameters);
     feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
   }
   ~NewTabTakeoverBrowserTest() override = default;
@@ -83,7 +84,8 @@ class NewTabTakeoverBrowserTest : public InProcessBrowserTest {
     const base::FilePath component_file_path =
         test_data_file_path.AppendASCII("components")
             .AppendASCII("ntp_sponsored_images")
-            .AppendASCII("image");
+            .AppendASCII("new_tab_takeover")
+            .AppendASCII("static");
     base::CommandLine::ForCurrentProcess()->AppendSwitchPath(
         ntp_background_images::switches::kOverrideSponsoredImagesComponentPath,
         component_file_path);

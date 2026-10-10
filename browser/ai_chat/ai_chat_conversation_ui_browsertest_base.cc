@@ -20,7 +20,7 @@
 #include "brave/components/ai_chat/core/browser/types.h"
 #include "brave/components/ai_chat/core/browser/utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -46,8 +46,9 @@ MockGenerateCallbacks& MockGenerateCallbacks::operator=(
 void AIChatConversationUIBrowserTestBase::SetUpOnMainThread() {
   InProcessBrowserTest::SetUpOnMainThread();
   // Opt-in to AI Chat
-  SetUserOptedIn(browser()->profile()->GetPrefs(), true);
-  service_ = AIChatServiceFactory::GetForBrowserContext(browser()->profile());
+  SetUserOptedIn(browser()->GetProfile()->GetPrefs(), true);
+  service_ =
+      AIChatServiceFactory::GetForBrowserContext(browser()->GetProfile());
   ASSERT_TRUE(service_);
 }
 
@@ -61,7 +62,7 @@ void AIChatConversationUIBrowserTestBase::TearDownOnMainThread() {
 
 void AIChatConversationUIBrowserTestBase::NavigateToConversationUI(
     const std::string& conversation_uuid,
-    Browser* target_browser) {
+    BrowserWindowInterface* target_browser) {
   if (!target_browser) {
     target_browser = browser();
   }
@@ -173,7 +174,16 @@ bool AIChatConversationUIBrowserTestBase::VerifyElementState(
 
   auto result = content::EvalJs(
       frame,
-      content::JsReplace(kWaitForAIChatRenderScript, test_id, !expect_exist));
+      content::JsReplace(kWaitForAIChatRenderScript, test_id, !expect_exist),
+      eval_js_options_);
+  // Surface a script failure (e.g. the frame's document was replaced while the
+  // promise was still pending) as a test failure: `ExtractBool` would `CHECK`
+  // and take the browser test process down, losing the error along with the
+  // rest of the test's output.
+  if (!result.is_ok()) {
+    ADD_FAILURE() << result.ExtractError();
+    return false;
+  }
   return result.ExtractBool();
 }
 
@@ -251,8 +261,28 @@ bool AIChatConversationUIBrowserTestBase::VerifyElementText(
   )";
 
   auto result = content::EvalJs(
-      frame, content::JsReplace(kWaitForTextScript, test_id, expected_text));
-  return result.ExtractBool();
+      frame, content::JsReplace(kWaitForTextScript, test_id, expected_text),
+      eval_js_options_);
+  if (!result.is_ok()) {
+    ADD_FAILURE() << result.ExtractError();
+    return false;
+  }
+  if (!result.ExtractBool()) {
+    // Report what the element actually said; a bare `false` here gives whoever
+    // hits it nothing to go on.
+    auto actual = content::EvalJs(
+        frame,
+        content::JsReplace("(document.querySelector(`[data-testid=$1]`)"
+                           "?.textContent ?? '<no such element>').trim()",
+                           test_id),
+        eval_js_options_);
+    ADD_FAILURE() << "'" << test_id << "' text is '"
+                  << (actual.is_ok() ? actual.ExtractString()
+                                     : actual.ExtractError())
+                  << "', expected '" << expected_text << "'";
+    return false;
+  }
+  return true;
 }
 
 bool AIChatConversationUIBrowserTestBase::ClickElement(
@@ -272,7 +302,8 @@ bool AIChatConversationUIBrowserTestBase::ClickElement(
     })()
   )";
   return content::EvalJs(frame,
-                         content::JsReplace(kClickElementScript, test_id))
+                         content::JsReplace(kClickElementScript, test_id),
+                         eval_js_options_)
       .ExtractBool();
 }
 
@@ -297,7 +328,8 @@ bool AIChatConversationUIBrowserTestBase::HoverElement(
     })()
   )";
   return content::EvalJs(frame,
-                         content::JsReplace(kHoverElementScript, test_id))
+                         content::JsReplace(kHoverElementScript, test_id),
+                         eval_js_options_)
       .ExtractBool();
 }
 
@@ -334,7 +366,7 @@ AIChatConversationUIBrowserTestBase::SetupMockGenerateAssistantResponse(
   }
   expectation.WillOnce(
       [future_ptr](PageContentsMap page_contents,
-                   const EngineConsumer::ConversationHistory& history,
+                   const EngineConsumer::ConversationHistoryView& history,
                    bool is_temporary,
                    const std::vector<base::WeakPtr<Tool>>& provided_tools,
                    std::optional<std::string_view> preferred_tool_name,

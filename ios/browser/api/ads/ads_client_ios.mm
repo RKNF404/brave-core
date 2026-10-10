@@ -51,8 +51,9 @@ bool AdsClientIOS::CanShowNotificationAdsWhileBrowserIsBackgrounded() const {
   return [bridge_ canShowNotificationAdsWhileBrowserIsBackgrounded];
 }
 
-void AdsClientIOS::ShowNotificationAd(const brave_ads::NotificationAdInfo& ad) {
-  [bridge_ showNotificationAd:ad];
+void AdsClientIOS::ShowNotificationAd(
+    brave_ads::mojom::NotificationAdInfoPtr ad) {
+  [bridge_ showNotificationAd:std::move(ad)];
 }
 
 bool AdsClientIOS::CanShowNotificationAds() const {
@@ -78,7 +79,7 @@ void AdsClientIOS::Save(const std::string& name,
 
 void AdsClientIOS::LoadResourceComponent(const std::string& id,
                                          int version,
-                                         brave_ads::LoadFileCallback callback) {
+                                         brave_ads::LoadResourceComponentCallback callback) {
   [bridge_ loadResourceComponent:id
                          version:version
                         callback:std::move(callback)];

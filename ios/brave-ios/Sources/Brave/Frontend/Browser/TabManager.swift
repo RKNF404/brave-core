@@ -12,7 +12,6 @@ import Foundation
 import Growth
 import Preferences
 import Shared
-import Storage
 import Web
 import WebKit
 import os.log
@@ -759,8 +758,8 @@ class TabManager: NSObject {
             withQuery: nil,
             options: HistorySearchOptions(
               maxCount: 0,
-              hostOnly: false,
-              duplicateHandling: .keepAll,
+              hostnameSuffix: nil,
+              duplicateHandling: .removeAll,
               begin: nil,
               end: nil
             )
@@ -985,7 +984,7 @@ class TabManager: NSObject {
         withQuery: query,
         options: HistorySearchOptions(
           maxCount: 0,
-          hostOnly: false,
+          hostnameSuffix: nil,
           duplicateHandling: .keepAll,
           begin: nil,
           end: nil
@@ -1307,9 +1306,11 @@ class TabManager: NSObject {
   @MainActor fileprivate var restoreTabsInternal: (any TabState)? {
     var savedTabs = [SessionTab]()
 
-    if let autocloseTime = Preferences.AutoCloseTabsOption(
-      rawValue: Preferences.General.autocloseTabs.value
-    )?.timeInterval {
+    if let autocloseTime = Preferences.Debug.autocloseTabsMinutesOverride.value?.minutes
+      ?? Preferences.AutoCloseTabsOption(
+        rawValue: Preferences.General.autocloseTabs.value
+      )?.timeInterval
+    {
       // To avoid db problems, we first retrieve fresh tabs(on main thread context)
       // then delete old tabs(background thread context)
       savedTabs = SessionTab.all(noOlderThan: autocloseTime)
@@ -1651,16 +1652,16 @@ extension TabManager: NSFetchedResultsControllerDelegate {
           // implement `SolanaProviderImpl::OnContentSettingChanged`
           if let selectedSolAccount = allAccounts.solDappSelectedAccount,
             // currently connected
-            tab.browserData?.isSolanaAccountConnected(selectedSolAccount.address) == true,
-            tab.browserData?.isAccountAllowed(.sol, account: selectedSolAccount.address) == false
+            tab.wallet?.isSolanaAccountConnected(selectedSolAccount.address) == true,
+            tab.wallet?.isAccountAllowed(.sol, account: selectedSolAccount.address) == false
           {  // user revoked access
-            tab.walletSolProvider?.disconnect()
+            tab.wallet?.walletSolProvider?.disconnect()
           }
 
           let ethAccountAddressess = allAccounts.accounts.filter { $0.coin == .eth }.map(\.address)
           let allowedEthAccountAddresses =
-            tab.browserData?.getAllowedAccounts(.eth, accounts: ethAccountAddressess) ?? []
-          tab.browserData?.accountsChangedEvent(accounts: Array(allowedEthAccountAddresses))
+            tab.wallet?.getAllowedAccounts(.eth, accounts: ethAccountAddressess) ?? []
+          tab.wallet?.accountsChangedEvent(accounts: Array(allowedEthAccountAddresses))
         }
       }
     }

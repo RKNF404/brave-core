@@ -6,6 +6,8 @@
 #ifndef BRAVE_COMPONENTS_P3A_NITRO_UTILS_COSE_H_
 #define BRAVE_COMPONENTS_P3A_NITRO_UTILS_COSE_H_
 
+#include <optional>
+#include <string_view>
 #include <vector>
 
 #include "components/cbor/values.h"
@@ -32,11 +34,11 @@ class CoseSign1 : bssl::VerifyCertificateChainDelegate {
   bool Verify(const bssl::ParsedCertificateList& cert_chain);
 
   // Retrieves value containing headers protected by the signature.
-  const cbor::Value& protected_headers();
+  const std::optional<cbor::Value>& protected_headers();
   // Retrieves value containing headers not protected by the signature.
-  const cbor::Value& unprotected_headers();
+  const std::optional<cbor::Value>& unprotected_headers();
   // Retrieves value containing the payload of the CoseSign1 structure.
-  const cbor::Value& payload();
+  const std::optional<cbor::Value>& payload();
 
  private:
   // Overrides bssl::VerifyCertificateChainDelegate
@@ -47,13 +49,20 @@ class CoseSign1 : bssl::VerifyCertificateChainDelegate {
                              bssl::CertErrors* errors) override;
   bssl::SignatureVerifyCache* GetVerifyCache() override;
   bool AcceptPreCertificates() override;
+  std::optional<MTCCosigner> GetMTCCosigner(
+      bssl::Span<const uint8_t> cosigner_id) override;
+  bool IsCosignatureVerificationResultAcceptable(
+      const bssl::MTCAnchor* mtc_anchor,
+      std::vector<std::vector<uint8_t>> valid_additional_cosigners) override;
+  bool IsDebugLogEnabled() override;
+  void DebugLog(std::string_view msg) override;
 
-  cbor::Value protected_headers_;
-  cbor::Value unprotected_headers_;
-  cbor::Value payload_;
+  std::optional<cbor::Value> protected_headers_;
+  std::optional<cbor::Value> unprotected_headers_;
+  std::optional<cbor::Value> payload_;
 
-  cbor::Value protected_encoded_;
-  cbor::Value payload_encoded_;
+  std::optional<cbor::Value> protected_encoded_;
+  std::optional<cbor::Value> payload_encoded_;
   std::vector<uint8_t> signature_;
 };
 

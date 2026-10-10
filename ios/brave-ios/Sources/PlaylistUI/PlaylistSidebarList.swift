@@ -3,7 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import BraveCore
 import BraveShared
+import CoreData
 import Data
 import DesignSystem
 import Foundation
@@ -64,7 +66,8 @@ struct PlaylistSidebarList: View {
 
 struct PlaylistSidebarListHeader: View {
   var folders: [PlaylistFolder]
-  @Binding var selectedFolder: PlaylistFolder
+  var selectedFolder: PlaylistFolder
+  @Binding var selectedFolderID: PlaylistFolder.ID
   var selectedItemID: PlaylistItem.ID?
   @Binding var isPlaying: Bool
   @Binding var isNewPlaylistAlertPresented: Bool
@@ -78,14 +81,16 @@ struct PlaylistSidebarListHeader: View {
 
   init(
     folders: [PlaylistFolder],
-    selectedFolder: Binding<PlaylistFolder>,
+    selectedFolder: PlaylistFolder,
+    selectedFolderID: Binding<PlaylistFolder.ID>,
     selectedItemID: PlaylistItem.ID?,
     isPlaying: Binding<Bool>,
     isNewPlaylistAlertPresented: Binding<Bool>,
     isEditModePresented: Binding<Bool>
   ) {
     self.folders = folders
-    self._selectedFolder = selectedFolder
+    self.selectedFolder = selectedFolder
+    self._selectedFolderID = selectedFolderID
     self.selectedItemID = selectedItemID
     self._isPlaying = isPlaying
     self._isNewPlaylistAlertPresented = isNewPlaylistAlertPresented
@@ -97,6 +102,11 @@ struct PlaylistSidebarListHeader: View {
   }
 
   @MainActor private func calculateTotalSizeOnDisk(for folder: PlaylistFolder) async {
+    // Cache-first hides the total size in the header, so skip the (potentially expensive) disk scan.
+    if FeatureList.kPlaylistCacheFirstEnabled.enabled {
+      totalSizeOnDisk = .init(value: 0, unit: .bytes)
+      return
+    }
     // Since we're consuming CoreData we need to make sure those accesses happen on main
     let items = selectedFolderItems
     var totalSize: Int = 0
@@ -148,10 +158,10 @@ struct PlaylistSidebarListHeader: View {
       .disabled(selectedItemID == nil && selectedFolderItems.isEmpty)
       VStack(alignment: .leading) {
         Menu {
-          Picker("", selection: $selectedFolder) {
+          Picker("", selection: $selectedFolderID) {
             ForEach(folders, id: \.objectID) { folder in
               Label(folder.title ?? "", braveSystemImage: "leo.product.playlist")
-                .tag(folder)
+                .tag(folder.id)
             }
           }
           .pickerStyle(.inline)
@@ -190,7 +200,8 @@ struct PlaylistSidebarListHeader: View {
           if !items.isEmpty {
             Text(totalDuration, format: .units(width: .narrow, maximumUnitCount: 2))
           }
-          if !totalSize.value.isZero {
+          // Cache-first manages the cache automatically, so the on-disk size isn't surfaced.
+          if !totalSize.value.isZero, !FeatureList.kPlaylistCacheFirstEnabled.enabled {
             Text(totalSizeOnDisk, format: .byteCount(style: .file))
           }
         }

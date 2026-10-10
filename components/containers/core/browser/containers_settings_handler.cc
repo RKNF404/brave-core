@@ -12,6 +12,7 @@
 #include "brave/components/containers/core/browser/pref_names.h"
 #include "brave/components/containers/core/browser/prefs.h"
 #include "components/prefs/pref_service.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/re2/src/re2/re2.h"
 
 namespace containers {
@@ -44,11 +45,6 @@ ContainersSettingsHandler::ContainersSettingsHandler(PrefService* prefs)
       prefs::kContainersList,
       base::BindRepeating(&ContainersSettingsHandler::OnContainersChanged,
                           base::Unretained(this)));
-  pref_change_registrar_.Add(
-      prefs::kContainersEnabled,
-      base::BindRepeating(
-          &ContainersSettingsHandler::OnContainersEnabledPrefChanged,
-          base::Unretained(this)));
 }
 
 ContainersSettingsHandler::~ContainersSettingsHandler() {}
@@ -127,13 +123,39 @@ void ContainersSettingsHandler::RemoveContainer(
   std::move(callback).Run(std::nullopt);
 }
 
-void ContainersSettingsHandler::GetContainersEnabled(
-    GetContainersEnabledCallback callback) {
-  std::move(callback).Run(prefs_->GetBoolean(prefs::kContainersEnabled));
-}
+void ContainersSettingsHandler::ReorderContainers(
+    const std::vector<std::string>& ordered_ids,
+    ReorderContainersCallback callback) {
+  auto containers = GetContainersFromPrefs(*prefs_);
+  if (ordered_ids.size() != containers.size()) {
+    std::move(callback).Run(mojom::ContainerOperationError::kNotFound);
+    return;
+  }
 
-void ContainersSettingsHandler::SetContainersEnabled(bool enabled) {
-  prefs_->SetBoolean(prefs::kContainersEnabled, enabled);
+  absl::flat_hash_map<std::string, size_t> order_map;
+  order_map.reserve(ordered_ids.size());
+  for (size_t i = 0; i < ordered_ids.size(); ++i) {
+    order_map.emplace(ordered_ids[i], i);
+  }
+
+  if (order_map.size() != ordered_ids.size()) {
+    std::move(callback).Run(mojom::ContainerOperationError::kNotFound);
+    return;
+  }
+
+  for (const auto& container : containers) {
+    if (!order_map.contains(container->id)) {
+      std::move(callback).Run(mojom::ContainerOperationError::kNotFound);
+      return;
+    }
+  }
+
+  std::ranges::sort(containers, [&order_map](const auto& lhs, const auto& rhs) {
+    return order_map.at(lhs->id) < order_map.at(rhs->id);
+  });
+
+  SetContainersToPrefs(std::move(containers), *prefs_);
+  std::move(callback).Run(std::nullopt);
 }
 
 // static
@@ -159,13 +181,6 @@ void ContainersSettingsHandler::OnContainersChanged() {
   // Notify UI about container list changes (from this window or others).
   if (ui_) {
     ui_->OnContainersChanged(GetContainersFromPrefs(*prefs_));
-  }
-}
-
-void ContainersSettingsHandler::OnContainersEnabledPrefChanged() {
-  if (ui_) {
-    ui_->OnContainersEnabledChanged(
-        prefs_->GetBoolean(prefs::kContainersEnabled));
   }
 }
 

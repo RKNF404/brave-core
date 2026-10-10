@@ -3,11 +3,52 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-export type Step = 'welcome'
+import * as React from 'react'
 
-const baseSteps: Step[] = ['welcome']
+import { useImportableProfiles } from './use_importable_profiles'
+import {
+  hasFeaturesAvailable,
+  useProductFeatures,
+} from './use_product_features'
+import {
+  hasMetricsAvailable,
+  useAvailableMetrics,
+} from './use_available_metrics'
+
+const baseSteps = [
+  'welcome',
+  'import',
+  'appearance',
+  'features',
+  'metrics',
+] as const
+
+export type Step = (typeof baseSteps)[number]
 
 // Returns the current list of visible Welcome steps.
 export function useStepList() {
-  return baseSteps
+  const profiles = useImportableProfiles()
+  const features = useProductFeatures()
+  const metrics = useAvailableMetrics()
+
+  return React.useMemo(() => {
+    const hidden = new Set<Step>()
+
+    // Hide the import step if there are no importable profiles.
+    if (!profiles?.length) {
+      hidden.add('import')
+    }
+
+    // Hide the features step if there are no products to offer.
+    if (!hasFeaturesAvailable(features)) {
+      hidden.add('features')
+    }
+
+    // Hide the metrics step if there are no settable metrics.
+    if (!hasMetricsAvailable(metrics)) {
+      hidden.add('metrics')
+    }
+
+    return baseSteps.filter((step) => !hidden.has(step))
+  }, [profiles, features, metrics])
 }

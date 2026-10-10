@@ -16,7 +16,7 @@ deps = {
   },
   "vendor/bat-native-tweetnacl": "https://github.com/brave-intl/bat-native-tweetnacl.git@8b424ccf29957fe01c88c36076fd32006a357887",
   "vendor/gn-project-generators": "https://github.com/brave/gn-project-generators.git@b76e14b162aa0ce40f11920ec94bfc12da29e5d0",
-  "vendor/web-discovery-project": "https://github.com/brave/web-discovery-project@f25eb3d6f91f5618c04894db98f8d65bab8301d1",
+  "vendor/web-discovery-project": "https://github.com/brave/web-discovery-project@4b07a24d03ee1a266230d2ffb78fd390e35e262a",
   "third_party/bip39wally-core-native": "https://github.com/brave-intl/bat-native-bip39wally-core.git@547a7810333d821e29b8f55126aba031aa0d5fcd",
   "third_party/ethash/src": "https://github.com/chfast/ethash.git@e4a15c3d76dc09392c7efd3e30d84ee3b871e9ce",
   "third_party/bitcoin-core/src": "https://github.com/bitcoin/bitcoin.git@8105bce5b384c72cf08b25b7c5343622754e7337", # v25.0
@@ -28,11 +28,7 @@ deps = {
   "third_party/reclient_configs/src": "https://github.com/EngFlow/reclient-configs.git@21c8fe69ff771956c179847b8c1d9fd216181967",
   "third_party/playlist_component/src": "https://github.com/brave/playlist-component.git@673d40f017a1559bb685a15cf608ad1d4a94f8fb",
   "third_party/rust/futures_retry/v0_5/crate": "https://github.com/brave-intl/futures-retry.git@2aaaafbc3d394661534d4dbd14159d164243c20e",
-  "third_party/macholib": {
-    "url": "https://github.com/ronaldoussoren/macholib.git@36a6777ccd0891c5d1b44ba885573d7c90740015",
-    "condition": "checkout_mac",
-  },
-  "components/brave_wallet/browser/zcash/rust/librustzcash/src": "https://github.com/brave/librustzcash.git@f34cb36d9287b76b52ba1a2ab58e50db96706dc8", # brave-orchard-0.14
+  "components/brave_wallet/browser/zcash/rust/librustzcash/src": "https://github.com/brave/librustzcash.git@f01f50d64214278552edbe4a34b9049244ce03c1", # brave_ironwood_support
 }
 
 recursedeps = [
@@ -40,6 +36,15 @@ recursedeps = [
 ]
 
 hooks = [
+  {
+    # Link Brave's checked-in agent skills (agents/skills/) into the Claude Code
+    # discovery dir (.claude/skills/) so every developer discovers them with no
+    # manual step. Idempotent; the generated links are gitignored. See
+    # agents/skills/setup.py.
+    'name': 'link_agent_skills',
+    'pattern': '.',
+    'action': ['python3', 'agents/skills/setup.py', 'link', '-q'],
+  },
   {
     'name': 'bootstrap_ios',
     'pattern': '.',
@@ -73,54 +78,54 @@ hooks = [
     'name': 'download_sparkle',
     'pattern': '.',
     'condition': 'checkout_mac and download_prebuilt_sparkle',
-    'action': ['vpython3', 'build/download_dep.py',
-               'sparkle/sparkle-1.24.4.tar.gz',
-               '//build/mac_files/sparkle_binaries'],
+    'action': ['vpython3',
+               'tools/cr/install_extra_deps.py',
+               'sync',
+               'src/build/mac_files/sparkle_binaries']
   },
   {
     'name': 'download_omaha4',
     'pattern': '.',
     'condition': 'checkout_mac',
-    'action': ['vpython3', 'build/download_dep.py',
-               'omaha4/BraveUpdater-143.1.87.74.zip',
-               '//brave/third_party/updater/mac',
-               'BraveUpdater.app/'],
+    'action': ['vpython3',
+               'tools/cr/install_extra_deps.py',
+               'sync',
+               'src/brave/third_party/updater/mac',
+               'src/third_party/updater/chromium_mac_amd64/cipd/BraveUpdater_test.app',
+               'src/third_party/updater/chromium_mac_arm64/cipd/BraveUpdater_test.app']
   },
   {
-    'name': 'update_pip',
+    # Remove files and directories no longer needed, whose leftover copies
+    # would otherwise break things (e.g. the license check).
+    'name': 'remove_stale_files',
     'pattern': '.',
-    # Required for download_cryptography below. Specifically, newer versions of
-    # pip are required for obtaining binary wheels on Arm64 macOS.
-    'action': ['python3', '-m', 'pip', '-q', '--disable-pip-version-check', 'install', '-U', '--no-warn-script-location', 'pip'],
-  },
-  {
-    'name': 'download_cryptography',
-    'pattern': '.',
-    # We don't include cryptography as a DEP because building it from source is
-    # difficult. We pin to a version >=37.0.2 and <38.0.0 to avoid an
-    # incompatibility with our pyOpenSSL version on Android. See:
-    # https://github.com/pyca/cryptography/issues/7126.
-    # We use python3 instead of vpython3 for two reasons: First, our GN actions
-    # are run with python3, so this environment mirrors the one in which
-    # cryptography will be used. Second, we cannot update pip in vpython3 on at
-    # least macOS due to permission issues.
-    'action': ['python3', '-m', 'pip', '-q', '--disable-pip-version-check', 'install', '-U', '-t', 'third_party/cryptography', '--only-binary', 'cryptography', 'cryptography==37.0.4'],
+    'action': [
+        'python3',
+        'tools/remove_stale_files.py',
+        # cryptography used to be pip-installed and macholib was a DEPS entry.
+        # TODO(https://github.com/brave/brave-browser/issues/59301): Remove
+        # after M157.
+        'third_party/cryptography',
+        'third_party/macholib',
+    ],
   },
   {
     'name': 'wireguard_nt',
     'pattern': '.',
     'condition': 'checkout_win',
-    'action': ['vpython3', 'build/download_dep.py',
-               'brave-vpn-wireguard-dlls/brave-vpn-wireguard-nt-dlls-0.10.1.zip',
-               '//brave/third_party/brave-vpn-wireguard-nt-dlls'],
+    'action': ['vpython3',
+               'tools/cr/install_extra_deps.py',
+               'sync',
+               'src/brave/third_party/brave-vpn-wireguard-nt-dlls']
   },
   {
     'name': 'wireguard_tunnel',
     'pattern': '.',
     'condition': 'checkout_win',
-    'action': ['vpython3', 'build/download_dep.py',
-               'brave-vpn-wireguard-dlls/brave-vpn-wireguard-tunnel-dlls-v0.5.3.zip',
-               '//brave/third_party/brave-vpn-wireguard-tunnel-dlls'],
+    'action': ['vpython3',
+               'tools/cr/install_extra_deps.py',
+               'sync',
+               'src/brave/third_party/brave-vpn-wireguard-tunnel-dlls']
   },
   {
     'name': 'download_wintun',
@@ -167,7 +172,7 @@ hooks = [
     'name': 'download_swift_format',
     'pattern': '.',
     'condition': 'host_os == "mac"',
-    'action': ['python3', 'build/apple/download_swift_format.py', '510.1.0', '0ddbb486640cde862fa311dc0f7387e6c5171bdcc0ee0c89bc9a1f8a75e8bfaf']
+    'action': ['python3', 'build/apple/download_swift_format.py', '604.0.0', '6a66ac5354f598b8914e613fbb1435dc04c9d34e7d399dcfecc2b3ef17ddc0ba']
   },
   {
     # Chromium_src files require custom formatting to correctly sort includes
@@ -202,17 +207,30 @@ hooks = [
     'pattern': '.',
     'action': ['vpython3',
                'tools/cr/install_extra_deps.py',
+               'sync',
                'src/third_party/rust-toolchain']
+  },
+  {
+    'name': 'download_ast_grep',
+    'pattern': '.',
+    'action': ['vpython3',
+               'tools/cr/install_extra_deps.py',
+               'sync',
+               'src/brave/third_party/ast-grep/ast-grep-linux',
+               'src/brave/third_party/ast-grep/ast-grep-mac',
+               'src/brave/third_party/ast-grep/ast-grep-mac_arm64',
+               'src/brave/third_party/ast-grep/ast-grep-win']
   },
   {
     'name': 'download_node',
     'pattern': '.',
     'action': ['vpython3',
                'tools/cr/install_extra_deps.py',
-               'src/brave/third_party/node/linux',
-               'src/brave/third_party/node/mac',
-               'src/brave/third_party/node/mac_arm64',
-               'src/brave/third_party/node/win']
+               'sync',
+               'src/brave/third_party/node/node-linux-x64',
+               'src/brave/third_party/node/node-mac-x64',
+               'src/brave/third_party/node/node-mac-arm64',
+               'src/brave/third_party/node/node-win-x64']
   },
 ]
 

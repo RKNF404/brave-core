@@ -19,6 +19,7 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.omnibox.OmniboxPrefManager;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.basic.BasicSuggestionProcessor.BookmarkState;
 import org.chromium.chrome.browser.omnibox.suggestions.brave_leo.BraveLeoSuggestionProcessor;
 import org.chromium.chrome.browser.omnibox.suggestions.brave_search.BraveSearchBannerProcessor;
@@ -54,8 +55,9 @@ class BraveDropdownItemViewInfoListBuilder extends DropdownItemViewInfoListBuild
     BraveDropdownItemViewInfoListBuilder(
             Supplier<@Nullable Tab> tabSupplier,
             BookmarkState bookmarkState,
-            MonotonicObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier) {
-        super(tabSupplier, bookmarkState, toolbarPositionSupplier);
+            MonotonicObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier,
+            OmniboxResourceProvider resourceProvider) {
+        super(tabSupplier, bookmarkState, toolbarPositionSupplier, resourceProvider);
 
         mActivityTabSupplier = tabSupplier;
     }
@@ -178,19 +180,31 @@ class BraveDropdownItemViewInfoListBuilder extends DropdownItemViewInfoListBuild
 
             // Handle rounded corners for leo and previous item.
             if (viewInfoList.size() > 0) {
-                viewInfoList
-                        .get(viewInfoList.size() - 1)
-                        .model
-                        .set(SuggestionCommonProperties.BG_BOTTOM_CORNER_ROUNDED, false);
-                viewInfoList
-                        .get(viewInfoList.size() - 1)
-                        .model
-                        .set(SuggestionCommonProperties.SHOW_DIVIDER, true);
+                // Leo joins the same group below the previous last item, so that
+                // item must no longer round its bottom corners. Drop the bottom
+                // rounding from its positional mode while keeping any top rounding.
+                PropertyModel previousModel = viewInfoList.get(viewInfoList.size() - 1).model;
+                @SuggestionCommonProperties.PositionalMode
+                int previousMode = previousModel.get(SuggestionCommonProperties.BG_POSITIONAL_MODE);
+                if (previousMode == SuggestionCommonProperties.PositionalMode.SINGLE) {
+                    previousModel.set(
+                            SuggestionCommonProperties.BG_POSITIONAL_MODE,
+                            SuggestionCommonProperties.PositionalMode.TOP);
+                } else if (previousMode == SuggestionCommonProperties.PositionalMode.BOTTOM) {
+                    previousModel.set(
+                            SuggestionCommonProperties.BG_POSITIONAL_MODE,
+                            SuggestionCommonProperties.PositionalMode.MIDDLE);
+                }
+                previousModel.set(SuggestionCommonProperties.SHOW_DIVIDER, true);
             }
 
+            // Leo is the last item of the group, and also the first when nothing
+            // sits above it.
             leoModel.set(
-                    SuggestionCommonProperties.BG_TOP_CORNER_ROUNDED, viewInfoList.size() == 0);
-            leoModel.set(SuggestionCommonProperties.BG_BOTTOM_CORNER_ROUNDED, true);
+                    SuggestionCommonProperties.BG_POSITIONAL_MODE,
+                    viewInfoList.size() == 0
+                            ? SuggestionCommonProperties.PositionalMode.SINGLE
+                            : SuggestionCommonProperties.PositionalMode.BOTTOM);
             leoModel.set(SuggestionCommonProperties.SHOW_DIVIDER, false);
 
             viewInfoList.add(

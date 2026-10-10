@@ -12,10 +12,10 @@
 #include "brave/components/brave_wallet/browser/brave_wallet_service.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
 #include "brave/components/brave_wallet/browser/json_rpc_service.h"
+#include "brave/components/brave_wallet/browser/keyring_service.h"
 #include "brave/components/brave_wallet/browser/test_utils.h"
 #include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -165,9 +165,14 @@ class BraveWalletEthereumChainTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     brave_wallet::SetDefaultEthereumWallet(
-        browser()->profile()->GetPrefs(),
+        browser()->GetProfile()->GetPrefs(),
         brave_wallet::mojom::DefaultWallet::BraveWallet);
     InProcessBrowserTest::SetUpOnMainThread();
+    // These tests drive window.ethereum, which is only injected once a wallet
+    // exists.
+    ASSERT_TRUE(GetKeyringService()->RestoreWalletSync(
+        brave_wallet::kMnemonicScarePiece, brave_wallet::kTestWalletPassword,
+        false));
     mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
     host_resolver()->AddRule("*", "127.0.0.1");
 
@@ -229,8 +234,14 @@ class BraveWalletEthereumChainTest : public InProcessBrowserTest {
 
   brave_wallet::JsonRpcService* GetJsonRpcService() {
     return brave_wallet::BraveWalletServiceFactory::GetInstance()
-        ->GetServiceForContext(browser()->profile())
+        ->GetServiceForContext(browser()->GetProfile())
         ->json_rpc_service();
+  }
+
+  brave_wallet::KeyringService* GetKeyringService() {
+    return brave_wallet::BraveWalletServiceFactory::GetInstance()
+        ->GetServiceForContext(browser()->GetProfile())
+        ->keyring_service();
   }
 
   std::vector<brave_wallet::mojom::NetworkInfoPtr> GetAllEthCustomChains() {
@@ -359,7 +370,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletEthereumChainTest,
   base::RunLoop().RunUntilIdle();
   ASSERT_FALSE(tab_helperA->IsShowingBubble());
 
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   auto* web_contentsB = browser()->tab_strip_model()->GetWebContentsAt(1);
   GURL urlB = GetWalletEthereumChainPageURL("b.com");
   EXPECT_TRUE(content::NavigateToURL(web_contentsB, urlB));
@@ -392,7 +403,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletEthereumChainTest,
   base::RunLoop().RunUntilIdle();
   ASSERT_FALSE(tab_helperA->IsShowingBubble());
 
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   auto* web_contentsB = browser()->tab_strip_model()->GetWebContentsAt(1);
   GURL urlB = GetWalletEthereumChainPageURL("b.com", "id=0x11");
 
@@ -444,7 +455,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletEthereumChainTest, AddDifferentChainsSwitch) {
   base::RunLoop().RunUntilIdle();
   ASSERT_FALSE(tab_helperA->IsShowingBubble());
 
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   auto* web_contentsB = browser()->tab_strip_model()->GetWebContentsAt(1);
   GURL urlB = GetWalletEthereumChainPageURL("b.com", "id=0x11");
 
@@ -490,7 +501,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletEthereumChainTest, AddChainAndCloseTab) {
   base::RunLoop().RunUntilIdle();
   ASSERT_FALSE(tab_helperA->IsShowingBubble());
 
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
   auto* web_contentsB = browser()->tab_strip_model()->GetWebContentsAt(1);
   GURL urlB = GetWalletEthereumChainPageURL("b.com", "id=0x11");
 
@@ -534,7 +545,7 @@ IN_PROC_BROWSER_TEST_F(BraveWalletEthereumChainTest, AddBrokenChain) {
 
 IN_PROC_BROWSER_TEST_F(BraveWalletEthereumChainTest, CheckIncognitoTab) {
   GURL url = GetWalletEthereumChainPageURL();
-  Browser* private_browser = CreateIncognitoBrowser(nullptr);
+  BrowserWindowInterface* private_browser = CreateIncognitoBrowser(nullptr);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(private_browser, url));
   content::WebContents* contents =
       private_browser->tab_strip_model()->GetActiveWebContents();

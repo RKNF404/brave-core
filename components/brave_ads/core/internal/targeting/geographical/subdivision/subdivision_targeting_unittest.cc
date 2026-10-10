@@ -20,7 +20,7 @@
 #include "brave/components/brave_ads/core/public/prefs/pref_names.h"
 #include "net/http/http_status_code.h"
 
-// npm run test -- brave_unit_tests --filter=BraveAds*
+// pnpm test brave_unit_tests --filter=BraveAds*
 
 namespace brave_ads {
 
@@ -48,16 +48,16 @@ class BraveAdsSubdivisionTargetingTest : public test::TestBase {
 };
 
 TEST_F(BraveAdsSubdivisionTargetingTest,
-       AllowAndFetchWhenOptingInToNotificationAds) {
+       AllowAndFetchWhenNotificationAdsAreEnabled) {
   // Arrange
-  test::OptOutOfAllAds();
+  test::DisableAllAds();
 
   MockHttpOkUrlResponse(/*country_code=*/"US", /*subdivision_code=*/"CA");
 
   ads_client_notifier_.NotifyDidInitializeAds();
 
   // Act
-  SetProfileBooleanPref(prefs::kOptedInToNotificationAds, true);
+  SetProfileBooleanPref(prefs::kNotificationsEnabled, true);
 
   // Assert
   EXPECT_TRUE(SubdivisionTargeting::ShouldAllow());
@@ -68,9 +68,9 @@ TEST_F(BraveAdsSubdivisionTargetingTest,
 }
 
 TEST_F(BraveAdsSubdivisionTargetingTest,
-       DoNotFetchWhenOptingOutOfNotificationAds) {
+       DoNotFetchWhenNotificationAdsAreDisabled) {
   // Arrange
-  test::OptOutOfAllAds();
+  test::DisableAllAds();
 
   MockHttpOkUrlResponse(/*country_code=*/"US", /*subdivision_code=*/"CA");
 
@@ -78,7 +78,7 @@ TEST_F(BraveAdsSubdivisionTargetingTest,
 
   // Act & Assert
   EXPECT_CALL(ads_client_mock_, UrlRequest).Times(0);
-  SetProfileBooleanPref(prefs::kOptedInToNotificationAds, false);
+  SetProfileBooleanPref(prefs::kNotificationsEnabled, false);
 }
 
 TEST_F(BraveAdsSubdivisionTargetingTest,

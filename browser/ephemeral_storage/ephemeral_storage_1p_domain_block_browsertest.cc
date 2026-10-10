@@ -22,7 +22,6 @@
 #include "brave/components/brave_shields/core/common/features.h"
 #include "chrome/browser/interstitials/security_interstitial_page_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -196,7 +195,7 @@ IN_PROC_BROWSER_TEST_F(EphemeralStorage1pDomainBlockBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(EphemeralStorage1pDomainBlockBrowserTest,
                        FirstPartyEphemeralIsNotEnabledIfCookiesStored) {
-  ASSERT_TRUE(content::SetCookie(browser()->profile(), a_site_simple_url_,
+  ASSERT_TRUE(content::SetCookie(browser()->GetProfile(), a_site_simple_url_,
                                  "from=a.com;SameSite=None;Secure"));
 
   NavigateToBlockedDomainAndExpectNotEphemeral();

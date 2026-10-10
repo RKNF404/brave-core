@@ -43,45 +43,12 @@ export const parseJSONFromLocalStorage = <T = any>(
 }
 
 export const makeInitialFilteredOutNetworkKeys = () => {
-  const localHostNetworkKeys = [
-    getNetworkId({
-      chainId: BraveWallet.LOCALHOST_CHAIN_ID,
-      coin: BraveWallet.CoinType.ETH,
-    }),
-    getNetworkId({
-      chainId: BraveWallet.LOCALHOST_CHAIN_ID,
-      coin: BraveWallet.CoinType.SOL,
-    }),
-    getNetworkId({
-      chainId: BraveWallet.LOCALHOST_CHAIN_ID,
-      coin: BraveWallet.CoinType.FIL,
-    }),
-  ]
-
-  const testNetworkKeys = SupportedTestNetworks.filter(
-    (chainId) => chainId !== BraveWallet.LOCALHOST_CHAIN_ID,
-  ).map((chainId) => {
-    if (
-      chainId === BraveWallet.SOLANA_DEVNET
-      || chainId === BraveWallet.SOLANA_TESTNET
-    ) {
-      return getNetworkId({
-        chainId: chainId,
-        coin: BraveWallet.CoinType.SOL,
-      })
-    }
-    if (chainId === BraveWallet.FILECOIN_TESTNET) {
-      return getNetworkId({
-        chainId: chainId,
-        coin: BraveWallet.CoinType.FIL,
-      })
-    }
+  const testNetworkKeys = SupportedTestNetworks.map((chainId) => {
     return getNetworkId({
-      chainId: chainId,
-      coin: BraveWallet.CoinType.ETH,
+      chainId,
     })
   })
-  return [...testNetworkKeys, ...localHostNetworkKeys]
+  return [...testNetworkKeys]
 }
 
 export function isPersistanceOfPanelProhibited(panelType: PanelTypes) {
@@ -176,9 +143,10 @@ export const getPersistedTokenBalancesSubset = (arg: {
         registrySubset.accounts[accountId.uniqueKey].chains,
       )
       for (const network of arg.networks) {
-        const networkId = getNetworkId(network)
-        if (!accountNetworkIds.includes(networkId)) {
-          delete registrySubset.accounts[accountId.uniqueKey].chains[networkId]
+        if (!accountNetworkIds.includes(network.chainId)) {
+          delete registrySubset.accounts[accountId.uniqueKey].chains[
+            network.chainId
+          ]
         }
       }
     }
@@ -224,15 +192,36 @@ const getSpotPriceLocalStorageKey = (
   price: Pick<BraveWallet.AssetPrice, 'coin' | 'chainId' | 'address'>,
 ) => `${price.coin}-${price.chainId}-${price.address.toLowerCase()}`
 
+// Stable empty reference so RTK Query selectFromResult shallow-equality
+// does not treat every fallback read as a data change (infinite re-renders).
+const EMPTY_PERSISTED_SPOT_PRICES: BraveWallet.AssetPrice[] = []
+
+let cachedPersistedSpotPricesRaw: string | null = null
+let cachedPersistedSpotPrices: BraveWallet.AssetPrice[] =
+  EMPTY_PERSISTED_SPOT_PRICES
+
+const invalidatePersistedSpotPricesCache = () => {
+  cachedPersistedSpotPricesRaw = null
+  cachedPersistedSpotPrices = EMPTY_PERSISTED_SPOT_PRICES
+}
+
 export const getPersistedSpotPrices = (): BraveWallet.AssetPrice[] => {
   try {
-    const map: Record<string, BraveWallet.AssetPrice> = JSON.parse(
-      window.localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN_SPOT_PRICES) || '{}',
-    )
-    return Object.values(map)
+    const raw =
+      window.localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN_SPOT_PRICES) || '{}'
+    if (raw === cachedPersistedSpotPricesRaw) {
+      return cachedPersistedSpotPrices
+    }
+    const map: Record<string, BraveWallet.AssetPrice> = JSON.parse(raw)
+    const prices = Object.values(map)
+    cachedPersistedSpotPricesRaw = raw
+    cachedPersistedSpotPrices =
+      prices.length > 0 ? prices : EMPTY_PERSISTED_SPOT_PRICES
+    return cachedPersistedSpotPrices
   } catch (error) {
     console.error(error)
-    return []
+    invalidatePersistedSpotPricesCache()
+    return EMPTY_PERSISTED_SPOT_PRICES
   }
 }
 
@@ -254,6 +243,8 @@ export const mergeAndPersistSpotPrices = (
       LOCAL_STORAGE_KEYS.TOKEN_SPOT_PRICES_LAST_UPDATED,
       new Date().toISOString(),
     )
+    // Fresh write must not keep serving the previous cached array.
+    invalidatePersistedSpotPricesCache()
   } catch (error) {
     console.error(error)
   }

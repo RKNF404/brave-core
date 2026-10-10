@@ -17,7 +17,6 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.View;
@@ -30,6 +29,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.core.widget.ImageViewCompat;
@@ -74,8 +74,6 @@ import org.chromium.chrome.browser.ntp.NtpUtil;
 import org.chromium.chrome.browser.omnibox.BraveLocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.onboarding.OnboardingPrefManager;
-import org.chromium.chrome.browser.onboarding.v2.HighlightItem;
-import org.chromium.chrome.browser.onboarding.v2.HighlightView;
 import org.chromium.chrome.browser.playlist.PlaylistServiceFactoryAndroid;
 import org.chromium.chrome.browser.playlist.PlaylistServiceObserverImpl;
 import org.chromium.chrome.browser.playlist.PlaylistServiceObserverImpl.PlaylistServiceObserverImplDelegate;
@@ -120,7 +118,6 @@ import org.chromium.mojo.bindings.ConnectionErrorHandler;
 import org.chromium.mojo.system.MojoException;
 import org.chromium.playlist.mojom.PlaylistItem;
 import org.chromium.playlist.mojom.PlaylistService;
-import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
@@ -193,6 +190,10 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
     private View mBraveWalletBadge;
     private ImageView mWalletIcon;
     private int mCurrentToolbarColor;
+    // True once the Brave buttons sit inside the location bar text box, which happens on tablet
+    // only. The location bar then paints their background, and the segment drawables the phone
+    // toolbar relies on no longer apply.
+    private boolean mBraveButtonsInLocationBar;
 
     @Nullable private final Runnable mToolbarSnapshotCaptureRunnable;
 
@@ -256,18 +257,6 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
     protected void onFinishInflate() {
         super.onFinishInflate();
 
-        if (BraveReflectionUtil.equalTypes(this.getClass(), ToolbarTablet.class)) {
-            ImageButton forwardButton = findViewById(R.id.forward_button);
-            if (forwardButton != null) {
-                final Drawable forwardButtonDrawable =
-                        UiUtils.getTintedDrawable(
-                                getContext(),
-                                R.drawable.btn_right_tablet,
-                                R.color.default_icon_color_tint_list);
-                forwardButton.setImageDrawable(forwardButtonDrawable);
-            }
-        }
-
         mWalletLayout = findViewById(R.id.brave_wallet_button_layout);
         mShieldsLayout = findViewById(R.id.brave_shields_button_layout);
         mRewardsLayout = findViewById(R.id.brave_rewards_button_layout);
@@ -284,9 +273,10 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
             mWalletIcon = mWalletLayout.findViewById(R.id.brave_wallet_button);
         }
 
+        // Use the same tints as the omnibox status icon, so the icons Brave adds inside the URL
+        // bar match the ones upstream puts there.
         mDarkModeTint = ThemeUtils.getThemedToolbarIconTint(getContext(), false);
-        mLightModeTint =
-                ColorStateList.valueOf(ContextCompat.getColor(getContext(), R.color.brave_white));
+        mLightModeTint = ThemeUtils.getThemedToolbarIconTint(getContext(), true);
 
         if (mHomeButton != null) {
             mHomeButton.setOnLongClickListener(this);
@@ -319,6 +309,8 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
             mYouTubePipButton.setOnLongClickListener(this);
             BraveTouchUtils.ensureMinTouchTarget(mYouTubePipButton);
         }
+
+        maybeAnchorBraveButtonsInLocationBar();
 
         mUnifiedPanelHandler = new BraveUnifiedPanelHandler(getContext());
         mUnifiedPanelHandler.addObserver(
@@ -486,6 +478,15 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
         // to proactively update the shields button state here, otherwise shields
         // might sometimes show as disabled while it is actually enabled.
         updateBraveShieldsButtonState(getToolbarDataProvider().getTab());
+        // After an activity recreation that reparents the current tab (e.g. the theme switch
+        // applied on YouTube PiP exit), the page is preserved without any fresh navigation,
+        // page-load, tab-selection, or tab-shown callback, so nothing would re-evaluate the PiP
+        // icon and it would stay hidden until a manual reload. The tab model is (re)bound here on
+        // every activity start, so proactively evaluate the current tab's icon.
+        final Tab pipCurrentTab = getToolbarDataProvider().getTab();
+        if (pipCurrentTab != null) {
+            showYouTubePipIcon(pipCurrentTab);
+        }
         mTabModelSelectorTabObserver =
                 new TabModelSelectorTabObserver(selector) {
                     @Override
@@ -912,19 +913,15 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
     }
 
     private void checkForTooltip(Tab tab) {
-        // We are disabling this feature for now for bottom address bar, until new design is ready
-        // https://github.com/brave/brave-browser/issues/46252
-        if (BottomToolbarConfiguration.isToolbarBottomAnchored()) return;
         try {
-            if (!BraveShieldsUtils.isTooltipShown
-                    && !BraveActivity.getBraveActivity().mIsDeepLink) {
-                if (!BraveShieldsUtils.hasShieldsTooltipShown(
-                                BraveShieldsUtils.PREF_SHIELDS_TOOLTIP)
-                        && mUnifiedPanelHandler.getTrackersBlockedCount(tab.getId())
-                                        + mUnifiedPanelHandler.getAdsBlockedCount(tab.getId())
-                                > 0) {
-                    showTooltip(BraveShieldsUtils.PREF_SHIELDS_TOOLTIP, tab.getId());
-                }
+            if (BraveShieldsUtils.isTooltipShown || BraveActivity.getBraveActivity().mIsDeepLink) {
+                return;
+            }
+            if (!BraveShieldsUtils.hasShieldsTooltipShown(BraveShieldsUtils.PREF_SHIELDS_TOOLTIP)
+                    && mUnifiedPanelHandler.getTrackersBlockedCount(tab.getId())
+                                    + mUnifiedPanelHandler.getAdsBlockedCount(tab.getId())
+                            > 0) {
+                showTooltip(BraveShieldsUtils.PREF_SHIELDS_TOOLTIP, tab.getId());
             }
         } catch (BraveActivity.BraveActivityNotFoundException e) {
             Log.e(TAG, "checkForTooltip " + e);
@@ -932,81 +929,38 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
     }
 
     private void showTooltip(String tooltipPref, int tabId) {
-        try {
-            HighlightView highlightView = new HighlightView(getContext(), null);
-            highlightView.setColor(ContextCompat.getColor(
-                    getContext(), R.color.onboarding_search_highlight_color));
-            ViewGroup viewGroup =
-                    BraveActivity.getBraveActivity().getWindow().getDecorView().findViewById(
-                            android.R.id.content);
-            float padding = (float) dpToPx(getContext(), 20);
-            mShieldsPopupWindowTooltip =
-                    new PopupWindowTooltip.Builder(getContext())
-                            .anchorView(mBraveShieldsButton)
-                            .arrowColor(
-                                    ContextCompat.getColor(
-                                            getContext(), R.color.onboarding_arrow_color))
-                            .gravity(Gravity.BOTTOM)
-                            .dismissOnOutsideTouch(true)
-                            .dismissOnInsideTouch(false)
-                            .backgroundDimDisabled(true)
-                            .padding(padding)
-                            .parentPaddingHorizontal(dpToPx(getContext(), 10))
-                            .modal(true)
-                            .onDismissListener(
-                                    tooltip -> {
-                                        if (viewGroup != null && highlightView != null) {
-                                            highlightView.stopAnimation();
-                                            viewGroup.removeView(highlightView);
-                                        }
-                                    })
-                            .contentView(R.layout.brave_shields_tooltip_layout)
-                            .build();
+        int gravity =
+                BottomToolbarConfiguration.isToolbarBottomAnchored() ? Gravity.TOP : Gravity.BOTTOM;
+        mShieldsPopupWindowTooltip =
+                new PopupWindowTooltip.Builder(getContext())
+                        .anchorView(mBraveShieldsButton)
+                        .arrowColor(
+                                ContextCompat.getColor(getContext(), R.color.primitive_primary_35))
+                        .gravity(gravity)
+                        .dismissOnOutsideTouch(true)
+                        .dismissOnInsideTouch(false)
+                        .backgroundDimDisabled(false)
+                        .dimAmount(0.2f)
+                        .padding(0f)
+                        .parentPaddingHorizontal(dpToPx(getContext(), 10))
+                        .modal(true)
+                        .contentView(R.layout.brave_shields_tooltip_layout)
+                        .build();
 
-            int adsTrackersCount =
-                    mUnifiedPanelHandler.getTrackersBlockedCount(tabId)
-                            + mUnifiedPanelHandler.getAdsBlockedCount(tabId);
+        int adsTrackersCount =
+                mUnifiedPanelHandler.getTrackersBlockedCount(tabId)
+                        + mUnifiedPanelHandler.getAdsBlockedCount(tabId);
 
-            String trackerText =
-                    String.format(
-                            getContext().getResources().getString(R.string.shield_tracker_blocked),
-                            String.valueOf(adsTrackersCount));
+        TextView tvBlocked = mShieldsPopupWindowTooltip.findViewById(R.id.tv_blocked);
+        tvBlocked.setText(
+                String.format(
+                        getContext().getResources().getString(R.string.shield_tracker_blocked),
+                        String.valueOf(adsTrackersCount)));
 
-            TextView tvBlocked = mShieldsPopupWindowTooltip.findViewById(R.id.tv_blocked);
-            tvBlocked.setText(trackerText);
-
-            if (mBraveShieldsButton != null && mBraveShieldsButton.isShown()) {
-                viewGroup.addView(highlightView);
-                HighlightItem item = new HighlightItem(mBraveShieldsButton);
-
-                ImageButton braveShieldButton =
-                        new ImageButton(getContext(), null, R.style.ToolbarButton);
-                braveShieldButton.setImageResource(R.drawable.btn_brave);
-                FrameLayout.LayoutParams braveShieldParams =
-                        new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT,
-                                FrameLayout.LayoutParams.WRAP_CONTENT);
-
-                int[] location = new int[2];
-                highlightView.getLocationOnScreen(location);
-                braveShieldParams.leftMargin = item.getScreenLeft() + dpToPx(getContext(), 10);
-                braveShieldParams.topMargin = item.getScreenTop()
-                        + ((item.getScreenBottom() - item.getScreenTop()) / 4) - location[1];
-                braveShieldButton.setLayoutParams(braveShieldParams);
-                highlightView.addView(braveShieldButton);
-
-                highlightView.setShouldShowHighlight(true);
-                highlightView.setHighlightTransparent(true);
-                highlightView.setHighlightItem(item);
-                highlightView.initializeAnimators();
-                highlightView.startAnimation();
-
-                mShieldsPopupWindowTooltip.show();
-                BraveShieldsUtils.setShieldsTooltipShown(tooltipPref, true);
-                BraveShieldsUtils.isTooltipShown = true;
-            }
-
-        } catch (BraveActivity.BraveActivityNotFoundException e) {
-            Log.e(TAG, "showTooltip " + e);
+        if (mBraveShieldsButton != null && mBraveShieldsButton.isShown()) {
+            mShieldsPopupWindowTooltip.show();
+            BraveShieldsUtils.setShieldsTooltipShown(tooltipPref, true);
+            BraveShieldsUtils.isTooltipShown = true;
         }
     }
 
@@ -1034,7 +988,9 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
         }
         dismissShieldsTooltip();
         reopenShieldsPanel();
-        // TODO: show wallet panel
+        if (mDAppsWalletController != null) {
+            mDAppsWalletController.refreshVisibleWalletPopup();
+        }
     }
 
     private void addSavedBandwidthToDb(long savings) {
@@ -1315,6 +1271,10 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
     @Override
     public void updateModernLocationBarColorImpl(int color) {
         mCurrentToolbarColor = color;
+        // Inside the location bar the buttons have no background of their own to tint.
+        if (mBraveButtonsInLocationBar) {
+            return;
+        }
         if (mShieldsLayout != null) {
             mShieldsLayout.getBackground().setColorFilter(color, PorterDuff.Mode.SRC_IN);
         }
@@ -1340,11 +1300,14 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
         }
 
         if (tab == null) {
-            mBraveShieldsButton.setImageResource(R.drawable.btn_brave_off);
+            mBraveShieldsButton.setImageResource(
+                    R.drawable.ic_social_brave_monochrome_favicon_fullheight_color);
             return;
         }
         mBraveShieldsButton.setImageResource(
-                isShieldsOnForTab(tab) ? R.drawable.btn_brave : R.drawable.btn_brave_off);
+                isShieldsOnForTab(tab)
+                        ? R.drawable.ic_social_brave_release_favicon_fullheight_color
+                        : R.drawable.ic_social_brave_monochrome_favicon_fullheight_color);
 
         if (mRewardsLayout == null) return;
         if (isIncognito()) {
@@ -1496,12 +1459,25 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
 
     @Override
     public void onThemeColorChanged(int color, boolean shouldAnimate) {
+        // Shields and rewards are brand-colored and stay untinted.
+        ColorStateList tint =
+                ColorUtils.shouldUseLightForegroundOnBackground(color)
+                        ? mLightModeTint
+                        : mDarkModeTint;
         if (mWalletIcon != null) {
-            ImageViewCompat.setImageTintList(mWalletIcon,
-                    !ColorUtils.shouldUseLightForegroundOnBackground(color) ? mDarkModeTint
-                                                                            : mLightModeTint);
+            ImageViewCompat.setImageTintList(mWalletIcon, tint);
+        }
+        if (mYouTubePipButton != null) {
+            ImageViewCompat.setImageTintList(mYouTubePipButton, tint);
         }
 
+        // On the NTP ToolbarPhone paints the buttons with its own location bar color, which the
+        // text box color below does not match, e.g. over the bottom bar colored toolbar.
+        if (BraveReflectionUtil.equalTypes(this.getClass(), ToolbarPhone.class)
+                && !isIncognito()
+                && UrlUtilities.isNtpUrl(getToolbarDataProvider().getCurrentGurl())) {
+            return;
+        }
         final int textBoxColor =
                 ThemeUtils.getTextBoxColorForToolbarBackgroundInNonNativePage(
                         getContext(), color, isIncognito(), isCustomTab());
@@ -1542,6 +1518,13 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
 
     public void onBottomControlsVisibilityChanged(boolean isVisible) {
         mIsBottomControlsVisible = isVisible;
+        // The tab switcher and menu buttons are only Brave's to move between the top toolbar and
+        // the bottom while Brave's own bottom controls carry them. Upstream's bottom bar carries
+        // them instead, and ToolbarPhone hides the top ones for it, so showing them back here -
+        // which this does whenever the omnibox takes focus - would leave a second pair on top.
+        if (BottomToolbarConfiguration.isAndroidBottomBarEnabled()) {
+            return;
+        }
         if (BraveReflectionUtil.equalTypes(this.getClass(), ToolbarPhone.class)
                 && getMenuButtonCoordinator() != null) {
             getMenuButtonCoordinator().setVisibility(!isVisible);
@@ -1553,8 +1536,57 @@ public abstract class BraveToolbarLayoutImpl extends ToolbarLayout
         }
     }
 
+    /**
+     * Anchors the Brave button row at the trailing end of the tablet location bar, so that the
+     * focus ring upstream draws around the text box encloses the shields and rewards buttons as
+     * well. The row is inflated as a child of the location bar (see toolbar_tablet.xml), which is a
+     * ConstraintLayout, so it has no usable constraints until they are set here.
+     */
+    private void maybeAnchorBraveButtonsInLocationBar() {
+        if (!BraveReflectionUtil.equalTypes(this.getClass(), ToolbarTablet.class)) {
+            return;
+        }
+
+        View braveButtons = findViewById(R.id.brave_toolbar_container);
+        View marginSpacer = findViewById(R.id.margin_spacer);
+        if (braveButtons == null || marginSpacer == null) {
+            return;
+        }
+        ConstraintLayout.LayoutParams spacerParams =
+                (ConstraintLayout.LayoutParams) marginSpacer.getLayoutParams();
+
+        Resources resources = getResources();
+        ConstraintLayout.LayoutParams params =
+                new ConstraintLayout.LayoutParams(
+                        ConstraintLayout.LayoutParams.WRAP_CONTENT,
+                        resources.getDimensionPixelSize(R.dimen.modern_toolbar_background_size));
+        params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID;
+        params.topToTop = ConstraintLayout.LayoutParams.PARENT_ID;
+        params.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID;
+        params.setMarginEnd(
+                resources.getDimensionPixelSize(R.dimen.location_bar_url_action_offset));
+        braveButtons.setLayoutParams(params);
+
+        // Every upstream action button chain ends at |margin_spacer|, and the barriers that keep
+        // the URL text clear of those buttons reference it, so re-anchoring it ahead of the Brave
+        // row is enough to make room for the row.
+        spacerParams.startToEnd = ConstraintLayout.LayoutParams.UNSET;
+        spacerParams.endToStart = braveButtons.getId();
+        marginSpacer.setLayoutParams(spacerParams);
+
+        mBraveButtonsInLocationBar = true;
+        // The location bar paints the text box behind the buttons now, so the segment drawables
+        // that continue it on phones would only double up here.
+        for (View layout :
+                new View[] {mYouTubePipLayout, mWalletLayout, mShieldsLayout, mRewardsLayout}) {
+            if (layout != null) {
+                layout.setBackground(null);
+            }
+        }
+    }
+
     private void updateShieldsLayoutBackground(boolean rounded) {
-        if (mShieldsLayout == null) {
+        if (mShieldsLayout == null || mBraveButtonsInLocationBar) {
             return;
         }
 

@@ -18,9 +18,6 @@ import {
 import {
   useSafeWalletSelector, //
 } from '../../../common/hooks/use-safe-selector'
-import {
-  useIsDAppVerified, //
-} from '../../../common/hooks/use_is_dapp_verified'
 
 // selectors
 import { WalletSelectors } from '../../../common/selectors'
@@ -31,10 +28,10 @@ import { getLocale } from '$web-common/locale'
 // Components
 import {
   WalletPageWrapper, //
-} from '../../desktop/wallet-page-wrapper/wallet-page-wrapper'
+} from '$wallet/page/components/wallet_page_wrapper/wallet_page_wrapper'
 import {
   DefaultPanelHeader, //
-} from '../../desktop/card-headers/default-panel-header'
+} from '$wallet/page/components/card_headers/default_panel_header'
 import { CreateSiteOrigin } from '../../shared/create-site-origin/index'
 import {
   ConnectionSection, //
@@ -47,7 +44,6 @@ import {
   DomainTextContainer, //
 } from './connections.style'
 import { Column } from '../../shared/style'
-import { VerifiedLabel } from '../../shared/verified_label/verified_label'
 
 export const Connections = () => {
   // Queries
@@ -60,9 +56,6 @@ export const Connections = () => {
     WalletSelectors.isCardanoDappSupportEnabled,
   )
 
-  // Hooks
-  const { isDAppVerified } = useIsDAppVerified(activeOrigin)
-
   return (
     <WalletPageWrapper
       wrapContentInBox={true}
@@ -70,7 +63,7 @@ export const Connections = () => {
       useDarkBackground={true}
       isConnection={true}
       cardHeader={
-        <DefaultPanelHeader title={getLocale('braveWalletConnections')} />
+        <DefaultPanelHeader title={getLocale(S.BRAVE_WALLET_CONNECTIONS)} />
       }
     >
       <Column
@@ -104,7 +97,6 @@ export const Connections = () => {
               eTldPlusOne={activeOrigin.eTldPlusOne}
             />
           </DomainText>
-          {isDAppVerified && <VerifiedLabel />}
         </DomainTextContainer>
         <Column
           gap='16px'

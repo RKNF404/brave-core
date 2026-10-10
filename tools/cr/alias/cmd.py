@@ -15,12 +15,17 @@ Subcommands:
                     tools/cr/alias/commit-msg.py.
   - setup-alias     Register the `git cr` alias in the local .git/config.
 
-Installing the alias
---------------------
+Getting `git cr`
+----------------
+  The recommended way is the bootstrap shims, which put a `git-cr` executable
+  on $PATH so git resolves the `git cr` subcommand to it in every checkout:
+    vpython3 tools/cr/bootstrap/bootstrap.py install
+
+Installing the alias (alternative)
+----------------------------------
+  If you would rather not modify $PATH, register a per-repository alias.
   From inside the brave-core repository, run once:
     vpython3 tools/cr/alias/cmd.py setup-alias
-  This writes a 'cr' entry to .git/config so that 'git cr' works immediately
-  in the current repository without modifying any shell config files.
 
 Installing the hook
 -------------------
@@ -40,8 +45,13 @@ from pathlib import Path
 
 import _boot  # noqa: F401
 import repository
-from alias.base import (HOOK_DEST, HOOK_SOURCE, WINDOWS_SHIM,
-                        UserValidationError, check_hooks_path)
+from alias.base import (
+    HOOK_DEST,
+    HOOK_SOURCE,
+    WINDOWS_SHIM,
+    UserValidationError,
+    check_hooks_path,
+)
 from alias.commit import cmd_commit
 from vpython_utils import VPYTHON3_PATH
 
@@ -66,8 +76,8 @@ def _to_alias_path(p: Path) -> str:
 _SCRIPT_PATH: str = _to_alias_path(Path(__file__).resolve())
 
 # `vpython3` invocation for the alias body. `VPYTHON3_PATH` is either a bare
-# `Path('vpython3')` (when depot_tools is on PATH) or an absolute path to
-# Chromium's bundled `third_party/depot_tools/vpython3` (when it isn't).
+# `Path('vpython3')` (when depot_tools is on PATH) or an absolute path to the
+# vendored `vendor/depot_tools/vpython3` (when it isn't).
 _VPYTHON3_PATH: str = _to_alias_path(VPYTHON3_PATH)
 
 
@@ -88,13 +98,20 @@ def cmd_install_hook() -> int:
 
     if platform.system() == 'Windows':
         HOOK_DEST.write_bytes(WINDOWS_SHIM)
-        HOOK_DEST.chmod(HOOK_DEST.stat().st_mode | stat.S_IXUSR
-                        | stat.S_IXGRP
-                        | stat.S_IXOTH)
+        HOOK_DEST.chmod(
+            HOOK_DEST.stat().st_mode
+            | stat.S_IXUSR
+            | stat.S_IXGRP
+            | stat.S_IXOTH
+        )
     else:
         HOOK_DEST.symlink_to(HOOK_SOURCE)
-        HOOK_SOURCE.chmod(HOOK_SOURCE.stat().st_mode | stat.S_IXUSR
-                          | stat.S_IXGRP | stat.S_IXOTH)
+        HOOK_SOURCE.chmod(
+            HOOK_SOURCE.stat().st_mode
+            | stat.S_IXUSR
+            | stat.S_IXGRP
+            | stat.S_IXOTH
+        )
 
     print(f'Installed: {HOOK_DEST} → {HOOK_SOURCE}')
     return 0
@@ -110,8 +127,9 @@ def cmd_setup_alias() -> int:
     # `!`-prefixed aliases run from the work-tree top by default, masking the
     # user's actual cwd. Restore it via $GIT_PREFIX (git's path-from-top hint)
     # so relative paths and `git rev-parse --show-cdup` behave as expected.
-    alias_value = (f'!cd "${{GIT_PREFIX:-.}}" && '
-                   f'"{_VPYTHON3_PATH}" "{_SCRIPT_PATH}"')
+    alias_value = (
+        f'!cd "${{GIT_PREFIX:-.}}" && "{_VPYTHON3_PATH}" "{_SCRIPT_PATH}"'
+    )
     try:
         repository.brave.run_git('config', '--local', 'alias.cr', alias_value)
     except subprocess.CalledProcessError as e:
@@ -138,9 +156,11 @@ def main() -> int:
             return cmd_setup_alias()
         if subcmd == 'mv':
             import alias.mv
+
             return alias.mv.cmd_mv(rest)
         if subcmd == 'follow-renames':
             import alias.follow_renames
+
             return alias.follow_renames.cmd_follow_renames(rest)
     except UserValidationError as e:
         print(e, file=sys.stderr)

@@ -47,8 +47,6 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "brave/browser/ui/brave_browser_window.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #else
 #include "ui/android/view_android.h"
 #include "ui/events/android/gesture_event_android.h"
@@ -152,18 +150,17 @@ base::WeakPtr<SpeedreaderTabHelper> SpeedreaderTabHelper::GetWeakPtr() {
 }
 
 void SpeedreaderTabHelper::ProcessIconClick() {
-  if (DistillStates::IsViewOriginal(distill_state_)) {
-    const auto& vo = std::get<DistillStates::ViewOriginal>(distill_state_);
+  if (IsViewOriginal(distill_state_)) {
+    const auto& vo = std::get<ViewOriginal>(distill_state_);
     if (!vo.was_auto_distilled ||
         !speedreader_service_->IsAllowedForSite(web_contents())) {
       GetDistilledHTML(
           base::BindOnce(&SpeedreaderTabHelper::OnGetDocumentSource,
                          weak_factory_.GetWeakPtr()));
     } else {
-      TransitStateTo(DistillStates::Distilling(
-          DistillStates::Distilling::Reason::kAutomatic));
+      TransitStateTo(Distilling(Distilling::Reason::kAutomatic));
     }
-  } else if (DistillStates::IsDistilled(distill_state_)) {
+  } else if (IsDistilled(distill_state_)) {
     OnShowOriginalPage();
   }
 }
@@ -182,9 +179,9 @@ bool SpeedreaderTabHelper::MaybeUpdateCachedState(
 
   const DistillState state = SpeedreaderExtendedInfoHandler::GetCachedMode(
       entry, &speedreader_service_.get());
-  if (DistillStates::IsDistilled(state)) {
+  if (IsDistilled(state)) {
     if (handle->IsServedFromBackForwardCache() ||
-        DistillStates::IsDistilledAutomatically(state)) {
+        IsDistilledAutomatically(state)) {
       distill_state_ = state;
       return true;
     }
@@ -198,9 +195,7 @@ void SpeedreaderTabHelper::OnBubbleClosed() {
   speedreader_bubble_ = nullptr;
   UpdateUI();
 
-  for (auto& o : observers_) {
-    o.OnTuneBubbleClosed();
-  }
+  observers_.Notify(&Observer::OnTuneBubbleClosed);
 }
 
 void SpeedreaderTabHelper::AddObserver(Observer* observer) {
@@ -229,10 +224,10 @@ void SpeedreaderTabHelper::HideSpeedreaderBubble() {
 }
 
 void SpeedreaderTabHelper::OnShowOriginalPage() {
-  if (!DistillStates::IsDistilled(distill_state_)) {
+  if (!IsDistilled(distill_state_)) {
     return;
   }
-  TransitStateTo(DistillStates::ViewOriginal());
+  TransitStateTo(ViewOriginal());
 }
 
 void SpeedreaderTabHelper::OnTtsPlayPause(int paragraph_index) {
@@ -289,20 +284,18 @@ void SpeedreaderTabHelper::ProcessNavigation(
   if (finish_navigation) {
     if (navigation_handle->IsErrorPage() ||
         web_contents()->GetPrimaryMainFrame()->IsErrorDocument()) {
-      TransitStateTo(
-          DistillStates::ViewOriginal(
-              DistillStates::ViewOriginal::Reason::kNotDistillable, false),
-          true);
+      TransitStateTo(ViewOriginal(ViewOriginal::Reason::kNotDistillable, false),
+                     true);
     }
     return;
   }
 
-  if (DistillStates::IsDistilling(distill_state_)) {
+  if (IsDistilling(distill_state_)) {
     // State will be determined in OnDistillComplete.
     return;
   }
-  if (DistillStates::IsDistillReverting(distill_state_)) {
-    TransitStateTo(DistillStates::ViewOriginal(), true);
+  if (IsDistillReverting(distill_state_)) {
+    TransitStateTo(ViewOriginal(), true);
     return;
   }
 
@@ -314,11 +307,11 @@ void SpeedreaderTabHelper::ProcessNavigation(
   const bool enabled_for_site =
       speedreader_service_->IsAllowedForSite(navigation_handle->GetURL());
 
-  const auto reason =
-      url_looks_readable ? DistillStates::ViewOriginal::Reason::kNone
-                         : DistillStates::ViewOriginal::Reason::kNotDistillable;
-  TransitStateTo(DistillStates::DistillReverting(reason, false), true);
-  TransitStateTo(DistillStates::ViewOriginal(), true);
+  const auto reason = url_looks_readable
+                          ? ViewOriginal::Reason::kNone
+                          : ViewOriginal::Reason::kNotDistillable;
+  TransitStateTo(DistillReverting(reason, false), true);
+  TransitStateTo(ViewOriginal(), true);
 
   if (enabled_for_site) {
     // Check if url is pointed to the homepage, basically these pages aren't
@@ -333,21 +326,21 @@ void SpeedreaderTabHelper::ProcessNavigation(
         speedreader_service_->IsEnabledForSite(navigation_handle->GetURL());
     if (url_looks_readable || explicit_enabled_for_size) {
       // Speedreader enabled for this page.
-      TransitStateTo(DistillStates::Distilling(
-                         DistillStates::Distilling::Reason::kAutomatic),
-                     true);
+      TransitStateTo(Distilling(Distilling::Reason::kAutomatic), true);
     }
   }
 }
 
 void SpeedreaderTabHelper::UpdateUI() {
-  if (DistillStates::IsDistilled(distill_state_)) {
+  if (IsDistilled(distill_state_)) {
     UpdateState(State::kDistilled);
-  } else if (DistillStates::IsDistillable(distill_state_)) {
+  } else if (IsDistillable(distill_state_)) {
     UpdateState(State::kDistillable);
   } else {
     UpdateState(State::kNotDistillable);
   }
+
+  observers_.Notify(&Observer::OnDistillStateUpdated);
 
   if (!is_visible_) {
     return;
@@ -356,7 +349,6 @@ void SpeedreaderTabHelper::UpdateUI() {
   if (auto* browser_window = BraveBrowserWindow::From(
           BrowserWindow::FindBrowserWindowWithWebContents(web_contents()))) {
     browser_window->UpdateReaderModeToolbar();
-    browser_window->UpdatePageActionIcon(brave::kSpeedreaderPageActionIconType);
   }
 #endif
 }
@@ -367,12 +359,12 @@ void SpeedreaderTabHelper::ReadyToCommitNavigation(
     return;
   }
 
-  const bool is_distilled = DistillStates::IsDistilled(PageDistillState());
+  const bool is_distilled = IsDistilled(PageDistillState());
 
   blink::web_pref::WebPreferences prefs =
       web_contents()->GetOrCreateWebPreferences();
   if (prefs.page_in_reader_mode != is_distilled) {
-    prefs.page_in_reader_mode = DistillStates::IsDistilled(PageDistillState());
+    prefs.page_in_reader_mode = IsDistilled(PageDistillState());
     web_contents()->SetWebPreferences(prefs);
   }
 }
@@ -402,7 +394,7 @@ void SpeedreaderTabHelper::DidStopLoading() {
 void SpeedreaderTabHelper::DOMContentLoaded(
     content::RenderFrameHost* render_frame_host) {
   if (!render_frame_host->IsInPrimaryMainFrame() ||
-      !DistillStates::IsDistilled(distill_state_)) {
+      !IsDistilled(distill_state_)) {
     return;
   }
   UpdateUI();
@@ -425,9 +417,7 @@ void SpeedreaderTabHelper::DOMContentLoaded(
   render_frame_host->ExecuteJavaScriptInIsolatedWorld(
       *kLoadScript, base::DoNothing(), ISOLATED_WORLD_ID_BRAVE_INTERNAL);
 
-  for (auto& o : observers_) {
-    o.OnContentsReady();
-  }
+  observers_.Notify(&Observer::OnContentsReady);
 }
 
 void SpeedreaderTabHelper::OnVisibilityChanged(content::Visibility visibility) {
@@ -444,8 +434,7 @@ void SpeedreaderTabHelper::WebContentsDestroyed() {
 }
 
 bool SpeedreaderTabHelper::IsPageDistillationAllowed() {
-  return DistillStates::IsDistilling(distill_state_) ||
-         DistillStates::IsDistilled(distill_state_);
+  return IsDistilling(distill_state_) || IsDistilled(distill_state_);
 }
 
 bool SpeedreaderTabHelper::IsPageContentPresent() {
@@ -458,7 +447,7 @@ std::string SpeedreaderTabHelper::TakePageContent() {
 
 void SpeedreaderTabHelper::OnDistillComplete(DistillationResult result) {
   // Perform a state transition
-  Transit(distill_state_, DistillStates::Distilled(result));
+  Transit(distill_state_, Distilled(result));
   if (result == DistillationResult::kSuccess) {
     speedreader_service_->metrics().RecordPageView();
   }
@@ -472,7 +461,7 @@ void SpeedreaderTabHelper::OnDistilledDocumentSent() {
   // This is done by mocking a pinch gesture on Android,
   // see chrome/android/java/src/org/chromium/chrome/browser/ZoomController.java
   // and ui/android/event_forwarder.cc
-  if (DistillStates::IsDistilled(distill_state_)) {
+  if (IsDistilled(distill_state_)) {
     ui::ViewAndroid* view = web_contents()->GetNativeView();
     int64_t time_ms = base::TimeTicks::Now().ToUptimeMillis();
     SendGestureEvent(view, ui::GESTURE_EVENT_TYPE_PINCH_BEGIN, time_ms, 0.f);
@@ -483,7 +472,7 @@ void SpeedreaderTabHelper::OnDistilledDocumentSent() {
 }
 
 void SpeedreaderTabHelper::OnReadingStart(content::WebContents* web_contents) {
-  if (!speedreader::DistillStates::IsDistilled(distill_state_)) {
+  if (!speedreader::IsDistilled(distill_state_)) {
     return;
   }
 
@@ -506,7 +495,7 @@ void SpeedreaderTabHelper::OnReadingProgress(content::WebContents* web_contents,
                                              int paragraph_index,
                                              int char_index,
                                              int length) {
-  if (!speedreader::DistillStates::IsDistilled(distill_state_) ||
+  if (!speedreader::IsDistilled(distill_state_) ||
       web_contents != this->web_contents()) {
     return;
   }
@@ -531,10 +520,9 @@ void SpeedreaderTabHelper::OnSiteEnableSettingChanged(
   }
 
   if (enabled_on_site) {
-    TransitStateTo(DistillStates::Distilling(
-        DistillStates::Distilled::Reason::kAutomatic));
+    TransitStateTo(Distilling(Distilled::Reason::kAutomatic));
   } else {
-    TransitStateTo(DistillStates::ViewOriginal());
+    TransitStateTo(ViewOriginal());
   }
   HideSpeedreaderBubble();
 }
@@ -550,7 +538,7 @@ void SpeedreaderTabHelper::OnAllSitesEnableSettingChanged(
 
 void SpeedreaderTabHelper::OnAppearanceSettingsChanged(
     const mojom::AppearanceSettings& view_settings) {
-  if (!speedreader::DistillStates::IsDistilled(distill_state_)) {
+  if (!speedreader::IsDistilled(distill_state_)) {
     return;
   }
 
@@ -565,11 +553,9 @@ void SpeedreaderTabHelper::OnAppearanceSettingsChanged(
 
 void SpeedreaderTabHelper::OnResult(
     const dom_distiller::DistillabilityResult& result) {
-  if (DistillStates::IsNotDistillable(distill_state_) &&
-      result.is_distillable) {
-    TransitStateTo(DistillStates::DistillReverting(
-        DistillStates::DistillReverting::Reason::kNone, false));
-    TransitStateTo(DistillStates::ViewOriginal());
+  if (IsNotDistillable(distill_state_) && result.is_distillable) {
+    TransitStateTo(DistillReverting(DistillReverting::Reason::kNone, false));
+    TransitStateTo(ViewOriginal());
   }
 }
 
@@ -598,15 +584,13 @@ void SpeedreaderTabHelper::SetDocumentAttribute(const std::string& attribute,
 
 void SpeedreaderTabHelper::OnGetDocumentSource(bool success, std::string html) {
   if (!success || html.empty()) {
-    TransitStateTo(DistillStates::DistillReverting(
-        DistillStates::DistillReverting::Reason::kError, false));
-    TransitStateTo(DistillStates::ViewOriginal());
+    TransitStateTo(DistillReverting(DistillReverting::Reason::kError, false));
+    TransitStateTo(ViewOriginal());
     return;
   }
 
   single_show_content_ = std::move(html);
-  TransitStateTo(
-      DistillStates::Distilling(DistillStates::Distilling::Reason::kManual));
+  TransitStateTo(Distilling(Distilling::Reason::kManual));
 }
 
 void SpeedreaderTabHelper::TransitStateTo(const DistillState& desired_state,

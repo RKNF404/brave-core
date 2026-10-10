@@ -46,6 +46,8 @@
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
 #include "brave/components/brave_wallet/browser/brave_wallet_utils.h"
 #include "brave/components/brave_wallet/browser/pref_names.h"
+#include "brave/components/brave_wallet/common/features.h"
+#include "brave/components/brave_wallet/common/web_ui_constants.h"
 #endif  // BUILDFLAG(ENABLE_BRAVE_WALLET)
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
@@ -60,6 +62,7 @@
 
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
 #include "brave/components/brave_news/common/features.h"
+#include "brave/components/brave_news/common/pref_names.h"
 #endif
 
 namespace sidebar {
@@ -78,9 +81,11 @@ SidebarItem::BuiltInItemType GetBuiltInItemTypeForLegacyURL(
   }
 #endif
 
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
   if (url == "chrome://wallet/") {
     return SidebarItem::BuiltInItemType::kWallet;
   }
+#endif
 
   if (url == "chrome://sidebar-bookmarks.top-chrome/" ||
       url == "chrome://bookmarks/") {
@@ -142,9 +147,10 @@ SidebarService::SidebarService(
       base::BindRepeating(&SidebarService::OnPreferenceChanged,
                           base::Unretained(this)));
 
-  // Watch for policy pref changes that affect built-in item visibility.
-#if BUILDFLAG(ENABLE_AI_CHAT) || BUILDFLAG(ENABLE_BRAVE_TALK) || \
-    BUILDFLAG(ENABLE_BRAVE_WALLET) || BUILDFLAG(ENABLE_PLAYLIST)
+  // Watch for pref changes that affect built-in item visibility.
+#if BUILDFLAG(ENABLE_AI_CHAT) || BUILDFLAG(ENABLE_BRAVE_TALK) ||    \
+    BUILDFLAG(ENABLE_BRAVE_WALLET) || BUILDFLAG(ENABLE_PLAYLIST) || \
+    BUILDFLAG(ENABLE_BRAVE_NEWS)
   auto cb = base::BindRepeating(&SidebarService::OnBuiltInItemPolicyChanged,
                                 base::Unretained(this));
 #endif
@@ -159,6 +165,10 @@ SidebarService::SidebarService(
 #endif
 #if BUILDFLAG(ENABLE_PLAYLIST)
   pref_change_registrar_.Add(playlist::kPlaylistEnabledPref, cb);
+#endif
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+  // Show/hide the Brave News item as the user opts in or out.
+  pref_change_registrar_.Add(brave_news::prefs::kBraveNewsOptedIn, cb);
 #endif
 }
 
@@ -198,8 +208,10 @@ void SidebarService::MigratePrefSidebarBuiltInItemsToHidden() {
   built_in_items_to_hide.push_back(
       GetBuiltInItemForType(SidebarItem::BuiltInItemType::kBraveTalk));
 #endif
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
   built_in_items_to_hide.push_back(
       GetBuiltInItemForType(SidebarItem::BuiltInItemType::kWallet));
+#endif
   built_in_items_to_hide.push_back(
       GetBuiltInItemForType(SidebarItem::BuiltInItemType::kBookmarks));
 
@@ -534,6 +546,10 @@ bool SidebarService::IsEditableItemAt(size_t index) const {
   return items_[index].is_web_type();
 }
 
+size_t SidebarService::GetDefaultSidebarItemsCountForTesting() const {
+  return GetDefaultSidebarItems().size();
+}
+
 void SidebarService::SetSidebarShowOption(ShowSidebarOption show_options) {
   DCHECK_NE(ShowSidebarOption::kShowOnClick, show_options);
   prefs_->SetInteger(kSidebarShowOption, static_cast<int>(show_options));
@@ -672,19 +688,31 @@ SidebarItem SidebarService::GetBuiltInItemForType(
       }
       return SidebarItem();
 #endif  // BUILDFLAG(ENABLE_BRAVE_TALK)
-    case SidebarItem::BuiltInItemType::kWallet: {
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
+    case SidebarItem::BuiltInItemType::kWallet: {
       if (brave_wallet::IsAllowed(prefs_)) {
+        if (base::FeatureList::IsEnabled(
+                brave_wallet::features::kBraveWalletSidePanel)) {
+          // Keep the wallet page URL so IsURLAlreadyAddedToSidebar() /
+          // HiddenDefaultSidebarItemsContains() match brave://wallet and the
+          // + bubble does not offer a duplicate web-type shortcut.
+          return SidebarItem::Create(
+              GURL(kBraveUIWalletPageURL),
+              l10n_util::GetStringUTF16(IDS_SIDEBAR_WALLET_ITEM_TITLE),
+              SidebarItem::Type::kTypeBuiltIn,
+              SidebarItem::BuiltInItemType::kWallet,
+              /* open_in_panel = */ true);
+        }
         return SidebarItem::Create(
-            GURL("chrome://wallet/"),
+            GURL(kBraveUIWalletPageURL),
             l10n_util::GetStringUTF16(IDS_SIDEBAR_WALLET_ITEM_TITLE),
             SidebarItem::Type::kTypeBuiltIn,
             SidebarItem::BuiltInItemType::kWallet,
             /* open_in_panel = */ false);
       }
-#endif  // BUILDFLAG(ENABLE_BRAVE_WALLET)
       return SidebarItem();
     }
+#endif  // BUILDFLAG(ENABLE_BRAVE_WALLET)
     case SidebarItem::BuiltInItemType::kBookmarks:
       return SidebarItem::Create(
           l10n_util::GetStringUTF16(IDS_SIDEBAR_BOOKMARKS_ITEM_TITLE),
@@ -740,8 +768,11 @@ SidebarItem SidebarService::GetBuiltInItemForType(
 #endif  // BUILDFLAG(ENABLE_AI_CHAT)
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
     case SidebarItem::BuiltInItemType::kBraveNews: {
+      // Only offer the Brave News item once the user has opted in, mirroring
+      // the toolbar Brave News button which is also gated on this pref.
       if (base::FeatureList::IsEnabled(
-              brave_news::features::kBraveNewsSidebar)) {
+              brave_news::features::kBraveNewsSidebar) &&
+          prefs_->GetBoolean(brave_news::prefs::kBraveNewsOptedIn)) {
         return SidebarItem::Create(
             GURL(kBraveNewsURL),
             l10n_util::GetStringUTF16(IDS_BRAVE_NEWS_TITLE),

@@ -20,7 +20,10 @@
 #include "brave/browser/ui/brave_browser_window.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/first_run/first_run.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/grit/brave_components_strings.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -54,11 +57,6 @@ std::optional<base::Time> OnboardingTabHelper::s_sentinel_time_for_testing_;
 void OnboardingTabHelper::MaybeCreateForWebContents(
     content::WebContents* web_contents,
     base::OnceClosure creation_callback_for_test) {
-  if (!g_browser_process->local_state()) {
-    CHECK_IS_TEST();
-    return;
-  }
-
   if (creation_callback_for_test) {
     CHECK_IS_TEST();
   }
@@ -109,13 +107,15 @@ OnboardingTabHelper::OnboardingTabHelper(content::WebContents* web_contents)
 OnboardingTabHelper::~OnboardingTabHelper() = default;
 
 void OnboardingTabHelper::DidStopLoading() {
-  Browser* browser = chrome::FindBrowserWithTab(web_contents());
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          web_contents());
   if (!browser) {
     return;
   }
 
   auto* active_tab_web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetTabStripModel()->GetActiveWebContents();
 
   if (web_contents() != active_tab_web_contents) {
     return;
@@ -145,7 +145,7 @@ void OnboardingTabHelper::PerformBraveShieldsChecksAndShowHelpBubble() {
       brave_shields::BraveShieldsTabHelper::FromWebContents(web_contents());
   DCHECK(shields_data_controller);
 
-  if (shields_data_controller->GetBraveShieldsEnabled() &&
+  if (shields_data_controller->IsBraveShieldsEnabled() &&
       shields_data_controller->GetTotalBlockedCount() > 0 &&
       CanHighlightBraveShields()) {
     ShowBraveHelpBubbleView();
@@ -174,13 +174,14 @@ bool OnboardingTabHelper::CanHighlightBraveShields() {
 }
 
 void OnboardingTabHelper::ShowBraveHelpBubbleView() {
-  Browser* browser = chrome::FindBrowserWithTab(web_contents());
-  DCHECK(browser);
-  if (!browser) {
+  BrowserWindow* browser_window =
+      BrowserWindow::FindBrowserWindowWithWebContents(web_contents());
+  DCHECK(browser_window);
+  if (!browser_window) {
     return;
   }
 
-  if (!BraveBrowserWindow::From(browser->window())
+  if (!BraveBrowserWindow::From(browser_window)
            ->ShowBraveHelpBubbleView(GetTextForOnboardingShieldsBubble())) {
     return;
   }

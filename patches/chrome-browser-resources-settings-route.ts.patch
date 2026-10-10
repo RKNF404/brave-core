@@ -1,16 +1,16 @@
 diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
-index 51af5ee843a842c7855bc3492e996362b29fac35..e2feae30b000093ac589ad5e3528699c31271a37 100644
+index d733ae8b320e3e6c609189056b9832bb136446ed..80e88da764506bea883e7db440885c107d6c0175 100644
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
-@@ -9,6 +9,7 @@ import {pageVisibility} from './page_visibility.js';
- import type {SettingsRoutes} from './router.js';
- import {Route, Router} from './router.js';
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
  
 +import addBraveRoutes from './brave_routes.js'
- /**
-  * Add all of the child routes that originate from the privacy route,
-  * regardless of whether the privacy section under basic or advanced.
-@@ -327,6 +328,7 @@ function createRoutes(): SettingsRoutes {
+ import {assert} from 'chrome://resources/js/assert.js';
+ 
+ import {loadTimeData} from './i18n_setup.js';
+@@ -309,6 +310,7 @@ function createRoutes(): SettingsRoutes {
          loadTimeData.getString('performancePageTitle'));
    }
  
@@ -18,7 +18,7 @@ index 51af5ee843a842c7855bc3492e996362b29fac35..e2feae30b000093ac589ad5e3528699c
    return r as unknown as SettingsRoutes;
  }
  
-@@ -360,7 +362,7 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
+@@ -342,7 +344,7 @@ export let routes: SettingsRoutes = Router.getInstance().getRoutes();
  // Returns the "effective" route when at chrome://settings/.
  export function getTopLevelRoute(): Route {
    if (!loadTimeData.getBoolean('isGuest')) {

@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/logging.h"
 #include "brave/browser/ui/color/brave_color_id.h"
+#include "brave/ui/color/brave_ref_color_mixer.h"
 #include "brave/ui/color/nala/nala_color_id.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -33,12 +34,21 @@ namespace tabs {
 
 namespace {
 
-bool HasNonGrayscaleUserColor(const ui::ColorProviderKey& key) {
-  // Some platform can have user color with gray scale.
-  // Ex, accent color is always set as user_color on Windows.
-  return (key.user_color_source !=
-          ui::ColorProviderKey::UserColorSource::kGrayscale) &&
-         key.user_color.has_value();
+// An achromatic user color carries no hue - SkColorToHSL() reports 0 for it,
+// which HSLShift() would then apply as red. Its generated palette is already
+// neutral, so use the palette colors without any tinting.
+bool ShouldTintWithUserColor(const ui::ColorProviderKey& key) {
+  if (!ShouldUseAccentTintedPalette(key)) {
+    return false;
+  }
+
+  if (!key.user_color.has_value()) {
+    return false;
+  }
+
+  const SkColor user_color = *key.user_color;
+  return SkColorGetR(user_color) != SkColorGetG(user_color) ||
+         SkColorGetG(user_color) != SkColorGetB(user_color);
 }
 
 SkColor GetActiveVerticalTabBackgroundColor(const ui::ColorProviderKey& key,
@@ -46,7 +56,7 @@ SkColor GetActiveVerticalTabBackgroundColor(const ui::ColorProviderKey& key,
                                             const ui::ColorMixer& mixer) {
   const auto default_color =
       mixer.GetResultColor(nala::kColorDesktopbrowserTabbarActiveTabVertical);
-  if (!HasNonGrayscaleUserColor(key)) {
+  if (!ShouldTintWithUserColor(key)) {
     return default_color;
   }
 
@@ -69,7 +79,7 @@ SkColor GetHoveredTabBackgroundColor(const ui::ColorProviderKey& key,
         default_color_id == nala::kColorDesktopbrowserTabbarHoverTabHorizontal);
 
   const auto default_color = mixer.GetResultColor(default_color_id);
-  if (!HasNonGrayscaleUserColor(key)) {
+  if (!ShouldTintWithUserColor(key)) {
     // Defaults to Nala if no user color.
     return default_color;
   }
@@ -106,7 +116,7 @@ SkColor GetSplitViewTileBackgroundColor(const ui::ColorProviderKey& key,
                                         SkColor input,
                                         const ui::ColorMixer& mixer) {
   const auto default_color = mixer.GetResultColor(default_color_id);
-  if (!HasNonGrayscaleUserColor(key)) {
+  if (!ShouldTintWithUserColor(key)) {
     return default_color;
   }
 
@@ -262,6 +272,25 @@ void AddBraveTabThemeColorMixer(ui::ColorProvider* provider,
   postprocessing_mixer[kColorNewTabButtonBackgroundFrameInactive] = {
       ui::kColorFrameInactive};
 
+  // Tab-strip control / combo-button icons (tab search, horizontal +,
+  // workspaces, scroll chevrons, vertical-tab toolbar search). Chromium maps
+  // these CR color IDs through regular-mixer ColorId references, which cannot
+  // see this postprocessing mixer's overrides of tab-foreground colors — so
+  // without an explicit recipe here the icons keep the regular dark-theme
+  // (near-white) color. Match toolbar icons instead.
+  const SkColor toolbar_icon =
+      postprocessing_mixer.GetResultColor(kColorToolbarButtonIcon);
+  const SkColor toolbar_icon_inactive =
+      postprocessing_mixer.GetResultColor(kColorToolbarButtonIconInactive);
+  postprocessing_mixer[kColorNewTabButtonCRForegroundFrameActive] = {
+      toolbar_icon};
+  postprocessing_mixer[kColorNewTabButtonCRForegroundFrameInactive] = {
+      toolbar_icon_inactive};
+  postprocessing_mixer[kColorTabSearchButtonCRForegroundFrameActive] = {
+      toolbar_icon};
+  postprocessing_mixer[kColorTabSearchButtonCRForegroundFrameInactive] = {
+      toolbar_icon_inactive};
+
   // Vertical tabs
   postprocessing_mixer[kColorBraveVerticalTabActiveBackground] =
       darker_theme::ApplyDarknessFromColor(nala::kColorPrimitiveNeutral20);
@@ -272,12 +301,10 @@ void AddBraveTabThemeColorMixer(ui::ColorProvider* provider,
   postprocessing_mixer[kColorBraveVerticalTabSeparator] = {
       nala::kColorPrimitiveNeutral15};
 
-  const SkColor ntb_forground = postprocessing_mixer.GetResultColor(
-      kColorTabForegroundInactiveFrameActive);
-  postprocessing_mixer[kColorBraveVerticalTabNTBIconColor] = {ntb_forground};
-  postprocessing_mixer[kColorBraveVerticalTabNTBTextColor] = {ntb_forground};
+  postprocessing_mixer[kColorBraveVerticalTabNTBIconColor] = {toolbar_icon};
+  postprocessing_mixer[kColorBraveVerticalTabNTBTextColor] = {toolbar_icon};
   postprocessing_mixer[kColorBraveVerticalTabNTBShortcutTextColor] = {
-      ntb_forground};
+      toolbar_icon};
 #endif  // defined(TOOLKIT_VIEWS)
 }
 

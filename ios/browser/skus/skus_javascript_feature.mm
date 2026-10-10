@@ -74,17 +74,10 @@ void ReplyWithStringResult(ScriptMessageReplyCallback callback,
 }  // namespace
 
 SkusJavaScriptFeature::SkusJavaScriptFeature(ProfileIOS* profile)
-    : JavaScriptFeature(
-          web::ContentWorld::kPageContentWorld,
-          {FeatureScript::CreateWithFilename(
-              kScriptName,
-              FeatureScript::InjectionTime::kDocumentStart,
-              FeatureScript::TargetFrames::kMainFrame,
-              FeatureScript::ReinjectionBehavior::kInjectOncePerWindow,
-              FeatureScript::PlaceholderReplacementsCallback(),
-              web::OriginFilter::kBraveAccount)},
-          /*dependent_feature=*/{},
-          web::OriginFilter::kBraveAccount),
+    : JavaScriptFeature(web::ContentWorld::kPageContentWorld,
+                        /*feature_scripts=*/{},
+                        /*dependent_feature=*/{},
+                        web::OriginFilter::kBraveAccount),
       profile_(profile) {}
 
 SkusJavaScriptFeature::~SkusJavaScriptFeature() = default;
@@ -111,6 +104,20 @@ bool SkusJavaScriptFeature::GetFeatureRepliesToMessages() const {
 std::optional<std::string> SkusJavaScriptFeature::GetScriptMessageHandlerName()
     const {
   return kScriptHandlerName;
+}
+
+std::vector<web::JavaScriptFeature::FeatureScript>
+SkusJavaScriptFeature::GetScripts() const {
+  if (profile_->IsOffTheRecord()) {
+    // Dont inject skus script when in private windows
+    return {};
+  }
+  return {FeatureScript::CreateWithFilename(
+      kScriptName, FeatureScript::InjectionTime::kDocumentStart,
+      FeatureScript::TargetFrames::kMainFrame,
+      FeatureScript::ReinjectionBehavior::kInjectOncePerWindow,
+      FeatureScript::PlaceholderReplacementsCallback(),
+      web::OriginFilter::kBraveAccount)};
 }
 
 void SkusJavaScriptFeature::SetCredentialSummaryFetched(
@@ -157,7 +164,7 @@ void SkusJavaScriptFeature::ScriptMessageReceivedWithReply(
   }
 
   const base::DictValue* body =
-      message.body() ? message.body()->GetIfDict() : nullptr;
+      message.legacy_body() ? message.legacy_body()->GetIfDict() : nullptr;
   if (!body) {
     std::move(callback).Run(nullptr, nil);
     return;

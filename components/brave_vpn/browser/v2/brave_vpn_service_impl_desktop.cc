@@ -3,16 +3,44 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "base/functional/bind.h"
 #include "base/notimplemented.h"
+#include "base/types/expected.h"
+#include "brave/components/brave_vpn/browser/v2/api/brave_vpn_api_client.h"
 #include "brave/components/brave_vpn/browser/v2/brave_vpn_service_impl.h"
+#include "brave/components/brave_vpn/browser/v2/purchased_state_manager.h"
 #include "brave/components/brave_vpn/common/brave_vpn_constants.h"
 #include "brave/components/brave_vpn/common/brave_vpn_utils.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 
-namespace brave_vpn {
-namespace v2 {
+namespace brave_vpn::v2 {
+namespace {
+std::string GetTimeZoneName() {
+  std::unique_ptr<icu::TimeZone> zone(icu::TimeZone::createDefault());
+  icu::UnicodeString id;
+  zone->getID(id);
+  std::string current_time_zone;
+  id.toUTF8String<std::string>(current_time_zone);
+  return current_time_zone;
+}
+
+// Bridges the endpoint client's typed result to the mojom
+// (bool success, string response) contract used by CreateSupportTicket.
+void RunCreateSupportTicketCallback(
+    BraveVpnServiceImpl::CreateSupportTicketCallback callback,
+    base::expected<std::string, std::string> result) {
+  const bool success = result.has_value();
+  std::move(callback).Run(success,
+                          success ? std::string() : std::move(result).error());
+}
+}  // namespace
 
 bool BraveVpnServiceImpl::IsConnected() const {
-  NOTIMPLEMENTED();
   return connection_state_ == mojom::ConnectionState::CONNECTED &&
          IsPurchased();
 }
@@ -22,13 +50,11 @@ void BraveVpnServiceImpl::ToggleConnection() {
 }
 
 mojom::ConnectionState BraveVpnServiceImpl::GetConnectionState() const {
-  NOTIMPLEMENTED();
   return connection_state_;
 }
 
 std::string BraveVpnServiceImpl::GetLastConnectionError() const {
-  NOTIMPLEMENTED();
-  return std::string();
+  return last_connection_error_;
 }
 
 void BraveVpnServiceImpl::RecordWidgetUsageMetrics(bool new_usage) {
@@ -42,6 +68,22 @@ void BraveVpnServiceImpl::GetConnectionState(
 }
 
 void BraveVpnServiceImpl::Connect() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(ENABLE_BRAVE_VPN_V2_APPS)
+  if (!agent_client_) {
+    return;
+  }
+  // TODO(https://github.com/brave/brave-browser/issues/59013)
+  // Move this code to a dedicated Mojom API, so the UI "Retry" button in the
+  // "agent unavailable" state will unambiguously trigger a retry of the agent
+  // connection, not the VPN connection.
+  if (connection_state_ == mojom::ConnectionState::CONNECT_NO_AGENT) {
+    UpdateConnectionState(mojom::ConnectionState::DISCONNECTED, std::string());
+    agent_client_->Reset();
+    agent_client_->EnsureConnected();
+    return;
+  }
+#endif  // BUILDFLAG(ENABLE_BRAVE_VPN_V2_APPS)
   NOTIMPLEMENTED();
 }
 
@@ -52,7 +94,7 @@ void BraveVpnServiceImpl::Disconnect() {
 void BraveVpnServiceImpl::GetSelectedRegion(
     GetSelectedRegionCallback callback) {
   NOTIMPLEMENTED();
-  std::move(callback).Run({});
+  std::move(callback).Run(mojom::Region::New());
 }
 
 void BraveVpnServiceImpl::SetSelectedRegion(mojom::RegionPtr region) {
@@ -74,8 +116,19 @@ void BraveVpnServiceImpl::CreateSupportTicket(
     const std::string& subject,
     const std::string& body,
     CreateSupportTicketCallback callback) {
-  NOTIMPLEMENTED();
-  std::move(callback).Run(false, {});
+  if (!api_client_) {
+    std::move(callback).Run(false, {});
+    return;
+  }
+  std::optional<std::string> subscriber_credential =
+      purchased_state_manager_
+          ? purchased_state_manager_->GetSubscriberCredential()
+          : std::nullopt;
+
+  api_client_->CreateSupportTicket(
+      base::BindOnce(&RunCreateSupportTicketCallback, std::move(callback)),
+      email, subject, body, subscriber_credential.value_or(""),
+      GetTimeZoneName());
 }
 
 void BraveVpnServiceImpl::GetSupportData(GetSupportDataCallback callback) {
@@ -106,18 +159,41 @@ void BraveVpnServiceImpl::GetSmartProxyRoutingState(
   std::move(callback).Run(false);
 }
 
+void BraveVpnServiceImpl::AllowLanTraffic(bool /*allow*/) {
+  NOTIMPLEMENTED();
+}
+
+void BraveVpnServiceImpl::GetAllowLanTraffic(
+    GetAllowLanTrafficCallback callback) {
+  NOTIMPLEMENTED();
+  std::move(callback).Run(false, false);
+}
+
+void BraveVpnServiceImpl::UpdateConnectionState(
+    mojom::ConnectionState state,
+    std::optional<std::string> connection_error) {
+  const bool connection_error_changed =
+      connection_error.has_value() &&
+      *connection_error != last_connection_error_;
+  if (connection_state_ == state && !connection_error_changed) {
+    return;
+  }
+  connection_state_ = state;
+  if (connection_error) {
+    last_connection_error_ = std::move(*connection_error);
+  }
+  NotifyConnectionStateChanged(state);
+}
+
 void BraveVpnServiceImpl::SetConnectionStateForTesting(  // IN-TEST
     mojom::ConnectionState state) {
-  connection_state_ = state;
-  NotifyConnectionStateChanged(state);
+  UpdateConnectionState(state);
 }
 
 void BraveVpnServiceImpl::SetPurchasedStateForTesting(  // IN-TEST
     const std::string& env,
     mojom::PurchasedState state) {
-  purchased_state_ = state;
-  NotifyPurchasedStateChanged(state, std::nullopt);
+  purchased_state_manager_->SetPurchasedState(env, state);
 }
 
-}  // namespace v2
-}  // namespace brave_vpn
+}  // namespace brave_vpn::v2

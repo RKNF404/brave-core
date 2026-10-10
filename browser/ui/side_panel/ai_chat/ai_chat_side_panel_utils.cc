@@ -16,12 +16,35 @@
 namespace ai_chat {
 
 #if !defined(TOOLKIT_VIEWS)
-Browser* GetBrowserForWebContents(content::WebContents* web_contents) {
+BrowserWindowInterface* GetBrowserForWebContents(
+    content::WebContents* web_contents) {
   NOTIMPLEMENTED();
   return nullptr;
 }
 
 void ClosePanel(content::WebContents* web_contents) {
+  NOTIMPLEMENTED();
+}
+
+void ClosePanelIfChatActive(content::WebContents* web_contents) {
+  NOTIMPLEMENTED();
+}
+
+bool MaybeMoveFullPageChatToSidePanel(
+    content::WebContents* ai_chat_web_contents) {
+  return false;
+}
+
+bool MaybeMoveSidePanelChatToTab(content::WebContents* ai_chat_web_contents) {
+  return false;
+}
+
+content::WebContents* GetSidePanelWebContents(BrowserWindowInterface* browser) {
+  return nullptr;
+}
+
+void OpenConversationInSidePanel(Profile* profile,
+                                 const std::string& conversation_uuid) {
   NOTIMPLEMENTED();
 }
 #endif

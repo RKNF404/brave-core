@@ -30,130 +30,63 @@ const EXTRINSIC_FAILED_VARIANT_INDEX: u8 = 0x01;
 // existential deposit.
 const TRANSFER_ALL_KEEP_ALIVE: bool = false;
 
-#[cxx::bridge(namespace = brave_wallet)]
-mod ffi {
-    #[derive(Clone, Copy, PartialEq)]
-    pub struct CxxPolkadotChainMetadata {
-        pub system_pallet_index: u8,
-        pub balances_pallet_index: u8,
-        pub transaction_payment_pallet_index: u8,
-        pub transfer_allow_death_call_index: u8,
-        pub transfer_keep_alive_call_index: u8,
-        pub transfer_all_call_index: u8,
-        pub assets_pallet_index: u8,
-        pub assets_transfer_all_call_index: u8,
-        pub assets_transfer_keep_alive_call_index: u8,
-        pub has_assets_pallet: bool,
-        pub ss58_prefix: u16,
-        pub spec_version: u32,
-        pub asset_tx_payment: bool,
-    }
+/// Signed extension identifiers, zero-padded. A separate type because
+/// `Default` can't be derived for `[u8; 64]`, and every field needs `Default`
+/// for Crubit to emit `CxxPolkadotChainMetadata` as a C++ aggregate.
+#[derive(Clone, Copy, PartialEq)]
+pub struct SignedExtensions {
+    pub bytes: [u8; 64],
+}
 
-    extern "Rust" {
-        fn compact_scale_encode_u32(x: u32) -> Vec<u8>;
-        fn scale_encode_string(value: &[u8]) -> Vec<u8>;
-
-        type CxxPolkadotChainMetadataResult;
-
-        fn is_ok(self: &CxxPolkadotChainMetadataResult) -> bool;
-        fn error_message(self: &CxxPolkadotChainMetadataResult) -> String;
-        fn unwrap(self: &mut CxxPolkadotChainMetadataResult) -> Box<CxxPolkadotChainMetadata>;
-
-        fn parse_chain_metadata_from_scale(
-            metadata_bytes: &[u8],
-        ) -> Box<CxxPolkadotChainMetadataResult>;
-
-        fn scale_encode_mortality(number: u32, period: u32) -> [u8; 2];
-
-        fn generate_extrinsic_signature_payload(
-            chain_metadata: &CxxPolkadotChainMetadata,
-            sender_nonce: u32,
-            send_amount_bytes: &[u8; 16],
-            transfer_all: bool,
-            recipient: &[u8; 32],
-            spec_version: u32,
-            transaction_version: u32,
-            block_number: u32,
-            genesis_hash: &[u8; 32],
-            block_hash: &[u8; 32],
-        ) -> Vec<u8>;
-
-        fn make_signed_extrinsic(
-            chain_metadata: &CxxPolkadotChainMetadata,
-            sender_pubkey: &[u8; 32],
-            recipient_pubkey: &[u8; 32],
-            send_amount_bytes: &[u8; 16],
-            transfer_all: bool,
-            signature: &[u8; 64],
-            block_number: u32,
-            sender_nonce: u32,
-        ) -> Vec<u8>;
-
-        fn parse_fee_info(input: &[u8], fee_bytes: &mut [u8; 16]) -> bool;
-
-        fn was_extrinsic_successful(
-            events: &[u8],
-            extrinsic_idx: u32,
-            sender: &[u8; 32],
-            chain_metadata: &CxxPolkadotChainMetadata,
-            actual_fee: &mut [u8; 16],
-        ) -> bool;
+impl Default for SignedExtensions {
+    fn default() -> Self {
+        Self { bytes: [0; 64] }
     }
 }
 
-use ffi::CxxPolkadotChainMetadata;
-impl_result!(CxxPolkadotChainMetadata, CxxPolkadotChainMetadataResult);
-
-use crate::polkadot_chain_metadata::parse_chain_metadata_from_scale;
-
-#[macro_export]
-macro_rules! impl_result {
-    ($t:ident, $r:ident) => {
-        struct $r(Result<$t, Error>);
-
-        impl $r {
-            fn error_message(self: &$r) -> String {
-                match &self.0 {
-                    Err(e) => e.to_string(),
-                    Ok(_) => String::new(),
-                }
-            }
-
-            fn is_ok(self: &$r) -> bool {
-                self.0.is_ok()
-            }
-
-            fn unwrap(self: &mut $r) -> Box<$t> {
-                match std::mem::replace(&mut self.0, Err(Error::AlreadyUnwrapped)) {
-                    Ok(v) => Box::new(v),
-                    Err(e) => panic!("{}", e.to_string()),
-                }
-            }
-        }
-    };
+// `repr(C)` keeps the C++ field order matching the declaration order here, as
+// designated initializers require.
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Default)]
+pub struct CxxPolkadotChainMetadata {
+    pub system_pallet_index: u8,
+    pub balances_pallet_index: u8,
+    pub transaction_payment_pallet_index: u8,
+    pub transfer_allow_death_call_index: u8,
+    pub transfer_keep_alive_call_index: u8,
+    pub transfer_all_call_index: u8,
+    pub assets_pallet_index: u8,
+    pub assets_transfer_all_call_index: u8,
+    pub assets_transfer_keep_alive_call_index: u8,
+    pub has_assets_pallet: bool,
+    pub ss58_prefix: u16,
+    pub spec_version: u32,
+    pub signed_extensions: SignedExtensions,
 }
+
+pub use crate::polkadot_chain_metadata::parse_chain_metadata_from_scale;
 
 /// Errors that can occur when parsing Polkadot runtime metadata or parsing
 /// extrinsics.
 #[derive(Clone, Debug)]
-pub enum Error {
-    /// The Result has already been unwrapped.
-    AlreadyUnwrapped,
+pub(crate) enum Error {
     /// Invalid SCALE value found.
     InvalidScale,
     /// Invalid metadata such as the wrong pallet index or call index.
     InvalidMetadata,
     /// Invalid length.
     InvalidLength,
+    /// Unknowned SignedExtension
+    UnknownSignedExtension,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::AlreadyUnwrapped => write!(f, "Already unwrapped."),
             Error::InvalidScale => write!(f, "Invalid SCALE-encoded bytes were found."),
             Error::InvalidMetadata => write!(f, "Invalid chain metadata was encountered."),
             Error::InvalidLength => write!(f, "Invalid length."),
+            Error::UnknownSignedExtension => write!(f, "Unknowned SignedExtension encountered."),
         }
     }
 }
@@ -182,7 +115,7 @@ fn next_n_bytes<'a>(input: &mut &'a [u8], n: usize) -> Result<&'a [u8], Error> {
 ///
 /// Reference implementation:
 /// https://github.com/polkadot-js/api/blob/9f6a9c53e6822d20e8556649c9b68d31cffc465d/packages/types/src/extrinsic/ExtrinsicEra.ts#L179-L204
-fn scale_encode_mortality(number: u32, mut period: u32) -> [u8; 2] {
+pub fn scale_encode_mortality(number: u32, mut period: u32) -> [u8; 2] {
     period = period.checked_next_power_of_two().unwrap().clamp(4, 1 << 16);
 
     let phase = number % period;
@@ -195,50 +128,238 @@ fn scale_encode_mortality(number: u32, mut period: u32) -> [u8; 2] {
     [(encoded & 0xff) as u8, (encoded >> 8) as u8]
 }
 
-fn append_extra(buf: &mut Vec<u8>, asset_tx_payment: bool) {
-    // The asset_id is hard-coded to zero here as we only support paying transaction
-    // fees via the chain's native token (DOT) for our initial first pass.
+fn append_extra(
+    chain_metadata: &CxxPolkadotChainMetadata,
+    sender_nonce: u32,
+    block_number: u32,
+    buf: &mut Vec<u8>,
+) -> Result<(), Error> {
+    use polkadot_chain_metadata::SignedExtension;
 
-    if asset_tx_payment {
-        buf.extend_from_slice(&[
-            0x00, /* tip */
-            0x00, /* asset_id */
-            0x00, /* mode (disable metadata hash verification) */
-        ]);
-    } else {
-        buf.extend_from_slice(&[
-            0x00, /* tip */
-            0x00, /* mode (disable metadata hash verification) */
-        ]);
+    for &extension in &chain_metadata.signed_extensions.bytes {
+        if extension == 0 {
+            continue;
+        }
+
+        let Ok(extension) = extension.try_into() else {
+            return Err(Error::UnknownSignedExtension);
+        };
+
+        use parity_scale_codec::Encode;
+
+        // None encodes to the same underlying 0x00 value, no matter what the
+        // value of Option<T> is, so None::<()> is sufficient for our
+        // purposes.
+
+        match extension {
+            SignedExtension::AuthorizeValueTransfer
+            | SignedExtension::AsPgas
+            | SignedExtension::AsRingAlias
+            | SignedExtension::AsDotnsGateway => {
+                None::<()>.encode_to(buf);
+            }
+            SignedExtension::RestrictOrigins => {
+                false.encode_to(buf);
+            }
+            SignedExtension::CheckMortality => {
+                buf.extend_from_slice(&scale_encode_mortality(block_number, PERIOD));
+            }
+            SignedExtension::CheckNonce => {
+                Compact(sender_nonce).encode_to(buf);
+            }
+            SignedExtension::ChargeAssetTxPayment => {
+                Compact(0x00_u128).encode_to(buf); /* tip */
+                None::<()>.encode_to(buf) /* asset_id */
+            }
+            SignedExtension::ChargeTransactionPayment => {
+                Compact(0x00_u128).encode_to(buf); /* tip */
+            }
+            SignedExtension::CheckMetadataHash => {
+                // Disabled is the 0'th variant of the Mode type. Enabled is
+                // index 1.
+                buf.extend_from_slice(&[0x00 /* mode */]);
+            }
+            SignedExtension::AuthorizeCall
+            | SignedExtension::CheckNonZeroSender
+            | SignedExtension::CheckSpecVersion
+            | SignedExtension::CheckTxVersion
+            | SignedExtension::CheckGenesis
+            | SignedExtension::CheckWeight
+            | SignedExtension::PrevalidateAttests
+            | SignedExtension::EthSetOrigin
+            | SignedExtension::WeightReclaim
+            | SignedExtension::StorageWeightReclaim
+            | SignedExtension::UnusedLast => continue,
+        }
     }
+
+    Ok(())
 }
 
-/// The definition for the extrinsic signature can be found here:
-/// https://spec.polkadot.network/id-extrinsics#defn-extrinsic-signature
-///
-/// Extrinsic signatures are created using the following data:
-/// P = { Raw if ||Raw|| <= 256, Blake2(Raw) if ||Raw|| > 256 }
-/// Raw = (M_i, F_i(m), E, R_v, F_v, H_h(G), H_h(B))
-///
-/// M_i = module indicator of the extrinsic (i.e. System, Balances, ...).
-/// F_i(m) = function indicator of the module (i.e. call index, parameters).
-/// E = extra data (mortality, nonce of sender, tip, mode).
-/// R_v = spec_version of the runtime (fetched via state_getRuntimeVersion).
-/// F_v = transaction version of the runtime (fetched via
-///       state_getRuntimeVersion).
-/// H_h(G) = block hash of the genesis block.
-/// H_h(B) = block hash of the block which starts the extrinsic's mortality.
-///
-/// We return a binary blob containing all of these fields so that it's suitable
-/// for cryptographic signing.
-///
-/// The formal spec doesn't define it but here:
-/// https://wiki.polkadot.com/learn/learn-transaction-construction/
-/// we learn that metadata hashing can be applied to extrinsics but we disable
-/// this verification by setting the mode to 0.
-/// See also:
-/// https://github.com/polkadot-fellows/RFCs/blob/85ca3ff275ded2e690c4c175d5333d12b139d863/text/0078-merkleized-metadata.md
-fn generate_extrinsic_signature_payload(
+fn append_implicit(
+    chain_metadata: &CxxPolkadotChainMetadata,
+    spec_version: u32,
+    transaction_version: u32,
+    genesis_hash: &[u8; 32],
+    block_hash: &[u8; 32],
+    buf: &mut Vec<u8>,
+) -> Result<(), Error> {
+    use polkadot_chain_metadata::SignedExtension;
+
+    for &extension in &chain_metadata.signed_extensions.bytes {
+        if extension == 0 {
+            continue;
+        }
+
+        let Ok(extension) = extension.try_into() else {
+            return Err(Error::UnknownSignedExtension);
+        };
+
+        match extension {
+            SignedExtension::CheckSpecVersion => {
+                buf.extend_from_slice(&spec_version.to_le_bytes());
+            }
+            SignedExtension::CheckTxVersion => {
+                buf.extend_from_slice(&transaction_version.to_le_bytes());
+            }
+            SignedExtension::CheckGenesis => {
+                buf.extend_from_slice(genesis_hash);
+            }
+            SignedExtension::CheckMortality => {
+                // Our wallet currently only supports mortal transactions, so we
+                // have to attach a blockhash which denotes
+                // which block is the start of the mortality window.
+                buf.extend_from_slice(block_hash);
+            }
+            SignedExtension::CheckMetadataHash => {
+                // Disabled is the 0'th variant of the Mode type. To enable the
+                // metadata checking, the Enabled variant is
+                // index 1 and we require a [u8;32] denoting the
+                // hash.
+                buf.extend_from_slice(&[0x00 /* mode */]);
+            }
+            SignedExtension::AuthorizeValueTransfer
+            | SignedExtension::AuthorizeCall
+            | SignedExtension::AsPgas
+            | SignedExtension::AsRingAlias
+            | SignedExtension::AsDotnsGateway
+            | SignedExtension::RestrictOrigins
+            | SignedExtension::CheckNonZeroSender
+            | SignedExtension::CheckNonce
+            | SignedExtension::CheckWeight
+            | SignedExtension::ChargeAssetTxPayment
+            | SignedExtension::PrevalidateAttests
+            | SignedExtension::EthSetOrigin
+            | SignedExtension::StorageWeightReclaim
+            | SignedExtension::ChargeTransactionPayment
+            | SignedExtension::WeightReclaim
+            | SignedExtension::UnusedLast => continue,
+        }
+    }
+
+    Ok(())
+}
+
+// To generate the signature payload, we follow what's in the polkadot-sdk docs.
+// We create a binary string by concatenating the call data, and then the
+// transaction extensions. Transaction extensions comes in two varities and the
+// same name will have two different types, based on the context.
+// We manually curate a whitelist of the associated types for each extension and
+// write it out appropriately.
+// An example of this dual-type nature can be seen here:
+// https://github.com/polkadot-js/api/blob/db81417393858fa40b7b8168d80d52280db407d2/packages/types-support/src/metadata/v16/asset-hub-polkadot-json.json#L11468-L11535
+//
+// It's important to note that on-chain metadata doesn't necessarily match
+// what's in the above link.
+// https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/extrinsic_encoding/index.html#the-signed-payload-format
+fn generate_extrinsic_signature_payload_impl(
+    chain_metadata: &CxxPolkadotChainMetadata,
+    sender_nonce: u32,
+    send_amount_bytes: &[u8; 16],
+    transfer_all: bool,
+    recipient: &[u8; 32],
+    asset_id: Option<u32>,
+    spec_version: u32,
+    transaction_version: u32,
+    block_number: u32,
+    genesis_hash: &[u8; 32],
+    block_hash: &[u8; 32],
+) -> Result<Vec<u8>, Error> {
+    let &CxxPolkadotChainMetadata {
+        balances_pallet_index,
+        transfer_keep_alive_call_index,
+        transfer_all_call_index,
+        has_assets_pallet,
+        assets_pallet_index,
+        assets_transfer_keep_alive_call_index,
+        assets_transfer_all_call_index,
+        ..
+    } = chain_metadata;
+
+    let mut buf = Vec::<u8>::with_capacity(256);
+
+    let (pallet_idx, call_idx) = {
+        if asset_id.is_some() {
+            assert!(has_assets_pallet);
+
+            let transfer_call_idx = if transfer_all {
+                assets_transfer_all_call_index
+            } else {
+                assets_transfer_keep_alive_call_index
+            };
+
+            (assets_pallet_index, transfer_call_idx)
+        } else {
+            let transfer_call_idx =
+                if transfer_all { transfer_all_call_index } else { transfer_keep_alive_call_index };
+
+            (balances_pallet_index, transfer_call_idx)
+        }
+    };
+
+    buf.extend_from_slice(&[
+        pallet_idx, // Write module indicator, M_i.
+        call_idx,   // Write function indicator (call index + call parameters).
+    ]);
+
+    if let Some(asset_id) = asset_id {
+        Compact(asset_id).encode_to(&mut buf);
+    }
+
+    buf.extend_from_slice(&[MULTIADDRESS_TYPE]);
+    buf.extend_from_slice(recipient);
+    if transfer_all {
+        TRANSFER_ALL_KEEP_ALIVE.encode_to(&mut buf);
+    } else {
+        Compact(u128::from_le_bytes(*send_amount_bytes)).encode_to(&mut buf);
+    }
+
+    // https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/extrinsic_encoding/index.html#the-signed-payload-format
+    append_extra(chain_metadata, sender_nonce, block_number, &mut buf)?;
+    append_implicit(
+        chain_metadata,
+        spec_version,
+        transaction_version,
+        genesis_hash,
+        block_hash,
+        &mut buf,
+    )?;
+
+    // If our payload exceeds 256 bytes, hash it down to 32 bytes as
+    // demonstarted by the polkadot-js implementation here:
+    // https://github.com/polkadot-js/api/blob/9f6a9c53e6822d20e8556649c9b68d31cffc465d/packages/types/src/extrinsic/util.ts#L10-L17
+    // https://github.com/polkadot-js/common/blob/bf63a0ebf655312f54aa37350d244df3d05e4e32/packages/util-crypto/src/blake2/asU8a.ts#L25-L34
+    if buf.len() > 256 {
+        let hash = blake2b_simd::Params::new().hash_length(32).hash(&buf);
+        buf.clear();
+        buf.extend_from_slice(hash.as_bytes());
+    }
+
+    assert!(buf.len() <= 256);
+    Ok(buf)
+}
+
+pub fn generate_extrinsic_signature_payload(
     chain_metadata: &CxxPolkadotChainMetadata,
     sender_nonce: u32,
     send_amount_bytes: &[u8; 16],
@@ -249,69 +370,53 @@ fn generate_extrinsic_signature_payload(
     block_number: u32,
     genesis_hash: &[u8; 32],
     block_hash: &[u8; 32],
-) -> Vec<u8> {
-    let CxxPolkadotChainMetadata {
-        balances_pallet_index,
-        transfer_keep_alive_call_index,
-        transfer_all_call_index,
-        ..
-    } = chain_metadata;
-
-    let mut buf = Vec::<u8>::with_capacity(256);
-
-    let call_idx =
-        if transfer_all { transfer_all_call_index } else { transfer_keep_alive_call_index };
-
-    buf.extend_from_slice(&[
-        /* Write module indicator, M_i. */
-        *balances_pallet_index,
-        /* Write function indicator (call index + call parameters). */
-        *call_idx,
-        MULTIADDRESS_TYPE,
-    ]);
-
-    buf.extend_from_slice(recipient);
-    if transfer_all {
-        TRANSFER_ALL_KEEP_ALIVE.encode_to(&mut buf);
-    } else {
-        Compact(u128::from_le_bytes(*send_amount_bytes)).encode_to(&mut buf);
-    }
-
-    // Write extra data, E.
-    buf.extend_from_slice(&scale_encode_mortality(block_number, PERIOD));
-    Compact(sender_nonce).encode_to(&mut buf);
-    append_extra(&mut buf, chain_metadata.asset_tx_payment);
-
-    // Write R_v.
-    buf.extend_from_slice(&spec_version.to_le_bytes());
-
-    // Write F_v.
-    buf.extend_from_slice(&transaction_version.to_le_bytes());
-
-    // Write H_h(G).
-    buf.extend_from_slice(genesis_hash);
-
-    // Write H_h(B)
-    buf.extend_from_slice(block_hash);
-
-    // Write metadata hash (nullary).
-    buf.extend_from_slice(&[0x00]);
-
-    // If our payload exceeds 256 bytes, hash it down to 32 bytes as demonstarted by
-    // the polkadot-js implementation here:
-    // https://github.com/polkadot-js/api/blob/9f6a9c53e6822d20e8556649c9b68d31cffc465d/packages/types/src/extrinsic/util.ts#L10-L17
-    // https://github.com/polkadot-js/common/blob/bf63a0ebf655312f54aa37350d244df3d05e4e32/packages/util-crypto/src/blake2/asU8a.ts#L25-L34
-    if buf.len() > 256 {
-        let hash = blake2b_simd::Params::new().hash_length(32).hash(&buf);
-        buf.clear();
-        buf.extend_from_slice(hash.as_bytes());
-    }
-
-    assert!(buf.len() <= 256);
-    buf
+) -> Result<Vec<u8>, String> {
+    generate_extrinsic_signature_payload_impl(
+        chain_metadata,
+        sender_nonce,
+        send_amount_bytes,
+        transfer_all,
+        recipient,
+        None,
+        spec_version,
+        transaction_version,
+        block_number,
+        genesis_hash,
+        block_hash,
+    )
+    .map_err(|e| e.to_string())
 }
 
-fn make_signed_extrinsic(
+pub fn generate_assets_extrinsic_signature_payload(
+    chain_metadata: &CxxPolkadotChainMetadata,
+    sender_nonce: u32,
+    send_amount_bytes: &[u8; 16],
+    transfer_all: bool,
+    recipient: &[u8; 32],
+    asset_id: u32,
+    spec_version: u32,
+    transaction_version: u32,
+    block_number: u32,
+    genesis_hash: &[u8; 32],
+    block_hash: &[u8; 32],
+) -> Result<Vec<u8>, String> {
+    generate_extrinsic_signature_payload_impl(
+        chain_metadata,
+        sender_nonce,
+        send_amount_bytes,
+        transfer_all,
+        recipient,
+        Some(asset_id),
+        spec_version,
+        transaction_version,
+        block_number,
+        genesis_hash,
+        block_hash,
+    )
+    .map_err(|e| e.to_string())
+}
+
+fn make_signed_transfer_extrinsic_impl(
     chain_metadata: &CxxPolkadotChainMetadata,
     sender_pubkey: &[u8; 32],
     recipient_pubkey: &[u8; 32],
@@ -320,11 +425,16 @@ fn make_signed_extrinsic(
     signature: &[u8; 64],
     block_number: u32,
     sender_nonce: u32,
-) -> Vec<u8> {
-    let CxxPolkadotChainMetadata {
+    asset_id: Option<u32>,
+) -> Result<Vec<u8>, Error> {
+    let &CxxPolkadotChainMetadata {
         balances_pallet_index,
         transfer_keep_alive_call_index,
         transfer_all_call_index,
+        has_assets_pallet,
+        assets_pallet_index,
+        assets_transfer_keep_alive_call_index,
+        assets_transfer_all_call_index,
         ..
     } = chain_metadata;
 
@@ -334,14 +444,33 @@ fn make_signed_extrinsic(
     buf.extend_from_slice(sender_pubkey);
     buf.extend_from_slice(&[SR25519_SIGNATURE]);
     buf.extend_from_slice(signature);
-    buf.extend_from_slice(&scale_encode_mortality(block_number, PERIOD));
-    Compact(sender_nonce).encode_to(&mut buf);
-    append_extra(&mut buf, chain_metadata.asset_tx_payment);
+    append_extra(chain_metadata, sender_nonce, block_number, &mut buf)?;
 
-    let call_idx =
-        if transfer_all { transfer_all_call_index } else { transfer_keep_alive_call_index };
+    let (pallet_idx, call_idx) = {
+        if asset_id.is_some() {
+            assert!(has_assets_pallet);
 
-    buf.extend_from_slice(&[*balances_pallet_index, *call_idx, MULTIADDRESS_TYPE]);
+            let transfer_call_idx = if transfer_all {
+                assets_transfer_all_call_index
+            } else {
+                assets_transfer_keep_alive_call_index
+            };
+
+            (assets_pallet_index, transfer_call_idx)
+        } else {
+            let transfer_call_idx =
+                if transfer_all { transfer_all_call_index } else { transfer_keep_alive_call_index };
+
+            (balances_pallet_index, transfer_call_idx)
+        }
+    };
+
+    buf.extend_from_slice(&[pallet_idx, call_idx]);
+    if let Some(asset_id) = asset_id {
+        Compact(asset_id).encode_to(&mut buf);
+    }
+
+    buf.extend_from_slice(&[MULTIADDRESS_TYPE]);
     buf.extend_from_slice(recipient_pubkey);
 
     if transfer_all {
@@ -354,7 +483,56 @@ fn make_signed_extrinsic(
         buf.splice(0..0, encoded_len.iter().copied());
     });
 
-    buf
+    Ok(buf)
+}
+
+pub fn make_signed_extrinsic(
+    chain_metadata: &CxxPolkadotChainMetadata,
+    sender_pubkey: &[u8; 32],
+    recipient_pubkey: &[u8; 32],
+    send_amount_bytes: &[u8; 16],
+    transfer_all: bool,
+    signature: &[u8; 64],
+    block_number: u32,
+    sender_nonce: u32,
+) -> Result<Vec<u8>, String> {
+    make_signed_transfer_extrinsic_impl(
+        chain_metadata,
+        sender_pubkey,
+        recipient_pubkey,
+        send_amount_bytes,
+        transfer_all,
+        signature,
+        block_number,
+        sender_nonce,
+        None,
+    )
+    .map_err(|e| e.to_string())
+}
+
+pub fn make_signed_asset_transfer_extrinsic(
+    chain_metadata: &CxxPolkadotChainMetadata,
+    sender_pubkey: &[u8; 32],
+    recipient_pubkey: &[u8; 32],
+    send_amount_bytes: &[u8; 16],
+    transfer_all: bool,
+    signature: &[u8; 64],
+    block_number: u32,
+    sender_nonce: u32,
+    asset_id: u32,
+) -> Result<Vec<u8>, String> {
+    make_signed_transfer_extrinsic_impl(
+        chain_metadata,
+        sender_pubkey,
+        recipient_pubkey,
+        send_amount_bytes,
+        transfer_all,
+        signature,
+        block_number,
+        sender_nonce,
+        Some(asset_id),
+    )
+    .map_err(|e| e.to_string())
 }
 
 // Definition of the type's binary representation is provided here:
@@ -365,55 +543,46 @@ fn make_signed_extrinsic(
 // weight = {ref_time (as Compact<u64>), proof_size (as Compact<u64>)}
 // class = 0x00, 0x01, or 0x02
 // partial_fee = LE bytes representing U128
-fn parse_fee_info(input: &[u8], fee_bytes: &mut [u8; 16]) -> bool {
-    // Normally in C++, a reference is an immutable thing that once it's bound to an
-    // object, it can never re-alias. In Rust, a reference _is_ a pointer. The
-    // parity-scale-codec crate takes advantage of this and its API mutates the
-    // input pointer, advancing it as it parses.
+pub fn parse_fee_info(input: &[u8]) -> Option<[u8; 16]> {
+    // Normally in C++, a reference is an immutable thing that once it's bound
+    // to an object, it can never re-alias. In Rust, a reference _is_ a
+    // pointer. The parity-scale-codec crate takes advantage of this and its
+    // API mutates the input pointer, advancing it as it parses.
     let mut input = input;
 
-    let ref_time = <Compact<u64>>::decode(&mut input);
-    if ref_time.is_err() {
-        return false;
-    }
-
-    let proof_size = <Compact<u64>>::decode(&mut input);
-    if proof_size.is_err() {
-        return false;
-    }
+    let _ref_time = <Compact<u64>>::decode(&mut input).ok()?;
+    let _proof_size = <Compact<u64>>::decode(&mut input).ok()?;
 
     const CLASS_NORMAL: u8 = 0;
     const CLASS_OPERATIONAL: u8 = 1;
     const CLASS_MANDATORY: u8 = 2;
 
-    let Ok(class) = next_n_bytes(&mut input, 1) else { return false };
+    let class = next_n_bytes(&mut input, 1).ok()?;
     match class[0] {
         // These are the only valid values
         // https://github.com/polkadot-js/api/blob/eb34741c871ca8d029a9706ae989ba8ce865db0f/packages/types-support/src/metadata/v15/polkadot-types.json#L1330-L1349
         CLASS_NORMAL | CLASS_OPERATIONAL | CLASS_MANDATORY => {}
-        _ => return false,
+        _ => return None,
     }
 
-    let Ok(fee_le_bytes) = next_n_bytes(&mut input, 16) else { return false };
+    let fee_le_bytes = next_n_bytes(&mut input, 16).ok()?;
     if !input.is_empty() {
         // Trailing octets, assume invalid input.
-        return false;
+        return None;
     }
 
-    fee_bytes.copy_from_slice(fee_le_bytes);
-
-    true
+    fee_le_bytes.try_into().ok()
 }
 
-fn compact_scale_encode_u32(x: u32) -> Vec<u8> {
+pub fn compact_scale_encode_u32(x: u32) -> Vec<u8> {
     Compact(x).encode()
 }
 
-fn scale_encode_string(value: &[u8]) -> Vec<u8> {
+pub fn scale_encode_string(value: &[u8]) -> Vec<u8> {
     value.encode()
 }
 
-fn was_extrinsic_successful(
+pub fn was_extrinsic_successful(
     events: &[u8],
     extrinsic_idx: u32,
     sender: &[u8; 32],
@@ -457,16 +626,18 @@ fn was_extrinsic_successful(
     // But in general, it seems like the events flow can become quite complex:
     // https://polkadot.subscan.io/extrinsic/30123219-2
     // The thing to note is that the extrinsic always ends with the same two
-    // events, the fee was paid and the system gave the extrinsic a final status.
+    // events, the fee was paid and the system gave the extrinsic a final
+    // status.
     //
     // In Polkadot, an event is defined as: {phase, event, topics}
     // https://github.com/polkadot-js/api/blob/eb34741c871ca8d029a9706ae989ba8ce865db0f/packages/types-support/src/metadata/v15/polkadot-types.json#L519-L542
     //
     // Because the events are a massive binary blob that rely on quite a bit of
-    // Polkadot runtime metadata to fully parse, we just probe for the two events
-    // for our extrinsic that we care about: the transaction fee paid and the final
-    // status. We can theoretically probe for everything such as who the fee was
-    // paid out to but it isn't strictly required for our current needs.
+    // Polkadot runtime metadata to fully parse, we just probe for the two
+    // events for our extrinsic that we care about: the transaction fee paid
+    // and the final status. We can theoretically probe for everything such
+    // as who the fee was paid out to but it isn't strictly required for our
+    // current needs.
 
     // We first probe for the balances(Withdraw) event, so that we can use the
     // withdrawn fee as a sanity check when we probe for our TransactionFeePaid
@@ -509,7 +680,8 @@ fn was_extrinsic_successful(
     transaction_fee_paid_needle[6] = TRANSACTION_FEE_PAID_VARIANT_INDEX;
     transaction_fee_paid_needle[7..39].copy_from_slice(sender);
 
-    // Use `find` here because we've located the start of our event sequence above.
+    // Use `find` here because we've located the start of our event sequence
+    // above.
     let Some(needle_idx) = memchr::memmem::find(events, &transaction_fee_paid_needle) else {
         return false;
     };

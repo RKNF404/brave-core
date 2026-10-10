@@ -22,8 +22,8 @@ namespace {
 
 bool DoesRequireResource() {
   // Require resource only if:
-  // - The user has joined Brave Rewards and opted into notification ads.
-  return UserHasOptedInToNotificationAds();
+  // - The user has joined Brave Rewards and notification ads are enabled.
+  return IsNotificationAdsEnabled();
 }
 
 }  // namespace
@@ -37,13 +37,18 @@ PurchaseIntentResource::~PurchaseIntentResource() = default;
 ///////////////////////////////////////////////////////////////////////////////
 
 void PurchaseIntentResource::MaybeLoad() {
-  if (manifest_version_ && DoesRequireResource()) {
-    Load();
+  if (!manifest_version_ || !DoesRequireResource()) {
+    // No longer required, so a previous failure to load is no longer
+    // relevant.
+    load_state_ = ResourceLoadStateType::kNotLoaded;
+    return;
   }
+
+  Load();
 }
 
 void PurchaseIntentResource::MaybeLoadOrUnload() {
-  IsLoaded() ? MaybeUnload() : MaybeLoad();
+  GetLoadState() == ResourceLoadStateType::kLoaded ? MaybeUnload() : MaybeLoad();
 }
 
 void PurchaseIntentResource::Load() {
@@ -54,17 +59,28 @@ void PurchaseIntentResource::Load() {
 }
 
 void PurchaseIntentResource::LoadCallback(
-    std::optional<PurchaseIntentResourceInfo> resource) {
-  if (!resource) {
-    return BLOG(0, "Failed to load and parse " << kPurchaseIntentResourceId
-                                               << " purchase intent resource");
-  }
-
-  if (!resource->version) {
+    std::optional<PurchaseIntentResourceInfo> resource,
+    bool exists) {
+  if (!exists) {
+    load_state_ = ResourceLoadStateType::kNotLoaded;
     return BLOG(1, kPurchaseIntentResourceId
                        << " purchase intent resource is unavailable");
   }
 
+  if (!resource) {
+    load_state_ = ResourceLoadStateType::kFailedToLoad;
+    return BLOG(0, "Failed to load and parse " << kPurchaseIntentResourceId
+                                               << " purchase intent resource");
+  }
+
+  if (!resource->version ||
+      *resource->version != kPurchaseIntentResourceVersion.Get()) {
+    load_state_ = ResourceLoadStateType::kNotLoaded;
+    return BLOG(1, kPurchaseIntentResourceId
+                       << " purchase intent resource is unavailable");
+  }
+
+  load_state_ = ResourceLoadStateType::kLoaded;
   resource_ = std::move(resource);
 
   BLOG(1, "Successfully loaded and parsed "
@@ -84,11 +100,12 @@ void PurchaseIntentResource::Unload() {
        "Unloaded " << kPurchaseIntentResourceId << " purchase intent resource");
 
   resource_.reset();
+  load_state_ = ResourceLoadStateType::kNotLoaded;
 }
 
 void PurchaseIntentResource::OnNotifyPrefDidChange(const std::string& path) {
   if (DoesMatchUserHasJoinedBraveRewardsPrefPath(path) ||
-      DoesMatchUserHasOptedInToNotificationAdsPrefPath(path)) {
+      DoesMatchNotificationAdsEnabledPrefPath(path)) {
     // This condition should include all the preferences that are present in the
     // `DoesRequireResource` function.
     MaybeLoadOrUnload();

@@ -10,7 +10,7 @@
 #include <string_view>
 
 #include "brave/components/script_injector/common/mojom/script_injector.mojom.h"
-#include "content/public/browser/web_contents_observer.h"
+#include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 
 namespace content {
@@ -18,33 +18,39 @@ class Page;
 class WebContents;
 }  // namespace content
 
+namespace tabs {
+class TabInterface;
+}  // namespace tabs
+
 namespace ai_chat {
 
-// Injects Brave-provided WebMCP tools (see GetWebMcpInjectionRules()) into
-// pages whose URL matches a rule. The injected script calls
-// `navigator.modelContext.registerTool(...)` in the page's main world; the
+// Injects Component-provided WebMCP tools into pages whose URL matches a rule.
+// The rules are delivered by the component updater and held in
+// web_mcp::WebMcpRuleRegistry. The injected script calls
+// `document.modelContext.registerTool(...)` in the page's main world; the
 // existing ContentTool pipeline then discovers the tool automatically.
 //
-// One instance is scoped to a single tab's WebContents. It is owned by
-// BraveTabFeatures (desktop and Android) and created via MaybeCreate().
-//
-// Proof-of-concept: rules are hardcoded and injected into the main world.
-class WebMcpInjector : public content::WebContentsObserver {
+// One instance is scoped to a single tab, and follows the tab's contents when
+// they are replaced. This instance is owned by BraveTabFeatures.
+class WebMcpInjector : public tabs::ContentsObservingTabFeature {
  public:
-  // Creates an injector for `web_contents`, or returns nullptr when WebMCP is
-  // unavailable (the runtime feature is disabled, or there are no rules). The
-  // injected script also guards against a missing navigator.modelContext, so
-  // this is a cheap early-out.
-  static std::unique_ptr<WebMcpInjector> MaybeCreate(
-      content::WebContents* web_contents);
+  // Creates an injector for `tab`, or returns nullptr when the WebMCP runtime
+  // feature is disabled. The injected script also guards against a missing
+  // document.modelContext, so this is a cheap early-out.
+  static std::unique_ptr<WebMcpInjector> MaybeCreate(tabs::TabInterface& tab);
 
-  explicit WebMcpInjector(content::WebContents* web_contents);
+  explicit WebMcpInjector(tabs::TabInterface& tab);
   ~WebMcpInjector() override;
 
   WebMcpInjector(const WebMcpInjector&) = delete;
   WebMcpInjector& operator=(const WebMcpInjector&) = delete;
 
  private:
+  // tabs::ContentsObservingTabFeature:
+  void OnDiscardContents(tabs::TabInterface* tab,
+                         content::WebContents* old_contents,
+                         content::WebContents* new_contents) override;
+
   // content::WebContentsObserver:
   void DocumentOnLoadCompletedInPrimaryMainFrame() override;
   void PrimaryPageChanged(content::Page& page) override;

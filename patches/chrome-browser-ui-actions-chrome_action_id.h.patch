@@ -1,21 +1,29 @@
 diff --git a/chrome/browser/ui/actions/chrome_action_id.h b/chrome/browser/ui/actions/chrome_action_id.h
-index fb93a1bc1e61639409a123d4012edbe4353a1d88..6c63084089b009d2e37d66d62770dbcd721274fe 100644
+index ed9640601d9cd2484707e4f31f548ea7f7800a72..45150a42ed2e3a1048930e0f37c5e3fcf1db5d41 100644
 --- a/chrome/browser/ui/actions/chrome_action_id.h
 +++ b/chrome/browser/ui/actions/chrome_action_id.h
-@@ -567,6 +567,7 @@
+@@ -491,6 +491,10 @@
+ // Should be reinserted into CHROME_COMMON_ACTION_IDS when general solution to
+ // add action id mappings is implemented.
+ #define SIDE_PANEL_ACTION_IDS \
++  E(kActionSidePanelShowPlaylist) \
++  E(kActionSidePanelShowChatUI) \
++  E(kActionSidePanelShowBraveNews) \
++  E(kActionSidePanelShowWallet) \
    /* Side Panel items */ \
    E(kActionSidePanelShowAboutThisSite) \
    E(kActionSidePanelShowAssistant) \
-+  E(kActionSidePanelShowPlaylist) E(kActionSidePanelShowChatUI) E(kActionSidePanelShowBraveNews) \
-   E(kActionSidePanelShowBookmarks, IDC_SHOW_BOOKMARK_SIDE_PANEL) \
-   E(kActionSidePanelShowComments, IDC_SHOW_COMMENTS_SIDE_PANEL) \
-   E(kActionSidePanelShowCustomizeChrome, IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL) \
-@@ -615,6 +616,8 @@
-   E(kActionCopyUrl, IDC_COPY_URL) \
-   E(kActionTabGroupsMenu, IDC_SAVED_TAB_GROUPS_MENU) \
-   E(kActionTabSearch, IDC_TAB_SEARCH) \
+@@ -520,6 +524,13 @@
+     IDC_SHOW_TABS_FROM_OTHER_DEVICES_SIDE_PANEL)
+ 
+ #define TOOLBAR_PINNABLE_ACTION_IDS \
 +  E(kActionShowPartitionedStorage) \
 +  E(kActionShowPsstIcon) \
-   E(kActionSplitTab, IDC_SPLIT_TAB) \
-   E(kActionFederation) \
-   E(kActionGlicContextualCueing) \
++  E(kActionShowSpeedreader) \
++  E(kActionShowWaybackMachine) \
++  E(kActionShowPlaylistPageAction) \
++  E(kActionShowOnionLocation) \
++  E(kActionShowBraveNews) \
+   E(kActionHome, IDC_HOME) \
+   E(kActionForward, IDC_FORWARD) \
+   E(kActionNewIncognitoWindow, IDC_NEW_INCOGNITO_WINDOW) \

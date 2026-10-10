@@ -12,6 +12,7 @@
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
+#include "base/scoped_observation.h"
 #include "brave/browser/tor/tor_profile_service_factory.h"
 #include "brave/components/constants/pref_names.h"
 #include "brave/components/tor/tor_constants.h"
@@ -20,18 +21,21 @@
 #include "brave/components/tor/tor_profile_service.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/translate/core/browser/translate_pref_names.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "net/base/features.h"
 #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
@@ -87,12 +91,12 @@ TorProfileManager& TorProfileManager::GetInstance() {
 class TorTabNavigator final : public content::WebContentsObserver,
                               public TorLauncherObserver {
  public:
-  static void Navigate(Browser* tor_browser,
+  static void Navigate(BrowserWindowInterface* tor_browser,
                        const GURL& url,
                        const std::optional<url::Origin>& initiator_origin) {
     auto* tab = FindNTPTab(tor_browser);
     if (!tab) {
-      tab = &chrome::NewTab(tor_browser);
+      tab = &chrome::NewTab(tor_browser, NewTabTypes::kNewTabCommand);
     }
     if (!url.is_valid() || !tab) {
       return;
@@ -165,10 +169,10 @@ class TorTabNavigator final : public content::WebContentsObserver,
     }
   }
 
-  static content::WebContents* FindNTPTab(Browser* tor_browser) {
-    for (int i = 0; i < tor_browser->tab_strip_model()->count(); ++i) {
-      auto* tab = tor_browser->tab_strip_model()->GetWebContentsAt(i);
-      if (tab->GetURL() == tor_browser->GetNewTabURL()) {
+  static content::WebContents* FindNTPTab(BrowserWindowInterface* tor_browser) {
+    for (int i = 0; i < tor_browser->GetTabStripModel()->count(); ++i) {
+      auto* tab = tor_browser->GetTabStripModel()->GetWebContentsAt(i);
+      if (tab->GetURL() == chrome::GetNewTabURL(tor_browser)) {
         return tab;
       }
     }
@@ -180,13 +184,14 @@ class TorTabNavigator final : public content::WebContentsObserver,
 };
 
 // static
-Browser* TorProfileManager::SwitchToTorProfile(Profile* original_profile) {
+BrowserWindowInterface* TorProfileManager::SwitchToTorProfile(
+    Profile* original_profile) {
   return TorProfileManager::SwitchToTorProfile(original_profile,
                                                GURL::EmptyGURL(), std::nullopt);
 }
 
 // static
-Browser* TorProfileManager::SwitchToTorProfile(
+BrowserWindowInterface* TorProfileManager::SwitchToTorProfile(
     Profile* original_profile,
     const GURL& url,
     const std::optional<url::Origin>& initiator_origin) {
@@ -199,17 +204,15 @@ Browser* TorProfileManager::SwitchToTorProfile(
   // Find an existing Tor Browser, making a new one if no such Browser is
   // located.
   auto* collection = ProfileBrowserCollection::GetForProfile(tor_profile);
-  auto* tabbed_browser = collection ? collection->FindTabbedBrowser() : nullptr;
-  auto* browser =
-      tabbed_browser ? tabbed_browser->GetBrowserForMigrationOnly() : nullptr;
-  if (!browser && Browser::GetCreationStatusForProfile(tor_profile) ==
-                      Browser::CreationStatus::kOk) {
-    browser = Browser::Create(Browser::CreateParams(tor_profile, true));
+  auto* browser = collection ? collection->FindTabbedBrowser() : nullptr;
+  if (!browser && GetBrowserWindowCreationStatusForProfile(*tor_profile) ==
+                      BrowserWindowInterface::CreationStatus::kOk) {
+    browser = CreateBrowserWindow(BrowserWindowCreateParams(tor_profile, true));
   }
   if (browser) {
     TorTabNavigator::Navigate(browser, url, initiator_origin);
-    browser->window()->Activate();
-    browser->window()->Show();
+    BrowserWindow::FromBrowser(browser)->Activate();
+    BrowserWindow::FromBrowser(browser)->Show();
   }
   return browser;
 }

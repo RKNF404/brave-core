@@ -22,7 +22,6 @@
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/common/buildflags.h"
@@ -124,10 +123,8 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, CanLoadChromeURL) {
           ui_test_utils::NavigateToURL(browser(), GURL(scheme + page + "/")));
       ASSERT_TRUE(WaitForLoadStop(contents));
 
-      EXPECT_EQ(base::UTF16ToUTF8(browser()
-                                      ->GetFeatures()
-                                      .location_bar_model()
-                                      ->GetFormattedFullURL()),
+      EXPECT_EQ(base::UTF16ToUTF8(
+                    LocationBarModel::From(browser())->GetFormattedFullURL()),
                 ("brave://" + page));
       EXPECT_EQ(contents->GetController()
                     .GetLastCommittedEntry()
@@ -159,10 +156,8 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, CanLoadCustomBravePages) {
           ui_test_utils::NavigateToURL(browser(), GURL(scheme + page + "/")));
       ASSERT_TRUE(WaitForLoadStop(contents));
 
-      EXPECT_EQ(base::UTF16ToUTF8(browser()
-                                      ->GetFeatures()
-                                      .location_bar_model()
-                                      ->GetFormattedFullURL()),
+      EXPECT_EQ(base::UTF16ToUTF8(
+                    LocationBarModel::From(browser())->GetFormattedFullURL()),
                 ("brave://" + page));
       EXPECT_EQ(contents->GetController()
                     .GetLastCommittedEntry()
@@ -189,10 +184,8 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, CanLoadAboutHost) {
         ui_test_utils::NavigateToURL(browser(), GURL(scheme + "about/")));
     ASSERT_TRUE(WaitForLoadStop(contents));
 
-    EXPECT_EQ(base::UTF16ToUTF8(browser()
-                                    ->GetFeatures()
-                                    .location_bar_model()
-                                    ->GetFormattedFullURL()),
+    EXPECT_EQ(base::UTF16ToUTF8(
+                  LocationBarModel::From(browser())->GetFormattedFullURL()),
               "brave://about");
     EXPECT_EQ(contents->GetController()
                   .GetLastCommittedEntry()
@@ -217,10 +210,8 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, RewriteChromeSync) {
                                     GURL(scheme + chrome::kBraveUISyncHost),
                                     GURL("chrome://sync"));
 
-    EXPECT_EQ(base::UTF16ToUTF8(browser()
-                                    ->GetFeatures()
-                                    .location_bar_model()
-                                    ->GetFormattedFullURL()),
+    EXPECT_EQ(base::UTF16ToUTF8(
+                  LocationBarModel::From(browser())->GetFormattedFullURL()),
               "brave://sync");
     EXPECT_EQ(
         contents->GetController().GetLastCommittedEntry()->GetVirtualURL(),
@@ -241,12 +232,10 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, RewriteAdblock) {
         browser()->tab_strip_model()->GetActiveWebContents();
     NavigateToURLAndWaitForRewrites(contents, GURL(scheme + "adblock"),
                                     GURL("chrome://settings/shields/filters"));
-    EXPECT_EQ(base::UTF16ToUTF8(browser()
-                                    ->GetFeatures()
-                                    .location_bar_model()
-                                    ->GetFormattedFullURL()),
+    EXPECT_EQ(base::UTF16ToUTF8(
+                  LocationBarModel::From(browser())->GetFormattedFullURL()),
               "brave://settings/shields/filters");
-    EXPECT_EQ(browser()->GetFeatures().location_bar_model()->GetURL(),
+    EXPECT_EQ(LocationBarModel::From(browser())->GetURL(),
               GURL("chrome://settings/shields/filters"));
     EXPECT_EQ(
         contents->GetController().GetLastCommittedEntry()->GetVirtualURL(),
@@ -258,8 +247,8 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, RewriteAdblock) {
 IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, MixedContentForOnion) {
   net::ProxyConfigServiceTor::SetBypassTorProxyConfigForTesting(true);
   tor::TorNavigationThrottle::SetSkipWaitForTorConnectedForTesting(true);
-  Browser* tor_browser =
-      TorProfileManager::SwitchToTorProfile(browser()->profile());
+  BrowserWindowInterface* tor_browser =
+      TorProfileManager::SwitchToTorProfile(browser()->GetProfile());
 
   const GURL onion_url =
       embedded_test_server()->GetURL("test.onion", "/onion.html");
@@ -335,6 +324,27 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, MixedContentForOnion) {
     ASSERT_TRUE(content::ExecJs(contents, kFetchScript));
     ASSERT_TRUE(console_observer.Wait());
   }
+  {
+    // Regression test: an .onion page sandboxed via `Content-Security-Policy:
+    // sandbox` has an opaque origin whose precursor is the .onion origin. It
+    // must still be treated as secure, so insecure http subresources are
+    // blocked as mixed content instead of being allowed through.
+    const GURL sandboxed_onion_url =
+        embedded_test_server()->GetURL("test.onion", "/onion_sandboxed.html");
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(tor_browser, sandboxed_onion_url));
+
+    content::WebContentsConsoleObserver console_observer(contents);
+    console_observer.SetPattern(
+        "Mixed Content: The page at 'http://test.onion*/onion_sandboxed.html' "
+        "was loaded over HTTPS, but requested an insecure resource "
+        "'http://example.com*'. This request has been blocked; the content "
+        "must be served over HTTPS.");
+    const GURL resource_url =
+        embedded_test_server()->GetURL("example.com", "/logo-referrer.png");
+    const std::string kFetchScript = fetch(resource_url.spec());
+    ASSERT_FALSE(content::ExecJs(contents, kFetchScript));
+    ASSERT_TRUE(console_observer.Wait());
+  }
 }
 #endif
 
@@ -342,7 +352,8 @@ class BraveContentBrowserClientReferrerTest
     : public BraveContentBrowserClientTest {
  public:
   HostContentSettingsMap* content_settings() {
-    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+    return HostContentSettingsMapFactory::GetForProfile(
+        browser()->GetProfile());
   }
 };
 
@@ -358,8 +369,8 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientReferrerTest,
 
   // Cross-origin navigations get an origin.
   blink::mojom::ReferrerPtr referrer = kReferrer.Clone();
-  client()->MaybeHideReferrer(browser()->profile(), kRequestUrl, kDocumentUrl,
-                              &referrer);
+  client()->MaybeHideReferrer(browser()->GetProfile(), kRequestUrl,
+                              kDocumentUrl, &referrer);
 
   // Creating an Origin off a GURL should generally be avoided, but it's ok in
   // this particular case where we're just testing and using the http protocol.
@@ -368,25 +379,25 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientReferrerTest,
 
   // Same-origin navigations get full referrers.
   referrer = kReferrer.Clone();
-  client()->MaybeHideReferrer(browser()->profile(), kSameOriginRequestUrl,
+  client()->MaybeHideReferrer(browser()->GetProfile(), kSameOriginRequestUrl,
                               kDocumentUrl, &referrer);
   EXPECT_EQ(referrer->url, kDocumentUrl);
 
   // Same-site navigations get truncated referrers.
   referrer = kReferrer.Clone();
-  client()->MaybeHideReferrer(browser()->profile(), kSameSiteRequestUrl,
+  client()->MaybeHideReferrer(browser()->GetProfile(), kSameSiteRequestUrl,
                               kDocumentUrl, &referrer);
   EXPECT_EQ(referrer->url, document_url_origin);
 
   // Cross-origin iframe navigations get origins.
   referrer = kReferrer.Clone();
-  client()->MaybeHideReferrer(browser()->profile(), kRequestUrl, kDocumentUrl,
-                              &referrer);
+  client()->MaybeHideReferrer(browser()->GetProfile(), kRequestUrl,
+                              kDocumentUrl, &referrer);
   EXPECT_EQ(referrer->url, document_url_origin);
 
   // Same-origin iframe navigations get full referrers.
   referrer = kReferrer.Clone();
-  client()->MaybeHideReferrer(browser()->profile(), kSameOriginRequestUrl,
+  client()->MaybeHideReferrer(browser()->GetProfile(), kSameOriginRequestUrl,
                               kDocumentUrl, &referrer);
   EXPECT_EQ(referrer->url, kDocumentUrl);
 
@@ -394,19 +405,19 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientReferrerTest,
   const GURL kExtensionUrl("chrome-extension://abc/path?query");
   referrer = kReferrer.Clone();
   referrer->url = kExtensionUrl;
-  client()->MaybeHideReferrer(browser()->profile(), kRequestUrl, kExtensionUrl,
-                              &referrer);
+  client()->MaybeHideReferrer(browser()->GetProfile(), kRequestUrl,
+                              kExtensionUrl, &referrer);
   EXPECT_EQ(referrer->url, kExtensionUrl);
 
   // Special rule for Onion services.
   const GURL kOnionUrl("http://lwkjglkejslkgjel.onion/index.html");
   referrer = kReferrer.Clone();
   referrer->url = kOnionUrl;
-  client()->MaybeHideReferrer(browser()->profile(), kRequestUrl, kOnionUrl,
+  client()->MaybeHideReferrer(browser()->GetProfile(), kRequestUrl, kOnionUrl,
                               &referrer);
   EXPECT_EQ(referrer->url, GURL());  // .onion -> normal
   referrer = kReferrer.Clone();
-  client()->MaybeHideReferrer(browser()->profile(), kOnionUrl, kDocumentUrl,
+  client()->MaybeHideReferrer(browser()->GetProfile(), kOnionUrl, kDocumentUrl,
                               &referrer);
   EXPECT_EQ(referrer->url, document_url_origin);  // normal -> .onion
 
@@ -416,8 +427,8 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientReferrerTest,
       ContentSettingsPattern::Wildcard(), ContentSettingsType::BRAVE_REFERRERS,
       CONTENT_SETTING_ALLOW);
   referrer = kReferrer.Clone();
-  client()->MaybeHideReferrer(browser()->profile(), kRequestUrl, kDocumentUrl,
-                              &referrer);
+  client()->MaybeHideReferrer(browser()->GetProfile(), kRequestUrl,
+                              kDocumentUrl, &referrer);
   EXPECT_EQ(referrer->url, kDocumentUrl);
 }
 
@@ -431,7 +442,7 @@ IN_PROC_BROWSER_TEST_F(BraveContentBrowserClientTest, CheckExpectedExtensions) {
   };
 
   extensions::ExtensionRegistry* registry =
-      extensions::ExtensionRegistry::Get(browser()->profile());
+      extensions::ExtensionRegistry::Get(browser()->GetProfile());
   std::set<std::string> installed_extensions =
       registry->GenerateInstalledExtensionsSet().GetIDs();
 
@@ -454,7 +465,7 @@ class WinBraveContentBrowserClientTest
   WinBraveContentBrowserClientTest() = default;
   ~WinBraveContentBrowserClientTest() override = default;
 
-  bool GetShouldDoLearning(Browser* browser) {
+  bool GetShouldDoLearning(BrowserWindowInterface* browser) {
     return browser->tab_strip_model()
         ->GetActiveWebContents()
         ->GetShouldDoLearningForTesting();
@@ -490,7 +501,8 @@ IN_PROC_BROWSER_TEST_P(WinBraveContentBrowserClientTest, PRE_WindowsRecall) {
   }
 
   // incognito behavior is unchanged from upstream (always false)
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* incognito =
+      CreateIncognitoBrowser(browser()->GetProfile());
   EXPECT_FALSE(GetShouldDoLearning(incognito));
 }
 
@@ -509,7 +521,8 @@ IN_PROC_BROWSER_TEST_P(WinBraveContentBrowserClientTest, WindowsRecall) {
   }
 
   // incognito behavior is unchanged from upstream (always false)
-  Browser* incognito = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* incognito =
+      CreateIncognitoBrowser(browser()->GetProfile());
   EXPECT_FALSE(GetShouldDoLearning(incognito));
 }
 

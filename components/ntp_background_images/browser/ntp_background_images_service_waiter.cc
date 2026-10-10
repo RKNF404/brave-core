@@ -5,7 +5,7 @@
 
 #include "brave/components/ntp_background_images/browser/ntp_background_images_service_waiter.h"
 
-#include "brave/components/ntp_background_images/browser/ntp_sponsored_images_data.h"
+#include "brave/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/ntp_sponsored_content_data.h"
 
 namespace ntp_background_images {
 
@@ -21,12 +21,17 @@ void NTPBackgroundImagesServiceWaiter::
   on_background_images_did_update_run_loop_.Run();
 }
 
-void NTPBackgroundImagesServiceWaiter::WaitForOnSponsoredImagesDataDidUpdate() {
-  on_sponsored_images_data_did_update_run_loop_.Run();
+void NTPBackgroundImagesServiceWaiter::
+    WaitForDeprecatedOnSponsoredContentDidUpdate() {
+  deprecated_on_sponsored_content_did_update_run_loop_.Run();
 }
 
 void NTPBackgroundImagesServiceWaiter::WaitForOnSponsoredContentDidUpdate() {
   on_sponsored_content_did_update_run_loop_.Run();
+}
+
+void NTPBackgroundImagesServiceWaiter::WaitForOnSponsoredSitesDataDidUpdate() {
+  on_sponsored_sites_data_did_update_run_loop_.Run();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -36,14 +41,18 @@ void NTPBackgroundImagesServiceWaiter::OnBackgroundImagesDataDidUpdate(
   on_background_images_did_update_run_loop_.Quit();
 }
 
-void NTPBackgroundImagesServiceWaiter::OnSponsoredImagesDataDidUpdate(
-    NTPSponsoredImagesData* /*data*/) {
-  on_sponsored_images_data_did_update_run_loop_.Quit();
+void NTPBackgroundImagesServiceWaiter::DeprecatedOnSponsoredContentDidUpdate(
+    NTPSponsoredContentData* /*data*/) {
+  deprecated_on_sponsored_content_did_update_run_loop_.Quit();
 }
 
 void NTPBackgroundImagesServiceWaiter::OnSponsoredContentDidUpdate(
     const base::DictValue& /*dict*/) {
   on_sponsored_content_did_update_run_loop_.Quit();
+}
+
+void NTPBackgroundImagesServiceWaiter::OnSponsoredSitesDataDidUpdate() {
+  on_sponsored_sites_data_did_update_run_loop_.Quit();
 }
 
 }  // namespace ntp_background_images

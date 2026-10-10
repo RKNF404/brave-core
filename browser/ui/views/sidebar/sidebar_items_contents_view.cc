@@ -17,22 +17,19 @@
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "brave/app/vector_icons/vector_icons.h"
-#include "brave/browser/misc_metrics/profile_misc_metrics_service.h"
-#include "brave/browser/misc_metrics/profile_misc_metrics_service_factory.h"
 #include "brave/browser/profiles/profile_util.h"
-#include "brave/browser/ui/brave_browser.h"
 #include "brave/browser/ui/color/brave_color_id.h"
 #include "brave/browser/ui/color/color_palette.h"
 #include "brave/browser/ui/sidebar/sidebar_controller.h"
 #include "brave/browser/ui/sidebar/sidebar_model.h"
 #include "brave/browser/ui/sidebar/sidebar_service_factory.h"
-#include "brave/browser/ui/sidebar/sidebar_utils.h"
 #include "brave/browser/ui/views/sidebar/sidebar_edit_item_bubble_delegate_view.h"
 #include "brave/browser/ui/views/sidebar/sidebar_item_added_feedback_bubble.h"
 #include "brave/browser/ui/views/sidebar/sidebar_item_view.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/brave_talk/buildflags/buildflags.h"
+#include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
 #include "brave/components/sidebar/browser/pref_names.h"
 #include "brave/components/sidebar/browser/sidebar_item.h"
@@ -42,6 +39,7 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/event_utils.h"
@@ -63,11 +61,6 @@
 #include "ui/views/controls/separator.h"
 #include "ui/views/layout/box_layout.h"
 
-#if BUILDFLAG(ENABLE_AI_CHAT)
-#include "brave/components/ai_chat/core/browser/ai_chat_metrics.h"
-#include "brave/components/ai_chat/core/common/features.h"
-#endif  // BUILDFLAG(ENABLE_AI_CHAT)
-
 namespace {
 
 constexpr gfx::Size kIconSize(SidebarButtonView::kExternalIconSize,
@@ -88,18 +81,18 @@ std::string GetFirstCharFromURL(const GURL& url) {
   return std::string(target);
 }
 
-sidebar::SidebarService* GetSidebarService(Browser* browser) {
-  return sidebar::SidebarServiceFactory::GetForProfile(browser->profile());
+sidebar::SidebarService* GetSidebarService(BrowserWindowInterface* browser) {
+  return sidebar::SidebarServiceFactory::GetForProfile(browser->GetProfile());
 }
 
 }  // namespace
 
 SidebarItemsContentsView::SidebarItemsContentsView(
-    BraveBrowser* browser,
+    BrowserWindowInterface* browser,
     views::DragController* drag_controller)
     : browser_(browser),
       drag_controller_(drag_controller),
-      sidebar_model_(browser->GetFeatures().sidebar_controller()->model()) {
+      sidebar_model_(sidebar::SidebarController::From(browser)->model()) {
   DCHECK(browser_);
   set_context_menu_controller(this);
   SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -143,10 +136,10 @@ void SidebarItemsContentsView::OnThemeChanged() {
 }
 
 void SidebarItemsContentsView::Update() {
-  UpdateAllBuiltInItemsViewState();
+  UpdateAllItemsViewState();
 }
 
-void SidebarItemsContentsView::UpdateAllBuiltInItemsViewState() {
+void SidebarItemsContentsView::UpdateAllItemsViewState() {
   const auto& items = sidebar_model_->GetAllSidebarItems();
   // It's not initialized yet if child view count and items size are different.
   if (children().size() != items.size()) {
@@ -157,24 +150,22 @@ void SidebarItemsContentsView::UpdateAllBuiltInItemsViewState() {
   const size_t items_num = items.size();
   for (size_t item_index = 0; item_index < items_num; ++item_index) {
     const auto item = items[item_index];
-    if (!item.is_built_in_type()) {
-      continue;
-    }
-
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
     // If browser window has tab that loads brave talk, brave talk panel icon
     // will use colored one for normal state also.
     if (item.built_in_item_type ==
         sidebar::SidebarItem::BuiltInItemType::kBraveTalk) {
       UpdateItemViewStateAt(item_index,
-                            browser_->GetFeatures()
-                                .sidebar_controller()
+                            sidebar::SidebarController::From(browser_)
                                 ->DoesBrowserHaveOpenedTabForItem(item));
       continue;
     }
 #endif
 
-    UpdateItemViewStateAt(item_index, item_index == active_index);
+    // Items that opens in panel can have active state.
+    if (item.open_in_panel) {
+      UpdateItemViewStateAt(item_index, item_index == active_index);
+    }
   }
 }
 
@@ -358,7 +349,7 @@ void SidebarItemsContentsView::UpdateItem(
 
 void SidebarItemsContentsView::ShowItemAddedFeedbackBubble(
     size_t item_added_index) {
-  auto* prefs = browser_->profile()->GetPrefs();
+  auto* prefs = browser_->GetProfile()->GetPrefs();
   const int current_count =
       prefs->GetInteger(sidebar::kSidebarItemAddedFeedbackBubbleShowCount);
   // Don't show feedback bubble more than three times.
@@ -386,14 +377,9 @@ void SidebarItemsContentsView::ShowItemAddedFeedbackBubble(
   }
 
   auto* bubble = SidebarItemAddedFeedbackBubble::Create(
-      anchor_view, this, browser_->profile()->GetPrefs());
+      anchor_view, this, browser_->GetProfile()->GetPrefs());
   observation_.Observe(bubble);
   bubble->Show();
-}
-
-bool SidebarItemsContentsView::IsBuiltInTypeItemView(views::View* view) const {
-  auto index = GetIndexOf(view);
-  return sidebar_model_->GetAllSidebarItems()[*index].is_built_in_type();
 }
 
 void SidebarItemsContentsView::SetImageForItem(const sidebar::SidebarItem& item,
@@ -524,48 +510,16 @@ void SidebarItemsContentsView::UpdateItemViewStateAt(size_t index,
 
 void SidebarItemsContentsView::OnItemPressed(const views::View* item,
                                              const ui::Event& event) {
-  auto* controller = browser_->GetFeatures().sidebar_controller();
   auto index = GetIndexOf(item);
-  if (controller->IsActiveIndex(index)) {
-    controller->DeactivateCurrentPanel();
-    return;
-  }
+  CHECK(index);
 
-  const auto& item_model = controller->model()->GetAllSidebarItems()[*index];
-
-  // web panel is not a side panel that's handled by SidePanelCoordinator.
-  // It'll be loaded into another contents view in MultiContentsView.
-  if (sidebar::IsWebPanelFeatureEnabled() && item_model.is_web_panel_type()) {
-    controller->ActivateItemAt(index);
-    return;
-  }
-
-  if (!item_model.is_web_type() && item_model.open_in_panel) {
-#if BUILDFLAG(ENABLE_AI_CHAT)
-    if (item_model.built_in_item_type ==
-        sidebar::SidebarItem::BuiltInItemType::kChatUI) {
-      auto* profile_metrics =
-          misc_metrics::ProfileMiscMetricsServiceFactory::GetServiceForContext(
-              browser_->profile());
-      if (profile_metrics) {
-        auto* ai_chat_metrics = profile_metrics->GetAIChatMetrics();
-        if (ai_chat_metrics) {
-          ai_chat_metrics->HandleOpenViaEntryPoint(
-              ai_chat::EntryPoint::kSidebar);
-        }
-      }
-    }
-#endif  // BUILDFLAG(ENABLE_AI_CHAT)
-    controller->ActivatePanelItem(item_model.built_in_item_type);
-    return;
-  }
-
-  WindowOpenDisposition open_disposition = WindowOpenDisposition::CURRENT_TAB;
+  auto open_disposition = WindowOpenDisposition::CURRENT_TAB;
   if (event_utils::IsPossibleDispositionEvent(event)) {
     open_disposition = ui::DispositionFromEventFlags(event.flags());
   }
 
-  controller->ActivateItemAt(index, open_disposition);
+  sidebar::SidebarController::From(browser_)->OnItemPressed(*index,
+                                                            open_disposition);
 }
 
 ui::ImageModel SidebarItemsContentsView::GetImageForBuiltInItems(
@@ -586,8 +540,10 @@ ui::ImageModel SidebarItemsContentsView::GetImageForBuiltInItems(
   };
 
   switch (type) {
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
     case sidebar::SidebarItem::BuiltInItemType::kWallet:
       return get_image_model(kLeoProductBraveWalletIcon, state);
+#endif
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
     case sidebar::SidebarItem::BuiltInItemType::kBraveTalk:
       return get_image_model(kLeoProductBraveTalkIcon, state);
@@ -608,7 +564,7 @@ ui::ImageModel SidebarItemsContentsView::GetImageForBuiltInItems(
 #endif
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
     case sidebar::SidebarItem::BuiltInItemType::kBraveNews:
-      return get_image_model(kLeoRssIcon, state);
+      return get_image_model(kLeoProductBraveNewsIcon, state);
 #endif
     default:
       break;

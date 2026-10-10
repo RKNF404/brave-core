@@ -20,6 +20,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.ResourceTabFavicon;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.StaticTabFaviconType;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFavicon;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.ui.util.ColorUtils;
 
 /** Unit tests for {@link BraveTabListFaviconProvider}. */
@@ -69,6 +70,27 @@ public class BraveTabListFaviconProviderTest {
     }
 
     @Test
+    public void testGetBraveNtpFaviconDrawableIdPrivateTabsMatchDarkVariant() {
+        ColorUtils.setInNightModeForTesting(false);
+        BraveTabListFaviconProvider provider = createProvider(/* isTabStrip= */ false);
+
+        Assert.assertEquals(
+                BraveTabListFaviconProvider.BRAVE_NTP_FAVICON_DRAWABLE_ID_OUTLINE,
+                provider.getBraveNtpFaviconDrawableId(/* isIncognito= */ false));
+        Assert.assertEquals(
+                BraveTabListFaviconProvider.BRAVE_NTP_FAVICON_DRAWABLE_ID_FILLED,
+                provider.getBraveNtpFaviconDrawableId(/* isIncognito= */ true));
+
+        ColorUtils.setInNightModeForTesting(true);
+        Assert.assertEquals(
+                BraveTabListFaviconProvider.BRAVE_NTP_FAVICON_DRAWABLE_ID_FILLED,
+                provider.getBraveNtpFaviconDrawableId(/* isIncognito= */ false));
+        Assert.assertEquals(
+                BraveTabListFaviconProvider.BRAVE_NTP_FAVICON_DRAWABLE_ID_FILLED,
+                provider.getBraveNtpFaviconDrawableId(/* isIncognito= */ true));
+    }
+
+    @Test
     public void testGetRoundedChromeFaviconTabStripDelegatesToUpstream() {
         TabFavicon favicon = createProvider(/* isTabStrip= */ true).getRoundedChromeFavicon(false);
 
@@ -100,7 +122,7 @@ public class BraveTabListFaviconProviderTest {
     private BraveTabListFaviconProvider createProvider(boolean isTabStrip) {
         return new BraveTabListFaviconProvider(
                 mActivity,
-                isTabStrip,
+                isTabStrip ? TabListMode.BOTTOM_STRIP : TabListMode.GRID,
                 org.chromium.chrome.R.dimen.default_favicon_corner_radius,
                 /* tabWebContentsFaviconDelegate= */ null);
     }

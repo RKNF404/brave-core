@@ -8,12 +8,13 @@
 #define BRAVE_COMPONENTS_BRAVE_WALLET_COMMON_WEB_UI_CONSTANTS_H_
 
 inline constexpr char kBraveUIWalletURL[] = "chrome://wallet/";
-inline constexpr char kBraveUIWalletOnboardingURL[] =
-    "brave://wallet/crypto/onboarding";
 inline constexpr char kBraveUIWalletAccountCreationURL[] =
     "brave://wallet/crypto/accounts/add-account/create/";
 inline constexpr char kBraveUIWalletPanelURL[] =
     "chrome://wallet-panel.top-chrome/";
+// Same host as the bubble; ?isSidePanel=true is the sole isSidePanel signal.
+inline constexpr char kBraveUIWalletSidePanelURL[] =
+    "chrome://wallet-panel.top-chrome/?isSidePanel=true";
 inline constexpr char kWalletPanelHost[] = "wallet-panel.top-chrome";
 inline constexpr char kBraveUIWalletPageURL[] = "chrome://wallet/";
 inline constexpr char kWalletPageHost[] = "wallet";
@@ -32,5 +33,9 @@ inline constexpr char kUntrustedMarketURL[] =
 inline constexpr char kUntrustedTrezorHost[] = "trezor-bridge";
 inline constexpr char kUntrustedTrezorURL[] =
     "chrome-untrusted://trezor-bridge/";
+inline constexpr char kUntrustedSnapHost[] = "snap-host";
+inline constexpr char kUntrustedSnapURL[] = "chrome-untrusted://snap-host/";
+inline constexpr char kSnapsContainerHost[] = "snaps-container";
+inline constexpr char kBraveUISnapsContainerURL[] = "chrome://snaps-container/";
 
 #endif  // BRAVE_COMPONENTS_BRAVE_WALLET_COMMON_WEB_UI_CONSTANTS_H_

@@ -6,6 +6,7 @@
 #ifndef BRAVE_COMPONENTS_BRAVE_NEWS_BROWSER_DIRECT_FEED_CONTROLLER_H_
 #define BRAVE_COMPONENTS_BRAVE_NEWS_BROWSER_DIRECT_FEED_CONTROLLER_H_
 
+#include <optional>
 #include <queue>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "brave/components/brave_news/common/brave_news.mojom.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 class PrefService;
 
@@ -36,19 +38,30 @@ class DirectFeedController {
   DirectFeedController(const DirectFeedController&) = delete;
   DirectFeedController& operator=(const DirectFeedController&) = delete;
 
-  void VerifyFeedUrl(const GURL& feed_url, IsValidCallback callback);
+  // |initiator_origin| should be set when the feed URL came from a web page
+  // (e.g. the active tab's origin when the request comes from the toolbar). It
+  // is used as the request initiator, so the feed requests carry an appropriate
+  // Sec-Fetch-Site header, and it prevents the request from reaching the local
+  // network. It should be left unset for feed URLs the user provided directly.
+  void VerifyFeedUrl(const GURL& feed_url,
+                     const std::optional<url::Origin>& initiator_origin,
+                     IsValidCallback callback);
+  // See |VerifyFeedUrl| for the meaning of |initiator_origin|.
   void FindFeeds(const GURL& possible_feed_or_site_url,
+                 const std::optional<url::Origin>& initiator_origin,
                  mojom::BraveNewsController::FindFeedsCallback callback);
 
  private:
   struct FindFeedRequest {
     FindFeedRequest(const GURL& possible_feed_or_site_url,
+                    const std::optional<url::Origin>& initiator_origin,
                     mojom::BraveNewsController::FindFeedsCallback callback);
     FindFeedRequest(FindFeedRequest&&);
     FindFeedRequest& operator=(FindFeedRequest&&);
     ~FindFeedRequest();
 
     GURL possible_feed_or_site_url;
+    std::optional<url::Origin> initiator_origin;
     mojom::BraveNewsController::FindFeedsCallback callback;
   };
 
@@ -58,9 +71,12 @@ class DirectFeedController {
   FRIEND_TEST_ALL_PREFIXES(BraveNewsDirectFeed, ParseToArticle);
   FRIEND_TEST_ALL_PREFIXES(BraveNewsDirectFeed, ParseOnlyAllowsHTTPLinks);
 
-  void FindFeedsImpl(const GURL& possible_feed_or_site_url);
-  void OnFindFeedsImplDownloadedFeed(const GURL& feed_url,
-                                     DirectFeedResponse result);
+  void FindFeedsImpl(const GURL& possible_feed_or_site_url,
+                     const std::optional<url::Origin>& initiator_origin);
+  void OnFindFeedsImplDownloadedFeed(
+      const GURL& feed_url,
+      const std::optional<url::Origin>& initiator_origin,
+      DirectFeedResponse result);
   void OnFindFeedsImplResponse(
       const GURL& feed_url,
       std::vector<mojom::FeedSearchResultItemPtr> results);
