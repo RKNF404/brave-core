@@ -1,5 +1,5 @@
 /* The title of the screen explaining Brave Shields */
-"AboutBraveShields" = "Seputar Brave Shields";
+"AboutBraveShields" = "Tentang Perisai Brave";
 
 /* The body of the screen explaining Brave Shields */
 "AboutBraveShieldsBody" = "Sering kali saat membuka situs terdapat cookies dan skrip yang berusaha mengidentifikasi pengguna dan perangkatnya.  Mereka ingin mengetahui siapa Anda dan mengikuti Anda di seluruh situs - melacak apa yang Anda lakukan di setiap situs.\n\nBrave memblokir hal-hal tersebut sehingga Anda dapat menjelajah tanpa merasa diikuti.";
@@ -41,13 +41,13 @@
 "AutoRedirectAMPPages" = "Halaman AMP yang Diarahkan Ulang Otomatis";
 
 /* This is a description for a setting toggle that enables/disables auto-redirect of Google's AMP (Accelerated Mobile Page) pages to the original (non-AMP) pages. The text 'AMP' and 'Accelerated Mobile Page' is not to be translated. */
-"AutoRedirectAMPPagesDescription" = "Selalu kunjungi hanya URL laman orisinal (non-AMP), dan bukan versi Laman Seluler Terakselerasi Google";
+"AutoRedirectAMPPagesDescription" = "Selalu kunjungi URL halaman aslinya (non-AMP), dan bukan versi Halaman Seluler Terakselerasi Google";
 
 /* This is a title for a setting toggle that enables/disables auto-redirection of tracking pages (Debouncing). Debouncing skips certain intermediate tracker pages and goes directly to the target without the intermediate tracker page. */
 "AutoRedirectTrackingURLs" = "URL Pelacakan Alih Otomatis";
 
 /* This is a description for a setting toggle that enables/disables auto-redirect of tracking URLs (i.e. Debouncing). */
-"AutoRedirectTrackingURLsDescription" = "Mengaktifkan dukungan untuk melewati pengarahan ulang tingkat atas URL pelacakan";
+"AutoRedirectTrackingURLsDescription" = "Aktifkan dukungan karena melintasi pengalih ulang URL pelacakan utama";
 
 /* A picker title for selecting a automatic shred setting option */
 "AutoShred" = "Musnahkan Otomatis";
@@ -77,7 +77,7 @@
 "BlockScripts" = "Blokir Skrip";
 
 /* No comment provided by engineer. */
-"BlockScriptsDescription" = "Memblokir JavaScript (dapat merusak situs).";
+"BlockScriptsDescription" = "Memblokir Javascript (mungkin merusak situs).";
 
 /* Title for the brave player feature */
 "BravePlayer" = "Pemutar Brave";
@@ -97,14 +97,14 @@
 /* Title for the brave player info popup which appears when clicking on the brave player icon on the navigation bar. */
 "BravePlayerInfoTitle" = "Tonton Di Pemutar Brave Sebagai Gantinya";
 
-/* No comment provided by engineer. */
-"BraveShieldsAdvancedControls" = "Kontrol lanjutan";
+/* The label above / exposing the advanced controls on the Shields panel. */
+"BraveShieldsAdvancedControls" = "Kontrol Tingkat Lanjut";
 
 /* The number of ads and trackers blocked will be next to this */
-"BraveShieldsBlockedCountLabel" = "Iklan dan hal mencurigakan lainnya diblokir";
+"BraveShieldsBlockedCountLabel" = "Iklan dan hal mengerikan lainnya diblokir";
 
 /* What the screen reader will read out when the user has VoiceOver on and taps on the question-mark info button on the shields panel */
-"BraveShieldsBlockedInfoButtonAccessibilityLabel" = "Pelajari lebih lanjut";
+"BraveShieldsBlockedInfoButtonAccessibilityLabel" = "Ketahui selengkapnya";
 
 /* No comment provided by engineer. */
 "BraveShieldsGlobalChangeButton" = "Ubah Bawaan Global Perisai Brave";
@@ -119,10 +119,10 @@
 "BraveShieldsSaveContactInfoDescription" = "Jika Anda memberikan info kontak, maka info akan disimpan untuk laporan di masa mendatang";
 
 /* No comment provided by engineer. */
-"BraveShieldsSiteBroken" = "Jika situs ini tampak rusak, coba turunkan Shield";
+"BraveShieldsSiteBroken" = "Jika situs ini tampak rusak, coba turunkan Perisai";
 
 /* Context: 'Brave Shields Up' or 'Brave Shields Down' */
-"BraveShieldsStatusTitle" = "Brave Shields";
+"BraveShieldsStatusTitle" = "Perisai Brave";
 
 /* Context: The 'Down' in 'Brave Shields Down' */
 "BraveShieldsStatusValueDown" = "Turun";
@@ -159,6 +159,9 @@
 
 /* An error message telling the user that they crossed the line limit */
 "CustomFiltersTooManyLinesError" = "Filter khusus tidak mendukung lebih dari %i baris";
+
+/* An error message telling the user that the custom scriptlet failed to save to disk */
+"customScriptletFailedToSaveError" = "Gagal menyimpan scriptlet khusus";
 
 /* Data Saved Shield Stat */
 "DataSavedStat" = "Perkiraan Data \nTersimpan";
@@ -286,6 +289,9 @@
 /* Used to describe when a request was blocked by the Content Blocker in Blocked Requests view. */
 "shields.contentBlocker" = "Pemblokir Konten";
 
+/* A button title displayed on Shields panel linking to Webcompat Reporter. */
+"shields.reportBrokenSiteButtonTitle" = "Laporkan";
+
 /* Used to describe when a request was blocked by our request blocking scripts in Blocked Requests view. */
 "shields.requestBlocking" = "Minta Pemblokiran";
 
@@ -294,6 +300,15 @@
 
 /* A label displayed above the resource type of a request that was blocked in Blocked Requests view. */
 "shields.resourceTypeLabel" = "Jenis Sumber Daya";
+
+/* A label displayed on Shields panel beside the toggle enabling shields. */
+"shields.shieldsDownForSite" = "Perisai **nonaktif** untuk situs ini";
+
+/* A button title displayed on Shields panel linking to Shields global settings. */
+"shields.shieldsGlobalSettings" = "Pengaturan Global Perisai";
+
+/* A label displayed on Shields panel beside the toggle disabling shields. */
+"shields.shieldsUpForSite" = "Perisai **aktif** untuk situs ini";
 
 /* A description beside a toggle that appears in the Shred settings screen, within Shields & Privacy settings. */
 "shields.shredHistoryRowDescription" = "Jika Shred harus menghapus item riwayat.";
@@ -310,8 +325,17 @@
 /* A title for the Shred settings screen, within Shields & Privacy settings. */
 "shields.shredSettingsViewTitle" = "Hancurkan";
 
+/* A footer displayed on Shields panel when shields are down. */
+"shields.siteNotWorkingCorrectly" = "Apakah situs ini tidak berfungsi dengan baik saat Perisai aktif?";
+
+/* A label displayed on Shields panel at the bottom. Learn more link is clickable, where `%@` will be replaced with the URL. */
+"shields.siteSeemsBroken" = "Jika situs ini tampak bermasalah, coba nonaktifkan Perisai. Ini bisa mengurangi tingkat perlindungan privasi Brave. [Pelajari selengkapnya](%@)";
+
 /* A label displayed above the source url of a request that was blocked in Blocked Requests view. */
 "shields.sourceURLLabel" = "URL Sumber";
+
+/* A label displayed on Shields panel beside the number of blocked items. */
+"shields.trackersAdsAndMoreBlocked" = "pelacak, iklan, dan lainnya diblokir";
 
 /* Section title for adbblock, tracking protection, HTTPS-E, and cookies */
 "ShieldsDefaults" = "Default Global Perisai Brave";

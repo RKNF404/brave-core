@@ -38,6 +38,7 @@
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/view_class_properties.h"
 
 using ConnectionState = brave_vpn::mojom::ConnectionState;
 using PurchasedState = brave_vpn::mojom::PurchasedState;
@@ -165,6 +166,8 @@ class BraveVPNBadgeImageSource : public brave::BraveIconWithBadgeImageSource {
 
 }  // namespace
 
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(BraveVPNButton, kBraveVPNButtonElementId);
+
 BraveVPNButton::BraveVPNButton(BrowserWindowInterface* browser)
     : ToolbarButton(base::BindRepeating(&BraveVPNButton::OnButtonPressed,
                                         base::Unretained(this)),
@@ -176,6 +179,7 @@ BraveVPNButton::BraveVPNButton(BrowserWindowInterface* browser)
       service_(brave_vpn::BraveVpnServiceFactory::GetForProfile(
           browser_->GetProfile())) {
   CHECK(service_);
+  SetProperty(views::kElementIdentifierKey, kBraveVPNButtonElementId);
   UpdateButtonState();
   Observe(service_);
 
@@ -283,14 +287,9 @@ SkColor BraveVPNButton::GetIconColor() {
     return cp->GetColor(kColorBraveVpnButtonIconError);
   }
 
-  const auto ink_drop_state =
-      views::InkDrop::Get(this)->GetInkDrop()->GetTargetInkDropState();
-  ui::ColorId icon_color_id = kColorToolbarButtonIcon;
-  if (ink_drop_state == views::InkDropState::ACTIVATED) {
-    icon_color_id = kColorToolbarButtonActivated;
-  }
-
-  return cp->GetColor(icon_color_id);
+  return cp->GetColor(
+      IsActivated() ? static_cast<ui::ColorId>(kColorToolbarButtonActivated)
+                    : static_cast<ui::ColorId>(kColorToolbarButtonIcon));
 }
 
 SkColor BraveVPNButton::GetBadgeColor() {
@@ -326,21 +325,11 @@ std::u16string BraveVPNButton::GetRenderedTooltipText(
 
 void BraveVPNButton::OnThemeChanged() {
   ToolbarButton::OnThemeChanged();
-
-  // Configure vpn button specific ink drop config as ink drop is reset
-  // whenever theme changes.
-
-  // Set 0.0f to use same color for activated state.
-  views::InkDrop::Get(this)->SetVisibleOpacity(0.00f);
-
-  // Different base color is set per themes and it has alpha.
-  views::InkDrop::Get(this)->SetHighlightOpacity(1.0f);
-
   UpdateColorsAndInsets();
 }
 
-void BraveVPNButton::InkDropRippleAnimationEnded(views::InkDropState state) {
-  // To use different icon color when activated.
+void BraveVPNButton::UpdateIcon() {
+  // The icon image is built with the background and border.
   UpdateColorsAndInsets();
 }
 

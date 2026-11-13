@@ -17,6 +17,7 @@
 #include <variant>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
@@ -207,6 +208,7 @@ class ConversationHandler : public mojom::ConversationHandler,
   void SetContentToolPermission(const std::string& content_uuid,
                                 const std::string& tool_name,
                                 mojom::ToolPermission permission) override;
+  void SetContentAgentChosen(bool chosen) override;
   void RateMessage(bool is_liked,
                    const std::string& turn_uuid,
                    RateMessageCallback callback) override;
@@ -242,6 +244,8 @@ class ConversationHandler : public mojom::ConversationHandler,
       ClearErrorAndGetFailedMessageCallback callback) override;
   void StopGenerationAndMaybeGetHumanEntry(
       StopGenerationAndMaybeGetHumanEntryCallback callback) override;
+  void RespondToVisionModelSwitch(
+      mojom::VisionModelSwitchDecision decision) override;
 
   void SubmitSelectedText(const std::string& selected_text,
                           mojom::ActionType action_type);
@@ -257,6 +261,14 @@ class ConversationHandler : public mojom::ConversationHandler,
   void OnContentToolsChanged(const std::string& content_uuid,
                              std::vector<mojom::ToolInfoPtr> tools);
 
+  // Associates the content with |content_uuid|, which a tool has added, with
+  // the assistant entry whose tool use is in progress, so it's persisted with
+  // the answer (rather than the user's next message), and removed along with
+  // that entry (e.g. when the answer is regenerated). Does nothing if no tool
+  // use is in progress, in which case the content will remain associated with
+  // the next human entry, like any other staged content.
+  void AssociateContentWithToolUseEntry(std::string_view content_uuid);
+
   void OnUserOptedIn();
   size_t GetConversationHistorySize() override;
   void GetScreenshots(GetScreenshotsCallback callback) override;
@@ -270,7 +282,7 @@ class ConversationHandler : public mojom::ConversationHandler,
   void RegenerateAnswer(const std::string& turn_uuid,
                         const std::string& model_key) override;
   void GenerateQuestions() override;
-  void RetryAPIRequest() override;
+  void RetryAPIRequest(const std::optional<std::string>& thread_uuid) override;
   void CreateConversationThread(
       const std::string& origin_entry_uuid,
       CreateConversationThreadCallback callback) override;
@@ -456,6 +468,9 @@ class ConversationHandler : public mojom::ConversationHandler,
 
   void InitEngine();
 
+  // Whether the content agent is in force for this conversation.
+  bool IsContentAgentEnabled() const;
+
   void BuildCapabilitiesSet();
 
   // Setup tools for the conversation. When a new user message is added, we
@@ -516,9 +531,26 @@ class ConversationHandler : public mojom::ConversationHandler,
 
   void OnGeneratePageContentComplete(base::OnceClosure callback,
                                      bool content_changed);
+  // The entry with |entry_uuid| in the conversation or any of its threads.
+  mojom::ConversationTurn* FindConversationEntry(std::string_view entry_uuid);
+  // Whether the human entry the content with |content_uuid| was first sent
+  // with has screenshots of it, automatic ones or e.g. ones the user took.
+  bool HasScreenshotsOfContent(const std::string& content_uuid);
+  // Adds each content's screenshots to the human entry it was first sent with.
   void OnAutoScreenshotsTaken(
       base::OnceClosure callback,
-      std::optional<std::vector<mojom::UploadedFilePtr>> screenshots);
+      AssociatedContentManager::ContentScreenshots content_screenshots);
+  // Whether automatic screenshots would go with a submission to a model that
+  // can't read them.
+  bool DoAutoScreenshotsNeedVisionModel();
+  // Takes automatic screenshots of the content with |content_uuids|.
+  void TakeAutoScreenshots(base::OnceClosure callback,
+                           std::vector<std::string> content_uuids);
+  // Takes automatic screenshots of the content with |content_uuids|, unless
+  // |send_images| is false, then runs |callback|.
+  void OnAutoScreenshotsDecided(base::OnceClosure callback,
+                                std::vector<std::string> content_uuids,
+                                bool send_images);
 
   void OnEngineCompletionDataReceived(
       const std::optional<std::string>& thread_uuid,
@@ -548,6 +580,13 @@ class ConversationHandler : public mojom::ConversationHandler,
                             mojom::ToolUseEvent* tool_use);
   void OnConversationEntryAdded(mojom::ConversationTurnPtr& entry);
   void OnConversationEntryRemoved(std::optional<std::string> turn_id);
+  // Removes content associated with any of the assistant entries in |turns|,
+  // which are about to be removed. Only content a tool added during an
+  // assistant entry is associated with one, so it goes with the entry, letting
+  // a regenerated answer add it again. Content associated with human entries is
+  // kept, as those entries are resubmitted.
+  void RemoveContentAssociatedWithAssistantEntries(
+      base::span<const mojom::ConversationTurnPtr> turns);
   void OnSuggestedQuestionsChanged();
   void OnClientConnectionChanged();
   void OnConversationTitleChanged(std::string_view title);
@@ -580,19 +619,30 @@ class ConversationHandler : public mojom::ConversationHandler,
   // the current conversation state.
   std::vector<base::WeakPtr<Tool>> GetTools();
 
-  // Returns `model_key` if its model supports vision; otherwise returns the
-  // freemium/premium vision-default model key.
-  std::string GetVisionCapableModelKey(const std::string& model_key) const;
+  // Returns the freemium/premium vision-default model key.
+  std::string GetVisionDefaultModelKey() const;
 
-  // Resolves the model to use for an upcoming submission and switches to it
-  // at most once. The intended starting key (e.g. a skill's pinned model) is
-  // used as-is unless an image or screenshot is attached and the starting
-  // model lacks vision support — in which case the freemium/premium vision
-  // default is used. When `intended_model_key` is unset, the conversation's
-  // persisted model is the starting point.
+  // Switches to `model_key` (e.g. a skill's pinned model) when it is set and
+  // differs from the conversation's persisted model.
   void MaybeSwitchModelForSubmission(
-      const std::optional<std::vector<mojom::UploadedFilePtr>>& uploaded_files,
-      const std::optional<std::string>& intended_model_key = std::nullopt);
+      const std::optional<std::string>& model_key);
+
+  // Whether the model that will answer |turn| can read images.
+  bool CanModelForTurnReadImages(const mojom::ConversationTurn& turn);
+
+  // Adds the submitted human entry |turn| to history and starts generation.
+  void CommitHumanConversationEntry(mojom::ConversationTurnPtr turn);
+
+  // Asks the user whether to switch to the vision-default model before
+  // sending images the current model can't read. Either |turn| is the
+  // submission held back from history, or |resume| continues a submission
+  // already in history. Sends without the images instead when another
+  // submission already waits, or there is no vision-default model to offer.
+  void RequestVisionModelSwitch(
+      mojom::ConversationTurnPtr turn,
+      base::OnceCallback<void(bool send_images)> resume);
+  void ClearVisionModelSwitch();
+  void OnVisionModelSwitchChanged();
 
   std::string model_key_;
   // Chat conversation entries
@@ -640,6 +690,15 @@ class ConversationHandler : public mojom::ConversationHandler,
   // during screenshot capture due to MAX_IMAGES limits
   std::optional<uint32_t> visual_content_used_percentage_;
 
+  // Set while a submission waits for the user to decide whether to switch to
+  // this vision model, see RequestVisionModelSwitch.
+  std::optional<std::string> vision_model_switch_key_;
+  mojom::ConversationTurnPtr vision_model_switch_turn_;
+  base::OnceCallback<void(bool send_images)> vision_model_switch_resume_;
+  // Set when the user last chose to send without automatic screenshots, so
+  // they aren't taken, and asked about, again for every entry.
+  bool auto_screenshots_declined_ = false;
+
   // Whether further assistant responses should be appended to the last or
   // created in a new sibling ConversationEntry.
   bool needs_new_entry_ = false;
@@ -671,6 +730,12 @@ class ConversationHandler : public mojom::ConversationHandler,
   // or if we have some kind of dynamic ToolProvider-led user toggle choices.
   // If we keep it, should it be part of mojom::Conversation?
   absl::flat_hash_set<mojom::ConversationCapability> conversation_capabilities_;
+
+  // The user's content agent choice for this conversation. Deliberately not
+  // persisted: a reloaded conversation starts with the content agent off and
+  // the user chooses again. Only consulted where
+  // AIChatService::content_agent_user_selectable().
+  bool content_agent_chosen_ = false;
 
   // Set of tab IDs that have been part of tasks whilst this conversation is
   // in-memory. Since conversations are finite (limited by context size) and not

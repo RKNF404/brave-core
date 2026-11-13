@@ -14,6 +14,7 @@
 #include "brave/browser/search_engines/search_engine_tracker.h"
 #include "brave/browser/translate/brave_translate_prefs_migration.h"
 #include "brave/browser/ui/bookmark/brave_bookmark_prefs.h"
+#include "brave/browser/ui/focus_mode/focus_mode_prefs.h"
 #include "brave/browser/ui/omnibox/brave_omnibox_client_impl.h"
 #include "brave/common/pref_names.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
@@ -70,7 +71,6 @@
 #include "components/embedder_support/pref_names.h"
 #include "components/gcm_driver/gcm_buildflags.h"
 #include "components/history/core/common/pref_names.h"
-#include "components/ntp_tiles/tile_type.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/policy/core/common/policy_pref_names.h"
@@ -132,7 +132,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "components/feed/core/common/pref_names.h"
 #include "components/feed/core/shared_prefs/pref_names.h"
-#include "components/ntp_tiles/pref_names.h"
 #include "components/translate/core/browser/translate_pref_names.h"
 #endif
 
@@ -186,9 +185,6 @@ namespace {
 
 void OverrideDefaultPrefValues(user_prefs::PrefRegistrySyncable* registry) {
 #if BUILDFLAG(IS_ANDROID)
-  // Clear default popular sites
-  registry->SetDefaultPrefValue(ntp_tiles::prefs::kPopularSitesJsonPref,
-                                base::Value(base::Value::Type::LIST));
   // Disable NTP suggestions.
   // On Android we want to have the enable_feed_v2 parameter enabled so the
   // upstream feed prefs are registered (Brave News uses its own
@@ -280,11 +276,6 @@ void OverrideDefaultPrefValues(user_prefs::PrefRegistrySyncable* registry) {
   // Currently, upstream only defines an int kAIModeAllowed = 0 value and check
   // against it (see components/omnibox/browser/omnibox_prefs.cc).
   registry->SetDefaultPrefValue(omnibox::kAIModeSettings, base::Value(-1));
-
-  // Disabled due to crash with tab group dragging.
-  // TODO(https://github.com/brave/brave-browser/issues/49752): Re-enable.
-  registry->SetDefaultPrefValue(prefs::kSplitViewDragAndDropEnabled,
-                                base::Value(false));
 
   // Disables WebRTC logs collection.
   registry->SetDefaultPrefValue(prefs::kWebRtcEventLogCollectionAllowed,
@@ -420,6 +411,13 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterBooleanPref(::bookmarks::prefs::kAlwaysShowBookmarkBarOnNTP,
                                 true);
 #endif
+
+  // Added 10/2026.
+  registry->RegisterBooleanPref(kMRUCyclingEnabled, false);
+
+#if BUILDFLAG(ENABLE_TOR)
+  tor::TorProfileService::RegisterProfilePrefsForMigration(registry);
+#endif
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -438,7 +436,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                                 !BUILDFLAG(IS_BRAVE_ORIGIN_BRANDED));
   registry->RegisterBooleanPref(kShowScreenshotButton, false);
   registry->RegisterBooleanPref(kLocationBarIsWide, false);
-  registry->RegisterBooleanPref(kMRUCyclingEnabled, false);
   registry->RegisterBooleanPref(kTabMuteIndicatorNotClickable, false);
 
   brave_sync::Prefs::RegisterProfilePrefs(registry);
@@ -567,7 +564,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   BraveOmniboxClientImpl::RegisterProfilePrefs(registry);
 
   registry->RegisterBooleanPref(kEnableWindowClosingConfirm, true);
-  registry->RegisterBooleanPref(kEnableClosingLastTab, true);
+  registry->RegisterBooleanPref(brave_tabs::kEnableClosingLastTab, true);
   registry->RegisterBooleanPref(kShowFullscreenReminder, true);
   registry->RegisterBooleanPref(
       kWebViewRoundedCorners,
@@ -575,6 +572,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kBraveSubtleAppMenuLogo, false);
 
   brave_tabs::RegisterBraveProfilePrefs(registry);
+  focus_mode::RegisterProfilePrefs(registry);
 
   brave_welcome_page::prefs::RegisterProfilePrefs(registry);
 #endif  // !BUILDFLAG(IS_ANDROID)

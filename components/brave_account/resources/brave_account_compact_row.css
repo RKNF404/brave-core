@@ -7,20 +7,8 @@
  * #type=style-lit
  * #css_wrapper_metadata_end */
 
-cr-link-row {
-  --leo-icon-size: var(--leo-icon-m);
-
-  font: var(--leo-font-default-semibold);
-}
-
-/* Without containment, cr's #labelWrapper widens to fit the untruncated text,
-   leaving the truncator measuring the text instead of the space for it. */
-.description {
-  contain: inline-size;
-  flex: 1;
-  font: var(--leo-font-small-regular);
-
-  &.action-required {
-    color: var(--leo-color-systemfeedback-error-text);
-  }
+brave-account-link-row.action-required {
+  --brave-account-row-description-color: var(
+    --leo-color-systemfeedback-error-text
+  );
 }

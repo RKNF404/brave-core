@@ -239,11 +239,6 @@ public class BrowserViewController: UIViewController {
     return toolbar ?? topToolbar
   }
 
-  // Keep track of allowed `URLRequest`s from `webView(_:decidePolicyFor:decisionHandler:)` so
-  // that we can obtain the originating `URLRequest` when a `URLResponse` is received. This will
-  // allow us to re-trigger the `URLRequest` if the user requests a file to be downloaded.
-  var pendingRequests = [String: URLRequest]()
-
   let downloadQueue = DownloadQueue()
 
   private var cancellables: Set<AnyCancellable> = []
@@ -622,7 +617,6 @@ public class BrowserViewController: UIViewController {
     AppReviewManager.shared.processMainCriteria(for: .daysInUse)
 
     // P3A Record
-    maybeRecordInitialShieldsP3A()
     recordVPNUsageP3A(vpnEnabled: BraveVPN.isConnected)
     recordAccessibilityDisplayZoomEnabledP3A()
     recordAccessibilityDocumentsDirectorySizeP3A()
@@ -1191,9 +1185,7 @@ public class BrowserViewController: UIViewController {
     if profileController.profile.prefs.isBraveVPNAvailable {
       Task.delayed(bySeconds: 1.0) { @MainActor in
         // Refresh Skus VPN Credentials before loading VPN state
-        let skusService = Skus.SkusServiceFactory.get(
-          privateMode: self.privateBrowsingManager.isPrivateBrowsing
-        )
+        let skusService = Skus.SkusServiceFactory.get(profile: self.profileController.profile)
         await skusService?.refreshSkusCredentials()
 
         self.vpnProductInfo.load()
@@ -1391,8 +1383,8 @@ public class BrowserViewController: UIViewController {
     }
     self.tabManager.selectTab(tabToSelect)
 
-    // Shred Domain's with SiteShieldLevel.appExit
-    self.tabManager.forgetDataOnAppExitDomains()
+    // Shred sites with a pending Auto Shred. Must run after tabs are restored.
+    self.tabManager.forgetDataWithPendingShredOnStartup()
 
     if !setupTasksCompleted {
       for task in postSetupTasks {
@@ -2189,7 +2181,12 @@ public class BrowserViewController: UIViewController {
         // This let's the user spam the Cmd+T button without lots of responder changes.
         guard freshTab === self.tabManager.selectedTab else { return }
         if let text = searchText {
-          self.processAddressBar(text: text)
+          // Externally supplied text must never be treated as a URL, as that would allow
+          // external apps to navigate to privileged schemes such as chrome://
+          self.submitSearchText(text)
+          if !self.privateBrowsingManager.isPrivateBrowsing {
+            RecentSearch.addItem(type: .text, text: text, websiteUrl: nil)
+          }
         } else {
           self.focusURLBar()
         }
@@ -2328,6 +2325,12 @@ public class BrowserViewController: UIViewController {
     return super.preferredStatusBarStyle
   }
 
+  /// Align with Safari. Swipe in middle of horizontal edges will use stage
+  /// manager, otherwise edge swipes will use Brave back/forward actions
+  public override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
+    [.left, .right]
+  }
+
   func updateStatusBarOverlayColor() {
     if #available(iOS 26.0, *) {
       statusBarOverlay.backgroundColor = privateBrowsingManager.browserColors.chromeBackground
@@ -2353,12 +2356,7 @@ public class BrowserViewController: UIViewController {
       if !url.isNewTabURL, !InternalURL.isValid(url: url) || url.isInternalURL(for: .readermode),
         !url.isFileURL
       {
-        // Only add history of a url which is not a localhost url
         if !url.isInternalURL(for: .readermode) {
-          if !tab.isPrivate {
-            profileController.historyAPI.add(url: url, title: tab.title ?? "", dateAdded: Date())
-          }
-
           // Saving Tab.
           tabManager.saveTab(tab)
         }
@@ -2561,10 +2559,8 @@ extension BrowserViewController: SettingsDelegate {
       let factor = index / 1000
       let dateAdded =
         factor == 0 ? Date() : Calendar.current.date(byAdding: .day, value: -factor, to: Date())!
-      profileController.historyAPI.add(
-        url: url,
-        title: "QA-History - BraveSearch - \(index)",
-        dateAdded: dateAdded
+      profileController.historyAPI.addHistory(
+        HistoryNode(url: url, title: "QA-History - BraveSearch - \(index)", dateAdded: dateAdded)
       )
     }
   }
@@ -2641,12 +2637,12 @@ extension BrowserViewController: WalletTabHelperDelegate {
     removeWalletNotificationAndClearOrigin()
     WalletProviderPermissionRequestsManager.shared.cancelAllPendingRequests(for: [coin])
     WalletProviderAccountCreationRequestManager.shared.cancelAllPendingRequests(coins: [coin])
-    let privateMode = privateBrowsingManager.isPrivateBrowsing
+    var profile = profileController.profile
+    if privateBrowsingManager.isPrivateBrowsing {
+      profile = profile.offTheRecordProfile
+    }
     if let cryptoStore = self.walletStore?.cryptoStore
-      ?? CryptoStore.from(
-        ipfsApi: profileController.ipfsAPI,
-        privateMode: privateMode
-      )
+      ?? CryptoStore.from(profile: profile)
     {
       cryptoStore.rejectAllPendingWebpageRequests()
     }
@@ -2684,15 +2680,15 @@ extension BrowserViewController: WalletTabHelperDelegate {
 
   @MainActor
   private func isPendingRequestAvailable() async -> Bool {
-    let privateMode = privateBrowsingManager.isPrivateBrowsing
     // If we have an open `WalletStore`, use that so we can assign the pending request if the wallet is open,
     // which allows us to store the new `PendingRequest` triggering a modal presentation for that request.
+    var profile = profileController.profile
+    if privateBrowsingManager.isPrivateBrowsing {
+      profile = profile.offTheRecordProfile
+    }
     guard
       let cryptoStore = self.walletStore?.cryptoStore
-        ?? CryptoStore.from(
-          ipfsApi: profileController.ipfsAPI,
-          privateMode: privateMode
-        )
+        ?? CryptoStore.from(profile: profile)
     else {
       return false
     }
@@ -3065,14 +3061,12 @@ extension BrowserViewController: PreferencesObserver {
       tabManager.reloadSelectedTab()
     case Preferences.Shields.blockAdsAndTrackingLevelRaw.key:
       tabManager.reloadSelectedTab()
-      recordGlobalAdBlockShieldsP3A()
       // Global shield setting changed, reset selectors cache.
       tabManager.allTabs.forEach({
         $0.cosmeticFilteringTabHelper?.resetSelectorsCache()
       })
     case Preferences.Shields.fingerprintingProtection.key:
       tabManager.reloadSelectedTab()
-      recordGlobalFingerprintingShieldsP3A()
     case Preferences.General.defaultPageZoomLevel.key:
       tabManager.allTabs.forEach({
         guard let url = $0.visibleURL else { return }
@@ -3181,6 +3175,19 @@ extension BrowserViewController {
   }
 
   public func submitSearchText(_ text: String, isBraveSearchPromotion: Bool = false) {
+    if FeatureList.kUseChromiumSearchEngines.enabled {
+      if let searchURL = templateURLSearchURL(
+        for: text,
+        isBraveSearchPromotion: isBraveSearchPromotion,
+        isWidgetSearchAttribution: tabManager.selectedTab?.widgetSearchTabHelper != nil
+      ) {
+        finishEditingAndSubmit(searchURL)
+      } else {
+        assertionFailure("Couldn't generate search URL: \(text)")
+      }
+      return
+    }
+
     var engine = profile.searchEngines.defaultEngine(
       forType: privateBrowsingManager.isPrivateBrowsing ? .privateMode : .standard
     )

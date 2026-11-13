@@ -6,7 +6,6 @@
 #include "brave/components/brave_ads/browser/ads_service_impl.h"
 
 #include <algorithm>
-#include <atomic>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -21,11 +20,9 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/callback_tags.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_math.h"
 #include "base/observer_list.h"
@@ -42,7 +39,6 @@
 #include "brave/components/brave_ads/browser/bat_ads_service_factory.h"
 #include "brave/components/brave_ads/browser/component_updater/resource_component.h"
 #include "brave/components/brave_ads/browser/device_id/device_id.h"
-#include "brave/components/brave_ads/browser/reminder/reminder_util.h"
 #include "brave/components/brave_ads/browser/tooltips/ads_tooltips_delegate.h"
 #include "brave/components/brave_ads/core/browser/network/http_client.h"
 #include "brave/components/brave_ads/core/browser/service/ads_service_observer.h"
@@ -67,7 +63,6 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
-#include "components/content_settings/core/common/content_settings_types.mojom-shared.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/url_row.h"
@@ -182,6 +177,7 @@ AdsServiceImpl::AdsServiceImpl(
 #endif
       application_state_monitor_(std::move(application_state_monitor)),
       shutdown_monitor_(std::move(shutdown_monitor)),
+      reminder_manager_(*delegate_),
       policy_initialization_waiter_(std::move(policy_initialization_waiter)),
       bat_ads_client_associated_receiver_(this) {
   CHECK(device_id_);
@@ -707,9 +703,7 @@ void AdsServiceImpl::ShowReminder(mojom::ReminderType mojom_reminder_type) {
 
 #if !BUILDFLAG(IS_ANDROID)
   if (IsNotificationAdsEnabled() && CheckIfCanShowNotificationAds()) {
-    // TODO(https://github.com/brave/brave-browser/issues/29587): Decouple Brave
-    // Ads reminders from notification ads.
-    ShowNotificationAd(BuildReminder(mojom_reminder_type));
+    reminder_manager_.MaybeShow(mojom_reminder_type);
   }
 #endif
 }
@@ -952,33 +946,15 @@ bool AdsServiceImpl::CheckIfCanShowNotificationAds() {
 
 void AdsServiceImpl::StartNotificationAdTimeOutTimer(
     const std::string& placement_id) {
-  const base::TimeDelta timeout = kNotificationAdTimeout.Get();
-  if (timeout.is_zero()) {
-    // Never time out.
-    return;
-  }
-
-  notification_ad_timers_[placement_id] =
-      std::make_unique<base::OneShotTimer>();
-  notification_ad_timers_[placement_id]->Start(
-      FROM_HERE, timeout,
+  notification_timeout_timers_.Start(
+      placement_id,
       base::BindOnce(&AdsServiceImpl::NotificationAdTimedOut,
                      weak_ptr_factory_.GetWeakPtr(), placement_id));
-
-  VLOG(6) << "Timeout notification ad with placement id " << placement_id
-          << " in " << timeout;
 }
 
 bool AdsServiceImpl::StopNotificationAdTimeOutTimer(
     const std::string& placement_id) {
-  const auto iter = notification_ad_timers_.find(placement_id);
-  if (iter == notification_ad_timers_.cend()) {
-    return false;
-  }
-
-  notification_ad_timers_.erase(iter);
-
-  return true;
+  return notification_timeout_timers_.Stop(placement_id);
 }
 
 void AdsServiceImpl::NotificationAdTimedOut(const std::string& placement_id) {
@@ -1034,18 +1010,9 @@ void AdsServiceImpl::MaybeOpenNewTabWithAd() {
 }
 
 void AdsServiceImpl::OpenNewTabWithAd(const std::string& placement_id) {
-  // `CloseNotificationAd` already cancels the timeout for reminders, so only
-  // cancel it here for the branches that do not call it.
-  if (!IsReminder(placement_id) &&
-      StopNotificationAdTimeOutTimer(placement_id)) {
+  if (StopNotificationAdTimeOutTimer(placement_id)) {
     VLOG(2) << "Canceled timeout for notification ad with placement id "
             << placement_id;
-  }
-
-  if (IsReminder(placement_id)) {
-    const GURL target_url = GetReminderTargetUrl();
-    OpenNewTabWithUrl(target_url);
-    return CloseNotificationAd(placement_id);
   }
 
   if (!is_bat_ads_initialized_) {
@@ -1125,6 +1092,12 @@ void AdsServiceImpl::ShutdownAdsService() {
   // callback fires against a partially torn-down service.
   bat_ads_service_weak_ptr_factory_.InvalidateWeakPtrs();
 
+  // Supersedes any `Launch` whose delayed bind is still pending on its own
+  // dedicated thread, so it either drops its receiver or closes the service
+  // it already bound, instead of leaving a stale service running after this
+  // shutdown.
+  bat_ads_service_factory_->Invalidate();
+
   bat_ads_client_notifier_remote_.reset();
   bat_ads_client_notifier_pending_receiver_.reset();
   bat_ads_associated_remote_.reset();
@@ -1137,7 +1110,9 @@ void AdsServiceImpl::ShutdownAdsService() {
 
   idle_state_timer_.Stop();
 
-  notification_ad_timers_.clear();
+  notification_timeout_timers_.StopAll();
+
+  reminder_manager_.Shutdown();
 
   resource_component_observation_.Reset();
 
@@ -1190,6 +1165,10 @@ int64_t AdsServiceImpl::GetMaximumNotificationAdsPerHour() const {
 }
 
 void AdsServiceImpl::OnNotificationAdShown(const std::string& placement_id) {
+  if (reminder_manager_.IsShowingReminder(placement_id)) {
+    return;
+  }
+
   if (bat_ads_associated_remote_.is_bound()) {
     bat_ads_associated_remote_->TriggerNotificationAdEvent(
         placement_id, mojom::NotificationAdEventType::kViewedImpression,
@@ -1204,6 +1183,10 @@ void AdsServiceImpl::OnNotificationAdClosed(const std::string& placement_id,
             << placement_id;
   }
 
+  if (reminder_manager_.MaybeHandleClosed(placement_id)) {
+    return;
+  }
+
   if (bat_ads_associated_remote_.is_bound()) {
     bat_ads_associated_remote_->TriggerNotificationAdEvent(
         placement_id,
@@ -1214,6 +1197,10 @@ void AdsServiceImpl::OnNotificationAdClosed(const std::string& placement_id,
 }
 
 void AdsServiceImpl::OnNotificationAdClicked(const std::string& placement_id) {
+  if (reminder_manager_.MaybeHandleClicked(placement_id)) {
+    return;
+  }
+
   if (!bat_ads_associated_remote_.is_bound()) {
     return;
   }
@@ -1288,13 +1275,15 @@ void AdsServiceImpl::GetStatementOfAccounts(
 
 void AdsServiceImpl::ParseAndSaveNewTabPageAds(base::DictValue dict,
                                                ResultCallback callback) {
+  // Neither the service not being bound nor it shutting down before a reply
+  // arrives is a failure, so report `success` as `true` in both cases.
   if (!bat_ads_associated_remote_.is_bound()) {
-    return std::move(callback).Run(/*success*/ false);
+    return std::move(callback).Run(/*success=*/true);
   }
 
   bat_ads_associated_remote_->ParseAndSaveNewTabPageAds(
       std::move(dict), mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-                           std::move(callback), /*success=*/false));
+                           std::move(callback), /*success=*/true));
 }
 
 void AdsServiceImpl::MaybeServeNewTabPageAd(
@@ -1772,8 +1761,6 @@ void AdsServiceImpl::OnBrowserUpgradeRequiredToServeAds() {
 }
 
 void AdsServiceImpl::OnRemindUser(mojom::ReminderType mojom_reminder_type) {
-  CHECK(mojom::IsKnownEnumValue(mojom_reminder_type));
-
   ShowReminder(mojom_reminder_type);
 }
 
@@ -1822,11 +1809,12 @@ void AdsServiceImpl::OnRewardsWalletCreated() {
 }
 
 void AdsServiceImpl::OnExternalWalletConnected() {
-  ShowReminder(mojom::ReminderType::kExternalWalletConnected);
-
   ShutdownAds(base::BindOnce(
       &AdsServiceImpl::ClearDataPrefsAndAdsServiceDataAndMaybeRestart,
-      weak_ptr_factory_.GetWeakPtr(), /*intentional*/ base::DoNothing()));
+      weak_ptr_factory_.GetWeakPtr(),
+      base::IgnoreArgs<bool>(base::BindOnce(
+          &AdsServiceImpl::ShowReminder, weak_ptr_factory_.GetWeakPtr(),
+          mojom::ReminderType::kExternalWalletConnected))));
 }
 
 void AdsServiceImpl::OnCompleteReset(bool success) {

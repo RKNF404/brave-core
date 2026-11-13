@@ -3,7 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include <vector>
+
 #include "base/functional/bind.h"
+#include "base/strings/strcat.h"
+#include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "brave/app/brave_command_ids.h"
@@ -17,10 +21,12 @@
 #include "brave/components/brave_wayback_machine/wayback_state.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
+#include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
+#include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/page_action/test_support/page_action_test_accessor.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -28,6 +34,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/url_loader_interceptor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
@@ -46,11 +53,19 @@
 
 namespace page_actions {
 
+namespace {
+
+constexpr char kSnapshotURL[] =
+    "https://web.archive.org/web/20240226123456/https://example.com/";
+
+}  // namespace
+
 class WaybackMachinePageActionBrowserTest : public InProcessBrowserTest {
  protected:
   BraveWaybackMachineTabHelper* GetTabHelper() {
-    return BraveWaybackMachineTabHelper::FromWebContents(
-        browser()->tab_strip_model()->GetActiveWebContents());
+    return BraveWaybackMachineTabHelper::From(
+        tabs::TabInterface::MaybeGetFromContents(
+            browser()->tab_strip_model()->GetActiveWebContents()));
   }
 
   WaybackMachinePageActionController* GetController() {
@@ -69,8 +84,8 @@ class WaybackMachinePageActionBrowserTest : public InProcessBrowserTest {
     return controller ? controller->GetBubbleViewForTesting() : nullptr;
   }
 
-  IconLabelBubbleView* GetIcon() {
-    return PageActionTestAccessor(browser(), kActionShowWaybackMachine).view();
+  PageActionTestAccessor GetIcon() {
+    return PageActionTestAccessor(browser(), kActionShowWaybackMachine);
   }
 
   void ClickButton(views::Button* button) {
@@ -85,7 +100,7 @@ class WaybackMachinePageActionBrowserTest : public InProcessBrowserTest {
   }
 
   WaybackMachineBubbleView* ClickIconAndGetBubble() {
-    ClickButton(GetIcon());
+    GetIcon().Click();
     return GetBubbleView();
   }
 
@@ -143,16 +158,45 @@ class WaybackMachinePageActionBrowserTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest, BubbleLaunchTest) {
-  auto* icon = GetIcon();
-  EXPECT_FALSE(icon->GetVisible());
+  auto icon = GetIcon();
+  EXPECT_FALSE(icon.GetVisible());
 
   SetWaybackState(WaybackState::kNeedToCheck);
-  EXPECT_TRUE(icon->GetVisible());
+  EXPECT_TRUE(icon.GetVisible());
   EXPECT_EQ(GetBubbleView(), nullptr);
 
   // Check bubble is launched.
-  ClickButton(icon);
+  icon.Click();
   EXPECT_NE(GetBubbleView(), nullptr);
+}
+
+// Discarding a tab replaces its contents, which the tab helper follows and
+// starts over for, along with the page action.
+IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest,
+                       FollowsDiscardedContents) {
+  SetWaybackState(WaybackState::kNeedToCheck);
+  ASSERT_TRUE(GetIcon().GetVisible());
+  BraveWaybackMachineTabHelper* const tab_helper = GetTabHelper();
+  ASSERT_TRUE(tab_helper);
+
+  TabStripModel* const tab_strip_model = browser()->tab_strip_model();
+  content::WebContents* const discarded_contents =
+      tab_strip_model->GetActiveWebContents();
+  ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
+  auto* const lifecycle_unit =
+      resource_coordinator::TabLifecycleUnitSource::GetTabLifecycleUnitExternal(
+          discarded_contents);
+  ASSERT_TRUE(lifecycle_unit);
+  ASSERT_TRUE(
+      lifecycle_unit->DiscardTab(::mojom::LifecycleUnitDiscardReason::URGENT));
+
+  tab_strip_model->ActivateTabAt(0);
+  EXPECT_EQ(GetTabHelper(), tab_helper);
+  EXPECT_EQ(tab_helper->wayback_state(), WaybackState::kInitial);
+  EXPECT_FALSE(GetIcon().GetVisible());
+
+  SetWaybackState(WaybackState::kNeedToCheck);
+  EXPECT_TRUE(GetIcon().GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest,
@@ -160,13 +204,13 @@ IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest,
   auto* prefs = browser()->GetProfile()->GetPrefs();
   EXPECT_TRUE(prefs->GetBoolean(kBraveWaybackMachineEnabled));
 
-  auto* icon = GetIcon();
-  EXPECT_FALSE(icon->GetVisible());
+  auto icon = GetIcon();
+  EXPECT_FALSE(icon.GetVisible());
 
   SetWaybackState(WaybackState::kNeedToCheck);
-  EXPECT_TRUE(icon->GetVisible());
+  EXPECT_TRUE(icon.GetVisible());
 
-  ClickButton(icon);
+  icon.Click();
 
   WaybackMachineBubbleView* bubble = GetBubbleView();
   ASSERT_NE(bubble, nullptr);
@@ -236,7 +280,7 @@ IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest, ClosesWhenLoaded) {
   SetWaybackState(WaybackState::kLoaded);
   waiter.Wait();
   EXPECT_EQ(GetBubbleView(), nullptr);
-  EXPECT_FALSE(GetIcon()->GetVisible());
+  EXPECT_FALSE(GetIcon().GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest,
@@ -293,6 +337,53 @@ IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest,
     SCOPED_TRACE("kNotAvailable");
     ExpectNotAvailableUI(bubble);
   }
+}
+
+IN_PROC_BROWSER_TEST_F(WaybackMachinePageActionBrowserTest,
+                       CheckNavigatesToSnapshot) {
+  content::URLLoaderInterceptor interceptor(base::BindRepeating(
+      [](content::URLLoaderInterceptor::RequestParams* params) {
+        const GURL& url = params->url_request.url;
+        if (url.host() == GURL(kWaybackQueryURL).host()) {
+          content::URLLoaderInterceptor::WriteResponse(
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n",
+              base::StrCat({R"({"archived_snapshots":{"closest":{"url":")",
+                            kSnapshotURL, R"("}}})"}),
+              params->client.get());
+          return true;
+        }
+        if (url == GURL(kSnapshotURL)) {
+          content::URLLoaderInterceptor::WriteResponse(
+              "HTTP/1.1 200 OK\nContent-Type: text/html\n\n",
+              "<html>Snapshot</html>", params->client.get());
+          return true;
+        }
+        return false;
+      }));
+
+  std::vector<WaybackState> states;
+  auto subscription = GetTabHelper()->RegisterWaybackStateChangedCallback(
+      base::BindLambdaForTesting(
+          [&](WaybackState state) { states.push_back(state); }));
+
+  SetWaybackState(WaybackState::kNeedToCheck);
+  WaybackMachineBubbleView* bubble = ClickIconAndGetBubble();
+  ASSERT_NE(bubble, nullptr);
+  bubble->GetDialogClientView()->ResetViewShownTimeStampForTesting();
+  ASSERT_NE(bubble->GetOkButton(), nullptr);
+
+  content::TestNavigationObserver observer{GURL(kSnapshotURL)};
+  observer.WatchExistingWebContents();
+  ClickButton(bubble->GetOkButton());
+  observer.Wait();
+
+  EXPECT_EQ(states, (std::vector<WaybackState>{
+                        WaybackState::kNeedToCheck, WaybackState::kFetching,
+                        WaybackState::kFound, WaybackState::kLoaded}));
+  EXPECT_EQ(GetTabHelper()->wayback_state(), WaybackState::kLoaded);
+  ASSERT_TRUE(GetTabHelper()->snapshot_info());
+  EXPECT_EQ(GetTabHelper()->snapshot_info()->url, GURL(kSnapshotURL));
+  EXPECT_TRUE(base::test::RunUntil([&] { return !GetBubbleView(); }));
 }
 
 class WaybackMachineAutoShowBubbleBrowserTest
@@ -353,7 +444,8 @@ IN_PROC_BROWSER_TEST_F(WaybackMachineAutoShowBubbleBrowserTest,
   ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
   ASSERT_EQ(1, browser()->tab_strip_model()->active_index());
 
-  BraveWaybackMachineTabHelper::FromWebContents(first_tab)
+  BraveWaybackMachineTabHelper::From(
+      tabs::TabInterface::MaybeGetFromContents(first_tab))
       ->SetWaybackStateForTesting(WaybackState::kNeedToCheck);
   EXPECT_EQ(GetBubbleView(), nullptr);
 

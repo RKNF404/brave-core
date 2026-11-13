@@ -121,6 +121,18 @@
 /* Settings autofill section title */
 "autofill.settings.title" = "自動填入";
 
+/* A subtitle that appears in the dynamic island when a download is continuing while Brave is backgrounded. The %@'s are replaced with the current downloaded amount (e.g. '20MB') */
+"backgroundDownloadingSubtitle" = "%@";
+
+/* A subtitle that appears in the dynamic island when a download is continuing while Brave is backgrounded. The %@'s are replaced with a progress and a file size. E.g. '1MB of 20MB' */
+"backgroundDownloadingSubtitleWithExpectedSize" = "%1$@ / %2$@";
+
+/* A title that appears in the dynamic island when a download is continuing while Brave is backgrounded. %lld is replaced with the number of active downloads */
+"backgroundDownloadingTitleMultiDownload" = "正在下載 %lld 個檔案";
+
+/* A title that appears in the dynamic island when a download is continuing while Brave is backgrounded. %@ is replaced with a file name */
+"backgroundDownloadingTitleSingleDownload" = "正在下載「%@」";
+
 /* cookie settings option */
 "Block3rdPartyCookies" = "拦截第三方 cookies";
 
@@ -1048,6 +1060,18 @@
 /* No comment provided by engineer. */
 "ntp.sponsoredImageDescription" = "查看這張贊助圖片，等同於支持內容創作者和發佈者。";
 
+/* The title of a picker for user to pick which type of topsites to show in NTP */
+"ntp.topsites" = "熱門網站";
+
+/* Favorites type of topsites. Selection means NTP will display favorites tiles if there is any. */
+"ntp.topsitesTypeFavorites" = "我的最愛";
+
+/* MostVisited type of topsites. Selection means NTP will display most visited tiles if there is any. */
+"ntp.topsitesTypeMostVisited" = "經常造訪";
+
+/* None type of topsites. Selection means there won't be any topsites tiles in NTP */
+"ntp.topsitesTypeNone" = "無";
+
 /* The placeholder says 'Terms of Service'. So full sentence goes like: 'By turning Rewards, you agree to the Terms of Service'. */
 "ntp.turnRewardsTos" = "開啟「獎勵」即表示您同意%@。";
 
@@ -1438,12 +1462,6 @@
 /* The title for the alert that shows up when an item is expired */
 "playList.expiredAlertTitle" = "影片已到期";
 
-/* Number of items in the playlsit folder. Example: '10 items' */
-"playlist.folderItemCountPlural" = "%d 個項目";
-
-/* Title for when there's a single item inside of a folder */
-"playlist.foldersCountSingular" = "%d 個項目";
-
 /* Description for load resources error alert */
 "playList.loadResourcesErrorAlertDescription" = "加載資源時出現問題！";
 
@@ -1575,12 +1593,6 @@
 
 /* The title of the screen to create a new folder */
 "playlistFolders.newFolderScreenTitle" = "新增播放清單";
-
-/* The sub-title of the folder. Example: This folder contains 10 Items. This folder contains 3 Items. */
-"playlistFolders.subtitleItemCount" = "%lld 個項目";
-
-/* The sub-title of the folder. Example: This folder contains ONE item. This folder contains 1 Item. */
-"playlistFolders.subtitleItemSingleCount" = "1 個項目";
 
 /* The title of a folder when the user enters no name (untitled) */
 "playlistFolders.untitledFolderTitle" = "未命名的播放清單";
@@ -1773,6 +1785,18 @@
 
 /* Accessibility text for an icon button which will go back to the previous page in QuickView mode. */
 "quickview.back.accessibility.label" = "上一頁";
+
+/* Button title to keep opening links in QuickView after the confirmation alert. */
+"quickview.confirmation.alert.keep.button.title" = "繼續使用 QuickView";
+
+/* Message of the alert shown the first time a user closes QuickView, explaining the feature and where to change it. */
+"quickview.confirmation.alert.message" = "QuickView 讓您無需離開頁面即可預覽連結。您可以隨時在「設定」中關閉此功能。";
+
+/* Title of the alert shown the first time a user closes QuickView, asking if they want to keep using it for future links. */
+"quickview.confirmation.alert.title" = "要繼續在 Quick View 中開啟對話連結嗎？";
+
+/* Button title to stop opening links in QuickView after the confirmation alert. */
+"quickview.confirmation.alert.turnOff.button.title" = "關閉";
 
 /* Accessibility text for an icon button which will go forward to the next page in QuickView mode. */
 "quickview.forward.accessibility.label" = "下一頁";
@@ -2299,8 +2323,8 @@
 /* Used as a button label for crash dialog prompt */
 "SendReportButtonTitle" = "傳送報告";
 
-/* No comment provided by engineer. */
-"setDefaultBrowserCalloutTitle" = "現在能夠在 iOS 將 Brave 設定為預設瀏覽器。請點選此處以開啟設定。";
+/* A callout that explains how to set Brave as the default browser. This is a markdown string, the ** is for bold. */
+"setDefaultBrowserCalloutTitle" = "**將 Brave 設為您的預設瀏覽器，並在您造訪的每個網站上封鎖廣告。**點選此處開啟「設定」並將 Brave 設為預設。";
 
 /* Settings item to set the Brave as a default browser on the iOS device. */
 "setDefaultBrowserSettingsCell" = "設定為預設瀏覽器";
@@ -2379,6 +2403,12 @@
 
 /* Title to explain the daily usage ping toggle */
 "settings.sendUsagePingTitle" = "自動傳送每日使用 ping 到 Brave";
+
+/* Markdown formatted description under the settings toggle that enables Sponsored Ads. %@ is replaced by a URL and should not be localized. */
+"settings.sponsoredAdsEnabledDescription" = "以贊助廣告支持 Brave 打造獨立、以使用者為先的網路使命。我們以隱私方式衡量廣告成效，不會識別您的身分。[深入瞭解](%@)";
+
+/* Title of the settings toggle that enables Sponsored Ads */
+"settings.sponsoredAdsEnabledTitle" = "啟用贊助廣告";
 
 /* Header for the YouTube settings section */
 "settings.youtube" = "YouTube";
@@ -3024,12 +3054,6 @@
 
 /* Accessibility label for a button that allows users to shred their tabs (erase them & associated data) */
 "tabGrid.shredTabsAccessibilityLabel" = "銷毀分頁";
-
-/* A label in the tab tray mode switcher shown when there are 0 or more than 1 regular tabs open e.g. '129 Tabs' */
-"tabGrid.tabsCountFormatPlural" = "%lld 個分頁";
-
-/* A label in the tab tray mode switcher shown when there is 1 regular tab open e.g. '1 Tab' */
-"tabGrid.tabsCountFormatSingular" = "%lld 個分頁";
 
 /* Accessibility label for a button that when tapped presents the users history & recently closed tabs */
 "tabGrid.viewHistoryAccessibilityLabel" = "檢視記錄";

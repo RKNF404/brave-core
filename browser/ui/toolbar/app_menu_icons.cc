@@ -87,8 +87,7 @@ constexpr auto kCommandIcons =
 
         // The `Find and edit` submenu
         {IDC_FIND, &kLeoSearchIcon},
-        // Use when cut icon is ready.
-        // {IDC_CUT, &kLeoCutIcon},
+        {IDC_CUT, &kLeoCutIcon},
         {IDC_COPY, &kLeoCopyIcon},
         {IDC_PASTE, &kLeoClipboardIcon},
 
@@ -112,6 +111,7 @@ constexpr auto kCommandIcons =
         {IDC_NAME_WINDOW, &kLeoEditBoxIcon},
         {IDC_COMMANDER, &kLeoArrowSmallRightIcon},
         {IDC_SHOW_APPS_PAGE, &kLeoGrid04Icon},
+        {IDC_SHOW_READING_MODE, &kLeoProductSpeedreaderIcon},
         {IDC_PERFORMANCE, &kLeoNetworkSpeedFastIcon},
         {IDC_DEV_TOOLS, &kLeoCodeIcon},
         {IDC_TASK_MANAGER_APP_MENU, &kLeoWindowTaskManagerIcon},

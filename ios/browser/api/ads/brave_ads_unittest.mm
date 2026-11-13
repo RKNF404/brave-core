@@ -17,8 +17,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "brave/components/brave_ads/core/browser/network/oblivious_http_feature.h"
 #include "brave/components/brave_ads/core/mojom/brave_ads.mojom.h"
 #include "brave/components/brave_ads/core/public/ads_util.h"
 #include "brave/components/brave_ads/core/public/history/site_history.h"
@@ -28,6 +30,7 @@
 #include "brave/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/new_tab_takeover_infobar_util.h"
 #include "brave/components/ntp_background_images/common/pref_names.h"
 #import "brave/ios/browser/api/ads/ads_client_bridge.h"
+#include "brave/ios/browser/api/profile/profile_bridge_impl.h"
 #include "components/prefs/pref_service.h"
 #include "ios/chrome/browser/shared/model/application_context/application_context.h"
 #include "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -35,6 +38,8 @@
 #include "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #include "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #include "ios/web/public/test/web_task_environment.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/test/test_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gtest_mac.h"
@@ -81,12 +86,20 @@
 class BraveAdsTest : public PlatformTest {
  public:
   BraveAdsTest() {
+    // `HttpClient` starts an OHTTP key config request on construction, which
+    // can race with the profile's network context teardown.
+    scoped_feature_list_.InitAndDisableFeature(
+        brave_ads::kAdsObliviousHttpFeature);
     CHECK(temp_dir_.CreateUniqueTempDir());
     profile_ =
         profile_manager_.AddProfileWithBuilder(TestProfileIOS::Builder());
+    profile_->SetSharedURLLoaderFactory(
+        test_url_loader_factory_.GetSafeWeakWrapper());
     ads_ = [[BraveAds alloc]
         initWithStateStoragePath:base::SysUTF8ToNSString(
-                                     temp_dir_.GetPath().value())];
+                                     temp_dir_.GetPath().value())
+                         profile:[[ProfileBridgeImpl alloc]
+                                     initWithProfile:profile_]];
   }
 
   PrefService* profile_prefs() { return profile_->GetPrefs(); }
@@ -100,10 +113,12 @@ class BraveAdsTest : public PlatformTest {
   }
 
  protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   TestProfileManagerIOS profile_manager_;
-  raw_ptr<ProfileIOS> profile_ = nullptr;
+  raw_ptr<TestProfileIOS> profile_ = nullptr;
+  network::TestURLLoaderFactory test_url_loader_factory_;
   base::ScopedTempDir temp_dir_;
   BraveAds* ads_;
 };
@@ -699,7 +714,9 @@ TEST_F(BraveAdsTest, ClearsNewTabPageShowBackgroundImagePrefOnInit) {
   // Act
   BraveAds* ads = [[BraveAds alloc]
       initWithStateStoragePath:base::SysUTF8ToNSString(
-                                   temp_dir_.GetPath().value())];
+                                   temp_dir_.GetPath().value())
+                       profile:[[ProfileBridgeImpl alloc]
+                                   initWithProfile:profile_]];
 
   // Assert
   EXPECT_NSNE(nil, ads);

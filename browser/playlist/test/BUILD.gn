@@ -27,7 +27,10 @@ source_set("browser_tests") {
     ]
 
     deps += [
+      "//brave/app:command_ids",
+      "//brave/browser/ui",
       "//brave/browser/ui/sidebar",
+      "//chrome/browser/ui:browser_tabstrip",
       "//chrome/browser/ui/actions",
       "//chrome/browser/ui/views/frame:browser_view_header",
       "//chrome/browser/ui/views/frame:toolbar_button_provider",
@@ -37,12 +40,12 @@ source_set("browser_tests") {
 
   deps += [
     "//base",
+    "//brave/browser/playlist",
     "//brave/components/playlist/content/browser",
     "//brave/components/playlist/core/common",
     "//chrome/app:command_ids",
     "//chrome/browser",
     "//chrome/browser/profiles:profile",
-    "//chrome/browser/ui",
     "//chrome/test:test_support",
     "//chrome/test/base:chrome_test_utils",
     "//components/network_session_configurator/common",
@@ -89,10 +92,12 @@ source_set("unit_tests") {
 
   deps = [
     "//base",
+    "//brave/browser/playlist",
     "//brave/components/playlist/content/browser",
     "//brave/components/playlist/core/common",
     "//chrome/browser/prefs",
     "//chrome/test:test_support",
+    "//chrome/test/base:testing_browser_process",
     "//components/pref_registry",
     "//content/test:test_support",
   ]
@@ -100,6 +105,10 @@ source_set("unit_tests") {
   if (is_android) {
     deps += [ "//chrome/test:test_support_ui_android" ]
   } else {
-    deps += [ "//chrome/test:test_support_ui" ]
+    sources += [ "playlist_data_source_unittest.cc" ]
+    deps += [
+      "//chrome/browser",
+      "//chrome/test:test_support_ui",
+    ]
   }
 }

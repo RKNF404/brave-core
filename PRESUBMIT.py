@@ -49,7 +49,7 @@ def CheckLeoVariables(input_api, output_api):
     try:
         parts = [
             brave_chromium_utils.wspath(
-                '//brave/node_modules/@brave/leo/src/scripts/audit-tokens.js'
+                '//brave/node_modules/@brave/nala/src/scripts/audit-tokens.js'
             ),
             '--ignore',
             '.storybook-out',
@@ -522,9 +522,11 @@ def CheckNalaIconOverridesExistUpstream(input_api, output_api):
         # rather than fail the build.
         return []
 
+    # Limit to Android resource dirs, which may be named e.g. res or java_res.
+    res_dir = re.compile(r'(^|/)([^/]*_)?res[^/]*/')
     found_stems = set()
     for line in tracked.splitlines():
-        if '/res' not in line:  # Limit to Android resource dirs.
+        if not res_dir.search(line):
             continue
         found_stems.add(
             input_api.os_path.splitext(input_api.os_path.basename(line))[0]
@@ -746,27 +748,32 @@ def CheckPlasterFiles(input_api, output_api):
     if not affected_files:
         return []
 
-    # Pass the paths through a response file, as a large change (e.g. a
-    # Chromium rebase) exceeds the Windows command line length limit.
-    with input_api.CreateTemporaryFile(mode='w', suffix='.txt') as f:
-        f.write('\n'.join(affected_files))
-
-    cmd = [
-        input_api.python3_executable,
-        'tools/cr/plaster.py',
-        'check',
-        f'@{f.name}',
-    ]
+    # Paths go through response files, as a large change (e.g. a Chromium
+    # rebase) exceeds the Windows command line length limit. Checking is slow
+    # per file and independent between files, so it is split across processes.
+    batch_count = 1
+    if len(affected_files) >= 40:
+        batch_count = min(8, os.cpu_count() or 1)
     kwargs = {'cwd': input_api.PresubmitLocalPath()}
-    return input_api.RunTests(
-        [
+    commands = []
+    for index in range(batch_count):
+        with input_api.CreateTemporaryFile(mode='w', suffix='.txt') as f:
+            f.write('\n'.join(affected_files[index::batch_count]))
+        commands.append(
             input_api.Command(
-                name='plaster_check',
-                cmd=cmd,
-                kwargs=kwargs,
+                name=f'plaster_check {index + 1}/{batch_count}',
+                cmd=[
+                    input_api.python3_executable,
+                    'tools/cr/plaster.py',
+                    'check',
+                    f'@{f.name}',
+                ],
+                kwargs=dict(kwargs),
                 message=output_api.PresubmitError,
-            ),
-        ]
+            )
+        )
+    return input_api.RunTestsWithProgress(
+        'CheckPlasterFiles', commands, show_progress=False
     )
 
 
@@ -839,6 +846,25 @@ _BANNED_JAVA_FUNCTIONS += (
         ),
         False,
         excluded_paths=(r'.*Test[A-Z]?.*\.java',),
+    ),
+    BanRule(
+        r'/BraveProfileUtils(\.|::)onRegularProfileAvailable\b',
+        (
+            'This resolves the single regular profile and will break when '
+            'Chromium turns on multi-profile for Android '
+            '(chrome::android::kAndroidMultiprofile). Pass the Profile in '
+            'explicitly, or key the state per Profile with ProfileKeyedMap. '
+            'Only process-wide startup entry points may use this, and each '
+            'one has to be listed in excluded_paths below.',
+        ),
+        True,
+        excluded_paths=(
+            r'.*Test[A-Z]?.*\.java',
+            r'android/java/org/chromium/chrome/browser/'
+            r'BraveApplicationImplBase\.java',
+            r'android/java/org/chromium/chrome/browser/referrer/'
+            r'BraveReferrer\.java',
+        ),
     ),
 )
 
@@ -1018,7 +1044,7 @@ def _GetMessageForMatchingType(orig, input_api, f, line_num, line, ban_rule):
 
 
 @override_utils.override_function(globals())
-def _ChangeHasSecurityReviewer(*_):
+def _ChangeHasReviewerFromOwnersFile(*_):
     # We don't have Gerrit API available to check for reviewers.
     return False
 

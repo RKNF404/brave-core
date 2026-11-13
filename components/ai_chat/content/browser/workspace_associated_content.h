@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
@@ -32,8 +33,8 @@ class WebContents;
 namespace ai_chat {
 
 // Associated content backed by a hidden, headless
-// chrome-untrusted://<uuid>.leo-workspace page, where the uuid is this
-// delegate's own, giving each workspace its own origin. The content is
+// chrome-untrusted://<uuid>.leo-workspace page, where the uuid is the
+// workspace's, giving each workspace its own origin. The content is
 // identified (and stored) by workspace://<uuid>, its |url()|, which is never
 // loaded. The page holds a
 // FileSystemDirectoryHandle for a user-picked folder (delivered by the browser
@@ -58,12 +59,22 @@ class WorkspaceAssociatedContent : public AssociatedContentDelegate,
   WorkspaceAssociatedContent& operator=(const WorkspaceAssociatedContent&) =
       delete;
 
-  // Restores a workspace from its workspace://<uuid> URL. Returns nullptr if
-  // |url| is not a valid workspace URL.
+  // Opens a workspace from its workspace://<uuid> URL, attached with
+  // |content_uuid| (or a new one), as several conversations can share a
+  // workspace. Returns nullptr if |url| is not a valid workspace URL.
   static std::unique_ptr<WorkspaceAssociatedContent> CreateFromUrl(
       GURL url,
+      std::optional<std::string> content_uuid,
       content::BrowserContext* browser_context,
       base::OnceCallback<void(content::WebContents*)> attach_tab_helpers);
+
+  // Returns the URL of the workspace page showing |file_path| from the
+  // workspace identified by |workspace_url| (workspace://<uuid>):
+  // chrome-untrusted://<uuid>.leo-workspace/#file=<file_path>. Returns
+  // std::nullopt if |workspace_url| is not a valid workspace URL or
+  // |file_path| is empty.
+  static std::optional<GURL> GetFileUrl(const GURL& workspace_url,
+                                        std::string_view file_path);
 
   // AssociatedContentDelegate:
   void GetContent(GetPageContentCallback callback) override;
@@ -80,8 +91,10 @@ class WorkspaceAssociatedContent : public AssociatedContentDelegate,
   }
 
  private:
-  // Sets up the identity of the workspace with |uuid|, without loading it.
-  explicit WorkspaceAssociatedContent(std::string uuid);
+  // Sets up the identity of the workspace with |workspace_uuid|, attached with
+  // |content_uuid|, without loading it.
+  WorkspaceAssociatedContent(std::string_view workspace_uuid,
+                             std::string content_uuid);
 
   // Creates the hidden WebContents and loads |page_url_| in it.
   void AttachWebContents(
@@ -101,6 +114,11 @@ class WorkspaceAssociatedContent : public AssociatedContentDelegate,
   // a directory handle for |folder_path_|, and delivers it to the page's JS via
   // launchQueue. Runs once the page's main frame has loaded.
   void DeliverDirectoryHandle(content::RenderFrameHost* rfh);
+
+  // Whether the workspace origin has been granted File System Access to a
+  // user-picked folder. If not, its tools can only touch the workspace's own
+  // OPFS, so they run without a permission prompt.
+  bool HasFolderAccess() const;
 
   void OnContentToolsFetched(
       GetContentToolsCallback callback,

@@ -40,6 +40,7 @@ extension BrowserViewController: TabManagerDelegate {
     tab.faviconTabHelper = .init(tab: tab)
     tab.userActivityHelper = .init(tab: tab)
     tab.print = .init(tab: tab, baseViewController: self)
+    tab.shareableDocumentHelper = .init(tab: tab)
     tab.externalAppURLHelper = .init(tab: tab, browserViewController: self)
     tab.forcePaste = .init(tab: tab)
     tab.aiChatWebUIHelper = .init(
@@ -88,6 +89,14 @@ extension BrowserViewController: TabManagerDelegate {
       },
       scanAddressQRCodeHandler: { [weak self] completion in
         self?.scanAddressQRCode(completion: completion)
+      },
+      openTabHandler: { [weak self] url in
+        guard let self else { return }
+        self.tabManager.addTabAndSelect(
+          URLRequest(url: url),
+          afterTab: self.tabManager.selectedTab,
+          isPrivate: false  // wallet webui only in regular tab
+        )
       }
     )
     let braveShieldsHelper: BraveShieldsTabHelper = .init(
@@ -232,6 +241,8 @@ extension BrowserViewController: TabManagerDelegate {
       self.present(quickViewController, animated: true)
     }
     tab.blockedDomainTabHelper = .init(tab: tab)
+
+    tab.historyTabHelper = .init(tab: tab, historyAPI: profileController.historyAPI)
   }
 
   func tabManager(
@@ -385,9 +396,7 @@ extension BrowserViewController: TabManagerDelegate {
 
     SnackBarTabHelper.from(tab: tab)?.delegate = self
 
-    tab.wallet?.walletKeyringService = BraveWallet.KeyringServiceFactory.get(
-      privateMode: tab.isPrivate
-    )
+    tab.wallet?.walletKeyringService = BraveWallet.KeyringServiceFactory.get(profile: tab.profile)
     updateTabsBarVisibility()
   }
 

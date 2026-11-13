@@ -3,18 +3,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include <atomic>
+
 #include "base/base64.h"
+#include "base/location.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "brave/browser/tor/tor_profile_manager.h"
-#include "brave/components/tor/pref_names.h"
+#include "brave/browser/tor/tor_profile_service_factory.h"
 #include "brave/components/tor/tor_navigation_throttle.h"
 #include "brave/net/proxy_resolution/proxy_config_service_tor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/network_session_configurator/common/network_switches.h"
-#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_mock_cert_verifier.h"
@@ -32,20 +35,24 @@ namespace {
 
 constexpr char kRedirectOnionPath[] = "/redirect-onion";
 constexpr char kSimplePagePath[] = "/simple.html";
+constexpr char kFetchLaterOnionPath[] = "/fetch-later-onion";
+constexpr char kFetchLaterRedirectOnionPath[] = "/fetch-later-redirect-onion";
+constexpr char kFetchLaterSentinelPath[] = "/fetch-later-sentinel";
+constexpr char kFetchLaterRedirectSentinelPath[] =
+    "/fetch-later-redirect-sentinel";
 
 struct OnionAccessScenario {
   bool tor_window = false;
-  bool onion_only_in_tor_windows = true;
+  bool tor_disabled = false;
   bool expect_blocked = true;
 };
 
 std::string OnionAccessScenarioName(
     const testing::TestParamInfo<OnionAccessScenario>& info) {
   const OnionAccessScenario& scenario = info.param;
-  return base::StrCat(
-      {scenario.tor_window ? "TorWindow" : "NormalWindow",
-       scenario.onion_only_in_tor_windows ? "_PrefOn" : "_PrefOff",
-       scenario.expect_blocked ? "_Blocked" : "_Allowed"});
+  return base::StrCat({scenario.tor_window ? "TorWindow" : "NormalWindow",
+                       scenario.tor_disabled ? "_TorDisabled" : "",
+                       scenario.expect_blocked ? "_Blocked" : "_Allowed"});
 }
 
 }  // namespace
@@ -104,8 +111,9 @@ class OnionDomainThrottleBrowserTest
   }
 
   BrowserWindowInterface* SetUpScenario(const OnionAccessScenario& scenario) {
-    browser()->GetProfile()->GetPrefs()->SetBoolean(
-        tor::prefs::kOnionOnlyInTorWindows, scenario.onion_only_in_tor_windows);
+    if (scenario.tor_disabled) {
+      TorProfileServiceFactory::SetTorDisabled(true);
+    }
 
     BrowserWindowInterface* browser = GetBrowser(scenario.tor_window);
 
@@ -122,6 +130,36 @@ class OnionDomainThrottleBrowserTest
 
   GURL RedirectToOnionUrl() const {
     return https_server_->GetURL("example.com", kRedirectOnionPath);
+  }
+
+  // Queues a fetchLater() request to `url`, followed by one to `sentinel_url`,
+  // which ends up on a regular host. Both are sent right away, in that order.
+  void FetchLaterWithSentinel(
+      content::WebContents* web_contents,
+      const GURL& url,
+      const GURL& sentinel_url,
+      base::Location location = base::Location::Current()) {
+    SCOPED_TRACE(location.ToString());
+    ASSERT_TRUE(content::ExecJs(
+        web_contents, content::JsReplace(R"(fetchLater($1, {activateAfter: 0});
+                              fetchLater($2, {activateAfter: 0});)",
+                                         url, sentinel_url)));
+  }
+
+  // Waits until the onion request is seen when it is allowed, or until the
+  // sentinel request is seen when it is blocked, then checks the onion
+  // request count.
+  void ExpectFetchLaterOnionRequest(
+      bool expect_blocked,
+      base::Location location = base::Location::Current()) {
+    SCOPED_TRACE(location.ToString());
+    if (expect_blocked) {
+      ASSERT_TRUE(
+          base::test::RunUntil([&]() { return sentinel_requests_ > 0; }));
+      EXPECT_EQ(0, onion_requests_);
+    } else {
+      ASSERT_TRUE(base::test::RunUntil([&]() { return onion_requests_ > 0; }));
+    }
   }
 
   std::string ImageLoadScript(const std::string& src) {
@@ -189,6 +227,26 @@ class OnionDomainThrottleBrowserTest
       return http_response;
     }
 
+    if (request.relative_url == kFetchLaterRedirectOnionPath ||
+        request.relative_url == kFetchLaterRedirectSentinelPath) {
+      const GURL location =
+          request.relative_url == kFetchLaterRedirectOnionPath
+              ? https_server_->GetURL("example.onion", kFetchLaterOnionPath)
+              : https_server_->GetURL("brave.com", kFetchLaterSentinelPath);
+      auto http_response =
+          std::make_unique<net::test_server::BasicHttpResponse>();
+      http_response->set_code(net::HTTP_FOUND);
+      http_response->AddCustomHeader("Access-Control-Allow-Origin", "*");
+      http_response->AddCustomHeader("Location", location.spec());
+      return http_response;
+    }
+
+    if (request.relative_url == kFetchLaterOnionPath) {
+      ++onion_requests_;
+    } else if (request.relative_url == kFetchLaterSentinelPath) {
+      ++sentinel_requests_;
+    }
+
     auto http_response =
         std::make_unique<net::test_server::BasicHttpResponse>();
     http_response->set_content_type("image/png");
@@ -205,6 +263,9 @@ class OnionDomainThrottleBrowserTest
  protected:
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   content::WebTransportSimpleTestServer webtransport_server_;
+  // Updated on the test server thread.
+  std::atomic<int> onion_requests_ = 0;
+  std::atomic<int> sentinel_requests_ = 0;
 
  private:
   content::ContentMockCertVerifier mock_cert_verifier_;
@@ -213,18 +274,12 @@ class OnionDomainThrottleBrowserTest
 INSTANTIATE_TEST_SUITE_P(
     ,
     OnionDomainThrottleBrowserTest,
-    ::testing::Values(OnionAccessScenario{.tor_window = false,
-                                          .onion_only_in_tor_windows = true,
-                                          .expect_blocked = true},
-                      OnionAccessScenario{.tor_window = false,
-                                          .onion_only_in_tor_windows = false,
-                                          .expect_blocked = false},
-                      OnionAccessScenario{.tor_window = true,
-                                          .onion_only_in_tor_windows = true,
-                                          .expect_blocked = false},
-                      OnionAccessScenario{.tor_window = true,
-                                          .onion_only_in_tor_windows = false,
-                                          .expect_blocked = false}),
+    ::testing::Values(
+        OnionAccessScenario{.tor_window = false, .expect_blocked = true},
+        OnionAccessScenario{.tor_window = false,
+                            .tor_disabled = true,
+                            .expect_blocked = true},
+        OnionAccessScenario{.tor_window = true, .expect_blocked = false}),
     &OnionAccessScenarioName);
 
 IN_PROC_BROWSER_TEST_P(OnionDomainThrottleBrowserTest,
@@ -304,4 +359,29 @@ IN_PROC_BROWSER_TEST_P(OnionDomainThrottleBrowserTest, WebTransportToOnion) {
       WebTransportOpenScript(webtransport_server_.server_address().port()));
   ASSERT_TRUE(result.is_ok());
   EXPECT_EQ(scenario.expect_blocked ? "error" : "open", result);
+}
+
+IN_PROC_BROWSER_TEST_P(OnionDomainThrottleBrowserTest, FetchLaterToOnion) {
+  const OnionAccessScenario scenario = GetParam();
+  BrowserWindowInterface* browser = SetUpScenario(scenario);
+  content::WebContents* web_contents = GetActiveWebContents(browser);
+
+  FetchLaterWithSentinel(
+      web_contents,
+      https_server_->GetURL("example.onion", kFetchLaterOnionPath),
+      https_server_->GetURL("brave.com", kFetchLaterSentinelPath));
+  ExpectFetchLaterOnionRequest(scenario.expect_blocked);
+}
+
+IN_PROC_BROWSER_TEST_P(OnionDomainThrottleBrowserTest,
+                       FetchLaterRedirectToOnion) {
+  const OnionAccessScenario scenario = GetParam();
+  BrowserWindowInterface* browser = SetUpScenario(scenario);
+  content::WebContents* web_contents = GetActiveWebContents(browser);
+
+  FetchLaterWithSentinel(
+      web_contents,
+      https_server_->GetURL("example.com", kFetchLaterRedirectOnionPath),
+      https_server_->GetURL("example.com", kFetchLaterRedirectSentinelPath));
+  ExpectFetchLaterOnionRequest(scenario.expect_blocked);
 }

@@ -4,10 +4,11 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as React from 'react'
-import Icon from '@brave/leo/react/icon'
+import Icon from '@brave/nala/react/icon'
+import { useHistory } from 'react-router-dom'
 
 // Types
-import { WalletCardIds } from '$wallet/constants/types'
+import { WalletCardIds, WalletRoutes } from '$wallet/constants/types'
 
 // Constants
 import { LOCAL_STORAGE_KEYS } from '$wallet/common/constants/local-storage-keys'
@@ -17,6 +18,10 @@ import { WalletCardOptions } from '$wallet/options/wallet-card-options'
 
 // Utils
 import { getLocale } from '$web-common/locale'
+import { emptyRewardsInfo } from '$wallet/common/async/base-query-cache'
+
+// Queries
+import { useGetRewardsInfoQuery } from '$wallet/common/slices/api.slice'
 
 // Hooks
 import { useLocalStorage } from '$wallet/common/hooks/use_local_storage'
@@ -29,7 +34,8 @@ import { RewardsCard } from './cards/rewards_card/rewards_card'
 import { HubMenu } from './components/hub_menu/hub_menu'
 import { Settings } from './components/settings/settings'
 import { HideCardPopup } from './components/hide_card_popup/hide_card_popup'
-import { CardDetails } from './components/card_details/card_details'
+import { RewardsCardDetails } from './components/rewards_card_details/rewards_card_details'
+import { VerifyRewardsCard } from './components/verify_rewards_card/verify_rewards_card'
 
 // Styles
 import {
@@ -92,6 +98,12 @@ export const CardHub = () => {
     onEnterHub,
   } = useCardHubTransition(visibleCardIds)
 
+  const history = useHistory()
+
+  // Queries
+  const { data: { isRewardsCardVerified } = emptyRewardsInfo } =
+    useGetRewardsInfoQuery()
+
   const selectedCardTitle = selectedCardId
     ? getLocale(
         WalletCardOptions.find((option) => option.id === selectedCardId)?.label
@@ -100,6 +112,14 @@ export const CardHub = () => {
     : ''
 
   // Methods
+  const onClickCard = (cardId: WalletCardIds) => {
+    if (cardId === 'crypto') {
+      history.push(WalletRoutes.Portfolio)
+      return
+    }
+    onOpenCardDetails(cardId)
+  }
+
   const onOpenNotifications = () => {
     // Will nav to notifications in the future
     alert('Open notifications')
@@ -166,7 +186,7 @@ export const CardHub = () => {
                   onClick={
                     selectedCardId || isEnteringHub
                       ? undefined
-                      : () => onOpenCardDetails(option.id)
+                      : () => onClickCard(option.id)
                   }
                 />
               </StackItem>
@@ -174,12 +194,20 @@ export const CardHub = () => {
           })}
         </CardStack>
       </Column>
-      <CardDetails
-        title={selectedCardTitle}
-        visible={detailsOpen}
-        slotRef={detailsSlotRef}
-        onBack={onBackFromDetails}
-      />
+      {isRewardsCardVerified ? (
+        <RewardsCardDetails
+          title={selectedCardTitle}
+          visible={detailsOpen}
+          slotRef={detailsSlotRef}
+          onBack={onBackFromDetails}
+        />
+      ) : (
+        <VerifyRewardsCard
+          visible={detailsOpen}
+          slotRef={detailsSlotRef}
+          onBack={onBackFromDetails}
+        />
+      )}
       <HideCardPopup
         card={hidingCard}
         isOpen={!!hidingCard}

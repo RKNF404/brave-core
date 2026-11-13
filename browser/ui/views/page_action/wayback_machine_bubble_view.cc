@@ -18,6 +18,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -47,7 +48,8 @@ BraveWaybackMachineTabHelper* GetTabHelper(content::WebContents* web_contents) {
     return nullptr;
   }
 
-  return BraveWaybackMachineTabHelper::FromWebContents(web_contents);
+  return BraveWaybackMachineTabHelper::From(
+      tabs::TabInterface::MaybeGetFromContents(web_contents));
 }
 
 gfx::FontList GetFont(int font_size, gfx::Font::Weight weight) {
@@ -133,7 +135,7 @@ WaybackMachineBubbleView::~WaybackMachineBubbleView() {
 
 bool WaybackMachineBubbleView::OnAccepted() {
   if (auto* tab_helper = GetTabHelper(web_contents())) {
-    tab_helper->FetchWaybackURL();
+    tab_helper->FetchSnapshotInfo();
     // Stay open while the lookup runs. UpdateFromState() closes the bubble if
     // a snapshot is found, or switches it to the "not available" message.
     return false;
@@ -156,11 +158,12 @@ void WaybackMachineBubbleView::UpdateFromState(WaybackState state) {
   switch (state) {
     case WaybackState::kNeedToCheck:
     case WaybackState::kFetching:
+    case WaybackState::kFound:
       SetTitle(l10n_util::GetStringUTF16(
           IDS_BRAVE_WAYBACK_MACHINE_BUBBLE_SORRY_HEADER_TEXT));
       body_->SetText(l10n_util::GetStringUTF16(
           IDS_BRAVE_WAYBACK_MACHINE_BUBBLE_ASK_ABOUT_CHECK_TEXT));
-      if (state == WaybackState::kFetching) {
+      if (state == WaybackState::kFetching || state == WaybackState::kFound) {
         ShowLoading();
         break;
       }

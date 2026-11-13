@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
@@ -89,7 +90,8 @@ WorkspaceAssociatedContent::WorkspaceAssociatedContent(
     content::BrowserContext* browser_context,
     base::OnceCallback<void(content::WebContents*)> attach_tab_helpers)
     : WorkspaceAssociatedContent(
-          base::Uuid::GenerateRandomV4().AsLowercaseString()) {
+          /*workspace_uuid=*/base::Uuid::GenerateRandomV4().AsLowercaseString(),
+          /*content_uuid=*/base::Uuid::GenerateRandomV4().AsLowercaseString()) {
   folder_path_ = std::move(folder_path);
   DVLOG(2) << __func__ << " creating workspace " << url().spec()
            << " for folder " << folder_path_.value_or(base::FilePath());
@@ -102,6 +104,7 @@ WorkspaceAssociatedContent::~WorkspaceAssociatedContent() = default;
 std::unique_ptr<WorkspaceAssociatedContent>
 WorkspaceAssociatedContent::CreateFromUrl(
     GURL url,
+    std::optional<std::string> content_uuid,
     content::BrowserContext* browser_context,
     base::OnceCallback<void(content::WebContents*)> attach_tab_helpers) {
   // The FileSystemDirectoryHandle is restored from IndexedDB by the page.
@@ -114,10 +117,29 @@ WorkspaceAssociatedContent::CreateFromUrl(
   DVLOG(2) << __func__ << " restoring workspace " << url.spec();
 
   // WrapUnique, as the constructor is private.
-  auto content =
-      base::WrapUnique(new WorkspaceAssociatedContent(std::move(*uuid)));
+  auto content = base::WrapUnique(new WorkspaceAssociatedContent(
+      *uuid, content_uuid
+                 ? std::move(*content_uuid)
+                 : base::Uuid::GenerateRandomV4().AsLowercaseString()));
   content->AttachWebContents(browser_context, std::move(attach_tab_helpers));
   return content;
+}
+
+// static
+std::optional<GURL> WorkspaceAssociatedContent::GetFileUrl(
+    const GURL& workspace_url,
+    std::string_view file_path) {
+  std::optional<std::string> uuid = ParseWorkspaceUrl(workspace_url);
+  if (!uuid || file_path.empty()) {
+    return std::nullopt;
+  }
+  // The page reads the fragment with URLSearchParams, so the path is escaped
+  // as a parameter value.
+  GURL::Replacements replacements;
+  const std::string ref =
+      base::StrCat({"file=", base::EscapeAllExceptUnreserved(file_path)});
+  replacements.SetRefStr(ref);
+  return BuildPageUrl(*uuid).ReplaceComponents(replacements);
 }
 
 void WorkspaceAssociatedContent::GetContent(GetPageContentCallback callback) {
@@ -165,12 +187,14 @@ url::Origin WorkspaceAssociatedContent::GetOrigin() const {
   return url::Origin::Create(page_url_);
 }
 
-WorkspaceAssociatedContent::WorkspaceAssociatedContent(std::string uuid)
-    : page_url_(BuildPageUrl(uuid)) {
+WorkspaceAssociatedContent::WorkspaceAssociatedContent(
+    std::string_view workspace_uuid,
+    std::string content_uuid)
+    : page_url_(BuildPageUrl(workspace_uuid)) {
   CHECK(page_url_.is_valid());
-  set_url(BuildWorkspaceUrl(uuid));
+  set_url(BuildWorkspaceUrl(workspace_uuid));
   CHECK(url().is_valid());
-  set_uuid(std::move(uuid));
+  set_uuid(std::move(content_uuid));
 }
 
 void WorkspaceAssociatedContent::AttachWebContents(
@@ -294,6 +318,23 @@ void WorkspaceAssociatedContent::DeliverDirectoryHandle(
                                       std::move(entries));
 }
 
+bool WorkspaceAssociatedContent::HasFolderAccess() const {
+  // DeliverDirectoryHandle() is the only way a workspace gets a real folder,
+  // and it grants these to the workspace origin first. Without them the page
+  // can't use a folder handle (it can't prompt, being hidden), so it is
+  // confined to its own origin private file system. This also covers restored
+  // workspaces, whose folder only the page knows.
+  const GURL origin_url = GetOrigin().GetURL();
+  auto* map = permissions::PermissionsClient::Get()->GetSettingsMap(
+      web_contents_->GetBrowserContext());
+  return map->GetContentSetting(origin_url, origin_url,
+                                ContentSettingsType::FILE_SYSTEM_READ_GUARD) ==
+             CONTENT_SETTING_ALLOW ||
+         map->GetContentSetting(origin_url, origin_url,
+                                ContentSettingsType::FILE_SYSTEM_WRITE_GUARD) ==
+             CONTENT_SETTING_ALLOW;
+}
+
 void WorkspaceAssociatedContent::OnContentToolsFetched(
     GetContentToolsCallback callback,
     content::WeakDocumentPtr rfh,
@@ -301,8 +342,10 @@ void WorkspaceAssociatedContent::OnContentToolsFetched(
     blink::mojom::AIPageContentPtr result) {
   std::vector<std::unique_ptr<Tool>> tools;
   if (result && result->frame_data) {
+    const bool requires_permission = HasFolderAccess();
     for (const auto& script_tool : result->frame_data->script_tools) {
-      tools.push_back(std::make_unique<ContentTool>(*script_tool, rfh));
+      tools.push_back(std::make_unique<ContentTool>(*script_tool, rfh,
+                                                    requires_permission));
     }
   }
   std::move(callback).Run(std::move(tools));

@@ -92,11 +92,19 @@ COMPONENT_EXPORT(AI_CHAT_COMMON) bool IsAIChatFirstEnabled();
 COMPONENT_EXPORT(AI_CHAT_COMMON) BASE_DECLARE_FEATURE(kAIChatUserChoiceTool);
 
 COMPONENT_EXPORT(AI_CHAT_COMMON) BASE_DECLARE_FEATURE(kAIChatWorkspaceTools);
+// Whether the user can pick a native directory as a workspace, via the
+// "Workspace" entry in the Leo attachments menu. Only meaningful when
+// kAIChatWorkspaceTools is enabled.
+COMPONENT_EXPORT(AI_CHAT_COMMON)
+extern const base::FeatureParam<bool> kWorkspaceNativeDirectories;
 
 // Enables experimental features being enabled in a separate profile. If
 // disabled, the features will not be enabled anywhere.
 COMPONENT_EXPORT(AI_CHAT_COMMON) BASE_DECLARE_FEATURE(kAIChatAgentProfile);
 COMPONENT_EXPORT(AI_CHAT_COMMON) bool IsAIChatAgentProfileEnabled();
+
+COMPONENT_EXPORT(AI_CHAT_COMMON)
+BASE_DECLARE_FEATURE(kAIChatContentAgentMainProfiles);
 
 // Enables optimization_guide-based page content extraction (AIPageContent) as
 // the default extraction method for AI Chat.

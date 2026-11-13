@@ -26,8 +26,8 @@
 #include "brave/ios/browser/api/web_view/brave_web_frame_internal.h"
 #include "brave/ios/browser/api/web_view/passwords/brave_web_view_password_manager_client.h"
 #include "brave/ios/browser/brave_account/brave_account_dialog_mode_holder.h"
-#include "brave/ios/browser/brave_account/brave_account_dialog_opener_bridge.h"
-#include "brave/ios/browser/brave_account/brave_account_dialog_opener_bridge_holder.h"
+#include "brave/ios/browser/brave_account/brave_account_screen_opener_bridge.h"
+#include "brave/ios/browser/brave_account/brave_account_screen_opener_bridge_holder.h"
 #include "brave/ios/browser/brave_ads/ads_tab_helper.h"
 #include "brave/ios/browser/brave_search/brave_search_ad_results_javascript_feature.h"
 #include "brave/ios/browser/brave_search/brave_search_make_default_tab_helper.h"
@@ -44,7 +44,6 @@
 #include "brave/ios/browser/serp_metrics/serp_metrics_tab_helper.h"
 #include "brave/ios/browser/ui/web_view/features.h"
 #include "brave/ios/browser/ui/webui/brave_wallet/wallet_page_handler_bridge_holder.h"
-#include "brave/ios/browser/web/document_fetch/document_fetch_javascript_feature.h"
 #include "brave/ios/browser/web/force_paste/force_paste_javascript_feature.h"
 #include "brave/ios/browser/web/logins/logins_tab_helper.h"
 #include "brave/ios/browser/web/logins/logins_tab_helper_bridge.h"
@@ -282,8 +281,8 @@ class FaviconDriverObserver : public favicon::FaviconDriverObserver {
     id<AIChatUIHandlerBridge, AIChatAssociatedContentPageFetcher>
         aiChatUIHandler;
 @property(nonatomic) BraveAccountDialogMode braveAccountDialogMode;
-@property(nonatomic, weak) id<BraveAccountDialogOpenerBridge>
-    braveAccountDialogOpener;
+@property(nonatomic, weak) id<BraveAccountScreenOpenerBridge>
+    braveAccountScreenOpener;
 @property(nonatomic, weak) id<WalletPageHandlerBridge> walletPageHandler;
 @property(nonatomic, weak) id<LoginsTabHelperBridge> loginsHelper;
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
@@ -413,11 +412,11 @@ class FaviconDriverObserver : public favicon::FaviconDriverObserver {
       ->SetDialogMode(static_cast<brave_account::mojom::DialogMode>(
           self.braveAccountDialogMode));
 
-  brave_account::BraveAccountDialogOpenerBridgeHolder::CreateForWebState(
+  brave_account::BraveAccountScreenOpenerBridgeHolder::CreateForWebState(
       self.webState);
-  brave_account::BraveAccountDialogOpenerBridgeHolder::FromWebState(
+  brave_account::BraveAccountScreenOpenerBridgeHolder::FromWebState(
       self.webState)
-      ->SetBridge(self.braveAccountDialogOpener);
+      ->SetBridge(self.braveAccountScreenOpener);
 
   brave_wallet::PageHandlerBridgeHolder::CreateForWebState(self.webState);
   brave_wallet::PageHandlerBridgeHolder::FromWebState(self.webState)
@@ -628,8 +627,8 @@ class FaviconDriverObserver : public favicon::FaviconDriverObserver {
   // requested disposition, so handle the new tab dispositions here to match
   // Chrome.
   const bool inBackground =
-      params.disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB;
-  if ((params.disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB ||
+      params.disposition == WindowOpenDisposition::kNewBackgroundTab;
+  if ((params.disposition == WindowOpenDisposition::kNewForegroundTab ||
        inBackground) &&
       [self.UIDelegate
           respondsToSelector:
@@ -756,14 +755,14 @@ class FaviconDriverObserver : public favicon::FaviconDriverObserver {
           static_cast<brave_account::mojom::DialogMode>(dialogMode));
 }
 
-- (void)setBraveAccountDialogOpener:
-    (id<BraveAccountDialogOpenerBridge>)braveAccountDialogOpener {
-  _braveAccountDialogOpener = braveAccountDialogOpener;
-  brave_account::BraveAccountDialogOpenerBridgeHolder::CreateForWebState(
+- (void)setBraveAccountScreenOpener:
+    (id<BraveAccountScreenOpenerBridge>)braveAccountScreenOpener {
+  _braveAccountScreenOpener = braveAccountScreenOpener;
+  brave_account::BraveAccountScreenOpenerBridgeHolder::CreateForWebState(
       self.webState);
-  brave_account::BraveAccountDialogOpenerBridgeHolder::FromWebState(
+  brave_account::BraveAccountScreenOpenerBridgeHolder::FromWebState(
       self.webState)
-      ->SetBridge(braveAccountDialogOpener);
+      ->SetBridge(braveAccountScreenOpener);
 }
 
 @end
@@ -845,27 +844,6 @@ class FaviconDriverObserver : public favicon::FaviconDriverObserver {
   if (tab_helper) {
     tab_helper->SetBridge(loginsHelper);
   }
-}
-
-@end
-
-@implementation BraveWebView (DocumentFetch)
-
-- (void)downloadDocumentAtURL:(NSURL*)url
-            completionHandler:
-                (void (^)(NSInteger statusCode,
-                          NSData* _Nullable data))completionHandler {
-  DocumentFetchJavaScriptFeature::GetInstance()->DownloadDocument(
-      self.webState, net::GURLWithNSURL(url),
-      base::BindOnce(^(int statusCode, const std::string& base64Data) {
-        NSData* data = nil;
-        if (!base64Data.empty()) {
-          data = [[NSData alloc]
-              initWithBase64EncodedString:base::SysUTF8ToNSString(base64Data)
-                                  options:0];
-        }
-        completionHandler(statusCode, data);
-      }));
 }
 
 @end

@@ -4,7 +4,7 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as React from 'react'
-import '@brave/leo/tokens/css/variables.css'
+import '@brave/nala/tokens/css/variables.css'
 import { InferControlsFromArgs } from '$storybook/utils'
 import * as Mojom from '../../../common/mojom'
 import WorkspaceFileLightbox, {
@@ -339,6 +339,7 @@ export const _WorkspaceFileButton = {
         <WorkspaceFileLightbox
           file={file}
           onClose={() => setFile(null)}
+          onOpen={() => setFile(null)}
           renderViewer={(file) => <PlaceholderViewer file={file} />}
         />
       </MockContext>

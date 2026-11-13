@@ -59,22 +59,6 @@ extension BrowserViewController: TabPolicyDecider {
       tab.browserData?.setCustomUserScript(scripts: scriptTypes)
     }
 
-    let request = response.url.flatMap { pendingRequests[$0.absoluteString] }
-
-    // If the content type is not HTML, create a temporary document so it can be downloaded and
-    // shared to external applications later. Otherwise, clear the old temporary document.
-    if responseInfo.isForMainFrame {
-      if response.mimeType?.isKindOfHTML == false, let request {
-        tab.temporaryDocument = TemporaryDocument(
-          preflightResponse: response,
-          request: request,
-          tab: tab
-        )
-      } else {
-        tab.temporaryDocument = nil
-      }
-    }
-
     return .allow
   }
 
@@ -159,7 +143,7 @@ extension BrowserViewController: TabPolicyDecider {
         return .cancel
       case .load(let resolvedURL):
         if resolvedURL.isIPFSScheme,
-          profileController.ipfsAPI.resolveGatewayUrl(for: resolvedURL) != nil
+          IpfsAPI.resolveGatewayUrl(for: resolvedURL) != nil
         {
           // FIXME: This should cancel & load the resolved IPFS URL
         } else {
@@ -291,8 +275,6 @@ extension BrowserViewController: TabPolicyDecider {
     // This is the normal case, opening a http or https url, which we handle by loading them in this WKWebView. We
     // always allow this. Additionally, data URIs are also handled just like normal web pages
     if ["http", "https", "data", "blob", "file"].contains(requestURL.scheme) {
-      pendingRequests[requestURL.absoluteString] = request
-
       // Cookie Blocking code below
       tab.browserData?.setScript(
         script: .cookieBlocking,
@@ -375,7 +357,7 @@ extension BrowserViewController {
     // Lets get the redirect chain.
     // Then we simply get all elements up until the user allows us to redirect
     // (i.e. appropriate settings are enabled for that redirect rule)
-    if let debounceService = DebounceServiceFactory.get(privateMode: tab.isPrivate),
+    if let debounceService = DebounceServiceFactory.get(profile: tab.profile),
       debounceService.isEnabled,
       let lastCommittedURL = tab.lastCommittedURL,
       lastCommittedURL.baseDomain != requestURL.baseDomain

@@ -17,6 +17,9 @@ import {
 import { LOCAL_STORAGE_KEYS } from '../common/constants/local-storage-keys'
 import { SUPPORT_LINKS } from '../common/constants/support_links'
 
+// Proxy
+import getWalletPageApiProxy from '../page/wallet_page_api_proxy'
+
 /**
  * Returns the pathname portion of a wallet location string built as
  * `pathname + search + hash` (see `useLocation` in the page container).
@@ -114,6 +117,11 @@ export function isPersistableSessionRoute(
      * popup panel so the page and side panel do not restore/redirect here.
      */
     || (isPanel && !isSidePanel && routePath === WalletRoutes.Connections)
+    /**
+     * Card hub is the panel home. Persist it so closing the panel on the
+     * hub restores the hub, and a later crypto page replaces it.
+     */
+    || (isPanel && routePath === WalletRoutes.Cards)
     /**
      * NFT Collections route uses a query param to determine the
      * collectionName and can not be exact matched.
@@ -405,8 +413,8 @@ export function openTab(url: string) {
       }
     })
   } else {
-    // Tabs.create is desktop specific. Using window.open for android.
-    window.open(url, '_blank', 'noopener noreferrer')
+    // Tabs.create is desktop specific.
+    getWalletPageApiProxy().pageHandler.openTab({ url })
   }
 }
 

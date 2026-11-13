@@ -121,6 +121,18 @@
 /* Settings autofill section title */
 "autofill.settings.title" = "AutoFill";
 
+/* A subtitle that appears in the dynamic island when a download is continuing while Brave is backgrounded. The %@'s are replaced with the current downloaded amount (e.g. '20MB') */
+"backgroundDownloadingSubtitle" = "%@";
+
+/* A subtitle that appears in the dynamic island when a download is continuing while Brave is backgrounded. The %@'s are replaced with a progress and a file size. E.g. '1MB of 20MB' */
+"backgroundDownloadingSubtitleWithExpectedSize" = "%1$@ von %2$@";
+
+/* A title that appears in the dynamic island when a download is continuing while Brave is backgrounded. %lld is replaced with the number of active downloads */
+"backgroundDownloadingTitleMultiDownload" = "%lld Dateien werden heruntergeladen";
+
+/* A title that appears in the dynamic island when a download is continuing while Brave is backgrounded. %@ is replaced with a file name */
+"backgroundDownloadingTitleSingleDownload" = "\"%@\" wird heruntergeladen";
+
 /* cookie settings option */
 "Block3rdPartyCookies" = "Cookies von Dritten blockieren";
 
@@ -1048,6 +1060,18 @@
 /* No comment provided by engineer. */
 "ntp.sponsoredImageDescription" = "Durch die Anzeige von diesem gesponserten Bild unterstützt du Content Creator und Publisher.";
 
+/* The title of a picker for user to pick which type of topsites to show in NTP */
+"ntp.topsites" = "Führende Websites";
+
+/* Favorites type of topsites. Selection means NTP will display favorites tiles if there is any. */
+"ntp.topsitesTypeFavorites" = "Favoriten";
+
+/* MostVisited type of topsites. Selection means NTP will display most visited tiles if there is any. */
+"ntp.topsitesTypeMostVisited" = "Häufig besucht";
+
+/* None type of topsites. Selection means there won't be any topsites tiles in NTP */
+"ntp.topsitesTypeNone" = "Keine";
+
 /* The placeholder says 'Terms of Service'. So full sentence goes like: 'By turning Rewards, you agree to the Terms of Service'. */
 "ntp.turnRewardsTos" = "Mit der Aktivierung von Rewards erklärst du dich einverstanden mit den %@.";
 
@@ -1438,12 +1462,6 @@
 /* The title for the alert that shows up when an item is expired */
 "playList.expiredAlertTitle" = "Abgelaufenes Video";
 
-/* Number of items in the playlsit folder. Example: '10 items' */
-"playlist.folderItemCountPlural" = "%d Elemente";
-
-/* Title for when there's a single item inside of a folder */
-"playlist.foldersCountSingular" = "%d Element";
-
 /* Description for load resources error alert */
 "playList.loadResourcesErrorAlertDescription" = "Beim Laden der Ressource ist ein Fehler aufgetreten!";
 
@@ -1575,12 +1593,6 @@
 
 /* The title of the screen to create a new folder */
 "playlistFolders.newFolderScreenTitle" = "Neue Playlist";
-
-/* The sub-title of the folder. Example: This folder contains 10 Items. This folder contains 3 Items. */
-"playlistFolders.subtitleItemCount" = "%lld Elemente";
-
-/* The sub-title of the folder. Example: This folder contains ONE item. This folder contains 1 Item. */
-"playlistFolders.subtitleItemSingleCount" = "Ein Element";
 
 /* The title of a folder when the user enters no name (untitled) */
 "playlistFolders.untitledFolderTitle" = "Unbenannte Playlist";
@@ -1773,6 +1785,18 @@
 
 /* Accessibility text for an icon button which will go back to the previous page in QuickView mode. */
 "quickview.back.accessibility.label" = "Vorherige Seite";
+
+/* Button title to keep opening links in QuickView after the confirmation alert. */
+"quickview.confirmation.alert.keep.button.title" = "QuickView weiterhin verwenden";
+
+/* Message of the alert shown the first time a user closes QuickView, explaining the feature and where to change it. */
+"quickview.confirmation.alert.message" = "Mit QuickView können Sie Links in der Vorschau anzeigen, ohne Ihre Seite zu verlassen. Sie können dies jederzeit in den Einstellungen deaktivieren.";
+
+/* Title of the alert shown the first time a user closes QuickView, asking if they want to keep using it for future links. */
+"quickview.confirmation.alert.title" = "Konversationslinks weiterhin in Quick View öffnen?";
+
+/* Button title to stop opening links in QuickView after the confirmation alert. */
+"quickview.confirmation.alert.turnOff.button.title" = "Deaktivieren";
 
 /* Accessibility text for an icon button which will go forward to the next page in QuickView mode. */
 "quickview.forward.accessibility.label" = "Nächste Seite";
@@ -2299,8 +2323,8 @@
 /* Used as a button label for crash dialog prompt */
 "SendReportButtonTitle" = "Bericht senden";
 
-/* No comment provided by engineer. */
-"setDefaultBrowserCalloutTitle" = "Brave kann nun als Ihr Standard-Browser für iOS festgelegt werden. Tippe hier, um die Einstellungen zu öffnen.";
+/* A callout that explains how to set Brave as the default browser. This is a markdown string, the ** is for bold. */
+"setDefaultBrowserCalloutTitle" = "**Legen Sie Brave als Ihren Standardbrowser fest und blockieren Sie Werbung auf jeder Website, die Sie besuchen.** Tippen Sie hier, um die Einstellungen zu öffnen und Brave als Standard festzulegen.";
 
 /* Settings item to set the Brave as a default browser on the iOS device. */
 "setDefaultBrowserSettingsCell" = "Als Standard-Browser festlegen";
@@ -2379,6 +2403,12 @@
 
 /* Title to explain the daily usage ping toggle */
 "settings.sendUsagePingTitle" = "Ping der täglichen Nutzung automatisch an Brave senden.";
+
+/* Markdown formatted description under the settings toggle that enables Sponsored Ads. %@ is replaced by a URL and should not be localized. */
+"settings.sponsoredAdsEnabledDescription" = "Unterstützen Sie die Mission von Brave, mit gesponserten Anzeigen ein unabhängiges, nutzerorientiertes Web aufzubauen. Wir messen die Anzeigenleistung privat, ohne Sie zu identifizieren. [Mehr erfahren](%@)";
+
+/* Title of the settings toggle that enables Sponsored Ads */
+"settings.sponsoredAdsEnabledTitle" = "Gesponserte Anzeigen aktivieren";
 
 /* Header for the YouTube settings section */
 "settings.youtube" = "YouTube";
@@ -3024,12 +3054,6 @@
 
 /* Accessibility label for a button that allows users to shred their tabs (erase them & associated data) */
 "tabGrid.shredTabsAccessibilityLabel" = "Tabs schließen und Daten löschen";
-
-/* A label in the tab tray mode switcher shown when there are 0 or more than 1 regular tabs open e.g. '129 Tabs' */
-"tabGrid.tabsCountFormatPlural" = "%lld Tabs";
-
-/* A label in the tab tray mode switcher shown when there is 1 regular tab open e.g. '1 Tab' */
-"tabGrid.tabsCountFormatSingular" = "%lld Tab";
 
 /* Accessibility label for a button that when tapped presents the users history & recently closed tabs */
 "tabGrid.viewHistoryAccessibilityLabel" = "Verlauf anzeigen";

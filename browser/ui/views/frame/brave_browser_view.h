@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,7 +21,6 @@
 #include "brave/browser/ui/commands/accelerator_service.h"
 #include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "brave/browser/ui/tabs/brave_tab_strip_model.h"
-#include "brave/components/brave_vpn/common/buildflags/buildflags.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/commands/browser/accelerator_pref_manager.h"
 #include "build/build_config.h"
@@ -35,10 +35,6 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
-
-#if BUILDFLAG(ENABLE_BRAVE_VPN)
-#include "brave/browser/ui/views/toolbar/brave_vpn_panel_controller.h"
-#endif
 
 #if BUILDFLAG(ENABLE_SPEEDREADER)
 #include "brave/browser/ui/views/speedreader/reader_mode_toolbar_view.h"
@@ -69,7 +65,6 @@ namespace views {
 class Widget;
 }  // namespace views
 
-class BraveBrowser;
 class BraveShieldsToolbarButton;
 class BraveHelpBubbleHostView;
 class BraveMultiContentsView;
@@ -82,7 +77,6 @@ class TabStripPlacementCoordinator;
 class BraveVerticalTabStripContainerView;
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
-class WalletButton;
 #endif
 
 class BraveBrowserView : public BrowserView,
@@ -109,26 +103,19 @@ class BraveBrowserView : public BrowserView,
   static bool ShouldUseBraveWebViewRoundedCornersForContents(
       const BrowserWindowInterface* browser);
 
-  void ShowUpdateChromeDialog() override;
-
   // Returns the bounding rectangle, in screen coordinates, used to detect
   // mouse-over events that control sidebar visibility. The bounds of a
   // specific view are used here so that sidebar show/hide behavior is
   // consistently tied to that view's on-screen region.
   gfx::Rect GetBoundingBoxInScreenForMouseOverHandling() const;
 
-  void ShowBraveVPNBubble(bool show_select = false);
-#if BUILDFLAG(ENABLE_BRAVE_WALLET)
-  void CreateWalletBubble();
-  void CreateApproveWalletBubble();
-  void CloseWalletBubble();
-  WalletButton* GetWalletButton();
-  views::View* GetWalletButtonAnchorView();
-#endif
+  // Width the vertical tab strip renders at the window edge beside the
+  // contents. Nullopt when the strip owns the edge instead: vertical tabs are
+  // off, the strip overlays the contents, or it's floated open over them.
+  std::optional<int> GetVerticalTabStripWidthAtWindowEdge() const;
 
   // BrowserView overrides:
   void StartTabCycling() override;
-  views::View* GetAnchorViewForBraveVPNPanel();
   gfx::Rect GetShieldsBubbleRect() override;
 #if BUILDFLAG(ENABLE_SPEEDREADER)
   // Give active tab's reader mode toolbar.
@@ -149,7 +136,6 @@ class BraveBrowserView : public BrowserView,
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
   bool IsInTabDragging() const override;
   void ReadyToListenFullscreenChanges() override;
-  bool IsWebPanelContents(content::WebContents* contents) override;
   ClientFrameElementInfo GetFrameElementInfo() const override;
 
   void OnImmersiveFullscreenExited() override;
@@ -192,7 +178,6 @@ class BraveBrowserView : public BrowserView,
 
   void UpdateRoundedCornersUI();
   void UpdateVerticalTabStripBorder();
-  void UpdateSidebarBorder();
 
   // Re-applies the side panel border so the content corner radii track the
   // sidebar control view's visibility. Wired as SidebarContainerView's
@@ -305,8 +290,11 @@ class BraveBrowserView : public BrowserView,
   void StopTabCycling();
   void OnCompactModePrefChanged();
   void OnPreferenceChanged(const std::string& pref_name);
-  void OnWindowClosingConfirmResponse(bool allowed_to_close);
-  BraveBrowser* GetBraveBrowser() const;
+
+  // Re-evaluates the rounded corners state when the side panel is shown or
+  // hidden. Rounded corners around the main contents is used when panel opens.
+  void OnSidePanelVisibilityChanged();
+
   void UpdateFocusModeState();
   bool ShouldDisableFocusModeForActiveTab() const;
 
@@ -334,21 +322,12 @@ class BraveBrowserView : public BrowserView,
   // class's ctor body runs).
   void EnsureFindBarHostViewIsLastChild();
 
-  sidebar::Sidebar* InitSidebar() override;
-  void ToggleSidebar() override;
-  bool HasSelectedURL() const override;
-  void CleanAndCopySelectedURL() override;
-
-#if BUILDFLAG(ENABLE_PLAYLIST_WEBUI)
-  void ShowPlaylistBubble() override;
-#endif
 
   void UpdateSideBarHorizontalAlignment();
 
   std::unique_ptr<TabStripPlacementCoordinator> tab_strip_placement_;
   std::unique_ptr<views::Widget> vertical_tab_strip_widget_;
 
-  bool closing_confirm_dialog_activated_ = false;
   bool show_active_contents_domain_ = false;
   raw_ptr<BraveHelpBubbleHostView> brave_help_bubble_host_view_ = nullptr;
   raw_ptr<SidebarContainerView> sidebar_container_view_ = nullptr;
@@ -367,10 +346,6 @@ class BraveBrowserView : public BrowserView,
 
 #if defined(USE_AURA)
   raw_ptr<views::View> sidebar_host_view_ = nullptr;
-#endif
-
-#if BUILDFLAG(ENABLE_BRAVE_VPN)
-  BraveVPNPanelController vpn_panel_controller_{this};
 #endif
 
 #if BUILDFLAG(ENABLE_SPEEDREADER)
@@ -392,6 +367,7 @@ class BraveBrowserView : public BrowserView,
       bookmark_tab_helper_observation_{this};
   base::CallbackListSubscription active_tab_will_discard_contents_subscription_;
   base::CallbackListSubscription active_tab_will_detach_subscription_;
+  base::CallbackListSubscription side_panel_visible_subscription_;
 
   base::WeakPtrFactory<BraveBrowserView> weak_ptr_{this};
 };

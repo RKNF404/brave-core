@@ -5,8 +5,6 @@
 
 #include "brave/components/brave_shields/core/common/features.h"
 
-#include "base/feature_list.h"
-
 namespace brave_shields::features {
 
 BASE_FEATURE(kAdBlockDefaultResourceUpdateInterval,
@@ -80,8 +78,6 @@ BASE_FEATURE(kBraveShredCacheData,
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-// When enabled, brave will use content settings for Shields on iOS.
-BASE_FEATURE(kBraveShieldsContentSettingsIOS, base::FEATURE_ENABLED_BY_DEFAULT);
 // When enabled, will display debug menu for adblock features in the Shields
 // panel.
 BASE_FEATURE(kBraveIOSDebugAdblock, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -102,7 +98,12 @@ BASE_FEATURE(kBlockAllCookiesToggle,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 // when enabled, allow to select and block HTML elements
-BASE_FEATURE(kBraveShieldsElementPicker, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kBraveShieldsElementPicker,
+#if BUILDFLAG(IS_IOS)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kAdblockOnlyMode,
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)

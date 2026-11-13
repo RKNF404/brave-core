@@ -119,6 +119,11 @@ class BraveContentBrowserClient : public ChromeContentBrowserClient {
       content::FrameTreeNodeId frame_tree_node_id,
       std::optional<int64_t> navigation_id) override;
 
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+  CreateURLLoaderThrottlesForKeepAlive(
+      content::BrowserContext* browser_context,
+      content::FrameTreeNodeId frame_tree_node_id) override;
+
   void WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,
       content::RenderFrameHost* frame,
@@ -137,6 +142,9 @@ class BraveContentBrowserClient : public ChromeContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner,
       bool is_for_network_service) override;
 
+  content::ContentBrowserClient::WebSocketOptions GetWebSocketOptions(
+      content::RenderFrameHost* frame) override;
+
   bool WillInterceptWebSocket(content::RenderFrameHost* frame) override;
 
   void WillCreateWebTransport(
@@ -147,6 +155,14 @@ class BraveContentBrowserClient : public ChromeContentBrowserClient {
       mojo::PendingRemote<network::mojom::WebTransportHandshakeClient>
           handshake_client,
       WillCreateWebTransportCallback callback) override;
+
+  void ConfigureNetworkContextParams(
+      content::BrowserContext* context,
+      bool in_memory,
+      const base::FilePath& relative_partition_path,
+      network::mojom::NetworkContextParams* network_context_params,
+      cert_verifier::mojom::CertVerifierCreationParams*
+          cert_verifier_creation_params) override;
 
   // Brave-only CreateWebSocket sibling injected via chromium_src. Unlike
   // upstream CreateWebSocket, it also receives the initiator renderer's
@@ -169,6 +185,8 @@ class BraveContentBrowserClient : public ChromeContentBrowserClient {
                          const GURL& request_url,
                          const GURL& document_url,
                          blink::mojom::ReferrerPtr* referrer) override;
+
+  bool IsHandledURL(const GURL& url) override;
 
   std::optional<GURL> GetEffectiveURL(content::BrowserContext* browser_context,
                                       const GURL& url) override;

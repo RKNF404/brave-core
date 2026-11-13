@@ -6,8 +6,8 @@
 import './leo_menu_elements'
 import * as React from 'react'
 import { useLocation, useHistory } from 'react-router-dom'
-import Toggle from '@brave/leo/react/toggle'
-import Icon from '@brave/leo/react/icon'
+import Toggle from '@brave/nala/react/toggle'
+import Icon from '@brave/nala/react/icon'
 
 // Page API Proxy
 import getWalletPageApiProxy from '$wallet/page/wallet_page_api_proxy'
@@ -29,7 +29,10 @@ import { CreateAccountOptions } from '$wallet/options/nav-options'
 
 // Utils
 import { getLocale } from '$web-common/locale'
-import { useLockWalletMutation } from '$wallet/common/slices/api.slice'
+import {
+  useGetHiddenAccountsQuery,
+  useLockWalletMutation,
+} from '$wallet/common/slices/api.slice'
 import { openWalletSettings } from '$wallet/utils/routes-utils'
 import { useSyncedLocalStorage } from '$wallet/common/hooks/use_local_storage'
 
@@ -73,6 +76,9 @@ export const WalletSettingsMenu = (props: Props) => {
       true,
     )
 
+  // queries
+  const { data: hiddenAccounts = [] } = useGetHiddenAccountsQuery()
+
   // mutations
   const [lockWallet] = useLockWalletMutation()
 
@@ -105,8 +111,10 @@ export const WalletSettingsMenu = (props: Props) => {
         },
       )
     } else {
-      // Tabs.create is desktop specific. Using window.open for mobile
-      window.open(HELP_CENTER_URL, '_blank', 'noopener noreferrer')
+      // Tabs.create is desktop specific.
+      getWalletPageApiProxy().pageHandler.openTab({
+        url: HELP_CENTER_URL,
+      })
     }
   }
 
@@ -170,13 +178,21 @@ export const WalletSettingsMenu = (props: Props) => {
 
   // Memos
   const accountSettingsOptions = React.useMemo(() => {
-    if (isMobile) {
-      return CreateAccountOptions.filter(
-        (option) => option.name !== S.BRAVE_WALLET_CONNECT_HARDWARE_WALLET,
-      )
-    }
-    return CreateAccountOptions
-  }, [isMobile])
+    return CreateAccountOptions.filter((option) => {
+      // Filter out hardware wallet item on Android.
+      if (isMobile && option.name === S.BRAVE_WALLET_CONNECT_HARDWARE_WALLET) {
+        return false
+      }
+      // Show unhide option only when we have hidden accounts.
+      if (
+        option.name === S.BRAVE_WALLET_UNHIDE_ACCOUNT
+        && hiddenAccounts.length === 0
+      ) {
+        return false
+      }
+      return true
+    })
+  }, [hiddenAccounts, isMobile])
 
   const showConnectedSitesItem = !isMobile
   const showOpenWalletSettingsItem = !isMobile

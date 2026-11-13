@@ -102,6 +102,7 @@
 #include "brave/components/url_sanitizer/core/browser/url_sanitizer_service.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "brave/third_party/blink/renderer/brave_farbling_constants.h"
+#include "brave/ui/webui/brave_color_change_listener/brave_color_change_handler.h"
 #include "build/build_config.h"
 #include "chrome/browser/bluetooth/chrome_bluetooth_delegate_impl_client.h"
 #include "chrome/browser/browser_process.h"
@@ -119,6 +120,7 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/embedder_support/switches.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/user_prefs/user_prefs.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_context.h"
@@ -148,6 +150,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/cookies/site_for_cookies.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/web_transport.mojom.h"
 #include "services/network/public/mojom/websocket.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -158,6 +161,7 @@
 #include "third_party/blink/public/mojom/webpreferences/web_preferences.mojom.h"
 #include "third_party/widevine/cdm/buildflags.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
 #include "url/origin.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -178,6 +182,7 @@
 #if BUILDFLAG(ENABLE_LOCAL_AI)
 #include "brave/browser/speech/on_device_speech_recognition_controller.h"
 #include "brave/browser/ui/webui/local_ai/on_device_speech_recognition_worker_ui.h"
+#include "brave/components/local_ai/content/no_network_connection_allowlist_throttle.h"
 #include "brave/components/local_ai/core/features.h"
 #include "brave/components/local_ai/core/on_device_speech_recognition.mojom.h"
 #endif
@@ -223,9 +228,12 @@ using content::WebContents;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/common/constants.h"
 
 using extensions::ChromeContentBrowserClientExtensionsPart;
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "extensions/common/constants.h"
 #endif
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
@@ -265,8 +273,6 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 #include "brave/components/brave_account/mojom/brave_account.mojom.h"
 #include "brave/components/commands/common/commands.mojom.h"
 #include "brave/components/commands/common/features.h"
-#include "brave/ui/webui/brave_color_change_listener/brave_color_change_handler.h"
-#include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
 #include "ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.mojom.h"
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #include "brave/browser/ui/ai_chat/utils.h"
@@ -281,9 +287,10 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 #endif
 
 #if BUILDFLAG(ENABLE_TOR)
+#include "brave/browser/net/onion_origin_header_client.h"
 #include "brave/browser/tor/tor_profile_service_factory.h"
+#include "brave/components/tor/common/onion_domain_throttle.h"
 #include "brave/components/tor/onion_location_navigation_throttle.h"
-#include "brave/components/tor/pref_names.h"
 #include "brave/components/tor/tor_navigation_throttle.h"
 #include "net/base/url_util.h"
 #endif
@@ -301,7 +308,7 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 #endif
 
 #if BUILDFLAG(ENABLE_WIDEVINE)
-#include "brave/browser/brave_drm_tab_helper.h"
+#include "brave/browser/widevine/brave_drm_tab_helper.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
@@ -514,7 +521,6 @@ void MaybeBindSkusSdkImpl(
   skus::SkusServiceFactory::BindForContext(context, std::move(receiver));
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void MaybeBindColorChangeHandler(
     content::RenderFrameHost* const frame_host,
     mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
@@ -522,9 +528,13 @@ void MaybeBindColorChangeHandler(
 
   // Only supported on chrome://, chrome-untrusted:// and chrome-extension://
   // urls
-  if (!frame_host_url.SchemeIs(content::kChromeUIScheme) &&
-      !frame_host_url.SchemeIs(content::kChromeUIUntrustedScheme) &&
-      !frame_host_url.SchemeIs(extensions::kExtensionScheme)) {
+  bool is_supported_scheme =
+      frame_host_url.SchemeIs(content::kChromeUIScheme) ||
+      frame_host_url.SchemeIs(content::kChromeUIUntrustedScheme);
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  is_supported_scheme |= frame_host_url.SchemeIs(extensions::kExtensionScheme);
+#endif
+  if (!is_supported_scheme) {
     return;
   }
 
@@ -532,7 +542,6 @@ void MaybeBindColorChangeHandler(
       content::WebContents::FromRenderFrameHost(frame_host),
       std::move(receiver));
 }
-#endif
 
 bool IsJsBlockingEnforced(content::BrowserContext* browser_context,
                           const GURL& url) {
@@ -546,16 +555,19 @@ bool IsJsBlockingEnforced(content::BrowserContext* browser_context,
   return settings_service->IsJsBlockingEnforced(url);
 }
 
+#if BUILDFLAG(ENABLE_TOR)
+bool IsOnionAllowed(content::BrowserContext* browser_context) {
+  if (!browser_context) {
+    return true;
+  }
+  return browser_context->IsTor();
+}
+#endif  // BUILDFLAG(ENABLE_TOR)
+
 bool ShouldBlockOnionRequest(content::BrowserContext* browser_context,
                              const GURL& url) {
 #if BUILDFLAG(ENABLE_TOR)
-  if (!browser_context) {
-    return false;
-  }
-  if (!browser_context->IsTor() &&
-      user_prefs::UserPrefs::Get(browser_context)
-          ->GetBoolean(tor::prefs::kOnionOnlyInTorWindows) &&
-      net::IsOnion(url)) {
+  if (!IsOnionAllowed(browser_context) && net::IsOnion(url)) {
     return true;
   }
 #endif
@@ -674,10 +686,8 @@ void BraveContentBrowserClient::
 void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
     content::WebUIBrowserInterfaceBrokerRegistry& registry) {
   ChromeContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(registry);
-#if !BUILDFLAG(IS_ANDROID)
   registry.AddGlobal<color_change_listener::mojom::PageHandler>(
       base::BindRepeating(&MaybeBindColorChangeHandler));
-#endif
 
   // BraveSettingsUI interfaces
 #if BUILDFLAG(ENABLE_CONTAINERS)
@@ -881,6 +891,10 @@ void BraveContentBrowserClient::RegisterTrustedWebUIInterfaceBrokers(
 void BraveContentBrowserClient::RegisterUntrustedWebUIInterfaceBrokers(
     content::WebUIBrowserInterfaceBrokerRegistry& registry) {
   ChromeContentBrowserClient::RegisterUntrustedWebUIInterfaceBrokers(registry);
+  // Upstream's per-document ColorChangeHandler DCHECKs on a second bind, which
+  // happens when leo.bundle.js and a bundled WebUI each create a BrowserProxy.
+  registry.AddGlobal<color_change_listener::mojom::PageHandler>(
+      base::BindRepeating(&MaybeBindColorChangeHandler));
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN) && !BUILDFLAG(IS_ANDROID)
   if (brave_vpn::IsBraveVPNFeatureEnabled()) {
@@ -1059,6 +1073,10 @@ void BraveContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       map->Add<brave_wallet::mojom::CardanoProvider>(base::BindRepeating(
           &brave_wallet::BraveWalletTabHelper::BindCardanoProvider));
     }
+    if (brave_wallet::IsPolkadotDAppSupportEnabled()) {
+      map->Add<brave_wallet::mojom::PolkadotProvider>(base::BindRepeating(
+          &brave_wallet::BraveWalletTabHelper::BindPolkadotProvider));
+    }
   }
 #endif
 
@@ -1086,10 +1104,10 @@ void BraveContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       brave_rewards::mojom::RewardsPageHandler,
       brave_rewards::RewardsPageTopUI>(map);
 #endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   map->Add<color_change_listener::mojom::PageHandler>(
       base::BindRepeating(&MaybeBindColorChangeHandler));
-#endif
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
   auto* prefs =
@@ -1206,6 +1224,15 @@ BraveContentBrowserClient::CreateURLLoaderThrottles(
   auto result = ChromeContentBrowserClient::CreateURLLoaderThrottles(
       request, browser_context, wc_getter, navigation_ui_data,
       frame_tree_node_id, navigation_id);
+
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+  // Not in the `contents` check: worker scripts load with no WebContents.
+  if (auto throttle = local_ai::NoNetworkConnectionAllowlistThrottle::
+          MaybeCreateThrottleFor(request.url)) {
+    result.push_back(std::move(throttle));
+  }
+#endif  // BUILDFLAG(ENABLE_LOCAL_AI)
+
   content::WebContents* contents = wc_getter.Run();
 
   if (contents) {
@@ -1219,8 +1246,8 @@ BraveContentBrowserClient::CreateURLLoaderThrottles(
 
     // Speedreader
 #if BUILDFLAG(ENABLE_SPEEDREADER)
-    auto* tab_helper =
-        speedreader::SpeedreaderTabHelper::FromWebContents(contents);
+    auto* tab_helper = speedreader::SpeedreaderTabHelper::From(
+        tabs::TabInterface::MaybeGetFromContents(contents));
     if (tab_helper && isMainFrame) {
       auto* speedreader_service =
           speedreader::SpeedreaderServiceFactory::GetForBrowserContext(
@@ -1263,6 +1290,26 @@ BraveContentBrowserClient::CreateURLLoaderThrottles(
   return result;
 }
 
+std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+BraveContentBrowserClient::CreateURLLoaderThrottlesForKeepAlive(
+    content::BrowserContext* browser_context,
+    content::FrameTreeNodeId frame_tree_node_id) {
+  auto result =
+      ChromeContentBrowserClient::CreateURLLoaderThrottlesForKeepAlive(
+          browser_context, frame_tree_node_id);
+#if BUILDFLAG(ENABLE_TOR)
+  // Keepalive requests, e.g. fetchLater(), can be sent or redirected after
+  // the initiating renderer is gone, so renderer-side throttles do not cover
+  // them.
+  if (auto onion_domain_throttle =
+          tor::OnionDomainThrottle::MaybeCreateThrottleForKeepAlive(
+              IsOnionAllowed(browser_context))) {
+    result.push_back(std::move(onion_domain_throttle));
+  }
+#endif  // BUILDFLAG(ENABLE_TOR)
+  return result;
+}
+
 void BraveContentBrowserClient::WillCreateURLLoaderFactory(
     content::BrowserContext* browser_context,
     content::RenderFrameHost* frame,
@@ -1281,17 +1328,30 @@ void BraveContentBrowserClient::WillCreateURLLoaderFactory(
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner,
     bool is_for_network_service) {
   // TODO(iefremov): Skip proxying for certain requests?
+  base::OnceCallback<void(bool)> set_bypass_redirect_checks;
   if (base::FeatureList::IsEnabled(features::kBraveRequestInfoUniquePtr)) {
-    BraveProxyingURLLoaderFactory<base::WeakPtr>::MaybeProxyRequest(
-        browser_context, frame, factory_builder, type, request_initiator,
-        isolation_info, navigation_id, navigation_response_task_runner);
+    if (auto* proxy =
+            BraveProxyingURLLoaderFactory<base::WeakPtr>::MaybeProxyRequest(
+                browser_context, frame, factory_builder, type,
+                request_initiator, isolation_info, navigation_id,
+                navigation_response_task_runner)) {
+      set_bypass_redirect_checks =
+          base::BindOnce(&BraveProxyingURLLoaderFactory<
+                             base::WeakPtr>::set_bypass_redirect_checks,
+                         base::Unretained(proxy));
+    }
   } else {
     // Ignore shared_ptr presubmit error, this is old code we are trying to
     // convert to unique_ptr/WeakPtr
-    BraveProxyingURLLoaderFactory<
-        std::shared_ptr>::MaybeProxyRequest(  // nocheck
-        browser_context, frame, factory_builder, type, request_initiator,
-        isolation_info, navigation_id, navigation_response_task_runner);
+    if (auto* proxy = BraveProxyingURLLoaderFactory<
+            std::shared_ptr>::MaybeProxyRequest(  // nocheck
+            browser_context, frame, factory_builder, type, request_initiator,
+            isolation_info, navigation_id, navigation_response_task_runner)) {
+      set_bypass_redirect_checks = base::BindOnce(
+          &BraveProxyingURLLoaderFactory<
+              std::shared_ptr>::set_bypass_redirect_checks,  // nocheck
+          base::Unretained(proxy));
+    }
   }
 
   ChromeContentBrowserClient::WillCreateURLLoaderFactory(
@@ -1300,6 +1360,31 @@ void BraveContentBrowserClient::WillCreateURLLoaderFactory(
       header_client, bypass_redirect_checks, disable_secure_dns,
       factory_override, navigation_response_task_runner,
       is_for_network_service);
+
+  // Brave's proxy sits outside upstream ones, so it must honor their
+  // authorization of otherwise-unsafe redirects, as downstream loaders do.
+  if (set_bypass_redirect_checks && bypass_redirect_checks) {
+    std::move(set_bypass_redirect_checks).Run(*bypass_redirect_checks);
+  }
+}
+
+content::ContentBrowserClient::WebSocketOptions
+BraveContentBrowserClient::GetWebSocketOptions(
+    content::RenderFrameHost* frame) {
+  auto options = ChromeContentBrowserClient::GetWebSocketOptions(frame);
+#if BUILDFLAG(ENABLE_TOR)
+  // Only .onion pages need their Origin rewritten. Shared and service workers
+  // have no frame, so their origin is not known here and they always get the
+  // client.
+  if (!frame || net::IsOnion(frame->GetLastCommittedOrigin())) {
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client;
+    brave::OnionOriginHeaderClient::Create(
+        header_client.InitWithNewPipeAndPassReceiver(),
+        std::move(options.header_client));
+    options.header_client = std::move(header_client);
+  }
+#endif  // BUILDFLAG(ENABLE_TOR)
+  return options;
 }
 
 // Intercept frame and worker handshakes so they go through Brave's network
@@ -1333,6 +1418,23 @@ void BraveContentBrowserClient::WillCreateWebTransport(
   ChromeContentBrowserClient::WillCreateWebTransport(
       process_id, frame_routing_id, url, initiator_origin,
       std::move(handshake_client), std::move(callback));
+}
+
+void BraveContentBrowserClient::ConfigureNetworkContextParams(
+    content::BrowserContext* context,
+    bool in_memory,
+    const base::FilePath& relative_partition_path,
+    network::mojom::NetworkContextParams* network_context_params,
+    cert_verifier::mojom::CertVerifierCreationParams*
+        cert_verifier_creation_params) {
+  ChromeContentBrowserClient::ConfigureNetworkContextParams(
+      context, in_memory, relative_partition_path, network_context_params,
+      cert_verifier_creation_params);
+  // .onion may only be resolved in Tor profiles, where it goes through the
+  // Tor proxy.
+  network_context_params->tor_mode = context->IsTor()
+                                         ? network::mojom::TorMode::kEnabled
+                                         : network::mojom::TorMode::kDisabled;
 }
 
 template <template <typename> class T>
@@ -1446,23 +1548,29 @@ void BraveContentBrowserClient::MaybeHideReferrer(
   }
 }
 
+bool BraveContentBrowserClient::IsHandledURL(const GURL& url) {
+  // Keep the brave:// alias out of the external-protocol permission fallback.
+  return url.SchemeIs(content::kBraveUIScheme) ||
+         ChromeContentBrowserClient::IsHandledURL(url);
+}
+
 std::optional<GURL> BraveContentBrowserClient::GetEffectiveURL(
     content::BrowserContext* browser_context,
     const GURL& url) {
   Profile* profile = Profile::FromBrowserContext(browser_context);
   if (!profile) {
-    return url;
+    return std::nullopt;
   }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   if (extensions::ChromeContentBrowserClientExtensionsPart::
           AreExtensionsDisabledForProfile(profile)) {
-    return url;
+    return std::nullopt;
   }
   return ChromeContentBrowserClientExtensionsPart::GetEffectiveURL(profile,
                                                                    url);
 #else
-  return url;
+  return std::nullopt;
 #endif
 }
 
@@ -1537,9 +1645,7 @@ void BraveContentBrowserClient::CreateThrottlesForNavigation(
   tor::TorNavigationThrottle::MaybeCreateAndAdd(registry, context->IsTor());
   tor::OnionLocationNavigationThrottle::MaybeCreateAndAdd(
       registry, TorProfileServiceFactory::IsTorDisabled(context),
-      context->IsTor(),
-      user_prefs::UserPrefs::Get(context)->GetBoolean(
-          tor::prefs::kOnionOnlyInTorWindows));
+      context->IsTor());
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)

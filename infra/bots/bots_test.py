@@ -174,7 +174,7 @@ class GenDispatchTest(unittest.TestCase):
 def _make_valid_builder_dir(tmp_dir, name):
     """Writes a builder's full, valid set of generated files under
     `tmp_dir`, unlike `_make_generated_output_dir()`'s `gn-args.json`-only
-    fixture: `validate` reports the other two files as missing otherwise."""
+    fixture: `validate` reports the other files as missing otherwise."""
     builder_dir = Path(tmp_dir) / name
     builder_dir.mkdir()
     (builder_dir / 'gn-args.json').write_text(
@@ -188,12 +188,40 @@ def _make_valid_builder_dir(tmp_dir, name):
         ),
         encoding='utf-8',
     )
+    builder_id = {'builder': name}
+    (builder_dir / 'properties.json').write_text(
+        json.dumps(
+            {
+                '$brave_tests_builder_config': {
+                    'builder_config': {
+                        'builder_db': {
+                            'entries': [
+                                {
+                                    'builder_id': builder_id,
+                                    'builder_spec': {
+                                        'chromium_config': {
+                                            'target_platform': 'linux'
+                                        },
+                                        'gclient_config': {
+                                            'target_os': [],
+                                            'target_cpu': [],
+                                        },
+                                    },
+                                }
+                            ]
+                        },
+                        'builder_ids': [builder_id],
+                    }
+                }
+            }
+        ),
+        encoding='utf-8',
+    )
     (builder_dir / 'sync.json').write_text(
         json.dumps(
             {
-                'target_os': 'linux',
-                'target_cpu': 'x64',
-                'gclient_overrides': {},
+                'target_os': [],
+                'target_cpu': [],
             }
         ),
         encoding='utf-8',

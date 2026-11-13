@@ -28,7 +28,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol AIChatUIHandlerBridge;
-@protocol BraveAccountDialogOpenerBridge;
+@protocol BraveAccountScreenOpenerBridge;
 @protocol WalletPageHandlerBridge;
 @protocol AIChatAssociatedContentPageFetcher;
 @protocol ProfileBridge;
@@ -190,9 +190,9 @@ CWV_EXPORT
 /// Set before loading brave://account; read back by the page through
 /// `brave_account::mojom::DialogController::GetDialogMode()`.
 @property(nonatomic) BraveAccountDialogMode braveAccountDialogMode;
-/// A bridge for opening the Brave Account dialog over the WebUI page.
-@property(nonatomic, weak, nullable) id<BraveAccountDialogOpenerBridge>
-    braveAccountDialogOpener;
+/// A bridge for opening the screens the WebUI page asks for.
+@property(nonatomic, weak, nullable) id<BraveAccountScreenOpenerBridge>
+    braveAccountScreenOpener;
 @end
 
 CWV_EXPORT
@@ -229,18 +229,6 @@ CWV_EXPORT
 @interface BraveWebView (Logins)
 /// A bridge for handling Logins script messages
 - (void)setLoginsHelper:(id<LoginsTabHelperBridge>)loginsHelper;
-@end
-
-CWV_EXPORT
-@interface BraveWebView (DocumentFetch)
-/// Downloads the resource at `url` using an XHR in the page context and
-/// delivers the result to `completionHandler`. On success `data` contains the
-/// response body and `statusCode` is the HTTP status code. On failure (no main
-/// frame, network error, etc.) `statusCode` is 0 and `data` is nil.
-- (void)downloadDocumentAtURL:(NSURL*)url
-            completionHandler:
-                (void (^)(NSInteger statusCode,
-                          NSData* _Nullable data))completionHandler;
 @end
 
 CWV_EXPORT

@@ -4,7 +4,7 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as React from 'react'
-import { showAlert } from '@brave/leo/react/alertCenter'
+import { showAlert } from '@brave/nala/react/alertCenter'
 import generateReactContext from '$web-common/api/react_api'
 import { getLocale } from '$web-common/locale'
 import {
@@ -142,6 +142,17 @@ export function useProvideConversationContext(props: ConversationContextProps) {
       (m) => m.key === conversationState.defaultModelKey,
     )
   }, [conversationState.allModels, conversationState.defaultModelKey])
+
+  // The vision model offered while a submission waits for the user to decide
+  // whether to switch to it.
+  const visionModelSwitchModel = React.useMemo(() => {
+    if (!conversationState.visionModelSwitchKey) {
+      return undefined
+    }
+    return conversationState.allModels.find(
+      (m) => m.key === conversationState.visionModelSwitchKey,
+    )
+  }, [conversationState.allModels, conversationState.visionModelSwitchKey])
 
   const shouldShowLongConversationInfo = React.useMemo<boolean>(() => {
     if (!conversationHistory || !currentModel) {
@@ -346,7 +357,7 @@ export function useProvideConversationContext(props: ConversationContextProps) {
 
     // Clear all staged content (not yet committed to a conversation turn).
     for (const content of conversationState.associatedContent.filter(
-      (c) => !c.conversationTurnUuid,
+      (c) => !c.conversationTurnUuid && !isWorkspaceContent(c),
     )) {
       aiChat.api.uiHandler.disassociateContent(
         content,
@@ -416,6 +427,23 @@ export function useProvideConversationContext(props: ConversationContextProps) {
     if (humanEntry) {
       setInputText([humanEntry.text])
     }
+  }
+
+  const respondToVisionModelSwitch = (
+    decision: Mojom.VisionModelSwitchDecision,
+  ) => {
+    api.conversationHandler.respondToVisionModelSwitch(decision)
+  }
+
+  // Returns the waiting submission, files included, to the composer.
+  const cancelVisionModelSwitch = async () => {
+    const { humanEntry } =
+      await api.conversationHandler.stopGenerationAndMaybeGetHumanEntry()
+    if (humanEntry) {
+      setInputText([humanEntry.text])
+      setPendingMessageFiles(humanEntry.uploadedFiles ?? [])
+    }
+    focusInput()
   }
 
   const handleVoiceRecognition = () => {
@@ -670,6 +698,7 @@ export function useProvideConversationContext(props: ConversationContextProps) {
 
     currentModel,
     userDefaultModel,
+    visionModelSwitchModel,
 
     attachmentsDialog,
     setAttachmentsDialog: (dialog: 'tabs' | 'bookmarks' | 'history' | null) => {
@@ -730,6 +759,8 @@ export function useProvideConversationContext(props: ConversationContextProps) {
 
     handleResetError,
     handleStopGenerating,
+    respondToVisionModelSwitch,
+    cancelVisionModelSwitch,
     // Experimentally don't cache model key locally, browser should notify of model change quickly
     setCurrentModel: (model: Mojom.Model) => {
       api.conversationHandler.changeModel(model.key)

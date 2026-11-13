@@ -34,6 +34,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -113,6 +114,18 @@ class MockConversationHandlerClient : public mojom::ConversationUI {
               (const std::string& content_uuid,
                std::vector<mojom::ToolInfoPtr> tools),
               (override));
+
+  MOCK_METHOD(void,
+              OnVisionModelSwitchChanged,
+              (const std::optional<std::string>& model_key),
+              (override));
+
+  MOCK_METHOD(
+      void,
+      OnContentAgentChanged,
+      (bool is_content_agent_chosen,
+       const std::vector<mojom::ConversationCapability>& capabilities_enabled),
+      (override));
 
   MOCK_METHOD(void, OnConversationDeleted, (), (override));
 
@@ -263,7 +276,8 @@ class AIChatRenderViewContextMenuBrowserTest : public InProcessBrowserTest {
   }
 
   ConversationHandler* GetConversationHandler() {
-    AIChatTabHelper* helper = AIChatTabHelper::FromWebContents(web_contents());
+    AIChatTabHelper* helper = AIChatTabHelper::From(
+        tabs::TabInterface::MaybeGetFromContents(web_contents()));
     if (!helper) {
       return nullptr;
     }

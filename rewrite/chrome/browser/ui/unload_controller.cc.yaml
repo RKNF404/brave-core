@@ -12,7 +12,7 @@ substitutions:
     regex:
       re_pattern: '(void UnloadController::TabStripEmpty\(\) \{\n)'
       replace: |
-        \1  if (!browser_->GetProfile()->GetPrefs()->GetBoolean(kEnableClosingLastTab)) {
+        \1  if (!browser_->GetProfile()->GetPrefs()->GetBoolean(brave_tabs::kEnableClosingLastTab)) {
             return;
           }
   - description: |
@@ -48,6 +48,19 @@ substitutions:
         '(void UnloadController::ResetBeforeUnloadForShutdown\(\) \{\n)'
       replace: |
         \1  confirmed_to_close_ = false;
+  - description: |
+      Close the sidebar web panel before the window is snapshotted
+
+      The panel is a pinned tab. Once `SessionServiceBase::WindowClosing()` has
+      run, the tab's close is no longer recorded, so the panel would be
+      restored as a regular pinned tab.
+    regex:
+      re_pattern:
+        '(void UnloadController::OnWindowClosing\(\) \{.+?if
+        \(!HandleBeforeClose\(\)\) \{\s+return;\s+\}\n)'
+      re_flags: [DOTALL]
+      replace: |
+        \1  sidebar::MaybeCloseWebPanelForShutdown(browser_);
   - description: |
       Let SharedPinnedTabService detach shared pinned tabs before they close
 

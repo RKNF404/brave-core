@@ -13,7 +13,9 @@
 #include "brave/browser/ui/bookmark/bookmark_helper.h"
 #include "brave/browser/ui/browser_commands.h"
 #include "brave/browser/ui/split_view/split_view_features.h"
+#include "brave/browser/ui/views/brave_layout_provider.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
+#include "brave/browser/ui/views/frame/split_view/brave_contents_container_outline.h"
 #include "brave/browser/ui/views/frame/split_view/brave_contents_container_view.h"
 #include "brave/browser/ui/views/frame/split_view/brave_multi_contents_view.h"
 #include "brave/browser/ui/views/frame/split_view/brave_multi_contents_view_mini_toolbar.h"
@@ -31,7 +33,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
-#include "chrome/browser/ui/views/frame/multi_contents_background_view.h"
+#include "chrome/browser/ui/views/frame/contents_capture_border_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_resize_area.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
@@ -71,6 +73,7 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
@@ -369,7 +372,8 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, BraveMultiContentsViewTest) {
   EXPECT_FALSE(
       browser_view->top_container_separator_for_testing()->GetVisible());
   EXPECT_TRUE(split_view_separator()->GetVisible());
-  EXPECT_EQ(4, split_view_separator()->GetPreferredSize().width());
+  EXPECT_EQ(kRoundedCornersContentsViewMargin,
+            split_view_separator()->GetPreferredSize().width());
 
   // Check corner radius.
   auto* multi_contents_view = brave_multi_contents_view();
@@ -381,8 +385,14 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, BraveMultiContentsViewTest) {
       multi_contents_view->contents_container_views_for_testing()[1]);
   ASSERT_TRUE(start_contents_container_view);
   ASSERT_TRUE(end_contents_container_view);
-  EXPECT_FALSE(
-      multi_contents_view->background_view_for_testing()->GetVisible());
+
+  // The capture border has to keep the highest z-order, which
+  // ContentsContainerView::GetChildrenInZOrder() only DCHECKs. Brave inserts
+  // the reader mode toolbar ahead of it, so assert the invariant here too.
+  EXPECT_EQ(start_contents_container_view->children().back(),
+            start_contents_container_view->capture_contents_border_view());
+  EXPECT_EQ(end_contents_container_view->children().back(),
+            end_contents_container_view->capture_contents_border_view());
 
   // Brave zeroes kSplitViewContentInset via chromium_src so that
   // MultiContentsView doesn't add insets — padding is handled by Brave's
@@ -393,33 +403,69 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, BraveMultiContentsViewTest) {
   EXPECT_EQ(multi_contents_view->height(),
             end_contents_container_view->height());
 
-  FullscreenController* fullscreen_controller =
-      ExclusiveAccessManager::From(browser())->fullscreen_controller();
-  fullscreen_controller->set_is_tab_fullscreen_for_testing(true);
-  brave_browser_view()->InvalidateLayout();
-  RunScheduledLayouts();
-  EXPECT_EQ(gfx::RoundedCornersF(),
-            start_contents_container_view->GetCornerRadius(true));
-  fullscreen_controller->set_is_tab_fullscreen_for_testing(false);
-  brave_browser_view()->InvalidateLayout();
-  RunScheduledLayouts();
-
   auto* start_contents_web_view =
       multi_contents_view->start_contents_view_for_testing();
   auto* end_contents_web_view =
       multi_contents_view->end_contents_view_for_testing();
   ASSERT_TRUE(start_contents_web_view);
   ASSERT_TRUE(end_contents_web_view);
-  EXPECT_EQ(start_contents_web_view->layer()->rounded_corner_radii(),
-            start_contents_container_view->GetCornerRadius(false));
-  EXPECT_EQ(end_contents_web_view->layer()->rounded_corner_radii(),
-            end_contents_container_view->GetCornerRadius(false));
 
-  // Check borders.
-  EXPECT_EQ(gfx::Insets(BraveContentsContainerView::kBorderThickness),
+  // In tab fullscreen the contents fill the window, so they aren't rounded.
+  FullscreenController* fullscreen_controller =
+      ExclusiveAccessManager::From(browser())->fullscreen_controller();
+  fullscreen_controller->set_is_tab_fullscreen_for_testing(true);
+  brave_browser_view()->InvalidateLayout();
+  RunScheduledLayouts();
+  EXPECT_EQ(gfx::RoundedCornersF(),
+            start_contents_web_view->layer()->rounded_corner_radii());
+  fullscreen_controller->set_is_tab_fullscreen_for_testing(false);
+  brave_browser_view()->InvalidateLayout();
+  RunScheduledLayouts();
+
+  // Otherwise each pane is rounded, and the corners meeting the split divider
+  // use the smaller adjacent-edge radius rather than the window radius.
+  const float adjacent_edge_radius =
+      views::LayoutProvider::Get()->GetCornerRadiusMetric(
+          ExtendedShapeContextTokens::kRoundedCornersBorderRadius);
+  const auto start_radii =
+      start_contents_web_view->layer()->rounded_corner_radii();
+  const auto end_radii = end_contents_web_view->layer()->rounded_corner_radii();
+  EXPECT_FALSE(start_radii.IsEmpty());
+  EXPECT_FALSE(end_radii.IsEmpty());
+  EXPECT_EQ(adjacent_edge_radius, start_radii.upper_right());
+  EXPECT_EQ(adjacent_edge_radius, start_radii.lower_right());
+  EXPECT_EQ(adjacent_edge_radius, end_radii.upper_left());
+  EXPECT_EQ(adjacent_edge_radius, end_radii.lower_left());
+
+  // Check borders. The new split tab is the active one.
+  using OutlineStyle = BraveContentsContainerOutline::Style;
+  auto outline_style = [](BraveContentsContainerView* container) {
+    return views::AsViewClass<BraveContentsContainerOutline>(
+               container->contents_outline_view())
+        ->style_for_testing();
+  };
+  EXPECT_EQ(OutlineStyle::kSplitInactive,
+            outline_style(start_contents_container_view));
+  EXPECT_EQ(OutlineStyle::kSplitActive,
+            outline_style(end_contents_container_view));
+
+  // Both panes reserve the same inset although the inactive one strokes
+  // thinner, so that activating a pane doesn't shift its contents.
+  EXPECT_EQ(gfx::Insets(BraveContentsContainerOutline::kSplitBorderThickness),
             start_contents_container_view->GetBorder()->GetInsets());
-  EXPECT_EQ(gfx::Insets(BraveContentsContainerView::kBorderThickness),
+  EXPECT_EQ(gfx::Insets(BraveContentsContainerOutline::kSplitBorderThickness),
             end_contents_container_view->GetBorder()->GetInsets());
+  EXPECT_LT(BraveContentsContainerOutline::GetStrokeThickness(
+                OutlineStyle::kSplitInactive),
+            BraveContentsContainerOutline::GetBorderThickness(
+                OutlineStyle::kSplitInactive));
+
+  // The outline clips the mini toolbar to the ring it strokes, so that no
+  // sliver of web contents can surface along the seam between the two.
+  EXPECT_FALSE(
+      start_contents_container_view->mini_toolbar()->clip_path().isEmpty());
+  EXPECT_FALSE(
+      end_contents_container_view->mini_toolbar()->clip_path().isEmpty());
 
   // Tolerate a 1px rounding asymmetry: GetViewSizes uses std::round(0.5 *
   // (available_size - resize_width)), which gives one side an extra pixel
@@ -448,6 +494,34 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, BraveMultiContentsViewTest) {
     return std::abs(start_contents_web_view->width() -
                     end_contents_web_view->width()) <= 1;
   }));
+}
+
+// The resize area's preferred size is recomputed by upstream on every layout
+// change, so check that the divider keeps Brave's thickness across a
+// side-by-side -> stacked -> side-by-side round trip.
+IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, ResizeAreaSizeAfterLayoutChange) {
+  NewSplitTab();
+  RunScheduledLayouts();
+
+  EXPECT_EQ(kRoundedCornersContentsViewMargin,
+            split_view_separator()->GetPreferredSize().width());
+
+  auto* tab_strip_model = browser()->tab_strip_model();
+  auto split_id =
+      tab_strip_model->GetSplitForTab(tab_strip_model->active_index());
+  ASSERT_TRUE(split_id);
+
+  tab_strip_model->UpdateSplitLayout(*split_id,
+                                     split_tabs::SplitTabLayout::kStacked);
+  RunScheduledLayouts();
+  EXPECT_EQ(kRoundedCornersContentsViewMargin,
+            split_view_separator()->GetPreferredSize().height());
+
+  tab_strip_model->UpdateSplitLayout(*split_id,
+                                     split_tabs::SplitTabLayout::kSideBySide);
+  RunScheduledLayouts();
+  EXPECT_EQ(kRoundedCornersContentsViewMargin,
+            split_view_separator()->GetPreferredSize().width());
 }
 
 IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SelectTabTest) {
@@ -585,23 +659,35 @@ IN_PROC_BROWSER_TEST_F(SplitViewWithRoundedCornersTest, ContentsOutlineTest) {
            gfx::Insets(kRoundedCornersContentsOutlineThickness);
   };
 
+  // The insets only report what a style reserves, so also check whether the
+  // outline view is actually drawn.
+  auto outline_drawn = [](BrowserView* browser_view) {
+    return BraveContentsContainerView::From(
+               browser_view->GetActiveContentsContainerView())
+        ->contents_outline_view()
+        ->GetVisible();
+  };
+
   // Outline if split tab is not active.
   RunScheduledLayouts();
   EXPECT_TRUE(has_contents_outline(brave_browser_view()));
+  EXPECT_TRUE(outline_drawn(brave_browser_view()));
 
   chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
   auto* tab_strip_model = browser()->tab_strip_model();
 
-  // No outline if split tab is active.
+  // Split border instead of the subtle outline if split tab is active.
   EXPECT_TRUE(IsActiveTabSplit(tab_strip_model));
   EXPECT_FALSE(has_contents_outline(brave_browser_view()));
+  EXPECT_TRUE(outline_drawn(brave_browser_view()));
 
   // Outline if split tab is not active.
   chrome::AddTabAt(browser(), GURL(), -1, /*foreground*/ true);
   EXPECT_FALSE(IsActiveTabSplit(tab_strip_model));
   EXPECT_TRUE(has_contents_outline(brave_browser_view()));
+  EXPECT_TRUE(outline_drawn(brave_browser_view()));
 
   // Turn off the rounded corners.
   browser()->GetProfile()->GetPrefs()->SetBoolean(kWebViewRoundedCorners,
@@ -610,9 +696,14 @@ IN_PROC_BROWSER_TEST_F(SplitViewWithRoundedCornersTest, ContentsOutlineTest) {
   // Outline should be gone.
   RunScheduledLayouts();
   EXPECT_FALSE(has_contents_outline(brave_browser_view()));
+  EXPECT_FALSE(outline_drawn(brave_browser_view()));
+
+  // Split view turns the rounded corners back on regardless of the pref, so
+  // the split border is unaffected.
   browser()->tab_strip_model()->ActivateTabAt(0);
   EXPECT_TRUE(IsActiveTabSplit(tab_strip_model));
   EXPECT_FALSE(has_contents_outline(brave_browser_view()));
+  EXPECT_TRUE(outline_drawn(brave_browser_view()));
 
   // Turn on the rounded corners.
   browser()->GetProfile()->GetPrefs()->SetBoolean(kWebViewRoundedCorners, true);
@@ -943,7 +1034,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitViewReloadTest) {
     LoadObserver observer_0(GetWebContentsAt(0));
     LoadObserver observer_1(GetWebContentsAt(1));
 
-    chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+    chrome::Reload(browser(), WindowOpenDisposition::kCurrentTab);
     content::WaitForLoadStop(GetWebContentsAt(0));
     content::WaitForLoadStop(GetWebContentsAt(1));
 
@@ -964,7 +1055,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitViewReloadTest) {
     LoadObserver observer_1(GetWebContentsAt(1));
     LoadObserver observer_2(GetWebContentsAt(2));
 
-    chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+    chrome::Reload(browser(), WindowOpenDisposition::kCurrentTab);
     content::WaitForLoadStop(GetWebContentsAt(0));
     content::WaitForLoadStop(GetWebContentsAt(1));
     content::WaitForLoadStop(GetWebContentsAt(2));
@@ -981,7 +1072,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitViewReloadTest) {
     LoadObserver observer_1(GetWebContentsAt(1));
     LoadObserver observer_2(GetWebContentsAt(2));
 
-    chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+    chrome::Reload(browser(), WindowOpenDisposition::kCurrentTab);
     content::WaitForLoadStop(GetWebContentsAt(0));
     content::WaitForLoadStop(GetWebContentsAt(1));
     content::WaitForLoadStop(GetWebContentsAt(2));
@@ -1000,7 +1091,7 @@ IN_PROC_BROWSER_TEST_F(SplitViewBrowserTest, SplitViewReloadTest) {
     LoadObserver observer_1(GetWebContentsAt(1));
     LoadObserver observer_2(GetWebContentsAt(2));
 
-    chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+    chrome::Reload(browser(), WindowOpenDisposition::kCurrentTab);
     content::WaitForLoadStop(GetWebContentsAt(0));
     content::WaitForLoadStop(GetWebContentsAt(1));
     content::WaitForLoadStop(GetWebContentsAt(2));

@@ -45,6 +45,8 @@ class SearchContainerViewController: UIViewController {
     tabManager: TabManager,
     bookmarkManager: BookmarkManager,
     historyAPI: BraveHistoryAPI,
+    autocompleteClassifier: (any AutocompleteClassifier)?,
+    urlSanitizerService: (any URLSanitizerService)?,
     searchEngines: SearchEngines,
     tileSource: TopSitesTileSource,
     privateBrowsingManager: PrivateBrowsingManager,
@@ -90,7 +92,9 @@ class SearchContainerViewController: UIViewController {
 
     self.inputBar = SearchURLBarInputView(
       privateBrowsingManager: privateBrowsingManager,
-      speechRecognizer: speechRecognizer
+      speechRecognizer: speechRecognizer,
+      autocompleteClassifier: autocompleteClassifier,
+      urlSanitizerService: urlSanitizerService
     )
 
     super.init(nibName: nil, bundle: nil)
@@ -232,7 +236,7 @@ class SearchContainerViewController: UIViewController {
 
   /// Re-lays out the quick-search-engine row (e.g. after the settings screen is dismissed).
   func reloadSearchEngineLayout() {
-    searchController.layoutSearchEngineScrollView()
+    searchController.layoutQuickSearchView()
   }
 
   /// Drives the search results/suggestions for the current field text.

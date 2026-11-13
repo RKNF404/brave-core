@@ -72,6 +72,10 @@
 #include "brave/components/brave_news/common/features.h"
 #endif
 
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+#include "brave/components/local_ai/core/features.h"
+#endif
+
 #if BUILDFLAG(ENABLE_CUSTOM_PROFILE_IMAGE)
 #include "brave/browser/ui/webui/custom_profile_image/features.h"
 #endif
@@ -191,12 +195,6 @@ const flags_ui::FeatureEntry::FeatureVariation kZCashFeatureVariations[] = {
     {"- Shielded support enabled", kZCashShieldedTransactionsEnabled, nullptr},
     {"- Ironwood support enabled", kZCashIronwoodEnabled, nullptr}};
 
-const flags_ui::FeatureEntry::FeatureParam kPolkadotAssetDiscoveryDisabled[] = {
-    {"polkadot_asset_discovery", "false"}};
-
-const flags_ui::FeatureEntry::FeatureParam kPolkadotAssetDiscoveryEnabled[] = {
-    {"polkadot_asset_discovery", "true"}};
-
 const flags_ui::FeatureEntry::FeatureParam kPolkadotDappSupportDisabled[] = {
     {"polkadot_dapp_support", "false"}};
 
@@ -204,8 +202,6 @@ const flags_ui::FeatureEntry::FeatureParam kPolkadotDappSupportEnabled[] = {
     {"polkadot_dapp_support", "true"}};
 
 const flags_ui::FeatureEntry::FeatureVariation kPolkadotFeatureVariations[] = {
-    {"- Asset discovery disabled", kPolkadotAssetDiscoveryDisabled, nullptr},
-    {"- Asset discovery enabled", kPolkadotAssetDiscoveryEnabled, nullptr},
     {"- dApp support disabled", kPolkadotDappSupportDisabled, nullptr},
     {"- dApp support enabled", kPolkadotDappSupportEnabled, nullptr},
 };
@@ -227,6 +223,16 @@ const flags_ui::FeatureEntry::FeatureVariation kBraveFocusModeVariations[] = {
     {"- URL in mini-toolbar", kFocusModeUrlInMiniToolbar, nullptr},
     {"- No URL display", kFocusModeNoUrl, nullptr}};
 #endif  // defined(TOOLKIT_VIEWS)
+
+#if BUILDFLAG(ENABLE_AI_CHAT)
+const flags_ui::FeatureEntry::FeatureParam kAIChatWorkspaceNativeDirectories[] =
+    {{"workspace_native_directories", "true"}};
+
+const flags_ui::FeatureEntry::FeatureVariation
+    kAIChatWorkspaceToolsVariations[] = {
+        {"- with user-selected local directories",
+         kAIChatWorkspaceNativeDirectories, nullptr}};
+#endif  // BUILDFLAG(ENABLE_AI_CHAT)
 
 namespace {
 const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
@@ -337,6 +343,14 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
           "opening a full-page tab",                                          \
           kOsDesktop,                                                         \
           FEATURE_VALUE_TYPE(brave_wallet::features::kBraveWalletSidePanel),  \
+      },                                                                      \
+      {                                                                       \
+          "brave-wallet-card-stack-ui",                                       \
+          "Brave Wallet Card Stack UI",                                       \
+          "New card stack home UI view in Brave Wallet.",                     \
+          kOsDesktop,                                                         \
+          FEATURE_VALUE_TYPE(                                                 \
+              brave_wallet::features::kBraveWalletCardStackUiFeature),        \
       })
 #else
 #define BRAVE_NATIVE_WALLET_FEATURE_ENTRIES
@@ -566,6 +580,16 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
       kOsAndroid,                                                    \
       FEATURE_VALUE_TYPE(features::kBraveAndroidTabGroupsSettings),  \
   })
+#define BRAVE_ANDROID_MERGE_INSTALL_PWA_AND_CREATE_SHORTCUT                   \
+  EXPAND_FEATURE_ENTRIES({                                                    \
+      "brave-android-merge-install-pwa-and-create-shortcut",                  \
+      "Merge install PWA and create shortcut",                                \
+      "Merge the Install and Create shortcut app menu options into a single " \
+      "Add to Home screen action.",                                           \
+      kOsAndroid,                                                             \
+      FEATURE_VALUE_TYPE(                                                     \
+          features::kBraveAndroidMergeInstallPwaAndCreateShortcut),           \
+  })
 #else
 #define BRAVE_BACKGROUND_VIDEO_PLAYBACK_ANDROID
 #define BRAVE_YOUTUBE_FULLSCREEN_SETTINGS_WORKAROUND_ANDROID
@@ -573,6 +597,7 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
 #define BRAVE_SAFE_BROWSING_ANDROID
 #define BRAVE_CUSTOM_SEARCH_ENGINES
 #define BRAVE_ANDROID_TAB_GROUPS_SETTINGS
+#define BRAVE_ANDROID_MERGE_INSTALL_PWA_AND_CREATE_SHORTCUT
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -817,12 +842,33 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabMigrationChoices[] = {
           FEATURE_VALUE_TYPE(ai_chat::features::kAIChatUserChoiceTool),        \
       },                                                                       \
       {                                                                        \
+          "brave-ai-chat-workspace-tools",                                     \
+          "Brave AI Chat Workspace Tools",                                     \
+          "Enables AI Tools that let AI Conversation view, search, "           \
+          "and edit files within an isolated virtual file system. Requires "   \
+          "the \"WebMCP for testing\" (#enable-webmcp-testing) flag to also "  \
+          "be enabled.",                                                       \
+          kOsAll,                                                              \
+          FEATURE_WITH_PARAMS_VALUE_TYPE(                                      \
+              ai_chat::features::kAIChatWorkspaceTools,                        \
+              kAIChatWorkspaceToolsVariations, "AIChatWorkspaceTools"),        \
+      },                                                                       \
+      {                                                                        \
           "brave-ai-chat-agent-profile",                                       \
           "Brave's AI browsing",                                               \
           "Enables Ai browsing features and only in a separate built-in "      \
           "profile.",                                                          \
           kOsWin | kOsMac | kOsLinux,                                          \
           FEATURE_VALUE_TYPE(ai_chat::features::kAIChatAgentProfile),          \
+      },                                                                       \
+      {                                                                        \
+          "brave-ai-chat-content-agent-main-profiles",                         \
+          "Brave's AI browsing in main profiles",                              \
+          "Lets conversations in main profiles offer AI browsing, not only "   \
+          "the separate built-in AI browsing profile.",                        \
+          kOsWin | kOsMac | kOsLinux,                                          \
+          FEATURE_VALUE_TYPE(                                                  \
+              ai_chat::features::kAIChatContentAgentMainProfiles),             \
       },                                                                       \
       {                                                                        \
           "brave-ai-host-specific-distillation",                               \
@@ -930,6 +976,19 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabMigrationChoices[] = {
 #else
 #define BRAVE_HISTORY_EMBEDDINGS_FLAG
 #endif
+
+#if BUILDFLAG(ENABLE_LOCAL_AI)
+#define BRAVE_ON_DEVICE_SPEECH_RECOGNITION_FLAG                       \
+  EXPAND_FEATURE_ENTRIES({                                            \
+      "brave-on-device-speech-recognition",                           \
+      "Brave On-Device Speech Recognition",                           \
+      "Enables on-device speech recognition for the Web Speech API.", \
+      kOsDesktop,                                                     \
+      FEATURE_VALUE_TYPE(local_ai::kBraveOnDeviceSpeechRecognition),  \
+  })
+#else
+#define BRAVE_ON_DEVICE_SPEECH_RECOGNITION_FLAG
+#endif  // BUILDFLAG(ENABLE_LOCAL_AI)
 
 #define BRAVE_OMNIBOX_FEATURES                                                \
   EXPAND_FEATURE_ENTRIES(                                                     \
@@ -1149,6 +1208,22 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabMigrationChoices[] = {
           "default outlined icon",                                             \
           kOsDesktop,                                                          \
           FEATURE_VALUE_TYPE(features::kBraveFilledBookmarkFolderIcon),        \
+      },                                                                       \
+      {                                                                        \
+          "toolbars-small-icons",                                              \
+          "Small toolbar icons",                                               \
+          "Uses 18px icons in the toolbar, tab strip, vertical tabs, "         \
+          "sidebar, side panel header and bookmarks bar",                      \
+          kOsDesktop,                                                          \
+          FEATURE_VALUE_TYPE(features::kBraveToolbarsSmallIcons),              \
+      },                                                                       \
+      {                                                                        \
+          "brave-recap",                                                       \
+          "Brave Recap",                                                       \
+          "Enables brave://recap, a shareable summary of what Shields has "    \
+          "blocked over the lifetime of the profile",                          \
+          kOsDesktop,                                                          \
+          FEATURE_VALUE_TYPE(features::kBraveRecap),                           \
       },                                                                       \
       {                                                                        \
           "brave-ntp-refresh-enabled",                                         \
@@ -1692,6 +1767,7 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabMigrationChoices[] = {
   BRAVE_YOUTUBE_FULLSCREEN_VIDEO_FIT_WORKAROUND_ANDROID                        \
   BRAVE_SAFE_BROWSING_ANDROID                                                  \
   BRAVE_ANDROID_TAB_GROUPS_SETTINGS                                            \
+  BRAVE_ANDROID_MERGE_INSTALL_PWA_AND_CREATE_SHORTCUT                          \
   BRAVE_CUSTOM_PROFILE_IMAGE_FEATURE_ENTRY                                     \
   BRAVE_CUSTOM_SEARCH_ENGINES                                                  \
   BRAVE_CHANGE_ACTIVE_TAB_ON_SCROLL_EVENT_FEATURE_ENTRIES                      \
@@ -1703,6 +1779,7 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabMigrationChoices[] = {
   BRAVE_AI_CHAT_FEATURE_ENTRIES                                                \
   BRAVE_AI_CHAT_TAB_MANAGEMENT_TOOL_ENTRY                                      \
   BRAVE_HISTORY_EMBEDDINGS_FLAG                                                \
+  BRAVE_ON_DEVICE_SPEECH_RECOGNITION_FLAG                                      \
   BRAVE_OMNIBOX_FEATURES                                                       \
   BRAVE_MIDDLE_CLICK_AUTOSCROLL_FEATURE_ENTRY                                  \
   BRAVE_UPGRADE_WHEN_IDLE_FEATURE_ENTRY                                        \

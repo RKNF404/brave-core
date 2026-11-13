@@ -111,6 +111,12 @@ gfx::Size SidebarItemsContentsView::CalculatePreferredSize(
   return views::View::CalculatePreferredSize(available_size);
 }
 
+void SidebarItemsContentsView::AddedToWidget() {
+  View::AddedToWidget();
+
+  BuildItemViews();
+}
+
 void SidebarItemsContentsView::OnThemeChanged() {
   View::OnThemeChanged();
 
@@ -151,10 +157,11 @@ void SidebarItemsContentsView::UpdateAllItemsViewState() {
   for (size_t item_index = 0; item_index < items_num; ++item_index) {
     const auto item = items[item_index];
 #if BUILDFLAG(ENABLE_BRAVE_TALK)
-    // If browser window has tab that loads brave talk, brave talk panel icon
+    // If browser window has tab that loads brave talk, brave talk item icon
     // will use colored one for normal state also.
-    if (item.built_in_item_type ==
-        sidebar::SidebarItem::BuiltInItemType::kBraveTalk) {
+    if (!item.opens_in_panel() &&
+        item.built_in_item_type ==
+            sidebar::SidebarItem::BuiltInItemType::kBraveTalk) {
       UpdateItemViewStateAt(item_index,
                             sidebar::SidebarController::From(browser_)
                                 ->DoesBrowserHaveOpenedTabForItem(item));
@@ -163,7 +170,7 @@ void SidebarItemsContentsView::UpdateAllItemsViewState() {
 #endif
 
     // Items that opens in panel can have active state.
-    if (item.open_in_panel) {
+    if (item.opens_in_panel()) {
       UpdateItemViewStateAt(item_index, item_index == active_index);
     }
   }
@@ -285,6 +292,20 @@ void SidebarItemsContentsView::OnItemMoved(const sidebar::SidebarItem& item,
                                            int to) {
   views::View* source_view = children()[from];
   ReorderChildView(source_view, to);
+}
+
+void SidebarItemsContentsView::BuildItemViews() {
+  CHECK(children().empty());
+
+  // Start with saved item list.
+  int index = 0;
+  for (const auto& item : sidebar_model_->GetAllSidebarItems()) {
+    AddItemView(item, index, /*user_gesture=*/false);
+    if (item.is_web_type()) {
+      sidebar_model_->FetchFavicon(item);
+    }
+    index++;
+  }
 }
 
 void SidebarItemsContentsView::AddItemView(const sidebar::SidebarItem& item,
@@ -491,7 +512,7 @@ void SidebarItemsContentsView::UpdateItemViewStateAt(size_t index,
   const auto& item = sidebar_model_->GetAllSidebarItems()[index];
   SidebarItemView* item_view = GetItemViewAt(index);
 
-  if (item.open_in_panel) {
+  if (item.opens_in_panel()) {
     item_view->SetActiveState(active);
   }
 
@@ -513,7 +534,7 @@ void SidebarItemsContentsView::OnItemPressed(const views::View* item,
   auto index = GetIndexOf(item);
   CHECK(index);
 
-  auto open_disposition = WindowOpenDisposition::CURRENT_TAB;
+  auto open_disposition = WindowOpenDisposition::kCurrentTab;
   if (event_utils::IsPossibleDispositionEvent(event)) {
     open_disposition = ui::DispositionFromEventFlags(event.flags());
   }
@@ -535,8 +556,8 @@ ui::ImageModel SidebarItemsContentsView::GetImageForBuiltInItems(
     } else {
       color_id = kColorSidebarButtonBase;
     }
-    return ui::ImageModel::FromVectorIcon(icon, color_id,
-                                          SidebarButtonView::kDefaultIconSize);
+    return ui::ImageModel::FromVectorIcon(
+        icon, color_id, SidebarButtonView::GetDefaultIconSize());
   };
 
   switch (type) {

@@ -34,7 +34,6 @@
 <translation id="1111673857033749125">आपल्या इतर डिव्हाइसेेसवर सेव्ह केलेले बुकमार्क येथे दिसतील.</translation>
 <translation id="1123537484474186311"><ph name="TAB_TITLE"/>, चित्रात-चित्र टॅब</translation>
 <translation id="1126696498560056882">या डिव्हाइसवरील खाती व्यवस्थापित करा</translation>
-<translation id="9171525955914564119">तुमच्या सर्व डिव्हाइसवर तुमचे बुकमार्क आणि आणखी बरेच काही मिळवण्यासाठी, Brave मध्ये <ph name="EMAIL"/> म्हणून साइन इन करा</translation>
 <translation id="1138458427267715730">संपूर्ण वेबवरील कोणत्याही साइटवर किंमत कमी झाल्यावर सूचना मिळवा</translation>
 <translation id="1140317858355046628">तुम्ही तो हटवल्यास, सर्वजण लगेच "<ph name="GROUP_NAME"/>" या टॅब गटाचा अ‍ॅक्सेस गमवतील आणि तो सर्व डिव्हाइसवरून हटवला जाईल.</translation>
 <translation id="1142732900304639782">या साइटचे भाषांतर करणे ऑफर करू नका</translation>
@@ -121,7 +120,6 @@
 <translation id="1432581352905426595">शोध इंजीन व्यवस्थापित करा</translation>
 <translation id="1435593198351412143">PDFs आपोआप उघडा</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME"/> मध्ये रन होत आहे</translation>
-<translation id="1448440926884431741">तुमची माग ठेवलेली उत्पादने Bookmarks मध्ये व्यवस्थापित करा</translation>
 <translation id="1452651021404174820">डिव्हाइस निवडा</translation>
 <translation id="1455845192930279203">तुम्हाला तरीही <ph name="DOWNLOAD_DOMAIN"/> वरून "<ph name="FILE_NAME"/>" (<ph name="FILE_SIZE"/>) डाउनलोड करायची आहे का?</translation>
 <translation id="1460751212339734034">वेळ वाचवा, कमी टाइप करा</translation>
@@ -134,12 +132,14 @@
 <translation id="1485343711570311792"><ph name="NATIVE_APP_NAME"/> मध्ये उघडा • <ph name="DEVICE_NAME"/> कडून</translation>
 <translation id="1495677929897281669">टॅबवर परत</translation>
 <translation id="1496514951988037011">वापरकर्ता नाव</translation>
+<translation id="1498051468374914325">डेव्हलपर टूल कन्सोल उघडा</translation>
 <translation id="1501480321619201731">गट हटवा</translation>
 <translation id="1506061864768559482">शोध इंजीन</translation>
 <translation id="1513352483775369820">बुकमार्क आणि वेब इतिहास</translation>
 <translation id="1515901671075971249">टॅब नेव्हिगेशन शॉर्टकट</translation>
 <translation id="152204906462707884">तुमचा ब्राउझिंग इतिहास झटपट हटवा आणि तुमच्या गोपनीयतेवर अधिक नियंत्रण मिळवा</translation>
 <translation id="5840742727909553422">Brave ची नवीन आवृत्ती उपलब्ध आहे</translation>
+<translation id="1537160738459068682">डेव्हलपर टूल घटक उघडा</translation>
 <translation id="1540012742443808215">अ‍ॅड्रेस बार सध्या सर्वात वरती आहे</translation>
 <translation id="1543035591122163372"><ph name="DEVICE_TYPE"/> वरून तुमचे पासवर्ड आणि आणखी बरेच काही मिळवण्यासाठी साइन इन करा</translation>
 <translation id="3748360913454941567">पेमेंट पद्धती आणि पत्ते एन्क्रिप्ट केले जाणार नाहीत. Brave वरील ब्राउझिंग इतिहास सिंक होणार नाही.
@@ -198,7 +198,6 @@
 <translation id="1812027881030482584"><ph name="SITE_ETLD_PLUS_ONE"/> ला <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE"/> वापरत राहता येणार नाही</translation>
 <translation id="1815975907734103433"><ph name="TAB_TITLE"/>, रेकॉर्ड करत असलेला टॅब</translation>
 <translation id="1820408774134375111">तळाशी असलेल्या शीटमध्ये साइन इन करा</translation>
-<translation id="1823492026305965829"><ph name="USER_FULL_NAME"/> म्हणून साइन इन करा</translation>
 <translation id="1824902652744048041">ब्राउझिंग डेटा हटवा यावर टॅप करा</translation>
 <translation id="1829244130665387512">या पृष्ठामध्ये शोधा</translation>
 <translation id="1832459821645506983">होय, मी तयार आहे</translation>
@@ -297,7 +296,6 @@
 <translation id="2226826835915474236">इनॲक्टिव्ह शॉर्टकट</translation>
 <translation id="2227179592712503583">सूचना काढून टाका</translation>
 <translation id="2227444325776770048"><ph name="USER_FULL_NAME"/> म्हणून सुरू ठेवा</translation>
-<translation id="2230411774874187555">तुमची सर्व सेव्ह केलेली माहिती मिळवा</translation>
 <translation id="2230777942707397948">रिकामी विंडो</translation>
 <translation id="223356358902285214">वेब आणि अ‍ॅप अ‍ॅक्टिव्हिटी</translation>
 <translation id="2233735624724508540">कालावधी निवडा आणि त्यानंतर डेटा हटवा यावर टॅप करा</translation>
@@ -314,13 +312,14 @@
 <translation id="2297822946037605517">हे पेज शेअर करा</translation>
 <translation id="230115972905494466">कोणतीही कंपॅटिबल डिव्हाइस आढळली नाहीत</translation>
 <translation id="2305798319182970276">बटणाच्या एका टॅपने तुमचा इतिहास हटवा</translation>
+<translation id="2307420463693979699">या साइटसाठी <ph name="APP_NAME"/> ला ह्यूमन इंटरफेस डिव्हाइस (HIDs) ॲक्सेस करण्याची परवानगी हवी आहे.</translation>
 <translation id="2316129865977710310">नाही, नको</translation>
 <translation id="232137538351753795">मागे जाण्यासाठी डाव्या कडेवरून स्वाइप करा</translation>
 <translation id="2323763861024343754">साइट स्टोरेज</translation>
 <translation id="2327445548174191329"><ph name="DEVICE_NAME"/> कडून</translation>
 <translation id="232757965409810352">पेज या फॉरमॅटमध्ये सेव्ह करा…</translation>
 <translation id="2328474416100889417">सर्वजण लगेच “<ph name="GROUP_NAME"/>” या टॅब गटाचा ॲक्सेस गमवतील आणि सर्व आमंत्रण लिंक बंद केल्या जातील</translation>
-<translation id="3096606216245789753">सादर करत आहोत Brave मधील AI मोड</translation>
+<translation id="2328773543844041445">होव्हर केल्यावर टॅबचा ऑटोमॅटिक विस्तार करा</translation>
 <translation id="2330186936255788117">आणखी बुकमार्क</translation>
 <translation id="2330243730505117832">"डिव्हाइस निवडा" बंद आहे.</translation>
 <translation id="2332515770639153015">वर्धित सुरक्षित ब्राउझिंग सुरू केलेले आहे</translation>
@@ -347,11 +346,10 @@
 <translation id="2413014528833954543">या डिव्हाइसवर पासवर्ड तपासू शकत नाही</translation>
 <translation id="2414886740292270097">गडद</translation>
 <translation id="2415037988255164008">विंडो रिस्टोअर करायच्या आहेत का?</translation>
-<translation id="2426805022920575512">दुसरे खाते निवडा</translation>
 <translation id="2427025860753516072">{FILE_COUNT,plural, =1{व्हिडिओ, सूचीमध्ये १ व्हिडिओ आहे}other{व्हिडिओ, सूचीमध्ये # व्हिडिओ आहेत}}</translation>
 <translation id="2433507940547922241">स्वरूप</translation>
 <translation id="6209052069534739007">Brave साइट किंवा अ‍ॅपद्वारे त्याच्या पेजवरील लिंक खाजगीरीत्या प्रीलोड करण्याची विनंती केली गेल्यास, Brave हे कुकीशिवाय Brave सर्व्हरद्वारे पेज एन्क्रिप्ट आणि प्रीलोड करते. यामुळे, प्रीलोड केलेल्या साइटपासून तुमची ओळख लपवली जाते.</translation>
-<translation id="7174054574169352743">पेमेंट पद्धत आणि Brave Wallet मधील इतर माहिती</translation>
+<translation id="2450019289047528273">पेमेंट पद्धत आणि Google Wallet मधील इतर माहिती</translation>
 <translation id="2450083983707403292">तुम्हाला <ph name="FILE_NAME"/> चे डाउनलोड पुन्हा सुरू करायचे आहे का?</translation>
 <translation id="2451607499823206582">ट्रॅक करणे</translation>
 <translation id="2453860139492968684">समाप्त</translation>
@@ -423,7 +421,6 @@
 <translation id="2723001399770238859">ऑडिओ</translation>
 <translation id="2739887572830526131">नंतर टॅब जोडण्यासाठी हा गट कायम ठेवा किंवा तुम्हाला यापुढे त्याची आवश्यकता नसल्यास, तो हटवा.</translation>
 <translation id="2742373789128106053">सध्या <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE"/> उपलब्ध नाही.</translation>
-<translation id="2751271371269891762">तुमच्या सर्व डिव्हाइसवर तुमचे बुकमार्क आणि आणखी बरेच काही मिळवण्यासाठी, <ph name="EMAIL"/> म्हणून साइन इन करा</translation>
 <translation id="2760805590727089264">MM / YY</translation>
 <translation id="2761162135224472056">इमर्सिव्ह प्लेबॅकसह पाहायचे आहे का?</translation>
 <translation id="2762000892062317888">आत्ताच</translation>
@@ -493,7 +490,6 @@
 <translation id="2996291259634659425">सांकेतिक पासफ्रेझ तयार करा</translation>
 <translation id="2996682533106928201">डिसमिस करण्यासाठी टॅप करा</translation>
 <translation id="2996809686854298943">URL आवश्यक आहे</translation>
-<translation id="3007318536447999974">Gemini शी बोलण्यासाठी, त्याला तुमचा मायक्रोफोन वापरण्याची परवानगी द्या. तुम्ही हे <ph name="BEGIN_LINK"/>सेटिंग्ज<ph name="END_LINK"/> मध्येदेखील व्यवस्थापित करू शकता</translation>
 <translation id="3024215143424744261">वाचन मोड प्राधान्ये बंद केली आहेत</translation>
 <translation id="3024277805447899099">पूर्वावलोकन इमेज</translation>
 <translation id="3026955690410463085">लिंकचा समावेश करा</translation>
@@ -584,8 +580,6 @@
 <translation id="4114256890962999877">तुमच्या पासवर्डचा ॲक्सेस कायम ठेवण्यासाठी, ते आता एक्सपोर्ट करा, Google Play सेवा अपडेट करा आणि नंतर ते Brave Password Manager मध्ये पुन्हा इंपोर्ट करा. <ph name="BEGIN_LINK"/>सर्व सूचना पहा<ph name="END_LINK"/>.</translation>
 <translation id="3435738964857648380">सुरक्षितता</translation>
 <translation id="3435914367318771664">नवीन गटामध्ये टॅब जोडा</translation>
-<translation id="3436118221454753036">AI ला विचारा मोड</translation>
-<translation id="3830890663494219270">तुमच्या सर्व डिव्हाइसवर तुमचे पासवर्ड आणि आणखी बरेच काही मिळवण्यासाठी, Brave मध्ये साइन इन करा</translation>
 <translation id="3439276997620616816">तुमचे अलीकडील टॅब तुम्हाला येथे मिळतील</translation>
 <translation id="3443221991560634068">सध्याचे पेज रीलोड करा</translation>
 <translation id="3444179773590444986">साइटसाठीच्या गडद थीमबाबत फीडबॅक शेअर करायचा आहे का?</translation>
@@ -611,7 +605,6 @@
 <translation id="3524334353996115845"><ph name="ORIGIN"/> ला हे तुम्हीच आहात याची पडताळणी करू द्या</translation>
 <translation id="3527085408025491307">फोल्डर</translation>
 <translation id="3542235761944717775"><ph name="KILOBYTES"/> KB उपलब्ध</translation>
-<translation id="3547933853190131743">AI मोड वापरून शोधा</translation>
 <translation id="719175600387583059">प्रीलोड केलेली पेज एन्क्रिप्ट केलेली असल्यामुळे आणि पेजशी लिंक करणारी साइट किंवा अ‍ॅप Brave साइट अथवा अ‍ॅप असल्यामुळे, ही पेज खाजगीरीत्या प्रीलोड करताना Brave सर्व्हरना नवीन माहिती मिळत नाही.</translation>
 <translation id="3549657413697417275">तुमचा इतिहास शोधा</translation>
 <translation id="3557336313807607643">संपर्कांमध्ये जोडा</translation>
@@ -667,7 +660,7 @@
 <translation id="3749289110408117711">फाइल नाव</translation>
 <translation id="3756823472711156529">गट रिस्टोअर करा</translation>
 <translation id="3759306015475526475">वापर आणि क्रॅश डेटा सेटिंग्ज व्यवस्थापित करा</translation>
-<translation id="7338686239886724619">तुमच्या वास्तविक तपशिलांचे संरक्षण करण्यासाठी तुम्ही हे कार्ड वापरून चेक आउट कराल, तेव्हा व्हर्चुअल कार्ड नंबर भरला जाईल. Brave Wallet मध्ये व्यवस्थापित करा. <ph name="BEGIN_LINK1"/>व्हर्चुअल कार्डबद्दल अधिक जाणून घ्या<ph name="END_LINK1"/></translation>
+<translation id="3763110477555836428">तुमच्या वास्तविक तपशिलांचे संरक्षण करण्यासाठी तुम्ही हे कार्ड वापरून चेक आउट कराल, तेव्हा व्हर्चुअल कार्ड नंबर भरला जाईल. Google Wallet मध्ये व्यवस्थापित करा. <ph name="BEGIN_LINK1"/>व्हर्चुअल कार्डबद्दल अधिक जाणून घ्या<ph name="END_LINK1"/></translation>
 <translation id="376561056759077985">काही डेटा अद्याप सेव्ह केला गेलेला नाही</translation>
 <translation id="3770620323585347665">विंडोला नाव द्या</translation>
 <translation id="3771290962915251154">पालक नियंत्रणे सुरू असल्यामुळे हे सेटिंग बंद केलेले आहे</translation>
@@ -724,7 +717,6 @@
 <translation id="4000212216660919741">ऑफलाइन होम</translation>
 <translation id="4694008025405984126">हायलाइट केलेल्या आयटमच्या मदतीने Brave कस्टमाइझ आणि नियंत्रित करा</translation>
 <translation id="5267293611589304570">{NUM_PASSWORDS,plural, =1{तुमच्या Brave खाते मध्ये धोक्यात असलेला १ पासवर्ड आहे}other{तुमच्या Brave खाते मध्ये धोक्यात असलेले # पासवर्ड आहेत}}</translation>
-<translation id="7002462047122704254">तुमच्या सर्व डिव्हाइसवर तुमचे बुकमार्क आणि आणखी बरेच काही मिळवण्यासाठी, Brave मध्ये साइन इन करा</translation>
 <translation id="4024768890073681126">तुमचा ब्राउझर तुमच्या पालकाद्वारे व्यवस्थापित केला जातो</translation>
 <translation id="4027569221211770437"><ph name="FOLDER_TITLE"/> फोल्डर</translation>
 <translation id="4034817413553209278">{HOURS,plural, =1{# तास}other{# तास}}</translation>
@@ -745,6 +737,7 @@
 <translation id="7268155614575494857">Brave Password Manager ला तुमची साइन-इनसंबंधित माहिती सेव्ह करण्यात मदत करण्यासाठी, या साइटवर तुमचे वापरकर्ता नाव जोडा</translation>
 <translation id="4095146165863963773">ॲप डेटा हटवायचा?</translation>
 <translation id="4095483462103784441">नवीन टॅब गट तयार करा</translation>
+<translation id="2967753255515860650">Brave वरील तुमचे काम सुरक्षित ठेवण्यासाठी, तुम्ही Brave मध्ये साइन-इन केलेले असताना तुमची संस्था ठरावीक माहिती पाहू किंवा व्यवस्थापित करू शकेल</translation>
 <translation id="1523634703470981382">Brave Password Manager अपडेट उघडले</translation>
 <translation id="4107207375883769436">तुमच्या संस्थेला तुमच्या कार्य प्रोफाइलमधील ब्राउझिंग इतिहास आणि पासवर्ड यांसारखा ब्राउझिंग डेटा पाहण्याची आणि व्यवस्थापित करण्याची आवश्यकता असू शकते</translation>
 <translation id="4113030288477039509">तुमच्या ॲडमिनिस्ट्रेटरद्वारे व्यवस्थापित</translation>
@@ -754,6 +747,7 @@
 <translation id="4136632885151622181"><ph name="TAB_TITLE"/>, मल्टीसिलेक्ट केलेला पिन केलेला रेकॉर्ड करत असलेला टॅब</translation>
 <translation id="4137746084635924146">डिव्हाइसची सध्याची भाषा</translation>
 <translation id="414128724510021958">बाय डीफॉल्ट डेस्कटॉप साइटची विनंती केली आहे</translation>
+<translation id="4150837143272125910">अपडेट डाउनलोड केले गेले आहे</translation>
 <translation id="4162867837470729563">पूर्ण उघडलेली शेअरिंग पर्यायांची सूची.</translation>
 <translation id="4164642020717536140">जलद आणि सुरक्षित वेब ब्राउझिंग</translation>
 <translation id="4165077084524712774">आणखी टूल</translation>
@@ -860,7 +854,6 @@
 <translation id="4535755320005483982">शेअर केलेला <ph name="GROUP_TITLE"/> टॅब गट</translation>
 <translation id="4537137366307982887">टिपा यांसाठीच्या नोटिफिकेशनची निवड पूर्ण उंचीवर उघडली आहे</translation>
 <translation id="4537987892902330164">तुम्ही <ph name="NAME_OR_EMAIL"/> म्हणून साइन इन केलेले आहे.</translation>
-<translation id="4543131175509360848">कोणतीही पासकी शीट नाही</translation>
 <translation id="4558311620361989323">वेबपेज शॉर्टकट</translation>
 <translation id="4572422548854449519">व्यवस्थापित केलेल्या खात्यामध्ये साइन इन करा</translation>
 <translation id="4577115723294378384">अ-ज्ञ नुसार क्रमाने लावा</translation>
@@ -895,7 +888,6 @@
 <translation id="4685741273709472646">ड्रॉपडाउन सूचीमधून निवडा</translation>
 <translation id="468924408576231679"><ph name="PAGE_TITLE"/> या वेबपेजची लिंक कॉपी करा. स्रोत: <ph name="PAGE_URL"/></translation>
 <translation id="4692623383562244444">शोध इंजिने</translation>
-<translation id="469286762610133730">आणखी चांगला आशय मिळवा</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW"/>\u2026 आणि <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS"/> अधिक}other{<ph name="SHIPPING_OPTION_PREVIEW"/>\u2026 आणि <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS"/> अधिक}}</translation>
 <translation id="4698757800236023795">अ‍ॅक्टिव्ह (<ph name="ITEM_COUNT"/>)</translation>
 <translation id="4699172675775169585">कॅशे   इमेज आणि फाइल</translation>
@@ -903,6 +895,7 @@
 <translation id="4719927025381752090">भाषांतर करण्यास ऑफर करा</translation>
 <translation id="4720556299488643018">सदस्यत्व रद्द करा</translation>
 <translation id="4732120983431207637">स्टॅक अनवाइंडर</translation>
+<translation id="4734965478015604180">आडवा</translation>
 <translation id="4736934858538408121">व्हर्च्युअल कार्ड</translation>
 <translation id="473775607612524610">अपडेट करा</translation>
 <translation id="4738065825338914557">सदस्यत्व रद्द करत आहे…</translation>
@@ -950,11 +943,10 @@
 <translation id="488187801263602086">फाइलला पुन्हा नाव द्या</translation>
 <translation id="1248710015876067820">Brave उदाहरणांची असमर्थित संख्या.</translation>
 <translation id="8743324804589176795">तुमच्या Brave खाते मध्ये सेव्ह केलेले पासवर्ड नाहीत</translation>
-<translation id="4905823827770127520">पेजवर लिंकचा समावेश करा</translation>
+<translation id="490375751687810070">उभा</translation>
 <translation id="4910889077668685004">पेमेंट ॲप्स</translation>
 <translation id="4911042367886397055">तुमचे पुन्हा स्वागत आहे, <ph name="USER_NAME"/> !</translation>
 <translation id="4913169188695071480">रिफ्रेश करणे थांबवा</translation>
-<translation id="367116267716122258">तुमच्या सर्व डिव्हाइसवर तुमचे पासवर्ड आणि आणखी बरेच काही मिळवण्यासाठी, Brave मध्ये <ph name="EMAIL"/> म्हणून साइन इन करा</translation>
 <translation id="4923173329789776645">तुमच्या संस्थेने डाउनलोड करण्याची शिफारस केलेली नाही</translation>
 <translation id="4925120120285606924">स्क्रीनशॉट <ph name="CURRENT_DATE_ISO"/></translation>
 <translation id="4926901776383726965">ऑफलाइन पाहण्यासाठी किंवा इतर अ‍ॅप्समध्ये शेअर करण्यासाठी तुम्ही इमेज आणि फाइल सेव्ह करू शकता</translation>
@@ -1035,6 +1027,7 @@
 <translation id="5233638681132016545">नवीन टॅब</translation>
 <translation id="5235196193381275927">साइन-इन करताना काहीतरी चूक झाली</translation>
 <translation id="5246093389635966745">टूलबार शॉर्टकट संपादित करा</translation>
+<translation id="5257142004843671642">साइड पॅनलचा आकार बदला</translation>
 <translation id="5264813352784073502">मागील २४ तासांमधील</translation>
 <translation id="5267572070504076962">धोकादायक साइटपासून संरक्षण मिळवण्यासाठी सुरक्षित ब्राउझिंग सुरू करा</translation>
 <translation id="5273031377282080577">तुमचा अ‍ॅडमिनिस्ट्रेटर हे सेटिंग व्यवस्थापित करत आहे.</translation>
@@ -1108,7 +1101,6 @@
 <translation id="6894318537270274409">तुमच्या Brave अनुभवामध्ये सुधारणा करण्यासाठी डेटा वापरणाऱ्या आणखी सेटिंग्जकरिता, <ph name="BEGIN_LINK"/>Brave सेवा<ph name="END_LINK"/> यावर जा.</translation>
 <translation id="5601924940067278327">तुमच्या सर्व डिव्हाइसवर तुमचे टॅब आणि आणखी बरेच काही मिळवा</translation>
 <translation id="5611398002774823980">खात्यामध्ये सेव्ह करा</translation>
-<translation id="7769309869030290448">तुमच्या सर्व डिव्हाइसवर तुमचे टॅब आणि आणखी बरेच काही मिळवण्यासाठी, Brave मध्ये <ph name="EMAIL"/> म्हणून साइन इन करा</translation>
 <translation id="5614625640221885312">तुमच्या सर्व डिव्हाइसवर तुमचे बुकमार्क, पासवर्ड आणि आणखी बऱ्याच गोष्टी मिळवण्यासाठी साइन इन करा</translation>
 <translation id="5619633276517849615">तुमच्या संस्थेने सुरक्षित ब्राउझिंग सुरू केले आहे</translation>
 <translation id="5620163320393916465">सेव्ह केलेले पासवर्ड नाहीत</translation>
@@ -1163,6 +1155,7 @@
 <translation id="5848257610304005265"><ph name="APP_NAME"/> वापरून PDF उघडायची आहे का?</translation>
 <translation id="5849288995120328556">शेअर करणे थांबवायचे आहे का?</translation>
 <translation id="5853623416121554550">थांबवले</translation>
+<translation id="5855375823365231964">या प्रोफाइलविषयी</translation>
 <translation id="5855546874025048181">सुधारित करा: <ph name="REFINE_TEXT"/></translation>
 <translation id="5857447844686706637">काहीतरी चूक झाली. माग ठेवलेली किंमत अपडेट करता आली नाही.</translation>
 <translation id="5859968346865909126">तुम्ही ते सेटिंग्जमध्ये सुरू किंवा बंद करू शकता</translation>
@@ -1173,6 +1166,7 @@
 <translation id="5869522115854928033">सेव्ह केलेले पासवर्ड</translation>
 <translation id="5870416898561279542">डुप्लिकेट टॅब आणि गट किंवा <ph name="DAYS_INACTIVE"/> दिवसांपासून न वापरलेले टॅब इथे हलवले जातात<ph name="AUTODELETE_SECTION"/>. तुम्ही हे <ph name="DECLUTTER_SETTINGS_TITLE"/> मध्ये कधीही बदलू शकता.</translation>
 <translation id="2496394743292988533">नोटिफिकेशन <ph name="SEPARATOR"/> ही साइट धोकादायक असल्यामुळे Brave ने या परवानग्या काढून टाकल्या आहेत</translation>
+<translation id="5895138241574237353">रीस्टार्ट करा</translation>
 <translation id="5896944002928653773">एंटरप्राइझ सिग्नल डिस्क्लेमर तळाशी असलेली शीट बंद केली आहे</translation>
 <translation id="5899667542927581604">कोणतीही पासकी शीट बंद केली नाही</translation>
 <translation id="5907542076239273525">बुकमार्क <ph name="FOLDER_NAME"/> मध्ये सेव्ह केला आहे</translation>
@@ -1191,7 +1185,6 @@
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{तुमच्या वाचन सूचीवरील १ पेज}other{तुमच्या वाचन सूचीवरील # पेज}}</translation>
 <translation id="2373832261299530145"><ph name="PERMISSION_1"/>, <ph name="PERMISSION_2"/> <ph name="SEPARATOR"/> तुम्ही अलीकडे भेट न दिल्यामुळे Brave ने या परवानग्या काढून टाकल्या आहेत</translation>
 <translation id="5995726099713306770">पेज पुन्हा डाउनलोड करायचे आहे का?</translation>
-<translation id="7074956098903074365">Brave वापरण्यासाठी तुमच्या संस्थेनुसार तुम्ही साइन इन करणे आवश्यक आहे.</translation>
 <translation id="6456271171669383967">Brave ठेवा</translation>
 <translation id="6002122790816966947">तुमची डिव्हाइस</translation>
 <translation id="6011308810877101166">शोध सूचनांमध्ये सुधारणा करा</translation>
@@ -1202,6 +1195,7 @@
 <translation id="6039379616847168523">पुढील टॅबवर जा</translation>
 <translation id="6040143037577758943">बंद करा</translation>
 <translation id="604124094241169006">स्वयंचलित</translation>
+<translation id="6137715785312812573">Google Drive सारख्या शोध सेवा आणि Brave Workspace अ‍ॅप्स यांमधील कनेक्शन व्यवस्थापित करा</translation>
 <translation id="6042308850641462728">अधिक</translation>
 <translation id="6047066316630165190">ग्रिड टॅब स्विचर उघडा</translation>
 <translation id="604996488070107836">अज्ञात एररमुळे <ph name="FILE_NAME"/> डाउनलोड करणे अयशस्वी झाले.</translation>
@@ -1246,8 +1240,8 @@
 <translation id="6192907950379606605">इमेजची वर्णने मिळवा</translation>
 <translation id="6193448654517602979">टॅब निवडा</translation>
 <translation id="8367262879301982880">पासवर्ड हे Brave पासवर्ड व्यवस्थापक यामध्ये या डिव्हाइसवर सेव्ह केले जातात</translation>
+<translation id="6200780647297916498">टॅबचे स्थान</translation>
 <translation id="7766137781166927396">Brave ने <ph name="DOMAIN"/> कडील संभाव्य स्पॅम डिटेक्ट केले आहे.</translation>
-<translation id="6210748933810148297"><ph name="EMAIL"/> नाही?</translation>
 <translation id="6211386937064921208">या पेजचे पूर्वावलोकन करत आहे</translation>
 <translation id="6212567362666004597">गटामध्ये टॅब जोडा</translation>
 <translation id="6225572914528673855">ॲड्रेस बार</translation>
@@ -1356,6 +1350,7 @@
 <translation id="6565959834589222080">उपलब्ध असेल तेव्हा वाय-फाय वापरला जातो</translation>
 <translation id="657177046675873214">तुमच्या सर्व डिव्हाइसवर तुमचे बुकमार्क मिळवण्यासाठी, सेटिंग्जमध्ये "बुकमार्क" सुरू करा</translation>
 <translation id="6573096386450695060">नेहमी अनुमती द्या</translation>
+<translation id="1571495184426713852">Brave ची नवीन आवृत्ती उपलब्ध आहे</translation>
 <translation id="658099107946526506">नको असलेला अ‍ॅक्सेस रोखण्यासाठी पिन वापरून तुमच्या खाजगी ब्राउझिंगचे संरक्षण करा</translation>
 <translation id="6583199322650523874">सध्याचे पेज बुकमार्क करा</translation>
 <translation id="6588043302623806746">सुरक्षित DNS वापरा</translation>
@@ -1394,12 +1389,10 @@
 <translation id="6738867403308150051">डाउनलोड करीत आहे…</translation>
 <translation id="6745063744988317486">मोनो</translation>
 <translation id="6746338529702829275">तुमच्या खाते डेटाचे पुनरावलोकन करा</translation>
-<translation id="6746834324024491643">तुमच्या सर्व डिव्हाइसवर तुमचे पासवर्ड आणि आणखी बऱ्याच गोष्टी मिळवण्यासाठी, <ph name="EMAIL"/> म्हणून साइन इन करा</translation>
 <translation id="6751521182688001123">झटपट नवीन टॅब उघडा. हा शॉर्टकट संपादित करण्यासाठी, स्‍पर्श करा आणि धरून ठेवा.</translation>
 <translation id="6754359471209693699">नवीन शोध सुरू करा</translation>
 <translation id="6756507620369789050">फीडबॅक शेअर करा</translation>
 <translation id="6762511428368667596"><ph name="NAME"/>, <ph name="EMAIL"/>.</translation>
-<translation id="676305334223455055">तुमच्या स्वारस्यांवर आधारित आशय मिळवण्यासाठी साइन इन करा</translation>
 <translation id="6764137532716892442">नवीन अ‍ॅक्टिव्हिटी असलेला शेअर केलेला <ph name="GROUP_TITLE"/> टॅब गट</translation>
 <translation id="8174975477247159780">Brave आणि ChromeOS च्या अतिरिक्त सेवा अटी</translation>
 <translation id="6786747875388722282">विस्तार</translation>
@@ -1516,7 +1509,7 @@
 <translation id="7159399361248977424">या फॉरमॅटमध्ये इमेज सेव्ह करा…</translation>
 <translation id="2679203756569766105">Brave काही फाइल का ब्लॉक करते याबद्दल अधिक जाणून घ्या</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME"/> म्हणून साइन इन केले. सेटिंग उघडते.</translation>
-<translation id="6390064556944765055">तुमच्या डिव्हाइसवर आणि Brave Wallet मध्ये सेव्ह केलेले सर्व सुरक्षा कोड हटवले जातील</translation>
+<translation id="7170930892977483182">तुमच्या डिव्हाइसवर आणि Google Wallet मध्ये सेव्ह केलेले सर्व सुरक्षा कोड हटवले जातील</translation>
 <translation id="7173114856073700355">सेटिंग्ज उघडा</translation>
 <translation id="7173338713290252554">संपूर्ण वेबवरील किमतीचा इतिहास</translation>
 <translation id="7177466738963138057">तुम्ही हे नंतर सेटिंग्ज मध्ये बदलू शकता.</translation>
@@ -1634,12 +1627,14 @@
 <translation id="3521275212779698128">Brave Finds ची निवड पूर्ण उंचीवर उघडली आहे</translation>
 <translation id="649070405679044769">Brave मध्ये हे म्हणून साइन इन केले</translation>
 <translation id="7612989789287281429">तुम्हाला साइन इन करत आहे…</translation>
+<translation id="1523322630961631757">Brave व्यवस्थापित केले गेले आहे</translation>
 <translation id="7619072057915878432">नेटवर्क बिघाडामुळे <ph name="FILE_NAME"/> डाउनलोड अयशस्वी झाले.</translation>
 <translation id="7207456302801184289">Brave मध्ये स्वागत आहे</translation>
 <translation id="7628417132421583481">Password Manager वर जा</translation>
 <translation id="7630202231528827509">पुरवठादाराची URL</translation>
 <translation id="7638584964844754484">अयोग्य सांकेतिक पासफ्रेझ</translation>
 <translation id="7541787837661872168">Brave Finds ची निवड बंद केली आहे</translation>
+<translation id="7645712301713737707">तुमच्या ब्राउझरच्या सर्वात वरती किंवा बाजूला दिसण्यासाठी तुमचा टॅब लेआउट कस्टमाइझ करा.</translation>
 <translation id="7646499124171960488">तुम्हाला असुरक्षित सार्वजनिक साइटसाठी चेतावणी देते</translation>
 <translation id="7655240423373329753">मागील ७ दिवसांमधील</translation>
 <translation id="7656721520530864426">कोणत्याही साइट नाहीत</translation>
@@ -1688,7 +1683,6 @@
 <translation id="8439902729344548970">तुम्ही साइन इन केले असते, तेव्हा संपूर्ण Brave सेवांवर तुमचे संरक्षण करण्यासाठी हा डेटा तुमच्या Brave खाते शी लिंक केला जातो, उदाहरणार्थ सुरक्षेशी संबंधित घटनेनंतर Gmail मध्ये संरक्षण वाढवणे.</translation>
 <translation id="7824665136384946951">तुमच्या संस्थेने सुरक्षित ब्राउझिंग बंद केले आहे</translation>
 <translation id="7825973332242257878">टॅब गट</translation>
-<translation id="802130069867035673">तुमचे Brave, सर्व ठिकाणी</translation>
 <translation id="7845155831233417403">तुमच्याकडे कमाल <ph name="MAX_INSTANCE_COUNT"/> विंडो असू शकतात. पुढे सुरू ठेवण्यासाठी विंडो बंद करा.</translation>
 <translation id="7846161022626028328">एरर आली. पुन्हा प्रयत्न करा.</translation>
 <translation id="7068829570137757602">Brave सेवा</translation>
@@ -1712,6 +1706,7 @@
 <translation id="6485598694371328620">Brave हे नोटिफिकेशनचा गैरवापर करणाऱ्या किंवा तुम्ही अलीकडे भेट न दिलेल्या साइटवरील परवानग्या आपोआप काढून टाकते</translation>
 <translation id="7934668619883965330">फाइल डाउनलोड करू शकत नाही. फाइल फॉरमॅटला सपोर्ट नाही.</translation>
 <translation id="7951102827450076904">डाउनलोड केलेल्या PDFs नेहमी उघडा</translation>
+<translation id="7952148074468405586"><ph name="BEGIN_LINK"/>तुमची संस्था पाहू किंवा व्यवस्थापित करू शकत असलेली माहिती<ph name="END_LINK"/> याबद्दल अधिक जाणून घ्या</translation>
 <translation id="7952479614398473176">नवीन विंडो उघडण्यासाठी, अ‍ॅक्टिव्ह विंडोची एकूण संख्या <ph name="MAX_WINDOW_COUNT_MINUS_ONE"/> किंवा त्याहून कमी करा.</translation>
 <translation id="7956713633345437162">Mobile बुकमार्क</translation>
 <translation id="7957413488482743710">संभाव्य फसवणुकीपासून तुमचे संरक्षण करण्यात मदत करण्यासाठी, व्हर्च्युअल कार्ड तुमचे मूळ कार्ड लपवते. <ph name="BEGIN_LINK1"/>व्हर्च्युअल कार्डबद्दल अधिक जाणून घ्या<ph name="END_LINK1"/></translation>
@@ -1761,7 +1756,6 @@
 <translation id="2919733817273403520">Brave ची वैशिष्ट्ये आणि परफॉर्मन्समध्ये सुधारणा करण्यात मदत करा</translation>
 <translation id="4565206163201411670">Digital wellbeing मध्ये तुमची Brave ॲक्टिव्हिटी दाखवायची का?</translation>
 <translation id="8118117428362942925">तुम्हाला मदत हवी असल्यास, तुमचे पालक (<ph name="PARENT_NAME"/>) यांना विचारा</translation>
-<translation id="3018959290664438109">तुमच्या सर्व डिव्हाइसवर तुमचे टॅब आणि आणखी बरेच काही मिळवण्यासाठी, Brave मध्ये साइन इन करा</translation>
 <translation id="8120286190326371840">कोणतेही धोक्यात असलेले पासवर्ड या डिव्हाइसवर नाहीत</translation>
 <translation id="8122623268651408616">नवीनतमनुसार क्रमाने लावत आहे</translation>
 <translation id="8127542551745560481">होमपेज संपादित करा</translation>
@@ -1885,7 +1879,6 @@
 <translation id="8570677896027847510">फाइल सुरक्षितपणे डाउनलोड केली जाऊ शकत नाही</translation>
 <translation id="8571213806525832805">मागील 4 आठवड्यांमधील</translation>
 <translation id="8580435650274205305">एक्स्पायरीची तारीख आवश्यक आहे</translation>
-<translation id="8582529315803410153">तुमच्या इतर डिव्हाइसमधील टॅब तुम्हाला इथे सापडतील</translation>
 <translation id="8585103689515290060">ऑटोफिल सेवा</translation>
 <translation id="3154071202318585486">Brave मधील ब्राउझिंग डेटा हटवण्यासाठी टॅप करा</translation>
 <translation id="859046281437143747">आणखी पर्याय बटणावरून किमतीचा माग ठेवा</translation>
@@ -1895,6 +1888,7 @@
 <translation id="860282621117673749">किमतीमध्ये घट झाल्याच्या सूचना</translation>
 <translation id="8611922158252451755">लिंक असलेली कोणतीही व्यक्ती सर्व टॅब संपादित करू शकते, त्यामुळे विचारपूर्वक शेअर करा. लिंक ४८ तासांमध्ये एक्स्पायर होते.</translation>
 <translation id="5784514951651328424">तुमच्या Brave खात्यात <ph name="BEGIN_LINK"/>myactivity.google.com<ph name="END_LINK"/> वर ब्राउझिंग इतिहासाची अन्य स्वरूपे असू शकतात.</translation>
+<translation id="6089523089512126744">Brave Search AI मोड आणि कनेक्ट केलेली ॲप्स</translation>
 <translation id="8626572875733549102"><ph name="LANGUAGE"/> मध्ये भाषांतर करा</translation>
 <translation id="5601608515527024348">Brave मेनू &gt; सेटिंग्ज उघडा</translation>
 <translation id="8634050254805484913">अरुंद स्क्रीनवर लपवला आहे</translation>
@@ -1939,6 +1933,7 @@
 <translation id="8816556050903368450">लिंकच्या समावेशासह: <ph name="ORIGIN"/></translation>
 <translation id="881688628773363275">पूर्वावलोकन टॅब आशय पाहण्यायोग्य नाही.</translation>
 <translation id="8820817407110198400">बुकमार्क</translation>
+<translation id="8822533681006532064">Gemini शी बोलण्यासाठी, त्याला तुमचा मायक्रोफोन वापरण्याची परवानगी द्या. तुम्ही हे <ph name="BEGIN_LINK"/>सेटिंग्ज<ph name="END_LINK"/> मध्येदेखील व्यवस्थापित करू शकता.</translation>
 <translation id="8840953339110955557">हे पेज ऑनलाइन आवृत्तीपेक्षा वेगळे असू शकते.</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8849001918648564819">लपवलेली</translation>
@@ -1980,13 +1975,13 @@
 <translation id="9000089900434778519"><ph name="DSE_NAME"/> हे तुमचे शोध इंजीन आहे. लागू असल्यास, तुमचा शोध इतिहास हटवण्यासाठी, त्याच्या सूचना पहा.</translation>
 <translation id="9010094279589497751">तुम्हाला गरज असेल तेव्हा पटकन Gemini उघडा</translation>
 <translation id="9012585441087414258">धोकादायक म्हणून ओळखल्या जाणार्‍या साइट, डाउनलोड आणि एक्स्टेंशन यापासून संरक्षण. एखाद्या पेजमध्ये काहीतरी संशयास्पद आढळल्यास, URLs आणि पेजच्या आशयाचे भाग हे Brave सुरक्षित ब्राउझिंग ला पाठवले जातात.</translation>
-<translation id="9014097371980259227">तुम्हाला AI मोड वापरून शोधण्यात मदत करण्यासाठी काही टूल हलवली आहेत</translation>
 <translation id="9015111999662965458">हे डिव्हाइस सुरक्षितपणे वापरता येईल याची खात्री करण्यासाठी, तुमच्या संस्थेला ऑपरेटिंग सिस्टीम, ब्राउझर, सेटिंग्ज आणि तुमच्या डिव्हाइसवर कोणते सॉफ्टवेअर इंस्टॉल केलेले आहे यांविषयी माहिती पाहण्याची आवश्यकता असू शकते</translation>
 <translation id="9019199799064251516">कार प्रोफाइल लॉकशिवाय पुढे सुरू ठेवायचे आहे का?</translation>
 <translation id="9022774213089566801">वारंवार भेट दिलेल्या</translation>
 <translation id="5687542525349822727">Brave तुमचा डीफॉल्ट म्हणून सेट करा</translation>
 <translation id="9027728231343310283"><ph name="SITE"/> पहिल्यासारखे करा</translation>
 <translation id="9035378196785279980">यावर हलवा\u2026</translation>
+<translation id="9038316201889095704">सेव्ह न केलेले बदल असताना पेजमध्ये शोधा बंद केले आहे.</translation>
 <translation id="904146253922032365">टॅब उभ्या पद्धतीने दाखवण्यासाठी स्‍पर्श करून धरून ठेवा</translation>
 <translation id="9042893549633094279">गोपनीयता आणि सुरक्षा</translation>
 <translation id="1612219807314383628">Brave मध्ये झटपट शोध सुरू करा</translation>
@@ -2041,7 +2036,6 @@
 <translation id="9218430445555521422">डीफॉल्ट म्हणून सेट करा</translation>
 <translation id="9219103736887031265">इमेज</translation>
 <translation id="142389341645668510">Brave कस्टमाइझ करा</translation>
-<translation id="9222198206152536936">तुमच्या सर्व डिव्हाइसवर तुमचे टॅब आणि आणखी बरेच काही मिळवण्यासाठी, <ph name="EMAIL"/> म्हणून साइन इन करा</translation>
 <translation id="7625138338483121345">Brave ला तुमचा डीफॉल्ट ब्राउझर बनवा</translation>
 <translation id="4596514158372210596">Digital wellbeing वरून तुमची Brave ॲक्टिव्हिटी काढून टाका</translation>
 <translation id="2830145431802238213">Brave वर लाइट मोड वापरा</translation>
@@ -2053,6 +2047,7 @@
 <translation id="945522503751344254">अभिप्राय पाठवा</translation>
 <translation id="948276827484905248">QR कोड तयार करा</translation>
 <translation id="5406914950576900927">Brave चीनमध्ये शोध करण्‍यासाठी <ph name="BEGIN_BOLD"/>Sogou<ph name="END_BOLD"/> चा वापर करू शकते. तुम्ही हे <ph name="BEGIN_LINK"/>सेटिंग्जमध्ये<ph name="END_LINK"/> बदलू शकता.</translation>
+<translation id="738722687801342563">तुमच्या संस्थेनुसार Brave वापरण्यासाठी तुम्ही साइन इन करणे आवश्यक आहे</translation>
 <translation id="961856697154696964">ब्राउझिंग डेटा हटवा</translation>
 <translation id="963246339335003378">टास्क मॅनेजर उघडा</translation>
 <translation id="966337994629449077">तुम्ही <ph name="FROM_EMAIL"/> म्हणून साइन इन केले आहे.\n\nतुमच्या काँप्युटरवरून पुढे सुरू ठेवण्यासाठी <ph name="TO_EMAIL"/> वर स्विच करा. तुम्हाला या खात्यावरून पासवर्ड, बुकमार्क आणि आणखी बऱ्याच गोष्टी मिळतील.</translation>

@@ -39,9 +39,6 @@ BASE_FEATURE(kBraveWalletPolkadotFeature,
 #endif
 );
 
-const base::FeatureParam<bool> kPolkadotAssetDiscovery{
-    &kBraveWalletPolkadotFeature, "polkadot_asset_discovery", false};
-
 const base::FeatureParam<bool> kPolkadotDAppSupport{
     &kBraveWalletPolkadotFeature, "polkadot_dapp_support", false};
 
@@ -98,5 +95,7 @@ BASE_FEATURE(kBraveWalletSnapFeature, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBraveWalletSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBraveWalletFilecoinLedger, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBraveWalletCardStackUiFeature, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace brave_wallet::features

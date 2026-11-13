@@ -27,7 +27,7 @@ struct SignMessageRequestContainerView: View {
       if let ethSiweData = store.currentRequest.request.signData.ethSiweData {
         SignInWithEthereumView(
           account: store.currentRequest.account,
-          originInfo: store.currentRequest.request.originInfo,
+          dappOriginInfo: store.currentRequest.request.dappOriginInfo,
           message: ethSiweData,
           action: handleAction(approved:)
         )
@@ -47,7 +47,6 @@ struct SignMessageRequestContainerView: View {
           ),
           cowSwapOrder: cowSwapOrder,
           ethSwapDetails: store.ethSwapDetails[store.currentRequest.id],
-          needPilcrowFormatted: $store.needPilcrowFormatted,
           showOrignalMessage: $store.showOrignalMessage,
           nextTapped: store.next,
           action: handleAction(approved:)
@@ -59,7 +58,6 @@ struct SignMessageRequestContainerView: View {
           network: currentRequestNetwork,
           requestIndex: store.requestIndex,
           requestCount: store.requests.count,
-          needPilcrowFormatted: $store.needPilcrowFormatted,
           showOrignalMessage: $store.showOrignalMessage,
           nextTapped: store.next,
           action: handleAction(approved:)

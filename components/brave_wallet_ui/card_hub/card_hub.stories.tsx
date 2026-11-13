@@ -17,14 +17,29 @@ import {
   mockNativeBalanceRegistry,
   mockTokenBalanceRegistry,
 } from '$wallet/common/constants/mocks'
+import { BraveRewardsProxyOverrides } from '$wallet/constants/testing_types'
+import { WalletStatus } from '$wallet/constants/types'
 
 type StorybookCardHubArgs = {
   isWalletCreated: boolean
+  isRewardsEnabled: boolean
+  isRewardsCardVerified: boolean
+}
+
+const mockRewardsInfo: BraveRewardsProxyOverrides = {
+  rewardsEnabled: true,
+  balance: 112.5637,
+  externalWallet: {
+    url: '',
+    name: 'DeadBeef',
+    provider: 'uphold',
+    status: WalletStatus.kConnected,
+  },
 }
 
 export const _CardHub = {
   render: (args: StorybookCardHubArgs) => {
-    const { isWalletCreated } = args
+    const { isWalletCreated, isRewardsEnabled, isRewardsCardVerified } = args
     return (
       <WalletPanelStory
         walletStateOverride={{
@@ -36,6 +51,15 @@ export const _CardHub = {
           nativeBalanceRegistry: mockNativeBalanceRegistry,
           tokenBalanceRegistry: mockTokenBalanceRegistry,
         }}
+        rewardsApiOverrides={
+          isRewardsEnabled
+            ? { ...mockRewardsInfo, isRewardsCardVerified }
+            : {
+                rewardsEnabled: false,
+                externalWallet: null,
+                isRewardsCardVerified,
+              }
+        }
       >
         <CardHub />
       </WalletPanelStory>
@@ -51,8 +75,12 @@ export default {
   },
   args: {
     isWalletCreated: false,
+    isRewardsEnabled: false,
+    isRewardsCardVerified: false,
   },
   argTypes: {
     isWalletCreated: { control: { type: 'boolean' } },
+    isRewardsEnabled: { control: { type: 'boolean' } },
+    isRewardsCardVerified: { control: { type: 'boolean' } },
   },
 }

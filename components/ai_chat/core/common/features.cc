@@ -84,6 +84,8 @@ BASE_FEATURE(kAIChatUserChoiceTool, base::FEATURE_ENABLED_BY_DEFAULT);
 // search, and edit files within a user-selected local folder.
 // See https://github.com/brave/brave-browser/issues/57388.
 BASE_FEATURE(kAIChatWorkspaceTools, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<bool> kWorkspaceNativeDirectories{
+    &kAIChatWorkspaceTools, "workspace_native_directories", false};
 
 BASE_FEATURE(kAIChatAgentProfile, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -94,6 +96,11 @@ bool IsAIChatAgentProfileEnabled() {
   return false;
 #endif
 }
+
+// Allows conversations in the user's main profiles - every profile other than
+// the dedicated agent profile - to offer the content agent tools to the user.
+BASE_FEATURE(kAIChatContentAgentMainProfiles,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAIChatDetailedPageContentExtraction,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -228,9 +235,7 @@ bool IsShowAIChatInputOnNewTabPageEnabled(PrefService* local_state,
   return true;
 }
 
-BASE_FEATURE(kAIChatDeepResearch,
-             "AIChatDeepResearch",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAIChatDeepResearch, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAIChatDeepResearchEnabled() {
   return base::FeatureList::IsEnabled(features::kAIChatDeepResearch);

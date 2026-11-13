@@ -19,7 +19,6 @@
 #include "components/cbor/reader.h"
 #include "components/cbor/writer.h"
 #include "crypto/keypair.h"
-#include "crypto/sha2.h"
 #include "crypto/sign.h"
 #include "net/cert/asn1_util.h"
 #include "net/cert/time_conversions.h"
@@ -269,7 +268,7 @@ bool CoseSign1::IsSignatureAlgorithmAcceptable(
   return true;
 }
 
-bool CoseSign1::IsPublicKeyAcceptable(EVP_PKEY* public_key,
+bool CoseSign1::IsPublicKeyAcceptable(const EVP_PKEY* public_key,
                                       bssl::CertErrors* errors) {
   return true;
 }

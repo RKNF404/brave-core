@@ -3,11 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { font, typography } from '@brave/leo/tokens/css/variables'
+import { font, typography } from '@brave/nala/tokens/css/variables'
 import { Introduction } from './email_aliases_introduction'
 import { AliasList } from './email_aliases_list'
 import * as React from 'react'
-import Alert from '@brave/leo/react/alert'
+import Alert from '@brave/nala/react/alert'
 import Col from './styles/Col'
 import styled from 'styled-components'
 import {
@@ -54,11 +54,13 @@ export const SignInPage = ({
 
 export const ManagePage = ({
   aliasesUpdate,
+  aliasLimit,
   authEmail,
   emailAliasesService,
   metrics,
 }: {
   aliasesUpdate: AliasesUpdate
+  aliasLimit: number
   authEmail: string
   emailAliasesService: EmailAliasesServiceInterface
   metrics?: EmailAliasesMetricsRemote
@@ -70,6 +72,7 @@ export const ManagePage = ({
       <AliasList
         aliases={aliasesUpdate.aliases!}
         authEmail={authEmail}
+        aliasLimit={aliasLimit}
         emailAliasesService={emailAliasesService}
         metrics={metrics}
       />

@@ -4,7 +4,8 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as React from 'react'
-import Icon from '@brave/leo/react/icon'
+import Icon from '@brave/nala/react/icon'
+import { getLocale } from '$web-common/locale'
 import { isWorkspaceContent } from '../../../common/conversation_history_utils'
 import { AttachmentItem } from '../../../page/components/attachment_item'
 import { useUntrustedConversationContext } from '../../untrusted_conversation_context'
@@ -30,9 +31,13 @@ export default function WorkspaceFileButton(props: { path: string }) {
 
   return (
     <AttachmentItem
-      icon={<Icon name='file' />}
+      icon={
+        <div className={styles.icon}>
+          <Icon name='file' />
+        </div>
+      }
       title={props.path}
-      subtitle=''
+      subtitle={getLocale(S.CHAT_UI_WORKSPACE_FILE_LOCATION)}
       onClick={handleClick}
       className={styles.attachmentItem}
     />

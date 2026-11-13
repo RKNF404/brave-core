@@ -62,7 +62,7 @@ struct ProfileState {
     // Setup Rewards & Ads
     let configuration = BraveRewards.Configuration.current()
     Migration.migrateAdsConfirmations(for: configuration)
-    rewards = BraveRewards(configuration: configuration)
+    rewards = BraveRewards(configuration: configuration, profile: profileController.profile)
 
     // Setup BraveCore profile migrations
     migrations = BraveProfileMigrations(profileController: profileController)
@@ -507,8 +507,18 @@ extension SceneDelegate {
     _ appIntent: (any UISceneAppIntent)?,
     browserViewController: BrowserViewController
   ) {
-    guard let intent = appIntent as? OpenControlWidgetShortcutIntent else { return }
-    browserViewController.handleNavigationPath(path: .widgetShortcutURL(intent.shortcut))
+    let shortcut: WidgetShortcut?
+    if appIntent is OpenAskBraveControlIntent {
+      shortcut = .askBrave
+    } else if appIntent is OpenBraveSearchControlIntent {
+      shortcut = .search
+    } else if let intent = appIntent as? OpenControlWidgetShortcutIntent {
+      shortcut = intent.shortcut
+    } else {
+      shortcut = nil
+    }
+    guard let shortcut else { return }
+    browserViewController.handleNavigationPath(path: .widgetShortcutURL(shortcut))
   }
 
   private func sendDAUPingIfNeeded() {
@@ -523,9 +533,9 @@ extension SceneDelegate {
 
   private func refreshSKUsCredentials(in scene: UIWindowScene) {
     Task { @MainActor in
-      let isPrivateBrowsing =
-        scene.browserViewController?.privateBrowsingManager.isPrivateBrowsing == true
-      await Skus.SkusServiceFactory.get(privateMode: isPrivateBrowsing)?.refreshSkusCredentials()
+      if let profile = Self.profileState?.profile {
+        await Skus.SkusServiceFactory.get(profile: profile)?.refreshSkusCredentials()
+      }
     }
   }
 

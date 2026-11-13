@@ -31,11 +31,13 @@ void BraveSodaInstaller::InstallLanguage(std::string_view language,
   // Safe to return early in both cases. The only caller that waits on a reply,
   // `OnDeviceSpeechRecognitionImpl::Install`, never calls in for either.
   if (!IsLanguageEnabled(language) ||
-      local_ai::OnDeviceSpeechModelsState::GetInstance()->IsModelInstalled()) {
+      local_ai::OnDeviceSpeechModelsState::GetInstance()->IsModelInstalled(
+          local_ai::OnDeviceSpeechModel::kEnglish)) {
     return;
   }
 
   local_ai::MaybeRegisterOnDeviceSpeechModelsComponent(
+      local_ai::OnDeviceSpeechModel::kEnglish,
       base::BindOnce(&BraveSodaInstaller::OnSpeechModelInstallFinished,
                      weak_factory_.GetWeakPtr()));
 }
@@ -45,8 +47,7 @@ std::vector<std::string> BraveSodaInstaller::GetLiveCaptionEnabledLanguages()
   // Brave's model serves English only, and only while Brave may install it.
   // `SpeechRecognition.install()` rejects anything outside this list before it
   // reaches `InstallLanguage`.
-  if (!local_ai::IsOnDeviceSpeechRecognitionAllowed(
-          g_browser_process->local_state())) {
+  if (!local_ai::CanOfferOnDeviceSpeech(g_browser_process->local_state())) {
     return {};
   }
   return {GetLanguageName(LanguageCode::kEnUs)};
@@ -74,7 +75,13 @@ void BraveSodaInstaller::OnSpeechModelInstallFinished(bool success) {
 }
 
 void BraveSodaInstaller::OnSpeechModelDirChanged(
+    local_ai::OnDeviceSpeechModel model,
     const base::FilePath& model_dir) {
+  // Only the English model serves a language for now.
+  if (model != local_ai::OnDeviceSpeechModel::kEnglish) {
+    return;
+  }
+
   if (model_dir.empty()) {
     soda_binary_installed_ = false;
     installed_languages_.erase(LanguageCode::kEnUs);

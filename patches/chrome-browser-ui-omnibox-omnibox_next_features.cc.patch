@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/omnibox/omnibox_next_features.cc b/chrome/browser/ui/omnibox/omnibox_next_features.cc
-index 0b8ebeed5b40a292351d9a0757d2ff9281b6c57d..a2e57248f929990e41dedfb1b5d7b5664389b13e 100644
+index 72af2d4c1e337fcea3ce4b1abdce2c90de4244ae..c58a76bc0369b3af02af44eea70cf38764b47e12 100644
 --- a/chrome/browser/ui/omnibox/omnibox_next_features.cc
 +++ b/chrome/browser/ui/omnibox/omnibox_next_features.cc
-@@ -45,11 +45,11 @@ namespace omnibox {
+@@ -46,11 +46,11 @@ namespace omnibox {
  namespace internal {
  
  // If enabled, shows the omnibox suggestions in the popup in WebUI.

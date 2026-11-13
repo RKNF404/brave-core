@@ -25,6 +25,10 @@ class SidePanelUI;
 class TabStripModel;
 enum class SidePanelEntryId;
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace sidebar {
 
 class Sidebar;
@@ -61,13 +65,18 @@ class SidebarController : public SidebarService::Observer,
   // |disposition| is only used for shortcut type items.
   void OnItemPressed(
       size_t index,
-      WindowOpenDisposition disposition = WindowOpenDisposition::CURRENT_TAB);
+      WindowOpenDisposition disposition = WindowOpenDisposition::kCurrentTab);
   void AddItemWithCurrentTab();
 
   // Called by BraveSidePanelCoordinator when a side panel entry is shown or
   // hidden, so the sidebar can mirror which item is active.
   void HandleSidePanelOpened(SidePanelEntryId id);
   void HandleSidePanelClosed();
+
+  // Called by BraveSidePanelCoordinator before showing an entry. True when a
+  // surface the side panel is about to replace is already on screen, so the
+  // open should not animate.
+  bool ShouldSuppressSidePanelOpenAnimation() const;
 
   // Toggles a session-only "pin" that forces the sidebar control view
   // visible regardless of the current show option. Pinned state is cleared
@@ -92,7 +101,15 @@ class SidebarController : public SidebarService::Observer,
 
   void TearDownPreBrowserWindowDestruction();
 
-  void SetSidebar(Sidebar* sidebar);
+  // Synchronous and shutdown-only. No-op when no web panel is open. See
+  // SidebarWebPanelController::CloseWebPanelForShutdown().
+  void CloseWebPanelForShutdown();
+
+  // True when `contents` is this window's open web panel.
+  bool IsWebPanelTab(const content::WebContents* contents) const;
+
+  void SetSidebar(Sidebar& sidebar);
+
   Sidebar* sidebar() const { return sidebar_; }
   SidebarModel* model() const { return sidebar_model_.get(); }
 

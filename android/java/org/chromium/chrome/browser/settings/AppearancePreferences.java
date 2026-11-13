@@ -29,6 +29,8 @@ import org.chromium.chrome.browser.appearance.settings.AppearanceSettingsFragmen
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarUtils;
 import org.chromium.chrome.browser.brave_leo.BraveLeoPrefUtils;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.homepage.HomepageManager;
+import org.chromium.chrome.browser.homepage.settings.BraveHomepageSettings;
 import org.chromium.chrome.browser.multiwindow.BraveMultiWindowDialogFragment;
 import org.chromium.chrome.browser.multiwindow.BraveMultiWindowUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
@@ -46,7 +48,8 @@ import org.chromium.chrome.browser.toolbar.adaptive.BraveAdaptiveToolbarPrefs;
 import org.chromium.chrome.browser.toolbar.adaptive.settings.BraveRadioButtonGroupAdaptiveToolbarPreference;
 import org.chromium.chrome.browser.toolbar.bottom.BottomToolbarConfiguration;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment;
-import org.chromium.chrome.browser.ui.bottombar.BraveBottomBarUserPrefs;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.settings.search.PreferenceParser;
@@ -83,6 +86,11 @@ public class AppearancePreferences extends AppearanceSettingsFragment
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
         super.onCreatePreferences(savedInstanceState, rootKey);
 
+        // Upstream has its own "Address bar" row under the same key, kept while kAndroidBottomBar
+        // moves the toolbar settings into Appearance. Drop it, otherwise the screen shows both and
+        // findPreference() below resolves to upstream's row, leaving Brave's unstyled.
+        removePreferenceIfPresent(PREF_ADDRESS_BAR);
+
         SettingsUtils.addPreferencesFromResource(this, R.xml.brave_appearance_preferences);
 
         // Forward the custom menu item keys from appearance to custom menu item preference screen.
@@ -94,13 +102,9 @@ public class AppearancePreferences extends AppearanceSettingsFragment
                         ContextUtils.getApplicationContext());
         // The bottom navigation toolbar is not available on tablets. Off tablets it has two
         // implementations with a switch each - Brave's own bottom controls, and upstream's bottom
-        // bar - so only the switch for the one the flag selects is kept.
-        boolean isAndroidBottomBarEnabled = BottomToolbarConfiguration.isAndroidBottomBarEnabled();
-        if (isTablet || isAndroidBottomBarEnabled) {
+        // bar, whose switch upstream removes itself while the flag is off.
+        if (isTablet || BottomToolbarConfiguration.isAndroidBottomBarEnabled()) {
             removePreferenceIfPresent(BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY);
-        }
-        if (isTablet || !isAndroidBottomBarEnabled) {
-            removePreferenceIfPresent(BravePreferenceKeys.BRAVE_ENABLE_BOTTOM_BAR);
         }
 
         mBraveRewardsNativeWorker = BraveRewardsNativeWorker.getInstance();
@@ -114,6 +118,13 @@ public class AppearancePreferences extends AppearanceSettingsFragment
 
         if (!ToolbarPositionController.isToolbarPositionCustomizationEnabled(getContext(), false)) {
             removePreferenceIfPresent(PREF_ADDRESS_BAR);
+        }
+
+        // The bottom bar moves upstream's "Homepage" row here from main settings, where Brave
+        // points it at its own fragment to expose the on/off switch.
+        Preference homepage = findPreference(AppearanceSettingsFragment.PREF_HOMEPAGE);
+        if (homepage != null) {
+            homepage.setFragment(BraveHomepageSettings.class.getName());
         }
 
         setPreferenceVisibleIfPresent(
@@ -177,11 +188,6 @@ public class AppearancePreferences extends AppearanceSettingsFragment
                 findPreference(BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY);
         if (enableBottomToolbar != null) {
             enableBottomToolbar.setOnPreferenceChangeListener(this);
-        }
-
-        Preference enableBottomBar = findPreference(BravePreferenceKeys.BRAVE_ENABLE_BOTTOM_BAR);
-        if (enableBottomBar != null) {
-            enableBottomBar.setOnPreferenceChangeListener(this);
         }
 
         ChromeSwitchPreference dynamicColorsPref =
@@ -279,20 +285,26 @@ public class AppearancePreferences extends AppearanceSettingsFragment
                     .setEnabled(BottomToolbarConfiguration.isToolbarTopAnchored());
         }
 
-        Preference enableBottomBar = findPreference(BravePreferenceKeys.BRAVE_ENABLE_BOTTOM_BAR);
-        if (enableBottomBar instanceof ChromeSwitchPreference) {
-            // The bottom bar is shown with the address bar in either position, so unlike the
-            // switch above this one has nothing to disable it for.
-            ((ChromeSwitchPreference) enableBottomBar)
-                    .setChecked(BraveBottomBarUserPrefs.isBottomBarSettingEnabled());
-        }
+        updatePreferenceIcon(
+                AppearanceSettingsFragment.PREF_BOTTOM_BAR_SWITCH,
+                R.drawable.ic_browser_mobile_bottom_toolbar);
 
         updatePreferenceIcon(
                 AppearanceSettingsFragment.PREF_TOOLBAR_SHORTCUT,
                 R.drawable.ic_browser_customizable_shortcut);
 
+        updatePreferenceIcon(AppearanceSettingsFragment.PREF_HOMEPAGE, R.drawable.ic_browser_home);
+
         // Update the UI theme preference icon.
         updatePreferenceIcon(AppearanceSettingsFragment.PREF_UI_THEME, R.drawable.ic_theme_system);
+
+        // The bookmarks bar NTP feature picks which of these two rows is on the screen (a page
+        // link when enabled, a switch when disabled). The other is not found and is skipped.
+        updatePreferenceIcon(
+                AppearanceSettingsFragment.PREF_BOOKMARK_BAR, R.drawable.ic_product_bookmarks);
+        updatePreferenceIcon(
+                AppearanceSettingsFragment.PREF_BOOKMARK_BAR_SWITCH,
+                R.drawable.ic_product_bookmarks);
     }
 
     @Override
@@ -315,10 +327,6 @@ public class AppearancePreferences extends AppearanceSettingsFragment
             ChromeSharedPreferences.getInstance()
                     .writeBoolean(
                             BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY, !originalStatus);
-            shouldRelaunch = true;
-        } else if (BravePreferenceKeys.BRAVE_ENABLE_BOTTOM_BAR.equals(key)) {
-            ChromeSharedPreferences.getInstance()
-                    .writeBoolean(BravePreferenceKeys.BRAVE_ENABLE_BOTTOM_BAR, (boolean) newValue);
             shouldRelaunch = true;
         } else if (PREF_SHOW_BRAVE_REWARDS_ICON.equals(key)) {
             ChromeSharedPreferences.getInstance()
@@ -423,17 +431,18 @@ public class AppearancePreferences extends AppearanceSettingsFragment
         setPreferenceOrder(PREF_BRAVE_CUSTOMIZE_MENU, 3);
         setPreferenceOrder(AppearanceSettingsFragment.PREF_TOOLBAR_SHORTCUT, 4);
         setPreferenceOrder(PREF_ADDRESS_BAR, 5);
+        setPreferenceOrder(AppearanceSettingsFragment.PREF_HOMEPAGE, 6);
         // Only one of the two bottom navigation toolbar switches is present, so they share a slot.
-        setPreferenceOrder(BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY, 6);
-        setPreferenceOrder(BravePreferenceKeys.BRAVE_ENABLE_BOTTOM_BAR, 6);
-        setPreferenceOrder(PREF_ENABLE_MULTI_WINDOWS, 7);
-        setPreferenceOrder(PREF_GENERAL_SECTION, 8);
-        setPreferenceOrder(PREF_BRAVE_NIGHT_MODE_ENABLED, 9);
-        setPreferenceOrder(PREF_BRAVE_DISABLE_SHARING_HUB, 10);
-        setPreferenceOrder(PREF_SHOW_BRAVE_REWARDS_ICON, 11);
-        setPreferenceOrder(AppearanceSettingsFragment.PREF_BOOKMARK_BAR, 12);
-        setPreferenceOrder(PREF_BRAVE_ENABLE_TAB_GROUPS, 13);
-        setPreferenceOrder(PREF_SHOW_UNDO_WHEN_TABS_CLOSED, 14);
+        setPreferenceOrder(BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY, 7);
+        setPreferenceOrder(AppearanceSettingsFragment.PREF_BOTTOM_BAR_SWITCH, 7);
+        setPreferenceOrder(PREF_ENABLE_MULTI_WINDOWS, 8);
+        setPreferenceOrder(PREF_GENERAL_SECTION, 9);
+        setPreferenceOrder(PREF_BRAVE_NIGHT_MODE_ENABLED, 10);
+        setPreferenceOrder(PREF_BRAVE_DISABLE_SHARING_HUB, 11);
+        setPreferenceOrder(PREF_SHOW_BRAVE_REWARDS_ICON, 12);
+        setPreferenceOrder(AppearanceSettingsFragment.PREF_BOOKMARK_BAR, 13);
+        setPreferenceOrder(PREF_BRAVE_ENABLE_TAB_GROUPS, 14);
+        setPreferenceOrder(PREF_SHOW_UNDO_WHEN_TABS_CLOSED, 15);
     }
 
     private void setPreferenceOrder(String key, int order) {
@@ -488,6 +497,20 @@ public class AppearancePreferences extends AppearanceSettingsFragment
                         SettingsIndexData indexData,
                         Map<String, SearchIndexProvider> providerMap) {
                     super.initPreferenceXml(context, profile, indexData, providerMap);
+                    // Brave's appearance XML carries its own "Address bar" row, which upstream
+                    // also has now. Drop the upstream entry so re-parsing the key below is not a
+                    // duplicate ID.
+                    indexData.removeEntryForKey(
+                            AppearancePreferences.class.getName(), PREF_ADDRESS_BAR);
+                    // Unless the bottom bar moves the "Homepage" row here, Brave keeps it in main
+                    // settings and the upstream copy would be a second search result for the same
+                    // screen.
+                    if (!BottomBarConfigUtils.shouldMoveToolbarSettingsToAppearance(context)
+                            || !HomepageManager.shouldShowHomepageSettings()) {
+                        indexData.removeEntryForKey(
+                                AppearancePreferences.class.getName(),
+                                AppearanceSettingsFragment.PREF_HOMEPAGE);
+                    }
                     PreferenceParser.parseAndPopulate(
                             context,
                             R.xml.brave_appearance_preferences,
@@ -501,6 +524,14 @@ public class AppearancePreferences extends AppearanceSettingsFragment
                 public void updateDynamicPreferences(
                         Context context, SettingsIndexData indexData, Profile profile) {
                     String frag = AppearancePreferences.class.getName();
+                    // The row is retitled "Address bar shortcut" when the bottom bar brings the
+                    // address bar settings here.
+                    if (BottomBarConfigUtils.shouldMoveToolbarSettingsToAppearance(context)) {
+                        indexData.updateEntryForKey(
+                                frag,
+                                AppearanceSettingsFragment.PREF_TOOLBAR_SHORTCUT,
+                                R.string.address_bar_shortcut);
+                    }
                     AppearanceSettingsFragment.shouldShowToolbarShortcutPrefAsync(
                             context,
                             profile,
@@ -511,9 +542,34 @@ public class AppearancePreferences extends AppearanceSettingsFragment
                                     indexData.resolveIndex();
                                 }
                             });
+                    // The screen keeps at most one of the two bookmark bar rows. Upstream also
+                    // puts the visibility state in the summary, but that helper is package-private.
                     if (!BookmarkBarUtils.isDeviceBookmarkBarCompatible(context)) {
                         indexData.removeEntryForKey(
                                 frag, AppearanceSettingsFragment.PREF_BOOKMARK_BAR);
+                        indexData.removeEntryForKey(
+                                frag, AppearanceSettingsFragment.PREF_BOOKMARK_BAR_SWITCH);
+                    } else if (ChromeFeatureList.sBookmarksBarNTP.isEnabled()) {
+                        indexData.removeEntryForKey(
+                                frag, AppearanceSettingsFragment.PREF_BOOKMARK_BAR_SWITCH);
+                        indexData.updateEntrySummaryForKey(
+                                frag,
+                                AppearanceSettingsFragment.PREF_BOOKMARK_BAR,
+                                AppearanceSettingsFragment.getBookmarkBarVisibilityStateSummaryRes(
+                                        profile));
+                    } else {
+                        indexData.removeEntryForKey(
+                                frag, AppearanceSettingsFragment.PREF_BOOKMARK_BAR);
+                    }
+
+                    if (!VerticalTabUtils.isVerticalTabsEligible(context)) {
+                        indexData.removeEntryForKey(
+                                frag, AppearanceSettingsFragment.PREF_TAB_POSITION);
+                    }
+
+                    if (!BottomBarConfigUtils.shouldShowSettingsToggle(context)) {
+                        indexData.removeEntryForKey(
+                                frag, AppearanceSettingsFragment.PREF_BOTTOM_BAR_SWITCH);
                     }
 
                     if (BraveRewardsPolicy.isDisabledByPolicy(profile)) {

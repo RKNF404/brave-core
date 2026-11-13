@@ -261,7 +261,6 @@ const PrefsUtil::TypedPrefMap& BravePrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_brave_allowlist)[browsing_data::prefs::kDeleteBraveLeoHistoryOnExit] =
       settings_api::PrefType::kBoolean;
-  (*s_brave_allowlist)[kMRUCyclingEnabled] = settings_api::PrefType::kBoolean;
 #if BUILDFLAG(ENABLE_BRAVE_WAYBACK_MACHINE)
   (*s_brave_allowlist)[kBraveWaybackMachineEnabled] =
       settings_api::PrefType::kBoolean;
@@ -270,7 +269,7 @@ const PrefsUtil::TypedPrefMap& BravePrefsUtil::GetAllowlistedKeys() {
 #endif
   (*s_brave_allowlist)[kEnableWindowClosingConfirm] =
       settings_api::PrefType::kBoolean;
-  (*s_brave_allowlist)[kEnableClosingLastTab] =
+  (*s_brave_allowlist)[brave_tabs::kEnableClosingLastTab] =
       settings_api::PrefType::kBoolean;
   (*s_brave_allowlist)[kShowFullscreenReminder] =
       settings_api::PrefType::kBoolean;
@@ -290,8 +289,6 @@ const PrefsUtil::TypedPrefMap& BravePrefsUtil::GetAllowlistedKeys() {
   (*s_brave_allowlist)[brave_wallet::kDefaultCardanoWallet] =
       settings_api::PrefType::kNumber;
   (*s_brave_allowlist)[brave_wallet::kDefaultBaseCurrency] =
-      settings_api::PrefType::kString;
-  (*s_brave_allowlist)[brave_wallet::kDefaultBaseCryptocurrency] =
       settings_api::PrefType::kString;
   (*s_brave_allowlist)[brave_wallet::kShowWalletIconOnToolbar] =
       settings_api::PrefType::kBoolean;
@@ -339,6 +336,8 @@ const PrefsUtil::TypedPrefMap& BravePrefsUtil::GetAllowlistedKeys() {
   // On-device AI pref
   (*s_brave_allowlist)[local_ai::prefs::kBraveHistoryEmbeddingsEnabled] =
       settings_api::PrefType::kBoolean;
+  (*s_brave_allowlist)[local_ai::prefs::kOnDeviceSpeechEnglishModelEnabled] =
+      settings_api::PrefType::kBoolean;
 #endif
 
 #if !BUILDFLAG(USE_GCM_FROM_PLATFORM)
@@ -350,8 +349,6 @@ const PrefsUtil::TypedPrefMap& BravePrefsUtil::GetAllowlistedKeys() {
   (*s_brave_allowlist)[omnibox::kPreventUrlElisionsInOmnibox] =
       settings_api::PrefType::kBoolean;
 #if BUILDFLAG(ENABLE_TOR)
-  (*s_brave_allowlist)[tor::prefs::kOnionOnlyInTorWindows] =
-      settings_api::PrefType::kBoolean;
   (*s_brave_allowlist)[tor::prefs::kBridgesConfig] =
       settings_api::PrefType::kDictionary;
 #endif

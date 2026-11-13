@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <atomic>
 #include <optional>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
@@ -33,13 +34,15 @@
 #include "brave/browser/ui/sidebar/sidebar_web_panel_controller.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
+#include "brave/browser/ui/views/brave_layout_provider.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_contents_view_util.h"
 #include "brave/browser/ui/views/frame/split_view/brave_contents_container_view.h"
 #include "brave/browser/ui/views/frame/split_view/brave_multi_contents_view.h"
 #include "brave/browser/ui/views/frame/split_view/brave_multi_contents_view_mini_toolbar.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
+#include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
 #include "brave/browser/ui/views/side_panel/brave_side_panel_header.h"
-#include "brave/browser/ui/views/side_panel/brave_side_panel_resize_area.h"
 #include "brave/browser/ui/views/side_panel/side_panel_utils.h"
 #include "brave/browser/ui/views/sidebar/sidebar_container_view.h"
 #include "brave/browser/ui/views/sidebar/sidebar_control_view.h"
@@ -85,6 +88,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/infobars/content/content_infobar_manager.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "net/dns/mock_host_resolver.h"
@@ -92,6 +96,7 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/screen.h"
@@ -102,9 +107,13 @@
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/animation/ink_drop.h"
+#include "ui/views/controls/resize_area.h"
 #include "ui/views/layout/layout_provider.h"
+#include "ui/views/view.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget_utils.h"
 
@@ -182,7 +191,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, BasicTest) {
   int active_item_index = first_panel_item_index;
   if (first_web_item_index < model()->GetAllSidebarItems().size()) {
     const auto item = model()->GetAllSidebarItems()[first_web_item_index];
-    EXPECT_FALSE(item.open_in_panel);
+    EXPECT_FALSE(item.opens_in_panel());
     controller()->OnItemPressed(first_web_item_index);
   }
   EXPECT_THAT(model()->active_index(), Optional(active_item_index));
@@ -255,7 +264,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, WebTypePanelTest) {
   // Load NTP in a new tab and activate it. (tab index 1)
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   current_tab_index = tab_model()->active_index();
   EXPECT_EQ(1, current_tab_index);
@@ -265,7 +274,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, WebTypePanelTest) {
   auto items = model()->GetAllSidebarItems();
   auto iter =
       std::ranges::find(items, GURL("chrome://settings/"), &SidebarItem::url);
-  EXPECT_NE(items.end(), iter);
+  ASSERT_NE(items.end(), iter);
   controller()->OnItemPressed(std::distance(items.begin(), iter));
   EXPECT_EQ(0, tab_model()->active_index());
   EXPECT_EQ(tab_model()->GetWebContentsAt(0)->GetVisibleURL(), iter->url);
@@ -274,7 +283,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, WebTypePanelTest) {
   // Activate second sidebar item(wallet) and check it's loaded at current tab.
   iter = std::ranges::find(items, SidebarItem::BuiltInItemType::kWallet,
                            &SidebarItem::built_in_item_type);
-  EXPECT_NE(items.end(), iter);
+  ASSERT_NE(items.end(), iter);
   controller()->OnItemPressed(std::distance(items.begin(), iter));
   EXPECT_EQ(0, tab_model()->active_index());
   EXPECT_EQ(tab_model()->GetWebContentsAt(0)->GetVisibleURL(), iter->url);
@@ -302,12 +311,14 @@ class SidebarBrowserTestWalletSidePanel : public SidebarBrowserTest {
     EXPECT_TRUE(index.has_value());
 
     auto* panel_ui = SidePanelUI::From(browser());
-    EXPECT_TRUE(panel_ui);
+    if (!panel_ui) {
+      ADD_FAILURE() << "No SidePanelUI";
+      return std::nullopt;
+    }
     panel_ui->Show(SidePanelEntryId::kWallet);
 
     EXPECT_TRUE(base::test::RunUntil([&]() {
-      return panel_ui &&
-             panel_ui->GetCurrentEntryId() == SidePanelEntryId::kWallet;
+      return panel_ui->GetCurrentEntryId() == SidePanelEntryId::kWallet;
     }));
     return index;
   }
@@ -322,7 +333,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWalletSidePanel, WalletSidePanel) {
       std::ranges::find(items, SidebarItem::BuiltInItemType::kWallet,
                         &SidebarItem::built_in_item_type);
   ASSERT_NE(wallet_item_iter, items.cend());
-  EXPECT_TRUE(wallet_item_iter->open_in_panel);
+  EXPECT_TRUE(wallet_item_iter->is_side_panel_type());
 
   const int initial_tab_count = tab_model()->count();
 
@@ -347,7 +358,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWalletSidePanel,
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_EQ(2, tab_model()->count());
 
@@ -362,7 +373,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWalletSidePanel,
   EXPECT_EQ(SidePanelEntryId::kWallet, panel_ui->GetCurrentEntryId());
 }
 
-// Built-in Wallet keeps its page URL even when open_in_panel is true, so the
+// Built-in Wallet keeps its page URL even when it opens a side panel, so the
 // + bubble does not offer the current brave://wallet tab as a web shortcut.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWalletSidePanel,
                        CannotAddWalletPageWhenBuiltInItemExists) {
@@ -372,7 +383,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWalletSidePanel,
                         &SidebarItem::built_in_item_type);
   ASSERT_NE(wallet_item_iter, items.cend());
   EXPECT_EQ(GURL(kBraveUIWalletPageURL), wallet_item_iter->url);
-  EXPECT_TRUE(wallet_item_iter->open_in_panel);
+  EXPECT_TRUE(wallet_item_iter->is_side_panel_type());
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("brave://wallet/")));
   EXPECT_FALSE(CanAddCurrentActiveTabToSidebar(browser()));
@@ -413,6 +424,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, DefaultEntryTest) {
   auto* panel_ui = SidePanelUI::From(browser());
   auto bookmark_item_index =
       model()->GetIndexOf(SidebarItem::BuiltInItemType::kBookmarks);
+  ASSERT_TRUE(bookmark_item_index.has_value());
   panel_ui->Show(SidePanelEntryId::kBookmarks);
 
   // Wait till bookmark panel is activated.
@@ -604,15 +616,190 @@ INSTANTIATE_TEST_SUITE_P(
     SidebarBrowserWithSplitViewTest,
     ::testing::Bool());
 
+// The vertical tab strip is laid out outside the sidebar, so when both are on
+// the same side the sidebar's hot corner has to start where the strip ends.
+class SidebarBrowserTestWithVerticalTabs : public SidebarBrowserTest {
+ public:
+  SidebarBrowserTestWithVerticalTabs() {
+    // The "hide completely when collapsed" pref is only registered behind this
+    // flag.
+    feature_list_.InitAndEnableFeature(tabs::kBraveVerticalTabHideCompletely);
+  }
+  ~SidebarBrowserTestWithVerticalTabs() override = default;
+
+  void SetUpOnMainThread() override {
+    SidebarBrowserTest::SetUpOnMainThread();
+
+    SidebarServiceFactory::GetForProfile(browser()->GetProfile())
+        ->SetSidebarShowOption(
+            SidebarService::ShowSidebarOption::kShowOnMouseOver);
+    brave::ToggleVerticalTabStrip(browser());
+    ASSERT_TRUE(
+        VerticalTabController::From(browser())->ShouldShowBraveVerticalTabs());
+    RunScheduledLayouts();
+  }
+
+  PrefService* GetPrefs() { return browser()->GetProfile()->GetPrefs(); }
+
+  void SetSidebarOnRight(bool on_right) {
+    GetPrefs()->SetBoolean(prefs::kSidePanelHorizontalAlignment, on_right);
+    RunScheduledLayouts();
+    ASSERT_EQ(on_right, !IsSidebarUIOnLeft());
+  }
+
+  void SetVerticalTabOnRight(bool on_right) {
+    GetPrefs()->SetBoolean(brave_tabs::kVerticalTabsOnRight, on_right);
+    RunScheduledLayouts();
+  }
+
+  // Width the vertical tab strip renders at the window edge. With rounded
+  // contents this is wider than the width the layout insets the contents by.
+  int GetVerticalTabStripWidth() {
+    return browser_view()->vertical_tab_strip_container_view()->width();
+  }
+
+  BraveVerticalTabStripRegionView* GetVerticalTabStripRegionView() {
+    return browser_view()
+        ->vertical_tab_strip_container_view()
+        ->vertical_tab_strip_region_view();
+  }
+
+  // Point |offset_from_edge| inward from the sidebar's window edge.
+  gfx::Point PointAtOffsetFromEdge(int offset_from_edge) {
+    const bool on_left = IsSidebarUIOnLeft();
+    const auto detect_bounds =
+        browser_view()->GetBoundingBoxInScreenForMouseOverHandling();
+    gfx::Point position =
+        on_left ? detect_bounds.origin() : detect_bounds.top_right();
+    position.Offset(on_left ? offset_from_edge : -offset_from_edge, 2);
+    return position;
+  }
+
+  // Hides the sidebar, then moves the cursor |offset_from_edge| inward from the
+  // sidebar's window edge and dispatches a mouse move.
+  bool RevealsSidebarAtOffsetFromEdge(int offset_from_edge) {
+    HideSidebar();
+    EXPECT_FALSE(GetSidebarContainerView()->IsSidebarVisible());
+
+    display::Screen::Get()->SetCursorScreenPointForTesting(
+        PointAtOffsetFromEdge(offset_from_edge));
+    HandleBrowserWindowMouseEvent();
+    return GetSidebarContainerView()->IsSidebarVisible();
+  }
+
+  // Moves the cursor to the middle of the window and dispatches a mouse move,
+  // which collapses the strip if it was floating.
+  void CollapseVerticalTabStrip() {
+    display::Screen::Get()->SetCursorScreenPointForTesting(
+        browser_view()->GetBoundsInScreen().CenterPoint());
+    HandleBrowserWindowMouseEvent();
+    RunScheduledLayouts();
+    ASSERT_EQ(BraveVerticalTabStripRegionView::State::kCollapsed,
+              GetVerticalTabStripRegionView()->state());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+
+  // The hot corner is checked against Screen::GetCursorScreenPoint() rather
+  // than the event location, and only TestScreen implements
+  // SetCursorScreenPointForTesting().
+  display::test::TestScreen screen_{/*create_display=*/true,
+                                    /*register_screen=*/true};
+};
+
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithVerticalTabs,
+                       HotCornerExcludesVerticalTabStripOnSameSideTest) {
+  // Rounded contents move the strip's inner edge past the width the layout
+  // insets the contents by, so the hot corner has to follow the rendered edge.
+  for (const bool rounded_corners : {false, true}) {
+    SCOPED_TRACE(rounded_corners ? "rounded corners" : "square corners");
+    GetPrefs()->SetBoolean(kWebViewRoundedCorners, rounded_corners);
+    RunScheduledLayouts();
+
+    for (const bool on_right : {false, true}) {
+      SCOPED_TRACE(on_right ? "both on right" : "both on left");
+      SetVerticalTabOnRight(on_right);
+      SetSidebarOnRight(on_right);
+
+      const int vertical_tab_width = GetVerticalTabStripWidth();
+      ASSERT_GT(vertical_tab_width, 0);
+
+      // The window edge belongs to the vertical tab strip.
+      EXPECT_FALSE(RevealsSidebarAtOffsetFromEdge(2));
+
+      // Just inside the strip's inner edge is the sidebar's hot corner.
+      EXPECT_TRUE(RevealsSidebarAtOffsetFromEdge(vertical_tab_width + 2));
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithVerticalTabs,
+                       HotCornerKeepsWindowEdgeOnOppositeSideTest) {
+  SetVerticalTabOnRight(false);
+  SetSidebarOnRight(true);
+
+  ASSERT_GT(GetVerticalTabStripWidth(), 0);
+
+  // Nothing sits outside the sidebar, so the window edge still reveals it.
+  EXPECT_TRUE(RevealsSidebarAtOffsetFromEdge(2));
+}
+
+// When the strip is collapsed to zero width it floats over the contents and
+// keeps the window edge for its own hover handling.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithVerticalTabs,
+                       HotCornerYieldsToFloatingVerticalTabStripTest) {
+  SetVerticalTabOnRight(false);
+  SetSidebarOnRight(false);
+
+  GetPrefs()->SetBoolean(brave_tabs::kVerticalTabsHideCompletelyWhenCollapsed,
+                         true);
+  GetPrefs()->SetBoolean(brave_tabs::kVerticalTabsCollapsed, true);
+  RunScheduledLayouts();
+  ASSERT_EQ(0, GetVerticalTabStripWidth());
+
+  EXPECT_FALSE(RevealsSidebarAtOffsetFromEdge(2));
+}
+
+// While floating, the strip draws over the contents without taking any extra
+// width from them, so it covers where the sidebar's hot corner sits at rest.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithVerticalTabs,
+                       HotCornerYieldsToFloatedOpenVerticalTabStripTest) {
+  GetPrefs()->SetBoolean(brave_tabs::kVerticalTabsFloatingEnabled, true);
+  GetPrefs()->SetBoolean(brave_tabs::kVerticalTabsHideCompletelyWhenCollapsed,
+                         false);
+  GetPrefs()->SetBoolean(brave_tabs::kVerticalTabsCollapsed, true);
+
+  for (const bool on_right : {false, true}) {
+    SCOPED_TRACE(on_right ? "both on right" : "both on left");
+    SetVerticalTabOnRight(on_right);
+    SetSidebarOnRight(on_right);
+    CollapseVerticalTabStrip();
+
+    const int collapsed_width = GetVerticalTabStripWidth();
+    ASSERT_GT(collapsed_width, 0);
+
+    // The window edge belongs to the collapsed strip, and hovering it floats
+    // the strip open over the contents.
+    EXPECT_FALSE(RevealsSidebarAtOffsetFromEdge(2));
+    RunScheduledLayouts();
+    ASSERT_EQ(BraveVerticalTabStripRegionView::State::kFloating,
+              GetVerticalTabStripRegionView()->state());
+    ASSERT_GT(GetVerticalTabStripWidth(), collapsed_width);
+
+    // The hot corner the collapsed strip left behind is now under the floated
+    // open strip.
+    EXPECT_FALSE(RevealsSidebarAtOffsetFromEdge(collapsed_width + 2));
+  }
+}
+
 class SidebarBrowserWithWebPanelTest
     : public SidebarBrowserTest,
       public testing::WithParamInterface<bool> {
  public:
   SidebarBrowserWithWebPanelTest() {
-    if (GetParam()) {
-      scoped_features_.InitAndEnableFeature(
-          sidebar::features::kSidebarWebPanel);
-    }
+    scoped_features_.InitWithFeatureState(sidebar::features::kSidebarWebPanel,
+                                          GetParam());
   }
   ~SidebarBrowserWithWebPanelTest() override = default;
 
@@ -633,11 +820,12 @@ class SidebarBrowserWithWebPanelTest
 };
 
 IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
-  auto contents_container_view_for_web_panel =
-      GetBraveMultiContentsView()->contents_container_view_for_web_panel_;
-  if (!IsWebPanelEnabled()) {
-    EXPECT_FALSE(contents_container_view_for_web_panel);
+  // The container is created on first use, so it doesn't exist yet regardless
+  // of the feature state.
+  EXPECT_FALSE(
+      GetBraveMultiContentsView()->contents_container_view_for_web_panel_);
 
+  if (!IsWebPanelEnabled()) {
     // Even web panel feature is disabled, sidebar could have web panel
     // type because it could be added when that feature enabled.
     // In this sitaution, web panel type should work like web type that
@@ -646,9 +834,8 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
     auto* sidebar_service =
         SidebarServiceFactory::GetForProfile(browser()->GetProfile());
     GURL item_url("http://foo.bar/");
-    sidebar_service->AddItem(sidebar::SidebarItem::Create(
-        item_url, u"title", SidebarItem::Type::kTypeWeb,
-        SidebarItem::BuiltInItemType::kNone, /*open_in_panel*/ true));
+    sidebar_service->AddItem(
+        sidebar::SidebarItem::CreateWebPanelItem(item_url, u"title"));
     EXPECT_NE(tab_model()->GetActiveWebContents()->GetVisibleURL(), item_url);
     // Above item is added at last.
     controller()->OnItemPressed(sidebar_service->items().size() - 1);
@@ -666,9 +853,12 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
     return;
   }
 
-  EXPECT_TRUE(contents_container_view_for_web_panel);
+  GetBraveMultiContentsView()->UseContentsContainerViewForWebPanel();
+  auto contents_container_view_for_web_panel =
+      GetBraveMultiContentsView()->contents_container_view_for_web_panel_;
+  ASSERT_TRUE(contents_container_view_for_web_panel);
   EXPECT_FALSE(contents_container_view_for_web_panel->GetVisible());
-  EXPECT_GT(GetBraveMultiContentsView()->web_panel_width_, 0);
+  EXPECT_GT(GetBraveMultiContentsView()->web_panel_width_for_testing(), 0);
   EXPECT_EQ(GetBraveMultiContentsView()->GetWebPanelWidth(), 0);
   EXPECT_EQ(contents_container_view_for_web_panel->width(), 0);
   EXPECT_FALSE(GetBraveMultiContentsView()->web_panel_on_left_);
@@ -681,21 +871,28 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
   GetBraveMultiContentsView()->InvalidateLayout();
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return contents_container_view_for_web_panel->width() ==
-           GetBraveMultiContentsView()->web_panel_width_;
+           GetBraveMultiContentsView()->web_panel_width_for_testing();
   }));
+  // The resize area sits between the contents area and the panel.
+  const int resize_area_width =
+      GetBraveMultiContentsView()->web_panel_resize_area_for_testing()->width();
+  gfx::Point expected_panel_origin = GetBraveMultiContentsView()
+                                         ->GetActiveContentsContainerView()
+                                         ->bounds()
+                                         .top_right();
+  expected_panel_origin.Offset(resize_area_width, 0);
   EXPECT_EQ(contents_container_view_for_web_panel->bounds().origin(),
-            GetBraveMultiContentsView()
-                ->GetActiveContentsContainerView()
-                ->bounds()
-                .top_right());
+            expected_panel_origin);
 
   GetBraveMultiContentsView()->SetWebPanelOnLeft(true);
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return contents_container_view_for_web_panel->bounds().top_right() ==
-           GetBraveMultiContentsView()
-               ->GetActiveContentsContainerView()
-               ->bounds()
-               .origin();
+    gfx::Point expected_contents_origin =
+        contents_container_view_for_web_panel->bounds().top_right();
+    expected_contents_origin.Offset(resize_area_width, 0);
+    return expected_contents_origin == GetBraveMultiContentsView()
+                                           ->GetActiveContentsContainerView()
+                                           ->bounds()
+                                           .origin();
   }));
 
   contents_container_view_for_web_panel->SetVisible(false);
@@ -774,7 +971,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
   EXPECT_EQ(2, tab_strip_model->active_index());
   EXPECT_TRUE(tab_strip_model->GetTabAtIndex(1)->IsSplit());
   EXPECT_TRUE(tab_strip_model->GetTabAtIndex(2)->IsSplit());
-  EXPECT_FALSE(GetBraveMultiContentsView()->is_web_panel_active_);
+  EXPECT_FALSE(GetBraveMultiContentsView()->is_web_panel_active_for_testing());
 
   // Cache current inactive split tab contents and check it's not changed for
   // inactive contents view when web panel is activated. Only active contents
@@ -783,7 +980,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserWithWebPanelTest, WebPanelTest) {
   auto* inactive_split_tab_contents =
       GetBraveMultiContentsView()->GetInactiveContentsView()->GetWebContents();
   tab_strip_model->ActivateTabAt(0);
-  EXPECT_TRUE(GetBraveMultiContentsView()->is_web_panel_active_);
+  EXPECT_TRUE(GetBraveMultiContentsView()->is_web_panel_active_for_testing());
   EXPECT_EQ(0, tab_strip_model->active_index());
   EXPECT_EQ(
       web_panel_controller()->panel_contents(),
@@ -838,9 +1035,8 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemAddedBubbleAnchorViewTest) {
 
   // Add item at last.
   item_added_bubble_anchor_ = nullptr;
-  sidebar_service->AddItem(sidebar::SidebarItem::Create(
-      GURL("http://foo.bar/"), u"title", SidebarItem::Type::kTypeWeb,
-      SidebarItem::BuiltInItemType::kNone, false));
+  sidebar_service->AddItem(sidebar::SidebarItem::CreateWebTabItem(
+      GURL("http://foo.bar/"), u"title"));
 
   // Check item is added at last and check that bubble is anchored to
   // it properly.
@@ -853,9 +1049,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemAddedBubbleAnchorViewTest) {
   // Add item at index 0.
   item_added_bubble_anchor_ = nullptr;
   sidebar_service->AddItemAtForTesting(
-      sidebar::SidebarItem::Create(GURL("http://foo.bar/"), u"title",
-                                   SidebarItem::Type::kTypeWeb,
-                                   SidebarItem::BuiltInItemType::kNone, false),
+      sidebar::SidebarItem::CreateWebTabItem(GURL("http://foo.bar/"), u"title"),
       0);
 
   // Check item is added at first and check that bubble is anchored to
@@ -916,9 +1110,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemAddedScrollTest) {
   // After inserting item at index 0, it should be visible as sidebar
   // scrolls to make that new item visible. So last item becomes invisible.
   sidebar_service->AddItemAtForTesting(
-      sidebar::SidebarItem::Create(GURL("https://abcd"), u"title",
-                                   SidebarItem::Type::kTypeWeb,
-                                   SidebarItem::BuiltInItemType::kNone, false),
+      sidebar::SidebarItem::CreateWebTabItem(GURL("https://abcd"), u"title"),
       0);
   WaitUntil(base::BindLambdaForTesting(
       [&]() { return !NeedScrollForItemAt(0, scroll_view); }));
@@ -929,9 +1121,8 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ItemAddedScrollTest) {
   // After inserting item at last, it should be visible as sidebar
   // scrolls to make that new item visible. So fisrt item becomes invisible.
   last_item_index++;
-  sidebar_service->AddItem(sidebar::SidebarItem::Create(
-      GURL("https://abcdefg"), u"title", SidebarItem::Type::kTypeWeb,
-      SidebarItem::BuiltInItemType::kNone, false));
+  sidebar_service->AddItem(sidebar::SidebarItem::CreateWebTabItem(
+      GURL("https://abcdefg"), u"title"));
   WaitUntil(base::BindLambdaForTesting(
       [&]() { return !NeedScrollForItemAt(last_item_index, scroll_view); }));
   EXPECT_TRUE(NeedScrollForItemAt(0, scroll_view));
@@ -1027,11 +1218,9 @@ class SidebarBrowserTestWithkSidebarShowAlwaysOnStable
 
   void TearDown() override { SidebarBrowserTest::TearDown(); }
 
-  // For skipping SidebarBrowserTest's PreRunTestOnMainThread
-  // as show option is set explicitely there.
-  void PreRunTestOnMainThread() override {
-    InProcessBrowserTest::PreRunTestOnMainThread();
-  }
+  // This test verifies the default show option, so the shared setup must not
+  // write one.
+  bool ShouldForceShowAlwaysOption() const override { return false; }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     SidebarBrowserTest::SetUpCommandLine(command_line);
@@ -1076,7 +1265,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestWithkSidebarShowAlwaysOnStable,
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("https://www.brave.com/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   auto* panel_ui = SidePanelUI::From(browser());
@@ -1097,7 +1286,7 @@ IN_PROC_BROWSER_TEST_P(SidebarBrowserTestWithkSidebarShowAlwaysOnStable,
   EXPECT_CALL(observer_, OnActiveIndexChanged(testing::_, testing::_)).Times(0);
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("https://www.brave.com/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   EXPECT_FALSE(panel_ui->IsSidePanelShowing());
   testing::Mock::VerifyAndClearExpectations(&observer_);
@@ -1139,9 +1328,8 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithPlaylist, Incognito) {
   EXPECT_EQ(iter, items.end());
 
   // Try Adding an item
-  sidebar_service->AddItem(sidebar::SidebarItem::Create(
-      GURL("http://foo.bar/"), u"title", SidebarItem::Type::kTypeWeb,
-      SidebarItem::BuiltInItemType::kNone, false));
+  sidebar_service->AddItem(sidebar::SidebarItem::CreateWebTabItem(
+      GURL("http://foo.bar/"), u"title"));
 
   // Try moving an item
   sidebar_service->MoveItem(sidebar_service->items().size() - 1, 0);
@@ -1183,7 +1371,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithTabSpecificAIChat,
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_EQ(tab_model()->count(), 2);
 
@@ -1200,11 +1388,11 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithTabSpecificAIChat,
   // Create two more tab for test below.
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_EQ(tab_model()->count(), 3);
 
@@ -1240,11 +1428,11 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithTabSpecificAIChat,
   // Open 2 more tabs
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_EQ(tab_model()->count(), 3);
 
@@ -1312,11 +1500,11 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTestWithTabSpecificAIChat,
   // Open 2 more tabs
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("brave://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      WindowOpenDisposition::kNewForegroundTab,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   ASSERT_EQ(tab_model()->count(), 3);
   // Open a "global" panel from Tab 0
@@ -1439,10 +1627,6 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarLayoutInRTLTest) {
   EXPECT_LE(sidebar_container->GetMirroredBounds().right(),
             contents_view->GetMirroredBounds().x());
 }
-
-using views::ShapeContextTokensOverride::kRoundedCornersBorderRadius;
-using views::ShapeContextTokensOverride::
-    kRoundedCornersBorderRadiusAtWindowCorner;
 
 // The upstream side panel is a direct child of browser_view, positioned
 // by CalculateSideBarLayout.  Verify that when the panel is open it sits
@@ -1651,6 +1835,8 @@ void ExpectContentChildLayerCorners(SidePanel* panel,
 //   (a) panel type change (header ↔ no-header entry),
 //   (b) rounded-corners pref toggle while the panel is open,
 //   (c) panel reopened after the pref changed while it was closed.
+// An open panel is itself a rounded-corners trigger, so (b) and (c) assert the
+// pref can no longer square the corners.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
                        PanelContentCornersUpdateOnStateChange) {
   auto* panel_ui = SidePanelUI::From(browser());
@@ -1664,7 +1850,6 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
       kRoundedCornersBorderRadius);
   const gfx::RoundedCornersF flat_top(0, 0, r, r);
   const gfx::RoundedCornersF all_round(r);
-  const gfx::RoundedCornersF none;
 
   auto wait_for_entry = [&](SidePanelEntryId id,
                             const base::Location& loc = FROM_HERE) {
@@ -1699,12 +1884,12 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
 
   // (b) Pref change while panel is open ---------------------------------
 
-  // Pref OFF: no corners regardless of header (UpdateBorder() path).
+  // Pref OFF: the panel's corners don't depend on the pref.
   prefs->SetBoolean(kWebViewRoundedCorners, false);
-  EXPECT_EQ(none, brave::GetPanelContentsRoundedCorners(browser_view()));
-  ExpectContentChildLayerCorners(side_panel, none);
+  EXPECT_EQ(flat_top, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, flat_top);
 
-  // Pref ON again: flat top (bookmarks has header).
+  // Pref ON again: unchanged.
   prefs->SetBoolean(kWebViewRoundedCorners, true);
   EXPECT_EQ(flat_top, brave::GetPanelContentsRoundedCorners(browser_view()));
   ExpectContentChildLayerCorners(side_panel, flat_top);
@@ -1715,14 +1900,13 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return !side_panel->GetVisible(); }));
 
-  // Toggle pref while the panel is hidden.
   prefs->SetBoolean(kWebViewRoundedCorners, false);
 
-  // Reopen — Open() must re-apply corners with the new pref value.
+  // Reopen with the pref off: the corners come back unchanged.
   panel_ui->Show(SidePanelEntryId::kBookmarks);
   wait_for_entry(SidePanelEntryId::kBookmarks);
-  EXPECT_EQ(none, brave::GetPanelContentsRoundedCorners(browser_view()));
-  ExpectContentChildLayerCorners(side_panel, none);
+  EXPECT_EQ(flat_top, brave::GetPanelContentsRoundedCorners(browser_view()));
+  ExpectContentChildLayerCorners(side_panel, flat_top);
 }
 
 // Verify that toggling the sidebar UI's visibility while a panel is open
@@ -1806,13 +1990,11 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
   }
 }
 
-// Verify that the resize area is positioned correctly for both border states.
-// In both cases the strip starts at the panel's outer edge with width
-// kResizeStripWidth. Border state only affects z-order: without rounded
-// corners the strip is reordered to the top so it wins the hit-test over
-// the overlapping content edge.
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
-                       PanelResizeAreaPositionMatchesBorderState) {
+// Verify that the resize area is positioned correctly while the panel is open:
+// like upstream, the strip fills the border gap on the panel's content-facing
+// edge. An open panel always uses the rounded border, so neither the
+// rounded-corners pref nor the entry type may disturb that.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelResizeAreaPosition) {
   auto* panel_ui = SidePanelUI::From(browser());
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* side_panel = browser_view->side_panel();
@@ -1828,45 +2010,33 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
   auto* resize_area = side_panel->resize_area_for_testing();
   ASSERT_TRUE(resize_area);
 
-  // Verifies resize strip position, width, z-order, and panel insets for the
-  // given border mode. Panel is on the right in LTR, so the content-facing
-  // edge is left and the outer edge is right.
-  auto verify_state = [&](bool rounded_corners,
-                          const base::Location& loc = FROM_HERE) {
+  // Verifies resize strip bounds and panel insets. Panel is on the right in
+  // LTR, so the content-facing edge is left and the outer edge is right.
+  auto verify_state = [&](const base::Location& loc = FROM_HERE) {
     SCOPED_TRACE(loc.ToString());
-    if (rounded_corners) {
-      EXPECT_EQ(1, side_panel->GetInsets().left())
-          << "rounded: 1px gap on the content-facing side, reserved for the "
-             "outline (the content view otherwise owns its margin)";
-      EXPECT_EQ(kRoundedCornersContentsViewMargin +
-                    kRoundedCornersContentsOutlineThickness,
-                side_panel->GetInsets().right())
-          << "rounded: outer-side gap matches main content (margin + outline "
-             "thickness)";
-    } else {
-      EXPECT_EQ(1, side_panel->GetInsets().left())
-          << "plain: 1px separator on the content-facing side";
-      EXPECT_EQ(0, side_panel->GetInsets().right())
-          << "plain: no outer-side inset";
-    }
-    EXPECT_EQ(resize_area->GetBoundsInScreen().origin(),
-              side_panel->GetBoundsInScreen().origin())
-        << "resize strip should sit at the panel's outer edge";
-    EXPECT_EQ(resize_area->width(),
-              views::BraveSidePanelResizeArea::kResizeStripWidth)
-        << "resize strip width should equal kResizeStripWidth";
-    EXPECT_EQ(side_panel->GetIndexOf(resize_area),
-              side_panel->children().size() - 1)
-        << "resize strip should be the top-most child view";
+    const gfx::Insets insets = side_panel->GetInsets();
+    EXPECT_EQ(kRoundedCornersContentsViewMargin +
+                  kRoundedCornersContentsOutlineThickness,
+              insets.left())
+        << "content-facing gap hosts the resize strip; the main contents drop "
+           "their margin on this side in exchange";
+    // The sidebar is visible here, so it sits between the panel and the
+    // window edge and supplies the outer margin itself.
+    ASSERT_TRUE(GetSidebarContainerView()->IsSidebarVisible());
+    EXPECT_EQ(kRoundedCornersContentsOutlineThickness, insets.right())
+        << "sidebar visible: outer-side gap is just the outline";
+    EXPECT_EQ(gfx::Rect(0, 0, insets.left(), side_panel->height()),
+              resize_area->bounds())
+        << "resize strip should fill the content-facing border gap";
   };
 
   prefs->SetBoolean(kWebViewRoundedCorners, true);
   RunScheduledLayouts();
-  verify_state(true);
+  verify_state();
 
   prefs->SetBoolean(kWebViewRoundedCorners, false);
   RunScheduledLayouts();
-  verify_state(false);
+  verify_state();
 
   // Switch to another panel that has brave panel header.
   panel_ui->Show(SidePanelEntryId::kBookmarks);
@@ -1875,7 +2045,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
         SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
   }));
   RunScheduledLayouts();
-  verify_state(false);
+  verify_state();
 
   // Switch to another panel that doesn't have brave panel header.
   panel_ui->Show(SidePanelEntryId::kCustomizeChrome);
@@ -1884,15 +2054,14 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
         SidePanelEntry::Key(SidePanelEntryId::kCustomizeChrome));
   }));
   RunScheduledLayouts();
-  verify_state(false);
+  verify_state();
 }
 
 // Verify that the panel border insets follow the sidebar's horizontal
 // alignment, in both LTR and RTL. Flipping kSidePanelHorizontalAlignment runs
-// through BraveBrowserView::UpdateSideBarHorizontalAlignment(), and toggling
-// kWebViewRoundedCorners runs through UpdateRoundedCornersUI(); both end up in
-// SidePanel::UpdateBorder(). The content-facing edge owns the separator/margin
-// and the outer edge owns the rounded-corner gap.
+// through BraveBrowserView::UpdateSideBarHorizontalAlignment() and ends up in
+// SidePanel::UpdateBorder(). The content-facing edge owns the resize strip's
+// gap and the outer edge owns the rounded-corner gap.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelBorderInsetsFollowAlignment) {
   auto* panel_ui = SidePanelUI::From(browser());
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
@@ -1910,7 +2079,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelBorderInsetsFollowAlignment) {
   // mirror-paints the panel in RTL, so the separator still renders against the
   // contents visually. This mirrors SidePanel::UpdateBorder()'s own
   // is_sidebar_leading = (IsRightAligned() == IsRTL()) logic.
-  auto verify_state = [&](bool right_aligned, bool rounded_corners,
+  auto verify_state = [&](bool right_aligned,
                           const base::Location& loc = FROM_HERE) {
     SCOPED_TRACE(loc.ToString());
     const bool is_sidebar_leading = (right_aligned == base::i18n::IsRTL());
@@ -1918,47 +2087,31 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelBorderInsetsFollowAlignment) {
     const int content_side =
         is_sidebar_leading ? insets.right() : insets.left();
     const int outer_side = is_sidebar_leading ? insets.left() : insets.right();
-    if (rounded_corners) {
-      EXPECT_EQ(1, content_side)
-          << "rounded: 1px gap on the content-facing side, reserved for the "
-             "outline (the content view otherwise owns its margin)";
-      EXPECT_EQ(kRoundedCornersContentsViewMargin +
-                    kRoundedCornersContentsOutlineThickness,
-                outer_side)
-          << "rounded: outer-side gap matches main content (margin + outline "
-             "thickness)";
-    } else {
-      EXPECT_EQ(1, content_side)
-          << "plain: 1px separator on the content-facing side";
-      EXPECT_EQ(0, outer_side) << "plain: no outer-side inset";
-    }
+    EXPECT_EQ(kRoundedCornersContentsViewMargin +
+                  kRoundedCornersContentsOutlineThickness,
+              content_side)
+        << "content-facing gap hosts the resize strip; the main contents drop "
+           "their margin on this side in exchange";
+    // The sidebar is visible here, so it sits between the panel and the
+    // window edge and supplies the outer margin itself.
+    ASSERT_TRUE(GetSidebarContainerView()->IsSidebarVisible());
+    EXPECT_EQ(kRoundedCornersContentsOutlineThickness, outer_side)
+        << "sidebar visible: outer-side gap is just the outline";
   };
 
-  // Exercises every (alignment x rounded) combination, transitioning one pref
-  // at a time so each step fires OnPreferenceChanged -> UpdateBorder(). Both
-  // alignment directions (right->left and left->right) are covered. The matrix
-  // ends at right-aligned + plain, so the first step of a second call (a
-  // rounded change) is always a real change that recomputes the border.
+  // Both alignment directions (right->left and left->right) are covered. The
+  // matrix ends at left-aligned, so the first step of a second call is always a
+  // real change that recomputes the border.
   auto run_matrix = [&]() {
     prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, true);
-    prefs->SetBoolean(kWebViewRoundedCorners, true);
     RunScheduledLayouts();
     ASSERT_TRUE(side_panel->IsRightAligned());
-    verify_state(/*right_aligned=*/true, /*rounded_corners=*/true);
+    verify_state(/*right_aligned=*/true);
 
     prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
     RunScheduledLayouts();
     ASSERT_FALSE(side_panel->IsRightAligned());
-    verify_state(/*right_aligned=*/false, /*rounded_corners=*/true);
-
-    prefs->SetBoolean(kWebViewRoundedCorners, false);
-    RunScheduledLayouts();
-    verify_state(/*right_aligned=*/false, /*rounded_corners=*/false);
-
-    prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, true);
-    RunScheduledLayouts();
-    ASSERT_TRUE(side_panel->IsRightAligned());
-    verify_state(/*right_aligned=*/true, /*rounded_corners=*/false);
+    verify_state(/*right_aligned=*/false);
   };
 
   // LTR.
@@ -1973,27 +2126,47 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelBorderInsetsFollowAlignment) {
   }
 }
 
-// Regression test: the top container separator must remain visible when a
-// side panel opens. Upstream's CalculateSeparatorInfo() would clear
-// `top_container_separator` in this case, but
-// BraveBrowserViewTabbedLayoutImpl::CalculateSeparatorInfo() promotes it back
-// to true when rounded corners are off, so the separator stays shown.
+// The top container separator follows the rounded-corners state, not the side
+// panel's visibility. Upstream clears `top_container_separator` whenever there
+// is no infobar, and BraveBrowserViewTabbedLayoutImpl::CalculateSeparatorInfo()
+// promotes it back to true only while the contents are square -- once the
+// rounded shape is in use it provides the divider itself. Since an open panel
+// is a rounded-corners trigger, opening one hides the separator even with the
+// pref off.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
-                       TopContainerSeparatorVisibleWhenPanelOpens) {
+                       TopContainerSeparatorFollowsRoundedCorners) {
   browser()->GetProfile()->GetPrefs()->SetBoolean(kWebViewRoundedCorners,
                                                   false);
+
+  // Browser tests start with the P3A notice infobar, and upstream keeps the
+  // top separator for as long as an infobar is visible -- regardless of the
+  // contents' shape. Clear it so the rounded-corners rule is what's measured.
+  auto* infobar_manager = infobars::ContentInfoBarManager::FromWebContents(
+      tab_model()->GetActiveWebContents());
+  infobar_manager->RemoveAllInfoBars(/*animate=*/false);
+  ASSERT_THAT(infobar_manager->infobars(), testing::IsEmpty());
   RunScheduledLayouts();
 
   auto* brave_view =
       BraveBrowserView::From(BrowserView::GetBrowserViewForBrowser(browser()));
   auto* separator = brave_view->top_container_separator_for_testing();
   ASSERT_TRUE(separator);
-  EXPECT_TRUE(separator->GetVisible());
+  EXPECT_TRUE(separator->GetVisible())
+      << "square contents: Brave supplies the separator upstream omits";
 
   auto* panel_ui = SidePanelUI::From(browser());
   panel_ui->Show(SidePanelEntryId::kBookmarks);
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
+  RunScheduledLayouts();
+
+  EXPECT_FALSE(separator->GetVisible())
+      << "open panel rounds the contents, whose shape is the divider";
+
+  panel_ui->Close();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !brave_view->side_panel()->GetVisible(); }));
+  RunScheduledLayouts();
 
   EXPECT_TRUE(separator->GetVisible());
 }
@@ -2241,57 +2414,64 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
 }
 
 // Exercises the side panel's own rounded outline (SidePanel::UpdateBorder(),
-// via the panel's border -- there's no separate overlay view anymore):
-//   * with rounded corners off, the border is a plain 1px separator, no extra
-//     top/inner gap is reserved, and
-//   * with rounded corners on, the border reserves the wider outer/bottom
-//     margin plus a slim 1px gap on the top/inner edges (where the
-//     header/content would otherwise be flush with the panel edge), so the
-//     outline has room to show on all four sides.
+// via the panel's border -- there's no separate overlay view anymore). An open
+// panel is itself a rounded-corners trigger, so the outline is installed even
+// with the pref off:
+//   * the border reserves a slim 1px gap on the top/inner edges (where the
+//     header/content would otherwise be flush with the panel edge) so the
+//     outline has room to show on all four sides, and
+//   * the outer edge reserves either the slim gap or the wider window margin
+//     depending on whether the sidebar is between the panel and the window
+//     edge (see brave::GetPanelOuterEdgeMargin()).
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, PanelRoundedOutline) {
   auto* panel_ui = SidePanelUI::From(browser());
   auto* side_panel = browser_view()->side_panel();
   side_panel->DisableAnimationsForTesting();
   auto* prefs = browser()->GetProfile()->GetPrefs();
+  auto* service = SidebarServiceFactory::GetForProfile(browser()->GetProfile());
 
-  // Open the panel with rounded corners off: a plain separator, no top gap.
+  // Pref off, so only the open panel can bring the outline in.
   prefs->SetBoolean(kWebViewRoundedCorners, false);
   panel_ui->Toggle();
   ASSERT_TRUE(base::test::RunUntil([&]() { return side_panel->GetVisible(); }));
   RunScheduledLayouts();
 
-  // If panel has header, top insets includeis header height.
+  // If panel has header, top insets include the header height.
   int header_height = 0;
   if (auto* header = side_panel->GetHeaderView<BraveSidePanelHeader>()) {
     header_height = header->height();
   }
-  EXPECT_EQ(0, side_panel->GetInsets().top() - header_height)
 
-      << "no rounded corners: no top gap reserved for an outline";
-
-  // Turn rounded corners on: the border reserves the outer/bottom margin plus
-  // a 1px gap on the top and content-facing (inner) edges.
-  prefs->SetBoolean(kWebViewRoundedCorners, true);
-  RunScheduledLayouts();
+  // The border reserves a 1px gap on the top edge and the full content margin
+  // on the content-facing (inner) edge, where the resize strip lives. The
+  // sidebar is visible here, so it sits between the panel and the window edge
+  // and supplies the outer gap itself through its buttons' padding -- the panel
+  // only needs the outline there.
+  ASSERT_TRUE(GetSidebarContainerView()->IsSidebarVisible());
   {
     const gfx::Insets insets = side_panel->GetInsets();
     constexpr int kOutlineThickness = 1;
     EXPECT_EQ(kOutlineThickness, insets.top() - header_height)
-        << "rounded corners: 1px top gap reserved for the outline";
-    EXPECT_EQ(kOutlineThickness, insets.left())
-        << "rounded corners: 1px content-facing gap reserved for the outline";
-    EXPECT_EQ(kRoundedCornersContentsViewMargin +
-                  kRoundedCornersContentsOutlineThickness,
-              insets.right())
-        << "rounded corners: outer-side gap matches main content (margin + "
-           "outline thickness)";
+        << "1px top gap reserved for the outline";
+    EXPECT_EQ(kRoundedCornersContentsViewMargin + kOutlineThickness,
+              insets.left())
+        << "content-facing gap matches the main content's margin";
+    EXPECT_EQ(kRoundedCornersContentsOutlineThickness, insets.right())
+        << "sidebar visible: outer-side gap is just the outline, since the "
+           "sidebar supplies the margin";
   }
 
-  // Disabling rounded corners drops the extra top/inner gap again.
-  prefs->SetBoolean(kWebViewRoundedCorners, false);
+  // Hide the sidebar: the panel's outer edge now faces the window chrome
+  // directly, so it reserves the full margin to align with the main content.
+  service->SetSidebarShowOption(SidebarService::ShowSidebarOption::kShowNever);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !GetSidebarContainerView()->IsSidebarVisible(); }));
   RunScheduledLayouts();
-  EXPECT_EQ(0, side_panel->GetInsets().top() - header_height)
-      << "no rounded corners: no top gap reserved for an outline";
+  EXPECT_EQ(kRoundedCornersContentsViewMargin +
+                kRoundedCornersContentsOutlineThickness,
+            side_panel->GetInsets().right())
+      << "sidebar hidden: outer-side gap matches main content (margin + "
+         "outline thickness)";
 }
 
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarItemHighlightState) {
@@ -2317,7 +2497,7 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarItemHighlightState) {
   RunScheduledLayouts();
   EXPECT_FALSE(sidebar->IsSidebarVisible());
   const auto active_index = model()->active_index();
-  EXPECT_TRUE(active_index);
+  ASSERT_TRUE(active_index);
 
   // Show the sidebar and verify the active item's ink drop is highlighted.
   // This was broken: ShowSidebar() didn't re-sync item state, and
@@ -2341,17 +2521,14 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarItemHighlightState) {
   EXPECT_EQ(views::InkDropState::ACTIVATED, ink_drop->GetTargetInkDropState());
 }
 
-// Verify that SidebarControlView::UpdateBorder() applies a negative inset on
-// the content-facing side equal to -kRoundedCornersContentsViewMargin when
-// rounded corners is on, so the control view overlaps the margin already owned
-// by the contents/panel and avoids a double gap. When rounded corners is off
-// the margin is 0, so the border insets are all zero.
-//
-// Also verifies the relationship between kSidebarButtonSize, kMargin, and the
-// control view's preferred width: the FlexLayout adds border insets to the max
-// child width, so a negative border shrinks the preferred width by the overlap
-// margin.
-IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ControlViewBorderOverlapGap) {
+// The control view clips to its layer bounds (see
+// SidebarContainerView::AddChildViews), so it must never be laid out narrower
+// than its children or the overhang is silently cut off. Its width is the
+// button width in every rounded-corners / alignment combination, and no border
+// is installed: the gap toward the contents is supplied by the buttons' own
+// horizontal padding plus a zeroed contents margin on the sidebar side.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest,
+                       ControlViewWidthIgnoresRoundedCorners) {
   auto* prefs = browser()->GetProfile()->GetPrefs();
   auto* control_view = GetSidebarControlView();
   const int button_width =
@@ -2360,45 +2537,131 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ControlViewBorderOverlapGap) {
   // Default: sidebar on right (kSidePanelHorizontalAlignment = true).
   ASSERT_FALSE(IsSidebarUIOnLeft());
 
-  // Rounded corners off: no overlap needed, all insets should be zero and the
-  // control view's preferred width equals exactly the button width.
-  prefs->SetBoolean(kWebViewRoundedCorners, false);
-  RunScheduledLayouts();
-  {
-    const gfx::Insets insets = control_view->GetBorder()->GetInsets();
-    EXPECT_EQ(0, insets.left()) << "rounded corners off: no left inset";
-    EXPECT_EQ(0, insets.right()) << "rounded corners off: no right inset";
-    EXPECT_EQ(button_width, control_view->GetPreferredSize().width())
-        << "no border: control view preferred width equals button width";
-  }
+  for (const bool rounded_corners : {false, true}) {
+    for (const bool on_left : {false, true}) {
+      SCOPED_TRACE(absl::StrFormat("rounded_corners=%d on_left=%d",
+                                   rounded_corners, on_left));
 
-  // Rounded corners on, sidebar on right: content-facing side is left, so the
-  // left inset should be -kRoundedCornersContentsViewMargin. The negative
-  // border reduces the preferred width by the overlap margin.
+      prefs->SetBoolean(kWebViewRoundedCorners, rounded_corners);
+      prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, !on_left);
+      RunScheduledLayouts();
+      ASSERT_EQ(on_left, IsSidebarUIOnLeft());
+
+      EXPECT_FALSE(control_view->GetBorder())
+          << "no border should be installed on the control view";
+      EXPECT_EQ(button_width, control_view->GetPreferredSize().width())
+          << "control view must stay as wide as its buttons";
+    }
+  }
+}
+
+// Regression test for https://github.com/brave/brave-browser/issues/59817: the
+// focus ring around sidebar items was cut off when the vertical tab strip was
+// on the same side as the sidebar, because the strip's host view was sized 3px
+// narrower than the strip itself and the strip painted the difference over the
+// sidebar's edge. Covers both halves of that:
+//   * the strip and the sidebar must not overlap, and
+//   * every button must stay inside the layers that clip it
+//     (SidebarControlView and SidebarItemsScrollView both mask to bounds), so
+//     the focus ring it paints stays whole.
+// Swept over every sidebar/strip side combination, since only the same-side
+// ones put chrome on both of the sidebar's edges at once.
+//
+// Only the horizontal extent is checked: the items contents view is
+// deliberately offset vertically when scrolled, so vertical overflow is by
+// design.
+IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, SidebarButtonsStayWithinClipBounds) {
+  auto* prefs = browser()->GetProfile()->GetPrefs();
   prefs->SetBoolean(kWebViewRoundedCorners, true);
-  RunScheduledLayouts();
-  {
-    const gfx::Insets insets = control_view->GetBorder()->GetInsets();
-    EXPECT_EQ(-kRoundedCornersContentsViewMargin, insets.left())
-        << "sidebar on right: left inset overlaps into content margin";
-    EXPECT_EQ(0, insets.right());
-    EXPECT_EQ(button_width - kRoundedCornersContentsViewMargin,
-              control_view->GetPreferredSize().width())
-        << "rounded corners on: preferred width narrows by the overlap margin";
-  }
 
-  // Flip to left-aligned: content-facing side becomes right.
-  prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, false);
-  RunScheduledLayouts();
-  ASSERT_TRUE(IsSidebarUIOnLeft());
-  {
-    const gfx::Insets insets = control_view->GetBorder()->GetInsets();
-    EXPECT_EQ(0, insets.left());
-    EXPECT_EQ(-kRoundedCornersContentsViewMargin, insets.right())
-        << "sidebar on left: right inset overlaps into content margin";
-    EXPECT_EQ(button_width - kRoundedCornersContentsViewMargin,
-              control_view->GetPreferredSize().width())
-        << "rounded corners on: preferred width narrows by the overlap margin";
+  brave::ToggleVerticalTabStrip(browser());
+  ASSERT_TRUE(
+      VerticalTabController::From(browser())->ShouldShowBraveVerticalTabs());
+
+  auto* control_view = GetSidebarControlView();
+  auto* scroll_view = GetSidebarItemsScrollView(controller());
+  auto items_contents_view = GetSidebarItemsContentsView(controller());
+
+  // Reports the full geometry on failure: knowing which view is too narrow and
+  // by how much is what pins down a clip like this.
+  auto expect_horizontally_inside = [](views::View* child, views::View* clipper,
+                                       std::string_view what) {
+    gfx::RectF rect(child->GetLocalBounds());
+    views::View::ConvertRectToTarget(child, clipper, &rect);
+    const gfx::Rect bounds = gfx::ToEnclosingRect(rect);
+    const gfx::Rect clip = clipper->GetLocalBounds();
+    const std::string detail = absl::StrFormat(
+        "%s: bounds=%s in clip=%s (child %s pref=%s, clipper %s pref=%s)", what,
+        bounds.ToString(), clip.ToString(), child->GetClassName(),
+        child->GetPreferredSize().ToString(), clipper->GetClassName(),
+        clipper->GetPreferredSize().ToString());
+    // Host containment is the proxy for the focus ring fitting. The ring's own
+    // view bounds are deliberately the host outset by
+    // `halo_thickness + kFocusRingOutset`, so they always exceed the host and
+    // are not a useful thing to assert; what it paints is the highlight path
+    // (inset by SidebarButtonView::kMargin) outset by the same budget, which
+    // lands exactly on the host bounds. So a host that fits has a ring that
+    // fits -- with zero slack, hence the static_assert on kMargin.
+    EXPECT_GE(bounds.x(), clip.x()) << "overhangs on the left -- " << detail;
+    EXPECT_LE(bounds.right(), clip.right())
+        << "overhangs on the right -- " << detail;
+  };
+
+  for (const bool sidebar_on_left : {false, true}) {
+    for (const bool vtab_on_right : {false, true}) {
+      SCOPED_TRACE(absl::StrFormat("sidebar_on_left=%d vtab_on_right=%d",
+                                   sidebar_on_left, vtab_on_right));
+
+      prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, !sidebar_on_left);
+      prefs->SetBoolean(brave_tabs::kVerticalTabsOnRight, vtab_on_right);
+      RunScheduledLayouts();
+      ASSERT_EQ(sidebar_on_left, IsSidebarUIOnLeft());
+      ASSERT_TRUE(GetSidebarContainerView()->IsSidebarVisible());
+
+      SCOPED_TRACE(absl::StrFormat(
+          "container=%s control=%s scroll=%s items_contents=%s",
+          GetSidebarContainerView()->bounds().ToString(),
+          control_view->bounds().ToString(), scroll_view->bounds().ToString(),
+          items_contents_view->bounds().ToString()));
+
+      for (views::View* child : control_view->children()) {
+        if (child->GetVisible()) {
+          expect_horizontally_inside(child, control_view, "control view child");
+        }
+      }
+
+      ASSERT_FALSE(items_contents_view->children().empty());
+      for (views::View* item : items_contents_view->children()) {
+        if (item->GetVisible()) {
+          expect_horizontally_inside(item, scroll_view, "sidebar item");
+        }
+      }
+
+      // The sidebar and the vertical tab strip must abut, not overlap. An
+      // overlap lets the strip paint over the sidebar's edge, covering its
+      // focus ring -- indistinguishable from a clip on screen, and the actual
+      // cause of #59817. Screen coordinates sidestep the stored-vs-mirrored
+      // distinction.
+      //
+      // Check the strip *container*, not the host: the container sizes itself
+      // from the region view's preferred width while the sidebar is positioned
+      // against the host's, so only the container reveals the overflow.
+      const gfx::Rect sidebar_screen =
+          GetSidebarContainerView()->GetBoundsInScreen();
+      const gfx::Rect vtab_host_screen =
+          GetVerticalTabsContainer()->GetBoundsInScreen();
+      const gfx::Rect vtab_strip_screen =
+          browser_view()
+              ->vertical_tab_strip_container_view()
+              ->GetBoundsInScreen();
+      EXPECT_FALSE(sidebar_screen.Intersects(vtab_host_screen))
+          << "sidebar " << sidebar_screen.ToString()
+          << " overlaps vertical tab host " << vtab_host_screen.ToString();
+      EXPECT_FALSE(sidebar_screen.Intersects(vtab_strip_screen))
+          << "sidebar " << sidebar_screen.ToString()
+          << " overlaps vertical tab strip " << vtab_strip_screen.ToString()
+          << " (host " << vtab_host_screen.ToString() << ")";
+    }
   }
 }
 
@@ -2529,10 +2792,8 @@ IN_PROC_BROWSER_TEST_F(SidebarTorBrowserTest,
   // profile's favicon database, which is the normal case for a page that was
   // only visited over Tor.
   SidebarServiceFactory::GetForProfile(tor_profile)
-      ->AddItem(SidebarItem::Create(
-          embedded_test_server()->GetURL("tor-only.test", "/"), u"tor-only",
-          SidebarItem::Type::kTypeWeb, SidebarItem::BuiltInItemType::kNone,
-          false));
+      ->AddItem(SidebarItem::CreateWebTabItem(
+          embedded_test_server()->GetURL("tor-only.test", "/"), u"tor-only"));
 
   // Opening another Tor window builds a new SidebarModel, which fetches the
   // favicon of every stored item again.
@@ -2542,10 +2803,9 @@ IN_PROC_BROWSER_TEST_F(SidebarTorBrowserTest,
   // from the network. Waiting for it makes sure the favicon lookups had time
   // to run.
   SidebarServiceFactory::GetForProfile(browser()->GetProfile())
-      ->AddItem(SidebarItem::Create(
+      ->AddItem(SidebarItem::CreateWebTabItem(
           embedded_test_server()->GetURL("regular-only.test", "/"),
-          u"regular-only", SidebarItem::Type::kTypeWeb,
-          SidebarItem::BuiltInItemType::kNone, false));
+          u"regular-only"));
   WaitUntil(base::BindLambdaForTesting(
       [&]() { return regular_item_favicon_requests_ > 0; }));
 

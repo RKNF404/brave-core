@@ -31,6 +31,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -246,7 +247,7 @@ std::optional<BuiltInItemType> BuiltInItemTypeFromSidePanelId(
 }
 
 SidePanelEntryId SidePanelIdFromSideBarItem(const SidebarItem& item) {
-  CHECK(item.open_in_panel) << static_cast<int>(item.built_in_item_type);
+  CHECK(item.is_side_panel_type()) << static_cast<int>(item.built_in_item_type);
   return SidePanelIdFromSideBarItemType(item.built_in_item_type);
 }
 
@@ -259,8 +260,9 @@ std::optional<SidebarItem> AddItemForSidePanelIdIfNeeded(Profile* profile,
   }
 
   for (const auto& item : hidden_default_items) {
-    // Only panel item could have panel id.
-    if (item.open_in_panel && id == sidebar::SidePanelIdFromSideBarItem(item)) {
+    // Only side panel item could have panel id.
+    if (item.is_side_panel_type() &&
+        id == sidebar::SidePanelIdFromSideBarItem(item)) {
       GetSidebarService(profile)->AddItem(item);
       return item;
     }
@@ -402,6 +404,34 @@ views::BubbleBorder::Arrow GetBubbleArrowForSidebar(PrefService* prefs) {
   // When sidebar is on the left, bubble appears to the right with LEFT arrow.
   return on_right ? views::BubbleBorder::RIGHT_TOP
                   : views::BubbleBorder::LEFT_TOP;
+}
+
+void CloseAllWebPanelsForShutdown() {
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [](BrowserWindowInterface* browser) {
+        MaybeCloseWebPanelForShutdown(browser);
+        return true;
+      });
+}
+
+void MaybeCloseWebPanelForShutdown(BrowserWindowInterface* browser) {
+  if (auto* sidebar_controller = sidebar::SidebarController::From(browser)) {
+    sidebar_controller->CloseWebPanelForShutdown();
+  }
+}
+
+bool IsWebPanelTab(BrowserWindowInterface* browser,
+                   const content::WebContents* contents) {
+  if (auto* sidebar_controller = sidebar::SidebarController::From(browser)) {
+    return sidebar_controller->IsWebPanelTab(contents);
+  }
+  return false;
+}
+
+bool IsWebPanelOnlyTab(BrowserWindowInterface* browser) {
+  auto* tab_strip_model = browser->GetTabStripModel();
+  return tab_strip_model->count() == 1 &&
+         IsWebPanelTab(browser, tab_strip_model->GetWebContentsAt(0));
 }
 
 }  // namespace sidebar

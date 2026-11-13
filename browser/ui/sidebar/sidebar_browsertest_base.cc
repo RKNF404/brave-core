@@ -52,17 +52,18 @@ SidebarBrowserTest::~SidebarBrowserTest() = default;
 
 void SidebarBrowserTest::SetUpOnMainThread() {
   InProcessBrowserTest::SetUpOnMainThread();
+
+  // Must come before any show option is applied: an animated show/hide
+  // started here would never progress and would stay stuck in that state.
   animation_resetter_ = gfx::AnimationTestApi::SetRichAnimationRenderMode(
       gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
-}
 
-void SidebarBrowserTest::PreRunTestOnMainThread() {
-  InProcessBrowserTest::PreRunTestOnMainThread();
-
-  auto* service = SidebarServiceFactory::GetForProfile(browser()->GetProfile());
-  // Enable sidebar explicitely because sidebar option is different based on
-  // channel.
-  service->SetSidebarShowOption(SidebarService::ShowSidebarOption::kShowAlways);
+  if (ShouldForceShowAlwaysOption()) {
+    // Enable sidebar explicitely because sidebar option is different based on
+    // channel.
+    SidebarServiceFactory::GetForProfile(browser()->GetProfile())
+        ->SetSidebarShowOption(SidebarService::ShowSidebarOption::kShowAlways);
+  }
 
   // Start test with visible toolbar button.
   // It's hidden by default in origin build.
@@ -70,6 +71,10 @@ void SidebarBrowserTest::PreRunTestOnMainThread() {
   auto* prefs = browser()->GetProfile()->GetPrefs();
   prefs->SetBoolean(kShowSidePanelButton, true);
 #endif
+}
+
+bool SidebarBrowserTest::ShouldForceShowAlwaysOption() const {
+  return true;
 }
 
 SidePanelButton* SidebarBrowserTest::GetSidePanelToolbarButton() const {
@@ -126,7 +131,7 @@ void SidebarBrowserTest::SimulateSidebarItemClickAt(size_t index) {
     return;
   }
 
-  if (item_model.open_in_panel) {
+  if (item_model.opens_in_panel()) {
     auto* panel_ui = SidePanelUI::From(browser());
     WaitUntil(base::BindLambdaForTesting([&]() {
       return (model()->active_index() == index &&
@@ -152,8 +157,7 @@ SidePanel* SidebarBrowserTest::GetSidePanel() {
 }
 
 bool SidebarBrowserTest::IsSidebarUIOnLeft() const {
-  return GetSidebarContainerView()->sidebar_on_left_ &&
-         GetSidebarControlView()->sidebar_on_left_;
+  return GetSidebarContainerView()->sidebar_on_left();
 }
 
 void SidebarBrowserTest::ShowSidebar() {
@@ -199,14 +203,17 @@ void SidebarBrowserTest::AddItemsTillScrollable(
     SidebarItemsScrollView* scroll_view,
     SidebarService* sidebar_service) {
   int url_prefix = 0;
+  auto contents_view = GetSidebarItemsContentsView(controller());
   while (true) {
-    sidebar_service->AddItem(sidebar::SidebarItem::Create(
+    const size_t expected_count = contents_view->children().size() + 1;
+    sidebar_service->AddItem(sidebar::SidebarItem::CreateWebTabItem(
         GURL(base::StrCat(
             {"https://foo/bar_", base::NumberToString(url_prefix)})),
-        u"title", SidebarItem::Type::kTypeWeb,
-        SidebarItem::BuiltInItemType::kNone, false));
+        u"title"));
     url_prefix++;
-    base::RunLoop().RunUntilIdle();
+    // Wait for the new item view to be added to the sidebar.
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return contents_view->children().size() == expected_count; }));
     // Add items till first item becomes invisible.
     if (scroll_view->NeedScrollForItemAt(0)) {
       break;
@@ -235,14 +242,15 @@ size_t SidebarBrowserTest::GetDefaultItemCount() const {
 
 int SidebarBrowserTest::GetFirstPanelItemIndex() {
   auto const items = model()->GetAllSidebarItems();
-  auto const iter = std::ranges::find(items, true, &SidebarItem::open_in_panel);
+  auto const iter =
+      std::ranges::find(items, true, &SidebarItem::opens_in_panel);
   return std::distance(items.cbegin(), iter);
 }
 
 int SidebarBrowserTest::GetFirstWebItemIndex() {
   const auto items = model()->GetAllSidebarItems();
   auto const iter =
-      std::ranges::find(items, false, &SidebarItem::open_in_panel);
+      std::ranges::find(items, false, &SidebarItem::opens_in_panel);
   return std::distance(items.cbegin(), iter);
 }
 

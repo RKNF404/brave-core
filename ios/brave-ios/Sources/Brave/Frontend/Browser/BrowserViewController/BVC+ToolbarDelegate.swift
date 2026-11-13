@@ -87,7 +87,7 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
             showWeb3ServiceInterstitialPage(service: service, originalURL: url)
           case .load(let resolvedURL):
             if resolvedURL.isIPFSScheme,
-              let resolvedIPFSURL = profileController.ipfsAPI.resolveGatewayUrl(for: resolvedURL)
+              let resolvedIPFSURL = IpfsAPI.resolveGatewayUrl(for: resolvedURL)
             {
               tabManager.selectedTab?.loadRequest(URLRequest(url: resolvedIPFSURL))
             } else {
@@ -202,6 +202,12 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
   func topToolbarDisplayTextForURL(_ topToolbar: URL?) -> (String?, Bool) {
     // use the initial value for the URL so we can do proper pattern matching with search URLs
     let searchURL = self.tabManager.selectedTab?.currentInitialURL
+    if FeatureList.kUseChromiumSearchEngines.enabled {
+      if let searchURL, let query = templateURLSearchTerms(from: searchURL) {
+        return (query, true)
+      }
+      return (topToolbar?.absoluteString, false)
+    }
     if let query = profile.searchEngines.queryForSearchURL(
       searchURL as URL?,
       forType: privateBrowsingManager.isPrivateBrowsing ? .privateMode : .standard
@@ -303,7 +309,7 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
         return true
       case .load(let resolvedURL):
         if resolvedURL.isIPFSScheme,
-          let resolvedIPFSURL = profileController.ipfsAPI.resolveGatewayUrl(for: resolvedURL)
+          let resolvedIPFSURL = IpfsAPI.resolveGatewayUrl(for: resolvedURL)
         {
           finishEditingAndSubmit(resolvedIPFSURL)
         } else {
@@ -332,6 +338,7 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
   ///   - initialText: The text to seed the input field with (the current URL or search query).
   ///   - pasted: Whether the `initialText` was pasted (avoids highlighting the whole entry).
   ///   - search: Whether `initialText` should be treated as a search query.
+  @MainActor
   func presentSearchInput(initialText: String?, pasted: Bool, search: Bool) {
     if let searchContainer {
       // Already editing - just seed the existing input (e.g. from a QR scan) and refocus.
@@ -341,10 +348,15 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
     }
 
     let isPrivate = tabManager.selectedTab?.isPrivate ?? false
+    let tabProfile =
+      tabManager.selectedTab?.profile
+      ?? (isPrivate ? profileController.profile.offTheRecordProfile : profileController.profile)
     let container = SearchContainerViewController(
       tabManager: tabManager,
       bookmarkManager: bookmarkManager,
       historyAPI: profileController.historyAPI,
+      autocompleteClassifier: AutocompleteClassifierFactory.get(profile: tabProfile),
+      urlSanitizerService: URLSanitizerServiceFactory.get(profile: tabProfile),
       searchEngines: profile.searchEngines,
       tileSource: TopSitesTileSource(
         mostVisitedSites: privateBrowsingManager.isPrivateBrowsing ? nil : mostVisitedSites,
@@ -523,7 +535,6 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
           rootViewController: LegacyShieldsPanelViewController(
             url: url,
             tab: selectedTab,
-            domain: Domain.getOrCreate(forUrl: url, persistent: !selectedTab.isPrivate),
             callback: shieldsPanelActionHandler
           )
         ),
@@ -583,22 +594,24 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
 
   private func showGlobalShieldsSettings() {
     weak var spinner: SpinnerView?
+    let profile = profileController.profile
     let controller = UIHostingController(
       rootView: AdvancedShieldsSettingsView(
         settings: AdvancedShieldsSettings(
-          profile: self.profile,
+          profile: profile,
           tabManager: self.tabManager,
           feedDataSource: self.feedDataSource,
-          debounceService: DebounceServiceFactory.get(privateMode: false),
-          braveShieldsSettings: BraveShieldsSettingsServiceFactory.get(
-            profile: profileController.profile
-          ),
-          braveCore: profileController,
+          debounceService: DebounceServiceFactory.get(profile: profile),
+          braveShieldsSettings: BraveShieldsSettingsServiceFactory.get(profile: profile),
+          httpsUpgradeService: HttpsUpgradeServiceFactory.get(profile: profile),
+          historyAPI: profileController.historyAPI,
+          serpMetrics: SerpMetricsServiceFactory.get(profile: profile),
+          prefs: profile.prefs,
           p3aUtils: braveCore.p3aUtils,
           localState: braveCore.localState,
           rewards: rewards,
           braveStats: profileController.braveStats,
-          webcompatReporterHandler: WebcompatReporter.ServiceFactory.get(privateMode: false),
+          webcompatReporterHandler: WebcompatReporter.ServiceFactory.get(profile: profile),
           clearDataCallback: { [weak self] isLoading, isHistoryCleared in
             guard let self else { return }
             guard let view = self.navigationController?.view, view.window != nil else {
@@ -668,6 +681,7 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
     )
 
     viewController.modalPresentationStyle = .popover
+    viewController.preferredContentSize = CGSize(width: 400, height: 600)
 
     if let popover = viewController.popoverPresentationController {
       popover.sourceView = topToolbar.shieldsButton
@@ -677,7 +691,6 @@ extension BrowserViewController: TopToolbarDelegate, SearchContainerViewControll
       sheet.largestUndimmedDetentIdentifier = .medium
       sheet.prefersEdgeAttachedInCompactHeight = true
       sheet.widthFollowsPreferredContentSizeWhenEdgeAttached = true
-      sheet.detents = [.medium(), .large()]
       sheet.prefersGrabberVisible = true
     }
     navigationController?.present(viewController, animated: true)
@@ -1287,24 +1300,28 @@ extension BrowserViewController: UIContextMenuInteractionDelegate {
     let tab = tabManager.selectedTab
     guard let url = tab?.visibleURL?.displayURL else { return nil }
 
-    let children: [UIAction] = [
+    var children: [UIAction] = [
       UIAction(
         title: Strings.copyLinkActionTitle,
         image: UIImage(braveSystemNamed: "leo.copy"),
         handler: UIAction.deferredActionHandler { _ in
           UIPasteboard.general.url = url as URL
         }
-      ),
-      UIAction(
-        title: Strings.copyCleanLink,
-        image: UIImage(braveSystemNamed: "leo.copy.clean"),
-        handler: UIAction.deferredActionHandler { _ in
-          let service = URLSanitizerServiceFactory.get(privateMode: tab?.isPrivate ?? true)
-          let cleanedURL = service?.sanitize(url: url) ?? url
-          UIPasteboard.general.url = cleanedURL
-        }
-      ),
+      )
     ]
+
+    if let tab, let service = URLSanitizerServiceFactory.get(profile: tab.profile) {
+      children.append(
+        UIAction(
+          title: Strings.copyCleanLink,
+          image: UIImage(braveSystemNamed: "leo.copy.clean"),
+          handler: UIAction.deferredActionHandler { _ in
+            let cleanedURL = service.sanitize(url: url) ?? url
+            UIPasteboard.general.url = cleanedURL
+          }
+        )
+      )
+    }
 
     return UIMenu(options: .displayInline, children: children)
   }

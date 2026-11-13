@@ -5,26 +5,32 @@
 
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 
+#include <algorithm>
+#include <memory>
 #include <string>
 
 #include "base/functional/callback.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "brave/browser/infobars/brave_confirm_infobar_creator.h"
 #include "brave/browser/ui/bookmark/bookmark_helper.h"
 #include "brave/browser/ui/browser_commands.h"
 #include "brave/browser/ui/sidebar/sidebar_service_factory.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
+#include "brave/browser/ui/views/brave_layout_provider.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_contents_view_util.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_container_view.h"
 #include "brave/browser/ui/views/frame/vertical_tabs/vertical_tab_strip_region_view.h"
+#include "brave/browser/ui/views/infobars/brave_confirm_infobar.h"
 #include "brave/browser/ui/views/sidebar/sidebar_container_view.h"
 #include "brave/browser/ui/views/toolbar/brave_toolbar_view.h"
 #include "brave/browser/ui/views/toolbar/screenshot_button.h"
 #include "brave/common/pref_names.h"
 #include "brave/components/brave_origin/buildflags/buildflags.h"
 #include "brave/components/constants/pref_names.h"
+#include "brave/components/infobars/core/brave_confirm_infobar_delegate.h"
 #include "brave/components/sidebar/browser/sidebar_service.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -63,6 +69,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -70,6 +77,7 @@
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 
@@ -77,10 +85,6 @@
 #include "base/mac/mac_util.h"
 #include "chrome/browser/ui/fullscreen_util_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
-
-using views::ShapeContextTokensOverride::kRoundedCornersBorderRadius;
-using views::ShapeContextTokensOverride::
-    kRoundedCornersBorderRadiusAtWindowCorner;
 
 namespace {
 class TestInfoBarDelegate : public ConfirmInfoBarDelegate {
@@ -104,6 +108,26 @@ class TestInfoBarDelegate : public ConfirmInfoBarDelegate {
     return u"This is a test InfoBar injected from a browser test.";
   }
 };
+
+class StubBraveConfirmInfoBarDelegate : public BraveConfirmInfoBarDelegate {
+ public:
+  StubBraveConfirmInfoBarDelegate() = default;
+  ~StubBraveConfirmInfoBarDelegate() override = default;
+
+  // BraveConfirmInfoBarDelegate:
+  infobars::InfoBarDelegate::InfoBarIdentifier GetIdentifier() const override {
+    return TEST_INFOBAR;
+  }
+
+  std::u16string GetMessageText() const override { return u"Test message"; }
+};
+
+bool HasBraveConfirmInfoBarView(const views::View* infobar_container) {
+  return std::ranges::any_of(
+      infobar_container->children(), [](const views::View* child) {
+        return views::IsViewClass<BraveConfirmInfoBar>(child);
+      });
+}
 
 }  // namespace
 
@@ -151,6 +175,32 @@ class BraveBrowserViewTest : public InProcessBrowserTest {
     return static_cast<BraveToolbarView*>(browser_view()->toolbar())
         ->screenshot_button();
   }
+
+  void NewSplitTab() {
+    chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
+                        split_tabs::SplitTabCreatedSource::kToolbarButton);
+  }
+
+  int GetRoundedCornersBorderRadius() const {
+    return views::LayoutProvider::Get()->GetCornerRadiusMetric(
+        kRoundedCornersBorderRadius);
+  }
+
+  int GetRoundedCornersBorderRadiusAtWindowCorner() const {
+    return views::LayoutProvider::Get()->GetCornerRadiusMetric(
+        kRoundedCornersBorderRadiusAtWindowCorner);
+  }
+
+  void ExpectSplitContentsViewRadii(int index,
+                                    float lower_left,
+                                    float lower_right) {
+    auto radii = browser_view()
+                     ->GetContentsContainerViews()[index]
+                     ->contents_view()
+                     ->GetBackgroundRadii();
+    EXPECT_EQ(lower_left, radii.lower_left());
+    EXPECT_EQ(lower_right, radii.lower_right());
+  }
 };
 
 // Tests bookmark/infobar/contents container layout with vertical tab.
@@ -171,18 +221,13 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest, LayoutWithVerticalTabTest) {
       BraveBrowserView::ShouldUseBraveWebViewRoundedCornersForContents(
           browser());
 
-  // With rounded corners, we need
-  // distance(tabs::kMarginForVerticalTabContainers) between vertical tab and
-  // contents. Each side has half of it as a margin.
-  const int contents_margin =
-      rounded_corners ? (tabs::kMarginForVerticalTabContainers / 2) : 0;
   const int top_contents_separator_height = rounded_corners ? 0 : 1;
 
+  // The vertical tab strip owns the gap between itself and the contents
+  // through its own padding, so the contents reserves no margin on that side
+  // and starts exactly where the infobar and bookmark bar do.
   auto contents_area_origin = [&]() {
-    return gfx::Point(
-        browser_view()->contents_container()->bounds().origin().x() -
-            contents_margin,
-        browser_view()->contents_container()->bounds().origin().y());
+    return browser_view()->contents_container()->bounds().origin();
   };
 
 #if !BUILDFLAG(IS_BRAVE_ORIGIN_BRANDED)
@@ -283,6 +328,29 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest, LayoutWithVerticalTabTest) {
             contents_area_origin());
 }
 
+IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
+                       RemovesBraveConfirmInfoBarViewWhenInfoBarIsRemoved) {
+  auto disable_rich_animation =
+      gfx::AnimationTestApi::SetRichAnimationRenderMode(
+          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+
+  infobars::ContentInfoBarManager* infobar_manager =
+      infobars::ContentInfoBarManager::FromWebContents(
+          browser()->tab_strip_model()->GetActiveWebContents());
+  infobar_manager->RemoveAllInfoBars(/*animate=*/false);
+
+  infobars::InfoBar* infobar =
+      infobar_manager->AddInfoBar(CreateBraveConfirmInfoBar(
+          std::make_unique<StubBraveConfirmInfoBarDelegate>()));
+  ASSERT_TRUE(infobar);
+  ASSERT_TRUE(HasBraveConfirmInfoBarView(infobar_container()));
+
+  infobar_manager->RemoveInfoBar(infobar);
+
+  EXPECT_THAT(infobar_manager->infobars(), testing::IsEmpty());
+  EXPECT_FALSE(HasBraveConfirmInfoBarView(infobar_container()));
+}
+
 IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest, TopSeparatorWithPanelTest) {
   auto disable_rich_animation =
       gfx::AnimationTestApi::SetRichAnimationRenderMode(
@@ -305,15 +373,15 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest, TopSeparatorWithPanelTest) {
                   ->top_container_separator_for_testing()
                   ->GetVisible());
 
-  // Check separator is still visible after panel opens.
+  // Check separator is hidden after panel opens.
   auto* panel_ui = SidePanelUI::From(browser());
   panel_ui->Toggle();
   RunScheduledLayouts();
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
-  EXPECT_TRUE(brave_browser_view()
-                  ->top_container_separator_for_testing()
-                  ->GetVisible());
+  EXPECT_FALSE(brave_browser_view()
+                   ->top_container_separator_for_testing()
+                   ->GetVisible());
 }
 
 // Cmd/Ctrl+Shift+S (IDC_SHARING_HUB_SCREENSHOT) should open Brave's own
@@ -413,11 +481,6 @@ class BraveBrowserViewWithRoundedCornersTest
                                                     IsRoundedCornersEnabled());
   }
 
-  void NewSplitTab() {
-    chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
-                        split_tabs::SplitTabCreatedSource::kToolbarButton);
-  }
-
   BrowserFrameView* browser_non_client_frame_view() {
     return browser_view()->browser_widget()->GetFrameView();
   }
@@ -442,17 +505,6 @@ class BraveBrowserViewWithRoundedCornersTest
   bool IsRoundedCornersEnabled() const { return GetParam(); }
 
  protected:
-  // Helper methods to get metrics
-  int GetRoundedCornersBorderRadius() const {
-    return views::LayoutProvider::Get()->GetCornerRadiusMetric(
-        kRoundedCornersBorderRadius);
-  }
-
-  int GetRoundedCornersBorderRadiusAtWindowCorner() const {
-    return views::LayoutProvider::Get()->GetCornerRadiusMetric(
-        kRoundedCornersBorderRadiusAtWindowCorner);
-  }
-
   // Helper methods for common assertions
   void ExpectContentsContainerMargins(views::View* contents_container,
                                       int expected_margin) {
@@ -476,22 +528,11 @@ class BraveBrowserViewWithRoundedCornersTest
     EXPECT_EQ(lower_right, radii.lower_right());
   }
 
-  void ExpectSplitContentsViewRadii(int index,
-                                    float lower_left,
-                                    float lower_right) {
-    auto radii = browser_view()
-                     ->GetContentsContainerViews()[index]
-                     ->contents_view()
-                     ->GetBackgroundRadii();
-    EXPECT_EQ(lower_left, radii.lower_left());
-    EXPECT_EQ(lower_right, radii.lower_right());
-  }
-
  private:
   const gfx::AnimationTestApi::RenderModeResetter disable_rich_animations_;
 };
 
-// Test 1: Rounded corners behavior with side panel toggled
+// Test 1: An open side panel uses rounded corners regardless of the pref.
 IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
                        RoundedCornersWithSidePanelTest) {
 #if BUILDFLAG(IS_MAC)
@@ -500,11 +541,7 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
   if (base::mac::MacOSMajorVersion() >= 26) {
     GTEST_SKIP() << "Disabled on macOS Tahoe and later.";
   }
-#endif
-
-  auto* panel_ui = SidePanelUI::From(browser());
-  panel_ui->Toggle();
-  RunScheduledLayouts();
+#endif  // BUILDFLAG(IS_MAC)
 
   views::View* contents_container = browser_view()->contents_container();
   const auto rounded_corners_margin = kRoundedCornersContentsViewMargin;
@@ -512,38 +549,49 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
   const auto rounded_corners_border_radius_at_window_corner =
       GetRoundedCornersBorderRadiusAtWindowCorner();
 
-  if (IsRoundedCornersEnabled()) {
-    // Check contents container has margin
-    ExpectContentsContainerMargins(contents_container, rounded_corners_margin);
-    EXPECT_EQ(rounded_corners_margin,
-              BraveContentsViewUtil::GetRoundedCornersWebViewMargin(browser()));
+  // Baseline with the panel closed: only the pref decides.
+  auto* side_panel = browser_view()->side_panel();
+  ASSERT_FALSE(side_panel->GetVisible());
+  EXPECT_EQ(IsRoundedCornersEnabled(),
+            BraveBrowserView::ShouldUseBraveWebViewRoundedCornersForContents(
+                browser()));
+  if (!IsRoundedCornersEnabled()) {
+    ExpectContentsViewRadii(0, 0, 0, 0);
+  }
 
-    // Check contents view radii
-    const auto contents_view_radii = browser_view()
-                                         ->GetActiveContentsContainerView()
-                                         ->contents_view()
-                                         ->GetBackgroundRadii();
-    EXPECT_EQ(rounded_corners_border_radius, contents_view_radii.upper_left());
-    EXPECT_EQ(rounded_corners_border_radius, contents_view_radii.upper_right());
+  auto* panel_ui = SidePanelUI::From(browser());
+  panel_ui->Toggle();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return side_panel->GetVisible(); }));
+  RunScheduledLayouts();
 
-    // lower-left radius should be radius around window as there is no ui
-    // between browser window border and contents.
-    EXPECT_EQ(rounded_corners_border_radius_at_window_corner,
-              contents_view_radii.lower_left());
-    EXPECT_EQ(rounded_corners_border_radius, contents_view_radii.lower_right());
-  } else {
-    // Check contents container doesn't have any margin
-    EXPECT_EQ(contents_container->bounds().x(),
-              browser_view()->GetLocalBounds().x());
-    EXPECT_EQ(contents_container->bounds().bottom(),
-              browser_view()->GetLocalBounds().bottom());
-    EXPECT_EQ(0,
-              BraveContentsViewUtil::GetRoundedCornersWebViewMargin(browser()));
+  // The open panel is itself a rounded-corners trigger, so the pref value
+  // makes no difference here.
+  EXPECT_TRUE(BraveBrowserView::ShouldUseBraveWebViewRoundedCornersForContents(
+      browser()));
+  ExpectContentsContainerMargins(contents_container, rounded_corners_margin);
+  EXPECT_EQ(rounded_corners_margin,
+            BraveContentsViewUtil::GetRoundedCornersWebViewMargin(browser()));
 
-    EXPECT_EQ(gfx::RoundedCornersF(), browser_view()
-                                          ->GetActiveContentsContainerView()
-                                          ->contents_view()
-                                          ->GetBackgroundRadii());
+  // lower-left radius should be radius around window as there is no ui
+  // between browser window border and contents.
+  ExpectContentsViewRadii(rounded_corners_border_radius,
+                          rounded_corners_border_radius,
+                          rounded_corners_border_radius_at_window_corner,
+                          rounded_corners_border_radius);
+
+  // Closing hands the decision back to the pref. The fixture disables rich
+  // animations, so this is the non-animated transition that users with OS
+  // reduce-motion get.
+  panel_ui->Toggle();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !side_panel->GetVisible(); }));
+  RunScheduledLayouts();
+
+  EXPECT_EQ(IsRoundedCornersEnabled(),
+            BraveBrowserView::ShouldUseBraveWebViewRoundedCornersForContents(
+                browser()));
+  if (!IsRoundedCornersEnabled()) {
+    ExpectContentsViewRadii(0, 0, 0, 0);
   }
 }
 
@@ -591,13 +639,10 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_TRUE(browser_view()->side_panel()->GetVisible());
   EXPECT_FALSE(brave_browser_view()->IsSidebarVisible());
 
-  if (IsRoundedCornersEnabled()) {
-    // Panel is on the right -> lower-right rounded, lower-left at window edge.
-    ExpectContentsViewRadii(border_radius, border_radius, window_corner_radius,
-                            border_radius);
-  } else {
-    ExpectContentsViewRadii(0, 0, 0, 0);
-  }
+  // Panel is on the right -> lower-right rounded, lower-left at window edge.
+  // The open panel forces rounded corners, so the pref is irrelevant.
+  ExpectContentsViewRadii(border_radius, border_radius, window_corner_radius,
+                          border_radius);
 
   panel_ui->Toggle();
   RunScheduledLayouts();
@@ -613,13 +658,9 @@ IN_PROC_BROWSER_TEST_P(
       base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
   EXPECT_FALSE(brave_browser_view()->IsSidebarVisible());
 
-  if (IsRoundedCornersEnabled()) {
-    // Panel is on the left -> lower-left rounded, lower-right at window edge.
-    ExpectContentsViewRadii(border_radius, border_radius, border_radius,
-                            window_corner_radius);
-  } else {
-    ExpectContentsViewRadii(0, 0, 0, 0);
-  }
+  // Panel is on the left -> lower-left rounded, lower-right at window edge.
+  ExpectContentsViewRadii(border_radius, border_radius, border_radius,
+                          window_corner_radius);
 }
 
 // Test 2: Rounded corners in split tab mode
@@ -660,6 +701,50 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
                                rounded_corners_border_radius);
 }
 
+// The corners meeting the split divider are shrunk to the border radius, so
+// switching to the stacked layout must move that from the left/right pairs to
+// the pairs facing the now horizontal divider. Not parameterized on the
+// rounded corners pref because a split always gets rounded corners.
+IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
+                       RoundedCornersWithStackedSplitTabTest) {
+#if BUILDFLAG(IS_MAC)
+  // TODO(https://github.com/brave/brave-browser/issues/55995): Re-enable on
+  // macOS 26.
+  if (base::mac::MacOSMajorVersion() >= 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe and later.";
+  }
+#endif  // BUILDFLAG(IS_MAC)
+
+  NewSplitTab();
+  RunScheduledLayouts();
+
+  const auto border_radius = GetRoundedCornersBorderRadius();
+  const auto window_corner_radius =
+      GetRoundedCornersBorderRadiusAtWindowCorner();
+
+  // The sidebar sits at the right contents edge by default, so the right
+  // corners already use the border radius and only a lower left corner can
+  // show the window radius.
+  // Vertical divider: the first pane's lower left corner is at the window
+  // corner, while the second pane's faces the divider.
+  ExpectSplitContentsViewRadii(0, window_corner_radius, border_radius);
+  ExpectSplitContentsViewRadii(1, border_radius, border_radius);
+
+  auto* tab_strip_model = browser()->tab_strip_model();
+  auto split_id =
+      tab_strip_model->GetSplitForTab(tab_strip_model->active_index());
+  ASSERT_TRUE(split_id);
+  tab_strip_model->UpdateSplitLayout(*split_id,
+                                     split_tabs::SplitTabLayout::kStacked);
+  RunScheduledLayouts();
+
+  // Horizontal divider: both of the top pane's lower corners now face it, so
+  // its lower left drops to the border radius, and the bottom pane's lower
+  // left becomes the one at the window corner.
+  ExpectSplitContentsViewRadii(0, border_radius, border_radius);
+  ExpectSplitContentsViewRadii(1, window_corner_radius, border_radius);
+}
+
 // Test 3: Rounded corners after exiting split tab mode
 IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
                        RoundedCornersAfterExitingSplitTabTest) {
@@ -671,8 +756,11 @@ IN_PROC_BROWSER_TEST_P(BraveBrowserViewWithRoundedCornersTest,
   }
 #endif
 
-  auto* panel_ui = SidePanelUI::From(browser());
-  panel_ui->Toggle();
+  // Make another UI visible between contents and window border for testing
+  // contents' border facing corner radius.
+  sidebar::SidebarServiceFactory::GetForProfile(browser()->GetProfile())
+      ->SetSidebarShowOption(
+          sidebar::SidebarService::ShowSidebarOption::kShowAlways);
   RunScheduledLayouts();
 
   // Create split tab then exit by creating new active tab
@@ -806,36 +894,34 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserViewTest,
   auto* panel_ui = SidePanelUI::From(browser());
   auto* brave_view = brave_browser_view();
 
-  // Get bounds with panel closed.
-  auto bounds_panel_closed =
-      brave_view->GetBoundingBoxInScreenForMouseOverHandling();
+  // The box must span the full browser width regardless of panel state -- that
+  // is the regression this guards -- and run from the bottom of the top
+  // container to the bottom of the window. Its top edge does follow the top
+  // container, which an open panel shortens by hiding the 1px top separator.
+  auto verify_bounds = [&](const base::Location& loc = FROM_HERE) {
+    SCOPED_TRACE(loc.ToString());
+    const gfx::Rect bounds =
+        brave_view->GetBoundingBoxInScreenForMouseOverHandling();
+    EXPECT_EQ(brave_view->GetBoundsInScreen().x(), bounds.x());
+    EXPECT_EQ(browser_view()->width(), bounds.width());
+    EXPECT_EQ(browser_view()->top_container()->GetBoundsInScreen().bottom(),
+              bounds.y());
+    EXPECT_EQ(brave_view->GetBoundsInScreen().bottom(), bounds.bottom());
+  };
 
-  // Bounds should span the full browser width.
-  EXPECT_EQ(browser_view()->width(), bounds_panel_closed.width());
+  verify_bounds();
 
-  // Bounds should start at the bottom of the top container.
-  EXPECT_EQ(browser_view()->top_container()->GetBoundsInScreen().bottom(),
-            bounds_panel_closed.y());
-
-  // Bounds should extend to the bottom of the browser window.
-  EXPECT_EQ(brave_view->GetBoundsInScreen().bottom(),
-            bounds_panel_closed.bottom());
-
-  // Open the side panel.
   panel_ui->Toggle();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return panel_ui->IsSidePanelShowing(); }));
   RunScheduledLayouts();
+  verify_bounds();
 
-  // Bounds should be unchanged after opening the side panel.
-  EXPECT_EQ(bounds_panel_closed,
-            brave_view->GetBoundingBoxInScreenForMouseOverHandling());
-
-  // Close the side panel.
   panel_ui->Toggle();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !panel_ui->IsSidePanelShowing(); }));
   RunScheduledLayouts();
-
-  // Bounds should be unchanged after closing the side panel.
-  EXPECT_EQ(bounds_panel_closed,
-            brave_view->GetBoundingBoxInScreenForMouseOverHandling());
+  verify_bounds();
 }
 
 // MacOS does not need views window scrim. We use sheet to show window modals

@@ -199,7 +199,7 @@ class TopToolbarView: UIView, ToolbarProtocol {
   lazy var actionButtons: [UIButton] = [
     shareButton, tabsButton, shortcutButton,
     forwardButton, backButton, menuButton,
-    shieldsButton, rewardsButton,
+    shieldsButton, rewardsButton, addTabButton,
   ].compactMap { $0 }
 
   private let mainStackView = UIStackView().then {
@@ -480,7 +480,7 @@ class TopToolbarView: UIView, ToolbarProtocol {
   func updateObservedProperties() {
     backButton.isEnabled = toolbarState.canGoBack
     forwardButton.isEnabled = toolbarState.canGoForward
-    shareButton.isEnabled = toolbarState.isWebPage
+    shareButton.isEnabled = toolbarState.isPageSharable
     tabsButton.updateTabCount(toolbarState.tabCount)
     let displayURL = toolbarState.displayedURL
     let needsShieldsStatusRefresh = displayURL == nil || locationView.url != displayURL

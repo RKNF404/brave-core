@@ -33,7 +33,7 @@ struct RequestContainerView<DismissContent: ToolbarContent>: View {
           case .addSuggestedToken(let request):
             AddSuggestedTokenView(
               token: request.token,
-              originInfo: request.origin,
+              dappOriginInfo: request.dappOriginInfo,
               cryptoStore: cryptoStore,
               onDismiss: onDismiss
             )
@@ -63,20 +63,6 @@ struct RequestContainerView<DismissContent: ToolbarContent>: View {
             SignMessageErrorView(
               signMessageErrors: signMessageErrors,
               cryptoStore: cryptoStore
-            )
-          case .getEncryptionPublicKey(let item):
-            EncryptionView(
-              request: .getEncryptionPublicKey(item.request),
-              account: item.account,
-              cryptoStore: cryptoStore,
-              onDismiss: onDismiss
-            )
-          case .decrypt(let item):
-            EncryptionView(
-              request: .decrypt(item.request),
-              account: item.account,
-              cryptoStore: cryptoStore,
-              onDismiss: onDismiss
             )
           case .signTransactions(let requests):
             SignTransactionView(

@@ -582,8 +582,18 @@ public class BraveUnifiedPanelHandler {
         if (mAdvancedOptionsContent == null) return;
 
         View httpsUpgradeItem = mAdvancedOptionsContent.findViewById(R.id.https_upgrade_item);
-        if (httpsUpgradeItem != null) {
-            httpsUpgradeItem.setOnClickListener(v -> showHttpsUpgradePanel());
+        View httpsUpgradeDivider = mAdvancedOptionsContent.findViewById(R.id.https_upgrade_divider);
+        if (ChromeFeatureList.isEnabled(BraveFeatureList.HTTPS_BY_DEFAULT)) {
+            if (httpsUpgradeItem != null) {
+                httpsUpgradeItem.setOnClickListener(v -> showHttpsUpgradePanel());
+            }
+        } else {
+            if (httpsUpgradeItem != null) {
+                httpsUpgradeItem.setVisibility(View.GONE);
+            }
+            if (httpsUpgradeDivider != null) {
+                httpsUpgradeDivider.setVisibility(View.GONE);
+            }
         }
 
         View trackersItem = mAdvancedOptionsContent.findViewById(R.id.trackers_item);
@@ -1081,7 +1091,7 @@ public class BraveUnifiedPanelHandler {
         imageView.setLayoutParams(new ViewGroup.LayoutParams(width, height));
         imageView.fitBitmap(bitmap);
 
-        new AlertDialog.Builder(mContext)
+        new AlertDialog.Builder(mContext, R.style.ThemeOverlay_BrowserUI_AlertDialog)
                 .setView(imageView)
                 .setPositiveButton(android.R.string.ok, null)
                 .show();
@@ -1691,7 +1701,8 @@ public class BraveUnifiedPanelHandler {
                             R.string.brave_shred_data_confirmation, mUrl.getOrigin().getSpec()));
         }
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+        AlertDialog.Builder builder =
+                new AlertDialog.Builder(mContext, R.style.ThemeOverlay_BrowserUI_AlertDialog);
         var mContext = this.mContext;
         builder.setTitle(R.string.brave_shred_data_dialog_title)
                 .setView(view)
@@ -1761,7 +1772,8 @@ public class BraveUnifiedPanelHandler {
             mContext.getString(R.string.shred_option_app_exit)
         };
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+        AlertDialog.Builder builder =
+                new AlertDialog.Builder(mContext, R.style.ThemeOverlay_BrowserUI_AlertDialog);
         builder.setTitle(R.string.shred_auto_shred)
                 .setSingleChoiceItems(
                         options,

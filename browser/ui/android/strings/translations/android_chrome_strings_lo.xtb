@@ -34,7 +34,6 @@
 <translation id="1111673857033749125">ບຸກມາກທີ່ບັນທຶກໄວ້ຢູ່ໃນອຸປະກອນອື່ນຂອງທ່ານຈະປາກົດຢູ່ທີ່ນີ້.</translation>
 <translation id="1123537484474186311"><ph name="TAB_TITLE"/>, ແຖບການສະແດງຜົນຊ້ອນກັນ</translation>
 <translation id="1126696498560056882">ຈັດການບັນຊີໃນອຸປະກອນນີ້</translation>
-<translation id="9171525955914564119">ເພື່ອເຂົ້າເຖິງບຸກມາກ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບ Brave ດ້ວຍ <ph name="EMAIL"/></translation>
 <translation id="1138458427267715730">ຮັບການແຈ້ງເຕືອນເມື່ອລາຄາຫຼຸດລົງໃນທຸກເວັບໄຊທົ່ວເວັບ</translation>
 <translation id="1140317858355046628">ຫາກທ່ານລຶບກຸ່ມນີ້, ທຸກຄົນຈະສູນເສຍສິດເຂົ້າເຖິງກຸ່ມແຖບ "<ph name="GROUP_NAME"/>" ທັນທີ ແລະ ລະບົບຈະລຶບກຸ່ມດັ່ງກ່າວອອກຈາກອຸປະກອນທັງໝົດ.</translation>
 <translation id="1142732900304639782">ບໍ່ສະເໜີແປເວັບໄຊເຫຼົ່ານີ້</translation>
@@ -121,7 +120,6 @@
 <translation id="1432581352905426595">ຈັດການໂປຣແກຣມຊອກຫາ</translation>
 <translation id="1435593198351412143">ເປີດ PDF ໂດຍອັດຕະໂນມັດ</translation>
 <translation id="1437543266176261764">ກຳລັງເຮັດວຽກຢູ່ໃນ <ph name="APP_NAME"/></translation>
-<translation id="1448440926884431741">ຈັດລະບຽບສິນຄ້າທີ່ຕິດຕາມແລ້ວຂອງທ່ານໃນບຸກມາກ</translation>
 <translation id="1452651021404174820">ເລືອກອຸປະກອນ</translation>
 <translation id="1455845192930279203">ແນວໃດທ່ານກໍຕ້ອງການດາວໂຫຼດ "<ph name="FILE_NAME"/>" (<ph name="FILE_SIZE"/>) ຈາກ <ph name="DOWNLOAD_DOMAIN"/> ບໍ?</translation>
 <translation id="1460751212339734034">ປະຢັດເວລາດ້ວຍການພິມໜ້ອຍລົງ</translation>
@@ -134,12 +132,14 @@
 <translation id="1485343711570311792">ເປີດໃນ <ph name="NATIVE_APP_NAME"/> • ຈາກ <ph name="DEVICE_NAME"/></translation>
 <translation id="1495677929897281669">ກັບຄືນຫາແຖບ</translation>
 <translation id="1496514951988037011">ຊື່ຜູ້ໃຊ້</translation>
+<translation id="1498051468374914325">ເປີດຄອນໂຊເຄື່ອງມືສຳລັບນັກພັດທະນາ</translation>
 <translation id="1501480321619201731">ລຶບກຸ່ມ</translation>
 <translation id="1506061864768559482">ເຄື່ອງ​ຈັກ​ຄົ້ນ​ຫາ</translation>
 <translation id="1513352483775369820">ບຸກມາກສ໌ ​ແລະ​ປະ​ຫວັດ​ເວັບ​</translation>
 <translation id="1515901671075971249">ທາງລັດໃນການນຳທາງແຖບ</translation>
 <translation id="152204906462707884">ລຶບປະຫວັດການທ່ອງເວັບຂອງທ່ານໄດ້ຢ່າງວ່ອງໄວ ແລະ ຄວບຄຸມຄວາມເປັນສ່ວນຕົວຂອງທ່ານໄດ້ຫຼາຍຂຶ້ນ</translation>
 <translation id="5840742727909553422">Brave ເວີຊັນໃໝ່ພ້ອມໃຫ້ບໍລິການແລ້ວ</translation>
+<translation id="1537160738459068682">ເປີດອົງປະກອບເຄື່ອງມືສຳລັບນັກພັດທະນາ</translation>
 <translation id="1540012742443808215">ແຖບທີ່ຢູ່ປັດຈຸບັນຢູ່ເທິງສຸດ</translation>
 <translation id="1543035591122163372">ເຂົ້າສູ່ລະບົບເພື່ອຮັບລະຫັດຜ່ານຂອງທ່ານ ແລະ ອື່ນໆຈາກ <ph name="DEVICE_TYPE"/></translation>
 <translation id="3748360913454941567">ວິທີການຈ່າຍເງິນ ແລະ ທີ່ຢູ່ຈະບໍ່ໄດ້ຖືກເຂົ້າລະຫັດໄວ້. ປະຫວັດການທ່ອງເວັບຈາກ Brave ຈະບໍ່ຊິ້ງຂໍ້ມູນ.
@@ -198,7 +198,6 @@
 <translation id="1812027881030482584">ບໍ່ສາມາດດຳເນີນການຕໍ່ໂດຍໃຊ້ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE"/> ໃນ <ph name="SITE_ETLD_PLUS_ONE"/> ໄດ້</translation>
 <translation id="1815975907734103433"><ph name="TAB_TITLE"/>, ແຖບການບັນທຶກສຽງ</translation>
 <translation id="1820408774134375111">ຊີດລຸ່ມສຸດຂອງການເຂົ້າສູ່ລະບົບ</translation>
-<translation id="1823492026305965829">ເຂົ້າສູ່ລະບົບດ້ວຍ <ph name="USER_FULL_NAME"/></translation>
 <translation id="1824902652744048041">ແຕະລຶບຂໍ້ມູນການທ່ອງເວັບ</translation>
 <translation id="1829244130665387512">ຊອກ​ຫາ​ຢູ່​ໃນ​ຫນ້າ</translation>
 <translation id="1832459821645506983">ແມ່ນແລ້ວ, ຂ້ອຍເຂົ້າຮ່ວມ</translation>
@@ -298,7 +297,6 @@
 <translation id="2226826835915474236">ທາງລັດທີ່ບໍ່ເຄື່ອນໄຫວ</translation>
 <translation id="2227179592712503583">ລຶບການແນະນຳອອກ</translation>
 <translation id="2227444325776770048">ສືບຕໍ່ໃຊ້ໃນຊື່ <ph name="USER_FULL_NAME"/></translation>
-<translation id="2230411774874187555">ຮັບຂໍ້ມູນທີ່ບັນທຶກໄວ້ທັງໝົດຂອງທ່ານ</translation>
 <translation id="2230777942707397948">ໜ້າຈໍຫວ່າງເປົ່າ</translation>
 <translation id="223356358902285214">ການເຄື່ອນໄຫວເວັບ ແລະ ແອັບ</translation>
 <translation id="2233735624724508540">ເລືອກຂອບເຂດເວລາ ແລ້ວແຕະລຶບຂໍ້ມູນ</translation>
@@ -315,13 +313,14 @@
 <translation id="2297822946037605517">ແບ່ງປັນໜ້ານີ້</translation>
 <translation id="230115972905494466">ບໍ່ພົບອຸປະກອນທີ່ເຂົ້າກັນໄດ້</translation>
 <translation id="2305798319182970276">ລຶບປະຫວັດຂອງທ່ານດ້ວຍການແຕະປຸ່ມ</translation>
+<translation id="2307420463693979699"><ph name="APP_NAME"/> ຕ້ອງໄດ້ຮັບການອະນຸຍາດໃຫ້ເຂົ້າເຖິງອຸປະກອນສ່ວນຕິດຕໍ່ກັບຄົນ (HID) ສຳລັບເວັບໄຊນີ້.</translation>
 <translation id="2316129865977710310">ບໍ່​, ​ຂອບ​ໃຈ</translation>
 <translation id="232137538351753795">ປັດຈາກຂອບຊ້າຍເພື່ອກັບຄືນ</translation>
 <translation id="2323763861024343754">ບ່ອນເກັບຂໍ້ມູນຂອງເວັບໄຊ</translation>
 <translation id="2327445548174191329">ຈາກ <ph name="DEVICE_NAME"/></translation>
 <translation id="232757965409810352">ບັນທຶກໜ້າເປັນ…</translation>
 <translation id="2328474416100889417">ທຸກຄົນຈະສູນເສຍສິດເຂົ້າເຖິງກຸ່ມແຖບ “<ph name="GROUP_NAME"/>” ທັນທີ ແລະ ລະບົບຈະປິດລິ້ງຄຳເຊີນທັງໝົດ</translation>
-<translation id="3096606216245789753">ຂໍແນະນຳໂໝດ AI ໃນ Brave</translation>
+<translation id="2328773543844041445">ຂະຫຍາຍແຖບອັດຕະໂນມັດເມື່ອເລື່ອນເມົ້າໄປໃສ່</translation>
 <translation id="2330186936255788117">ບຸກມາກເພີ່ມເຕີມ</translation>
 <translation id="2330243730505117832">"ເລືອກອຸປະກອນ" ປິດຢູ່.</translation>
 <translation id="2332515770639153015">ເປີດໃຊ້ Safe Browsing ທີ່ປັບປຸງດີຂຶ້ນແລ້ວ</translation>
@@ -348,11 +347,10 @@
 <translation id="2413014528833954543">ບໍ່ສາມາດກວດສອບລະຫັດຜ່ານຢູ່ອຸປະກອນນີ້ໄດ້</translation>
 <translation id="2414886740292270097">ມືດ</translation>
 <translation id="2415037988255164008">ກູ້ຄືນໜ້າຈໍບໍ?</translation>
-<translation id="2426805022920575512">ເລືອກບັນຊີອື່ນ</translation>
 <translation id="2427025860753516072">{FILE_COUNT,plural, =1{ວິດີໂອ, 1 ວິດີໂອໃນລາຍຊື່}other{ວິດີໂອ, # ວິດີໂອໃນລາຍຊື່}}</translation>
 <translation id="2433507940547922241">ລັກສະນະ​ພາຍ​ນອກ</translation>
 <translation id="6209052069534739007">ເມື່ອເວັບໄຊ ຫຼື ແອັບຂອງ Brave ຂໍໂຫຼດລິ້ງຢູ່ໜ້າເວັບຂອງຕົນເອງກ່ອນລ່ວງໜ້າແບບສ່ວນຕົວ, Brave ຈະເຂົ້າລະຫັດ ແລະ ໂຫຼດໜ້າເວັບກ່ອນລ່ວງໜ້າຜ່ານເຊີບເວີຂອງ Brave ໂດຍບໍ່ມີຄຸກກີ້. ການດຳເນີນການນີ້ຈະເຊື່ອງຕົວຕົນຂອງທ່ານຈາກເວັບໄຊທີ່ໂຫຼດກ່ອນລ່ວງໜ້າ.</translation>
-<translation id="7174054574169352743">ວິທີການຈ່າຍເງິນ ແລະ ຂໍ້ມູນອື່ນໆຈາກ Brave Wallet</translation>
+<translation id="2450019289047528273">ວິທີການຈ່າຍເງິນ ແລະ ຂໍ້ມູນອື່ນໆຈາກ Google Wallet</translation>
 <translation id="2450083983707403292">ທ່ານຕ້ອງການເລີ່ມການດາວໂຫຼດ <ph name="FILE_NAME"/> ອີກຄັ້ງບໍ່?</translation>
 <translation id="2451607499823206582">ກຳລັງຕິດຕາມ</translation>
 <translation id="2453860139492968684">ສໍາ​ເລັດ​</translation>
@@ -424,7 +422,6 @@
 <translation id="2723001399770238859">ສຽງ</translation>
 <translation id="2739887572830526131">ເກັບກຸ່ມນີ້ໄວ້ເພື່ອເພີ່ມແຖບໃນພາຍຫຼັງ ຫຼື ລຶບອອກຫາກທ່ານບໍ່ຕ້ອງການອີກຕໍ່ໄປ.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE"/> ບໍ່ພ້ອມໃຫ້ນຳໃຊ້ໃນຕອນນີ້.</translation>
-<translation id="2751271371269891762">ເພື່ອເຂົ້າເຖິງບຸກມາກ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບດ້ວຍ <ph name="EMAIL"/></translation>
 <translation id="2760805590727089264">MM / YY</translation>
 <translation id="2761162135224472056">ຮັບຊົມດ້ວຍໂໝດໃຫຍ່ພິເສດບໍ?</translation>
 <translation id="2762000892062317888">ຕອນນີ້</translation>
@@ -494,7 +491,6 @@
 <translation id="2996291259634659425">ສ້າງວະ​ລີ​ຜ່ານ</translation>
 <translation id="2996682533106928201">ແຕະເພື່ອປິດ</translation>
 <translation id="2996809686854298943">ຕ້ອງມີ URL.</translation>
-<translation id="3007318536447999974">ເພື່ອລົມກັບ Gemini, ກະລຸນາອະນຸຍາດໃຫ້ Gemini ເຂົ້າເຖິງໄມໂຄຣໂຟນຂອງທ່ານ. ທ່ານຍັງສາມາດຈັດການສິ່ງນີ້ໄດ້ໃນ <ph name="BEGIN_LINK"/>ການຕັ້ງຄ່າ<ph name="END_LINK"/></translation>
 <translation id="3024215143424744261">ປິດຄ່າກຳນົດໂໝດການອ່ານແລ້ວ</translation>
 <translation id="3024277805447899099">ຮູບຕົວຢ່າງ</translation>
 <translation id="3026955690410463085">ຮວມລິ້ງ</translation>
@@ -587,8 +583,6 @@
 <translation id="4114256890962999877">ເພື່ອຮັກສາສິດເຂົ້າເຖິງລະຫັດຜ່ານຂອງທ່ານ, ໃຫ້ສົ່ງພວກມັນອອກຕອນນີ້, ອັບເດດການບໍລິການ Google Play ແລ້ວຈາກນັ້ນໃຫ້ນໍາພວກມັນເຂົ້າໄປຫາ ຕົວຈັດການລະຫັດຜ່ານ Brave. <ph name="BEGIN_LINK"/>ເບິ່ງຄຳແນະນຳໂດຍລະອຽດ<ph name="END_LINK"/>.</translation>
 <translation id="3435738964857648380">ຄວາມ​ປອດ​ໄພ</translation>
 <translation id="3435914367318771664">ເພີ່ມແຖບໃສ່ກຸ່ມໃໝ່</translation>
-<translation id="3436118221454753036">ໂໝດຖາມ AI</translation>
-<translation id="3830890663494219270">ເພື່ອຮັບລະຫັດຜ່ານ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບ Brave</translation>
 <translation id="3439276997620616816">ທ່ານຈະເຫັນແຖບຫຼ້າສຸດຂອງທ່ານຢູ່ບ່ອນນີ້</translation>
 <translation id="3443221991560634068">ໂຫຼດໜ້າປັດຈຸບັນຄືນໃໝ່</translation>
 <translation id="3444179773590444986">ແບ່ງປັນຄຳຕິຊົມກ່ຽວກັບຮູບແບບສີສັນມືດສຳລັບເວັບໄຊບໍ?</translation>
@@ -614,7 +608,6 @@
 <translation id="3524334353996115845">ໃຫ້ <ph name="ORIGIN"/> ຢັ້ງຢືນວ່າແມ່ນທ່ານ</translation>
 <translation id="3527085408025491307">ໂຟລເດີ</translation>
 <translation id="3542235761944717775">ຍັງເຫຼືອ <ph name="KILOBYTES"/> KB</translation>
-<translation id="3547933853190131743">ຊອກຫາດ້ວຍໂໝດ AI</translation>
 <translation id="719175600387583059">ເນື່ອງຈາກໜ້າເວັບທີ່ໂຫຼດກ່ອນລ່ວງໜ້າໄດ້ຖືກເຂົ້າລະຫັດໄວ້ ແລະ ເວັບໄຊ ຫຼື ແອັບທີ່ລິ້ງໄປຫາໜ້າດັ່ງກ່າວເປັນເວັບໄຊ ຫຼື ແອັບຂອງ Brave, ເຊີບເວີຂອງ Brave ຈຶ່ງບໍ່ໄດ້ຮັບຂໍ້ມູນໃໝ່ເມື່ອໂຫຼດໜ້າເວັບເຫຼົ່ານີ້ກ່ອນລ່ວງໜ້າແບບສ່ວນຕົວ.</translation>
 <translation id="3549657413697417275">ຊອກຫາປະຫວັດຂອງທ່ານ</translation>
 <translation id="3557336313807607643">ເພີ່ມໃສ່ລາຍຊື່ຜູ້ຕິດຕໍ່</translation>
@@ -670,7 +663,7 @@
 <translation id="3749289110408117711">ຊື່​ໄຟລ​໌</translation>
 <translation id="3756823472711156529">ກູ້ຄືນກຸ່ມ</translation>
 <translation id="3759306015475526475">ຈັດການການຕັ້ງຄ່າຂໍ້ມູນການນຳໃຊ້ ແລະ ຂໍ້ມູນການຂັດຂ້ອງ</translation>
-<translation id="7338686239886724619">ລະບົບຈະຕື່ມໝາຍເລກບັດສະເໝືອນເມື່ອທ່ານຈ່າຍເງິນດ້ວຍບັດນີ້ເພື່ອປົກປ້ອງລາຍລະອຽດບັດແທ້ຂອງທ່ານ. ຈັດການໃນ Brave Wallet. <ph name="BEGIN_LINK1"/>ສຶກສາເພີ່ມເຕີມກ່ຽວກັບບັດສະເໝືອນ<ph name="END_LINK1"/></translation>
+<translation id="3763110477555836428">ລະບົບຈະຕື່ມໝາຍເລກບັດສະເໝືອນເມື່ອທ່ານຈ່າຍເງິນດ້ວຍບັດນີ້ເພື່ອປົກປ້ອງລາຍລະອຽດບັດແທ້ຂອງທ່ານ. ຈັດການໃນ Google Wallet. <ph name="BEGIN_LINK1"/>ສຶກສາເພີ່ມເຕີມກ່ຽວກັບບັດສະເໝືອນ<ph name="END_LINK1"/></translation>
 <translation id="376561056759077985">ຍັງບໍ່ໄດ້ບັນທຶກຂໍ້ມູນບາງຢ່າງ</translation>
 <translation id="3770620323585347665">ຕັ້ງຊື່ໜ້າຈໍ</translation>
 <translation id="3771290962915251154">ການຕັ້ງຄ່ານີ້ຖືກປິດການນຳໃຊ້ເນື່ອງຈາກວ່າການຄວບຄຸມຂອງພໍ່ແມ່ເປີດຢູ່</translation>
@@ -727,7 +720,6 @@
 <translation id="4000212216660919741">ໜ້າຫຼັກອອບລາຍຢູ່</translation>
 <translation id="4694008025405984126">ປັບແຕ່ງ ແລະ ຄວບຄຸມ Brave ດ້ວຍລາຍການທີ່ໄຮໄລ້</translation>
 <translation id="5267293611589304570">{NUM_PASSWORDS,plural, =1{1 ລະຫັດຜ່ານທີ່ຖືກລະເມີດໃນບັນຊີ Brave}other{# ລະຫັດຜ່ານທີ່ຖືກລະເມີດໃນບັນຊີ Brave}}</translation>
-<translation id="7002462047122704254">ເພື່ອເຂົ້າເຖິງບຸກມາກ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບ Brave</translation>
 <translation id="4024768890073681126">ໂປຣແກຣມທ່ອງເວັບຂອງທ່ານໄດ້ຮັບການຈັດການໂດຍຜູ້ປົກຄອງຂອງທ່ານ</translation>
 <translation id="4027569221211770437"><ph name="FOLDER_TITLE"/> ໂຟນເດີ</translation>
 <translation id="4034817413553209278">{HOURS,plural, =1{# ຊົ່ວໂມງ}other{# ຊົ່ວໂມງ}}</translation>
@@ -748,6 +740,7 @@
 <translation id="7268155614575494857">ເພື່ອຊ່ວຍຕົວຈັດການລະຫັດຜ່ານ Brave ໃຫ້ບັນທຶກຂໍ້ມູນການເຂົ້າສູ່ລະບົບຂອງທ່ານ, ໃຫ້ເພີ່ມຊື່ຜູ້ໃຊ້ຂອງທ່ານສຳລັບເວັບໄຊນີ້ໄວ້</translation>
 <translation id="4095146165863963773">ລຶບຂໍ້ມູນແອັບບໍ?</translation>
 <translation id="4095483462103784441">ສ້າງກຸ່ມແຖບໃໝ່</translation>
+<translation id="2967753255515860650">ເພື່ອຮັກສາຄວາມປອດໄພໃຫ້ກັບວຽກຂອງທ່ານໃນ Brave, ອົງກອນຂອງທ່ານຈະສາມາດເບິ່ງ ຫຼື ຈັດການຂໍ້ມູນບາງຢ່າງໄດ້ເມື່ອທ່ານເຂົ້າສູ່ລະບົບ Brave</translation>
 <translation id="1523634703470981382">ການອັບເດດຕົວຈັດການລະຫັດຜ່ານ Brave ເປີດຢູ່</translation>
 <translation id="4107207375883769436">ອົງກອນຂອງທ່ານອາດຕ້ອງເບິ່ງ ແລະ ຈັດການຂໍ້ມູນການທ່ອງເວັບໃນໂປຣໄຟລ໌ບ່ອນເຮັດວຽກຂອງທ່ານ ເຊັ່ນ: ປະຫວັດການທ່ອງເວັບ ແລະ ລະຫັດຜ່ານຂອງທ່ານ</translation>
 <translation id="4113030288477039509">ຈັດການໂດຍຜູ້ຄວບຄຸມຂອງທ່ານ</translation>
@@ -757,6 +750,7 @@
 <translation id="4136632885151622181"><ph name="TAB_TITLE"/>, ແຖບການບັນທຶກສຽງທີ່ປັກໝຸດເຊິ່ງເລືອກໄວ້ຫຼາຍແຖບ</translation>
 <translation id="4137746084635924146">ພາສາອຸປະກອນປັດຈຸບັນ</translation>
 <translation id="414128724510021958">ເວັບໄຊເດັສທັອບຖືກຮ້ອງຂໍໂດຍຄ່າເລີ່ມຕົ້ນ</translation>
+<translation id="4150837143272125910">ດາວໂຫຼດອັບເດດແລ້ວ</translation>
 <translation id="4162867837470729563">ລາຍຊື່ຂອງຕົວເລືອກການແບ່ງປັນແບບຄວາມສູງແບບເຕັມ.</translation>
 <translation id="4164642020717536140">ການທ່ອງເວັບທີ່ວ່ອງໄວ ແລະ ປອດໄພ</translation>
 <translation id="4165077084524712774">ເຄື່ອງມືເພີ່ມເຕີມ</translation>
@@ -863,7 +857,6 @@
 <translation id="4535755320005483982">ກຸ່ມແຖບ <ph name="GROUP_TITLE"/> ທີ່ແບ່ງປັນ</translation>
 <translation id="4537137366307982887">ການເລືອກຮັບການແຈ້ງເຕືອນເຄັດລັບເປີດຢູ່ລະດັບຄວາມສູງເຕັມໜ້າຈໍ</translation>
 <translation id="4537987892902330164">ທ່ານເຂົ້າສູ່ລະບົບດ້ວຍ <ph name="NAME_OR_EMAIL"/> ໄວ້.</translation>
-<translation id="4543131175509360848">ບໍ່ມີຊີດກະແຈຜ່ານ</translation>
 <translation id="4558311620361989323">ທາງລັດໜ້າເວັບ</translation>
 <translation id="4572422548854449519">ເຂົ້າສູ່ລະບົບບັນຊີທີ່ມີການຈັດການ</translation>
 <translation id="4577115723294378384">ຈັດຮຽງຈາກ ກ ຫາ ຮ</translation>
@@ -898,7 +891,6 @@
 <translation id="4685741273709472646">ເລືອກຈາກລາຍຊື່ແບບເລື່ອນລົງ</translation>
 <translation id="468924408576231679">ສຳເນົາລິ້ງໄປຫາໜ້າເວັບ <ph name="PAGE_TITLE"/>. ແຫຼ່ງທີ່ມາ: <ph name="PAGE_URL"/></translation>
 <translation id="4692623383562244444">ເຄື່ອງ​ຈັກ​ຄົ້ນ​ຫາ</translation>
-<translation id="469286762610133730">ຮັບເນື້ອຫາທີ່ດີຂຶ້ນ</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW"/>\u2026 ແລະ ອີກ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS"/> ທາງເລືອກການຈັດສົ່ງ}other{<ph name="SHIPPING_OPTION_PREVIEW"/>\u2026 ແລະ ອີກ <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS"/> ທາງເລືອກການຈັດສົ່ງ}}</translation>
 <translation id="4698757800236023795">ທີ່ນຳໃຊ້ຢູ່ (<ph name="ITEM_COUNT"/>)</translation>
 <translation id="4699172675775169585">ຮູບ ແລະໄຟລ໌ທີ່ແຄຊ໌ແລ້ວ</translation>
@@ -906,6 +898,7 @@
 <translation id="4719927025381752090">ໃຫ້ການແປພາສາ</translation>
 <translation id="4720556299488643018">ຍົກເລີກການສະໝັກຮັບຂໍ້ມູນ</translation>
 <translation id="4732120983431207637">ຕົວມາຍສະແຕັກ</translation>
+<translation id="4734965478015604180">ລວງນອນ</translation>
 <translation id="4736934858538408121">ບັດສະເໝືອນ</translation>
 <translation id="473775607612524610">ອັບເດດ</translation>
 <translation id="4738065825338914557">ກຳລັງຍົກເລີກການເປັນສະມາຊິກ…</translation>
@@ -953,11 +946,10 @@
 <translation id="488187801263602086">ປ່ຽນຊື່ໄຟລ໌</translation>
 <translation id="1248710015876067820">ຈໍາ​ນວນຂອງຕົວຢ່າງ Brave ທີ່ບໍ່ຮອງຮັບ​.</translation>
 <translation id="8743324804589176795">ບໍ່ມີລະຫັດຜ່ານທີ່ບັນທຶກໄວ້ໃນບັນຊີ Brave ຂອງທ່ານ</translation>
-<translation id="4905823827770127520">ຮວມລິ້ງໄປຫາໜ້າ</translation>
+<translation id="490375751687810070">ລວງຕັ້ງ</translation>
 <translation id="4910889077668685004">ແອັບຈ່າຍເງິນ</translation>
 <translation id="4911042367886397055">ຍິນດີຕ້ອນຮັບກັບມາ, <ph name="USER_NAME"/>!</translation>
 <translation id="4913169188695071480">ຢຸດການໂຫຼດຄືນໃໝ່</translation>
-<translation id="367116267716122258">ເພື່ອຮັບລະຫັດຜ່ານ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບ Brave ດ້ວຍ <ph name="EMAIL"/></translation>
 <translation id="4923173329789776645">ອົງກອນຂອງທ່ານບໍ່ແນະນຳໃຫ້ດາວໂຫຼດ</translation>
 <translation id="4925120120285606924">ຮູບຖ່າຍໜ້າຈໍ <ph name="CURRENT_DATE_ISO"/></translation>
 <translation id="4926901776383726965">ທ່ານສາມາດບັນທຶກຮູບ ແລະ ໄຟລ໌ເພື່ອເບິ່ງແບບອອບລາຍ ຫຼື ແບ່ງປັນໃນແອັບອື່ນໆໄດ້</translation>
@@ -1038,6 +1030,7 @@
 <translation id="5233638681132016545">ແຖບ​ໃຫມ່</translation>
 <translation id="5235196193381275927">ມີບາງຢ່າງຜິດພາດເກີດຂຶ້ນໃນລະຫວ່າງການເຂົ້າສູ່ລະບົບ</translation>
 <translation id="5246093389635966745">ແກ້ໄຂທາງລັດແຖບເຄື່ອງມື</translation>
+<translation id="5257142004843671642">ປັບຂະໜາດແຜງຄວບຄຸມດ້ານຂ້າງ</translation>
 <translation id="5264813352784073502">24 ຊົ່ວໂມງຫຼ້າສຸດ</translation>
 <translation id="5267572070504076962">ເປີດ Safe Browsing ເພື່ອຮັບການປົກປ້ອງຈາກເວັບໄຊທີ່ເປັນອັນຕະລາຍ</translation>
 <translation id="5273031377282080577">ຜູ້ເບິ່ງແຍງລະບົບຂອງທ່ານຈັດການການຕັ້ງຄ່ານີ້.</translation>
@@ -1111,7 +1104,6 @@
 <translation id="6894318537270274409">ສຳລັບການຕັ້ງຄ່າເພີ່ມເຕີມທີ່ໃຊ້ຂໍ້ມູນເພື່ອປັບປຸງປະສົບການ Brave ຂອງທ່ານ, ໃຫ້ເຂົ້າໄປ <ph name="BEGIN_LINK"/>ບໍລິການ Brave<ph name="END_LINK"/>.</translation>
 <translation id="5601924940067278327">ຮັບແຖບ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ</translation>
 <translation id="5611398002774823980">ບັນທຶກໃນບັນຊີ</translation>
-<translation id="7769309869030290448">ເພື່ອເຂົ້າເຖິງແຖບ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບ Brave ດ້ວຍ <ph name="EMAIL"/></translation>
 <translation id="5614625640221885312">ເຂົ້າສູ່ລະບົບເພື່ອຮັບບຸກມາກ, ລະຫັດຜ່ານ ແລະ ອື່ນໆໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ</translation>
 <translation id="5619633276517849615">ອົງກອນຂອງທ່ານເປີດໃຊ້ Safe Browsing</translation>
 <translation id="5620163320393916465">ບໍ່ມີລະຫັດຜ່ານທີ່ບັນທຶກໄວ້</translation>
@@ -1166,6 +1158,7 @@
 <translation id="5848257610304005265">ເປີດ PDF ດ້ວຍ <ph name="APP_NAME"/> ບໍ?</translation>
 <translation id="5849288995120328556">ຢຸດການແບ່ງປັນບໍ?</translation>
 <translation id="5853623416121554550">ຢຸດຊົ່ວຄາວແລ້ວ</translation>
+<translation id="5855375823365231964">ກ່ຽວກັບໂປຣໄຟລ໌ນີ້</translation>
 <translation id="5855546874025048181">ປັບປ່ຽນ: <ph name="REFINE_TEXT"/></translation>
 <translation id="5857447844686706637">ມີບາງຢ່າງຜິດພາດເກີດຂຶ້ນ. ບໍ່ສາມາດອັບເດດການຕິດຕາມລາຄາໄດ້.</translation>
 <translation id="5859968346865909126">ທ່ານສາມາດເປີດ ຫຼື ປິດມັນໄດ້ໃນການຕັ້ງຄ່າ</translation>
@@ -1176,6 +1169,7 @@
 <translation id="5869522115854928033">ລະ​ຫັດ​ຜ່ານ​ທີ່ບັນທຶກໄວ້</translation>
 <translation id="5870416898561279542">ແຖບ ແລະ ກຸ່ມທີ່ຊ້ຳກັນ ຫຼື ບໍ່ໄດ້ໃຊ້ເປັນເວລາ <ph name="DAYS_INACTIVE"/> ມື້ຈະຍ້າຍມາບ່ອນນີ້<ph name="AUTODELETE_SECTION"/>. ທ່ານສາມາດປ່ຽນຕົວເລືອກນີ້ໄດ້ທຸກເວລາໃນ <ph name="DECLUTTER_SETTINGS_TITLE"/>.</translation>
 <translation id="2496394743292988533">ການແຈ້ງເຕືອນ <ph name="SEPARATOR"/> Brave ໄດ້ລຶບການອະນຸຍາດເຫຼົ່ານີ້ອອກເນື່ອງຈາກເວັບໄຊນີ້ເປັນອັນຕະລາຍ</translation>
+<translation id="5895138241574237353">ເລີ່ມຕົ້ນໃໝ່</translation>
 <translation id="5896944002928653773">ຊີດລຸ່ມສຸດຂອງຂໍ້ຈຳກັດຄວາມຮັບຜິດຊອບກ່ຽວກັບສັນຍານ Enterprise ປິດຢູ່</translation>
 <translation id="5899667542927581604">ບໍ່ໄດ້ປິດຊີດກະແຈຜ່ານໃດໆ</translation>
 <translation id="5907542076239273525">ບັນທຶກບຸກມາກໄວ້ໃນ <ph name="FOLDER_NAME"/> ແລ້ວ</translation>
@@ -1194,7 +1188,6 @@
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{1 ໜ້າໃນລາຍຊື່ການອ່ານຂອງທ່ານ}other{# ໜ້າໃນລາຍຊື່ການອ່ານຂອງທ່ານ}}</translation>
 <translation id="2373832261299530145"><ph name="PERMISSION_1"/>, <ph name="PERMISSION_2"/> <ph name="SEPARATOR"/> Brave ໄດ້ລຶບການອະນຸຍາດເຫຼົ່ານີ້ອອກເນື່ອງຈາກທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເວັບໄຊເມື່ອບໍ່ດົນມານີ້</translation>
 <translation id="5995726099713306770">ດາວໂຫຼດໜ້າອີກເທື່ອໜຶ່ງບໍ່?</translation>
-<translation id="7074956098903074365">ອົງການຂອງທ່ານຕ້ອງການໃຫ້ທ່ານເຂົ້າສູ່ລະບົບເພື່ອໃຊ້ Brave.</translation>
 <translation id="6456271171669383967">ດຳເນີນການໃຊ້ Brave</translation>
 <translation id="6002122790816966947">ອຸປະກອນຂອງທ່ານ</translation>
 <translation id="6011308810877101166">ປັບປຸງການແນະນຳການຊອກຫາ</translation>
@@ -1205,6 +1198,7 @@
 <translation id="6039379616847168523">ໂດດໄປຫາແຖບຕໍ່ໄປ</translation>
 <translation id="6040143037577758943">ປິດ</translation>
 <translation id="604124094241169006">ອັດ​ຕະ​ໂນ​ມັດ</translation>
+<translation id="6137715785312812573">ຈັດການການເຊື່ອມຕໍ່ລະຫວ່າງບໍລິການຊອກຫາ ແລະ ແອັບ Brave Workspace ເຊັ່ນ: Google Drive</translation>
 <translation id="6042308850641462728">ເພີ່ມເຕີມ</translation>
 <translation id="6047066316630165190">ເປີດຕົວປ່ຽນແຖບທີ່ເປັນຕາຕະລາງແບບຊ່ອງ</translation>
 <translation id="604996488070107836">ການດາວໂຫຼດ <ph name="FILE_NAME"/> ບໍ່ສຳເລັດເນື່ອງຈາກເກີດຄວາມຜິດພາດທີ່ບໍ່ຮູ້ຈັກ.</translation>
@@ -1249,8 +1243,8 @@
 <translation id="6192907950379606605">ຮັບຄຳອະທິບາຍຮູບ</translation>
 <translation id="6193448654517602979">ເລືອກແຖບ</translation>
 <translation id="8367262879301982880">ລະຫັດຜ່ານແມ່ນຖືກບັນທຶກໄປໃສ່ຕົວຈັດການລະຫັດຜ່ານ Brave ຢູ່ອຸປະກອນນີ້</translation>
+<translation id="6200780647297916498">ຕຳແໜ່ງແຖບ</translation>
 <translation id="7766137781166927396">Brave ກວດພົບວ່າອາດເປັນສະແປມຈາກ <ph name="DOMAIN"/>.</translation>
-<translation id="6210748933810148297">ບໍ່ແມ່ນ <ph name="EMAIL"/> ບໍ?</translation>
 <translation id="6211386937064921208">ກຳລັງສະແດງໜ້ານີ້</translation>
 <translation id="6212567362666004597">ເພີ່ມແຖບໃສ່ກຸ່ມ</translation>
 <translation id="6225572914528673855">ແຖບທີ່ຢູ່</translation>
@@ -1359,6 +1353,7 @@
 <translation id="6565959834589222080">ຈະໃຊ້ Wi-Fi ເມື່ອມີໃຫ້ນຳໃຊ້</translation>
 <translation id="657177046675873214">ເພື່ອໃຊ້ບຸກມາກຂອງທ່ານຢູ່ອຸປະກອນທັງໝົດຂອງທ່ານ, ໃຫ້ເປີດໃຊ້ “ບຸກມາກ” ໃນການຕັ້ງຄ່າ</translation>
 <translation id="6573096386450695060">ອະນຸຍາດທຸກເທື່ອ</translation>
+<translation id="1571495184426713852">Brave ເວີຊັນໃໝ່ພ້ອມໃຫ້ບໍລິການແລ້ວ</translation>
 <translation id="658099107946526506">ປົກປ້ອງການທ່ອງເວັບແບບສ່ວນຕົວຂອງທ່ານດ້ວຍ PIN ເພື່ອປ້ອງກັນການເຂົ້າເຖິງທີ່ບໍ່ຕ້ອງການ</translation>
 <translation id="6583199322650523874">ໝາຍຂັ້ນໜ້າປັດຈຸບັນ</translation>
 <translation id="6588043302623806746">ໃຊ້ DNS ທີ່ປອດໄພ</translation>
@@ -1397,12 +1392,10 @@
 <translation id="6738867403308150051">ກໍາລັງດາວ​ໂຫຼດ...</translation>
 <translation id="6745063744988317486">ໂມໂນ</translation>
 <translation id="6746338529702829275">ກວດສອບຂໍ້ມູນບັນຊີຂອງທ່ານ</translation>
-<translation id="6746834324024491643">ເພື່ອເຂົ້າເຖິງລະຫັດຜ່ານຂອງທ່ານ ແລະ ຂໍ້ມູນອື່ນໆໃນທຸກອຸປະກອນຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບດ້ວຍ <ph name="EMAIL"/></translation>
 <translation id="6751521182688001123">ເປີດແຖບໃໝ່ແບບໄວໆ. ເພື່ອແກ້ໄຂທາງລັດນີ້, ໃຫ້ແຕະຄ້າງໄວ້.</translation>
 <translation id="6754359471209693699">ເລີ່ມການຊອກຫາໃໝ່</translation>
 <translation id="6756507620369789050">ແບ່ງປັນຄຳຕິຊົມ</translation>
 <translation id="6762511428368667596"><ph name="NAME"/>, <ph name="EMAIL"/>.</translation>
-<translation id="676305334223455055">ເຂົ້າສູ່ລະບົບເພື່ອເບິ່ງເນື້ອຫາໂດຍອີງຕາມຄວາມສົນໃຈຂອງທ່ານ</translation>
 <translation id="6764137532716892442">ກຸ່ມແຖບ <ph name="GROUP_TITLE"/> ທີ່ແບ່ງປັນພ້ອມການເຄື່ອນໄຫວໃໝ່</translation>
 <translation id="8174975477247159780">ຂໍ້ກຳນົດບໍລິການເພີ່ມເຕີມ Brave ແລະ ChromeOS</translation>
 <translation id="6786747875388722282">ສ່ວນຂະຫຍາຍ</translation>
@@ -1519,7 +1512,7 @@
 <translation id="7159399361248977424">ບັນທຶກຮູບເປັນ…</translation>
 <translation id="2679203756569766105">ສຶກສາເພີ່ມເຕີມກ່ຽວກັບສາເຫດທີ່ Brave ບລັອກບາງໄຟລ໌</translation>
 <translation id="7168323970702333693">ເຂົ້າສູ່ລະບົບເປັນ <ph name="USER_NAME"/>. ເປີດການຕັ້ງຄ່າ.</translation>
-<translation id="6390064556944765055">ລະບົບຈະລຶບລະຫັດຄວາມປອດໄພທັງໝົດທີ່ບັນທຶກໄວ້ໃນອຸປະກອນຂອງທ່ານ ແລະ ໃນ Brave Wallet</translation>
+<translation id="7170930892977483182">ລະບົບຈະລຶບລະຫັດຄວາມປອດໄພທັງໝົດທີ່ບັນທຶກໄວ້ໃນອຸປະກອນຂອງທ່ານ ແລະ ໃນ Google Wallet</translation>
 <translation id="7173114856073700355">ເປີດການຕັ້ງຄ່າ</translation>
 <translation id="7173338713290252554">ປະ​ຫວັດ​ລາຄາທົ່ວເວັບ</translation>
 <translation id="7177466738963138057">ທ່ານສາມາດປ່ຽນສິ່ງນີ້ໄດ້ພາຍຫຼັງໃນການຕັ້ງຄ່າ</translation>
@@ -1637,12 +1630,14 @@
 <translation id="3521275212779698128">ການເປີດໃຊ້ Brave Finds ຖືກເປີດຢູ່ລະດັບຄວາມສູງເຕັມໜ້າຈໍແລ້ວ</translation>
 <translation id="649070405679044769">ເຂົ້າສູ່ລະບົບ Brave ເປັນ</translation>
 <translation id="7612989789287281429">ກຳລັງພາທ່ານເຂົ້າສູ່ລະບົບ…</translation>
+<translation id="1523322630961631757">Brave ໄດ້ຮັບການຈັດການ</translation>
 <translation id="7619072057915878432">ການ​ດາວ​ໂຫຼ​ດ <ph name="FILE_NAME"/> ລົ້ມເຫລວ​ເນື່ອງ​ຈາກ​ເຄືອ​ຂ່າຍ​ຂັດຂ້ອງ.</translation>
 <translation id="7207456302801184289">ຍິນ​ດີ​ຕ້ອນ​ຮັບສູ່ Brave</translation>
 <translation id="7628417132421583481">ເຂົ້າໄປຕົວຈັດການລະຫັດຜ່ານ</translation>
 <translation id="7630202231528827509">URL ຜູ້ໃຫ້ບໍລິການ</translation>
 <translation id="7638584964844754484">ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ</translation>
 <translation id="7541787837661872168">ການເປີດໃຊ້ Brave Finds ປິດຢູ່</translation>
+<translation id="7645712301713737707">ປັບແຕ່ງໂຄງຮ່າງແຖບຂອງທ່ານໃຫ້ປາກົດຢູ່ເທິງສຸດ ຫຼື ຢູ່ທາງຂ້າງຂອງໂປຣແກຣມທ່ອງເວັບຂອງທ່ານ.</translation>
 <translation id="7646499124171960488">ເຕືອນທ່ານຫາກພົບເວັບໄຊສາທາລະນະທີ່ບໍ່ປອດໄພ</translation>
 <translation id="7655240423373329753">7 ມື້ຫຼ້າສຸດ</translation>
 <translation id="7656721520530864426">ບໍ່ມີເວັບໄຊ</translation>
@@ -1691,7 +1686,6 @@
 <translation id="8439902729344548970">ເມື່ອທ່ານເຂົ້າສູ່ລະບົບ, ຂໍ້ມູນນີ້ຈະລິ້ງກັບບັນຊີ Brave ຂອງທ່ານເພື່ອປົກປ້ອງທ່ານໃນທົ່ວບໍລິການ Brave ຕົວຢ່າງ: ການເພີ່ມການປົກປ້ອງໃນ Gmail ຫຼັງຈາກເຫດການຄວາມປອດໄພ.</translation>
 <translation id="7824665136384946951">ອົງກອນຂອງທ່ານໄດ້ປິດ Safe Browsing</translation>
 <translation id="7825973332242257878">ກຸ່ມແຖບ</translation>
-<translation id="802130069867035673">Brave ຂອງທ່ານໃນທຸກໆບ່ອນ</translation>
 <translation id="7845155831233417403">ທ່ານສາມາດເປີດໄດ້ສູງສຸດ <ph name="MAX_INSTANCE_COUNT"/> ໜ້າຈໍ. ປິດໜ້າຈໍເພື່ອສືບຕໍ່.</translation>
 <translation id="7846161022626028328">ມີຂໍ້ຜິດພາດເກີດຂຶ້ນ. ກະລຸນາລອງໃໝ່.</translation>
 <translation id="7068829570137757602">ບໍລິການ Brave</translation>
@@ -1715,6 +1709,7 @@
 <translation id="6485598694371328620">Brave ຈະລຶບການອະນຸຍາດອອກຈາກເວັບໄຊທີ່ມີການແຈ້ງເຕືອນທີ່ເຮັດໃຫ້ເຂົ້າໃຈຜິດ ຫຼື ທີ່ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້ໂດຍອັດຕະໂນມັດ</translation>
 <translation id="7934668619883965330">ບໍ່ສາມາດດາວໂຫຼດໄຟລ໌ໄດ້. ບໍ່ຮອງຮັບຮູບແບບໄຟລ໌.</translation>
 <translation id="7951102827450076904">ເປີດ PDF ທີ່ດາວໂຫຼດແລ້ວທຸກເທື່ອ</translation>
+<translation id="7952148074468405586">ສຶກສາເພີ່ມເຕີມກ່ຽວກັບ <ph name="BEGIN_LINK"/>ຂໍ້ມູນທີ່ອົງກອນຂອງທ່ານສາມາດເບິ່ງ ຫຼື ຈັດການໄດ້<ph name="END_LINK"/></translation>
 <translation id="7952479614398473176">ເພື່ອເປີດໜ້າຈໍໃໝ່, ໃຫ້ຫຼຸດຈຳນວນໜ້າຈໍທີ່ນຳໃຊ້ຢູ່ທັງໝົດໃຫ້ເຫຼືອບໍ່ເກີນ <ph name="MAX_WINDOW_COUNT_MINUS_ONE"/> ລາຍການ.</translation>
 <translation id="7956713633345437162">ບຸກມາກສ໌ມື​ຖື</translation>
 <translation id="7957413488482743710">ບັດສະເໝືອນຈະເຊື່ອງບັດແທ້ຂອງທ່ານເພື່ອຊ່ວຍປົກປ້ອງທ່ານຈາກຄວາມສ່ຽງໃນການສໍ້ໂກງ. <ph name="BEGIN_LINK1"/>ສຶກສາເພີ່ມເຕີມກ່ຽວກັບບັດສະເໝືອນ<ph name="END_LINK1"/></translation>
@@ -1764,7 +1759,6 @@
 <translation id="2919733817273403520">ຊ່ວຍປັບປຸງຄຸນສົມບັດ ແລະ ປະສິດທິພາບຂອງ Brave</translation>
 <translation id="4565206163201411670">ສະແດງການເຄື່ອນໄຫວໃນ Brave ຂອງທ່ານຢູ່ໃນ Digital Wellbeing ບໍ?</translation>
 <translation id="8118117428362942925">ກະລຸນາຂໍຄວາມຊ່ວຍເຫຼືອຈາກຜູ້ປົກຄອງ (<ph name="PARENT_NAME"/>) ຂອງທ່ານ, ຫາກທ່ານຕ້ອງການ</translation>
-<translation id="3018959290664438109">ເພື່ອເຂົ້າເຖິງແຖບ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບ Brave</translation>
 <translation id="8120286190326371840">ບໍ່ມີລະຫັດຜ່ານທີ່ຖືກລະເມີດຢູ່ອຸປະກອນນີ້</translation>
 <translation id="8122623268651408616">ການຈັດຮຽງຕາມໃໝ່ທີ່ສຸດ</translation>
 <translation id="8127542551745560481">ແກ້ໄຂໜ້າຫຼັກ</translation>
@@ -1888,7 +1882,6 @@
 <translation id="8570677896027847510">ບໍ່ສາມາດດາວໂຫຼດໄຟລ໌ໄດ້ຢ່າງປອດໄພ</translation>
 <translation id="8571213806525832805">4 ອາທິດຜ່ານມາ</translation>
 <translation id="8580435650274205305">ຕ້ອງລະບຸວັນທີໝົດອາຍຸ</translation>
-<translation id="8582529315803410153">ທ່ານຈະເຫັນແຖບຂອງທ່ານຈາກອຸປະກອນອື່ນໆບ່ອນນີ້</translation>
 <translation id="8585103689515290060">ບໍລິການຕື່ມຂໍ້ມູນອັດຕະໂນມັດ</translation>
 <translation id="3154071202318585486">ແຕະເພື່ອລຶບຂໍ້ມູນການທ່ອງເວັບໃນ Brave</translation>
 <translation id="859046281437143747">ຕິດຕາມລາຄາຈາກປຸ່ມຕົວເລືອກເພີ່ມເຕີມ</translation>
@@ -1898,6 +1891,7 @@
 <translation id="860282621117673749">ແຈ້ງເຕືອນຫຼຸດລາຄາ</translation>
 <translation id="8611922158252451755">ທຸກຄົນທີ່ມີລິ້ງສາມາດແກ້ໄຂແຖບທັງໝົດໄດ້, ດັ່ງນັ້ນກະລຸນາແບ່ງປັນຢ່າງລະມັດລະວັງ. ລິ້ງຈະໝົດອາຍຸໃນ 48 ຊົ່ວໂມງ.</translation>
 <translation id="5784514951651328424">ບັນຊີ Brave ຂອງທ່ານອາດຈະມີຮູບແບບອື່ນຂອງປະຫວັດການທ່ອງເວັບຢູ່ <ph name="BEGIN_LINK"/>myactivity.google.com<ph name="END_LINK"/>.</translation>
+<translation id="6089523089512126744">ໂໝດ AI ຂອງ Brave ຊອກຫາ ແລະ ແອັບທີ່ເຊື່ອມຕໍ່</translation>
 <translation id="8626572875733549102">ແປເປັນພາສາ <ph name="LANGUAGE"/></translation>
 <translation id="5601608515527024348">ເປີດເມນູ Brave &gt; ການຕັ້ງຄ່າ</translation>
 <translation id="8634050254805484913">ເຊື່ອງໄວ້ຢູ່ໃນໜ້າຈໍແຄບ</translation>
@@ -1942,6 +1936,7 @@
 <translation id="8816556050903368450">ຮວມລິ້ງ: <ph name="ORIGIN"/></translation>
 <translation id="881688628773363275">ເບິ່ງເນື້ອຫາໃນແຖບສະແດງຕົວຢ່າງບໍ່ໄດ້.</translation>
 <translation id="8820817407110198400">ບຸກມາກ</translation>
+<translation id="8822533681006532064">ເພື່ອລົມກັບ Gemini, ກະລຸນາອະນຸຍາດໃຫ້ Gemini ເຂົ້າເຖິງໄມໂຄຣໂຟນຂອງທ່ານ. ທ່ານຍັງສາມາດຈັດການສິ່ງນີ້ໄດ້ໃນ <ph name="BEGIN_LINK"/>ການຕັ້ງຄ່າ.<ph name="END_LINK"/></translation>
 <translation id="8840953339110955557">ໜ້ານີ້ອາດຈະແຕກຕ່າງຈາກເວີຊັນອອນລາຍ.</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8849001918648564819">ເຊື່ອງໄວ້</translation>
@@ -1983,13 +1978,13 @@
 <translation id="9000089900434778519">ໂປຣແກຣມຊອກຫາຂອງທ່ານແມ່ນ <ph name="DSE_NAME"/>. ກະລຸນາອ່ານຄຳແນະນຳສຳລັບການລຶບປະຫວັດການຊອກຫາ, ຖ້າມີ.</translation>
 <translation id="9010094279589497751">ເປີດ Gemini ໄດ້ຢ່າງວ່ອງໄວເມື່ອທ່ານຕ້ອງການ</translation>
 <translation id="9012585441087414258">ປົກປ້ອງຈາກເວັບໄຊ, ການດາວໂຫຼດ ແລະ ສ່ວນຂະຫຍາຍທີ່ຮູ້ແລ້ວວ່າເປັນອັນຕະລາຍ. ຫາກໜ້າເວັບເຮັດສິ່ງທີ່ໜ້າສົງໄສ, URL ແລະ ເນື້ອຫາຂອງໜ້າເວັບບາງສ່ວນຈະຖືກສົ່ງໄປຫາ Google Safe Browsing.</translation>
-<translation id="9014097371980259227">ເຄື່ອງມືບາງຢ່າງໄດ້ຍ້າຍໄປເພື່ອຊ່ວຍໃຫ້ທ່ານຊອກຫາດ້ວຍໂໝດ AI</translation>
 <translation id="9015111999662965458">ເພື່ອໃຫ້ໃຊ້ອຸປະກອນນີ້ໄດ້ຢ່າງປອດໄພ, ອົງກອນຂອງທ່ານອາດຕ້ອງເບິ່ງຂໍ້ມູນກ່ຽວກັບລະບົບປະຕິບັດການ, ໂປຣແກຣມທ່ອງເວັບ, ການຕັ້ງຄ່າ, ຮວມທັງຊອບແວທີ່ຕິດຕັ້ງຢູ່ອຸປະກອນ</translation>
 <translation id="9019199799064251516">ສືບຕໍ່ໂດຍບໍ່ໃຊ້ການລັອກໂປຣໄຟລ໌ລົດບໍ?</translation>
 <translation id="9022774213089566801">ເຂົ້າເບິ່ງເລື້ອຍໆ</translation>
 <translation id="5687542525349822727">ຕັ້ງ Brave ເປັນຄ່າເລີ່ມຕົ້ນຂອງທ່ານ</translation>
 <translation id="9027728231343310283">ຍົກເລີກ <ph name="SITE"/></translation>
 <translation id="9035378196785279980">ຍ້າຍໄປຫາ\u2026</translation>
+<translation id="9038316201889095704">ການຊອກຫາໃນໜ້າຖືກປິດການນຳໃຊ້ໃນຂະນະທີ່ມີການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ບັນທຶກ.</translation>
 <translation id="904146253922032365">ແຕະຄ້າງໄວ້ເພື່ອສະແດງແຖບໃນແນວຕັ້ງ</translation>
 <translation id="9042893549633094279">ຄວາມເປັນສ່ວນຕົວ ແລະ ຄວາມປອດໄພ</translation>
 <translation id="1612219807314383628">ເລີ່ມຕົ້ນການຊອກຫາຢ່າງວ່ອງໄວໃນ Brave</translation>
@@ -2044,7 +2039,6 @@
 <translation id="9218430445555521422">ຕັ້ງເປັນຄ່າເລີ່ມຕົ້ນ</translation>
 <translation id="9219103736887031265">ຮູບ</translation>
 <translation id="142389341645668510">ປັບແຕ່ງ Brave</translation>
-<translation id="9222198206152536936">ເພື່ອເຂົ້າເຖິງແຖບຂອງທ່ານ ແລະ ຂໍ້ມູນອື່ນໆໃນທຸກອຸປະກອນຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບດ້ວຍ <ph name="EMAIL"/></translation>
 <translation id="7625138338483121345">ເຮັດໃຫ້ Brave ເປັນໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນຂອງທ່ານ</translation>
 <translation id="4596514158372210596">ລຶບການເຄື່ອນໄຫວໃນ Brave ຂອງທ່ານອອກຈາກ Digital Wellbeing</translation>
 <translation id="2830145431802238213">ໃຊ້ໂໝດ Lite ໃນ Brave</translation>
@@ -2056,6 +2050,7 @@
 <translation id="945522503751344254">ສົ່ງ​ຄໍາ​ຄິດ​​ເຫັນ</translation>
 <translation id="948276827484905248">ສ້າງລະຫັດ QR</translation>
 <translation id="5406914950576900927">Brave ສາມາດໃຊ້ <ph name="BEGIN_BOLD"/>Sogou<ph name="END_BOLD"/> ສຳລັບການຊອກຫາໃນປະເທດຈີນ. ທ່ານສາມາດປ່ຽນສິ່ງນີ້ໄດ້ໃນ <ph name="BEGIN_LINK"/>ການຕັ້ງຄ່າ<ph name="END_LINK"/>.</translation>
+<translation id="738722687801342563">ອົງກອນຂອງທ່ານກຳນົດໃຫ້ທ່ານຕ້ອງເຂົ້າສູ່ລະບົບເພື່ອໃຊ້ Brave</translation>
 <translation id="961856697154696964">ລຶບຂໍ້ມູນການທ່ອງເວັບ</translation>
 <translation id="963246339335003378">ເປີດຕົວຈັດການໜ້າວຽກ</translation>
 <translation id="966337994629449077">ທ່ານເຂົ້າສູ່ລະບົບໃນນາມ <ph name="FROM_EMAIL"/>.\n\nເພື່ອສືບຕໍ່ຈາກຄອມພິວເຕີຂອງທ່ານ, ໃຫ້ປ່ຽນໄປໃຊ້ <ph name="TO_EMAIL"/>. ທ່ານຈະໄດ້ຮັບລະຫັດຜ່ານ, ບຸກມາກ ແລະ ຂໍ້ມູນອື່ນໆຈາກບັນຊີນີ້.</translation>
